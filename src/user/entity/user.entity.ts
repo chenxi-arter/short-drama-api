@@ -2,7 +2,7 @@ import { Entity, PrimaryColumn, Column, CreateDateColumn } from 'typeorm';
 
 @Entity('users')
 export class User {
-  @PrimaryColumn({ type: 'int' })
+  @PrimaryColumn({ type: 'bigint' })
   id: number;
 
   @Column({ type: 'varchar', length: 255 })
