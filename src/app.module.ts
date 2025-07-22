@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { UserModule } from './user/user.module';
+import { TestModule } from './test/test.module';
 
 @Module({
   imports: [
@@ -17,6 +18,8 @@ import { UserModule } from './user/user.module';
       synchronize: true, // 开发环境开启
     }),
     UserModule,
+    TestModule, // ✅ 追加
+
   ],
 })
 export class AppModule {}
