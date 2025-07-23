@@ -42,4 +42,8 @@ export class UserService {
     });
     return { access_token: token };
   }
+  // src/user/user.service.ts
+  async findUserById(id: number): Promise<User | null> {
+    return this.userRepo.findOneBy({ id });
+  }
 }

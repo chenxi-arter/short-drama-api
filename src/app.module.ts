@@ -19,7 +19,6 @@ import { TestModule } from './test/test.module';
     }),
     UserModule,
     TestModule, // ✅ 追加
-
   ],
 })
 export class AppModule {}

@@ -15,5 +15,6 @@ import { JwtStrategy } from '../auth/strategies/jwt.strategy';             // �
   ],
   controllers: [UserController],
   providers: [UserService, JwtStrategy],                  // ✅ 新增 JwtStrategy
+  exports: [UserService], // ✅ 必须导出，否则其他模块无法使用
 })
 export class UserModule {}

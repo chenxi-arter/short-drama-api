@@ -1,18 +1,29 @@
 // src/test/test.controller.ts
 import { Controller, Get, UseGuards, Req } from '@nestjs/common';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard'; // 你之前写的守卫
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { UserService } from '../user/user.service'; // ✅ 引入
 
 @Controller('test')
 export class TestController {
-  // 访问方式：GET /test/me
-  // Header: Authorization: Bearer <access_token>
+  constructor(private readonly userService: UserService) {} // ✅ 注入
+
   @UseGuards(JwtAuthGuard)
   @Get('me')
-  getMe(@Req() req) {
-    // req.user 来自 JwtStrategy.validate()
+  async getMe(@Req() req) {
+    const user = await this.userService.findUserById(req.user.userId);
+    if (!user) {
+      return { message: '用户不存在' };
+    }
     return {
       message: '登录有效',
-      userId: req.user.userId,
+      user: {
+        id: user.id,
+        username: user.username,
+        firstName: user.first_name,
+        lastName: user.last_name,
+        isActive: user.is_active,
+        createdAt: user.created_at,
+      },
     };
   }
 }
