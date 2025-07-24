@@ -3,6 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { UserModule } from './user/user.module';
 import { TestModule } from './test/test.module';
+import { VideoModule } from './video/video.module';
 
 @Module({
   imports: [
@@ -14,11 +15,11 @@ import { TestModule } from './test/test.module';
       username: process.env.DB_USER,
       password: process.env.DB_PASS,
       database: process.env.DB_NAME,
-      autoLoadEntities: true,
       synchronize: true, // 开发环境开启
+      autoLoadEntities: true, // ✅ 自动加载所有 forFeature 里注册的实体
     }),
     UserModule,
-    TestModule, // ✅ 追加
+    VideoModule
   ],
 })
 export class AppModule {}

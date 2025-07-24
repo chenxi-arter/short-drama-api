@@ -1,4 +1,6 @@
-import { Entity, PrimaryColumn, Column, CreateDateColumn } from 'typeorm';
+import { Entity, PrimaryColumn, Column, CreateDateColumn, OneToMany } from 'typeorm';
+import { Comment } from '../../video/entity/comment.entity';
+import { WatchProgress } from '../../video/entity/watch-progress.entity';
 
 @Entity('users')
 export class User {
@@ -19,4 +21,6 @@ export class User {
 
   @CreateDateColumn()
   created_at: Date;
+  @OneToMany(() => Comment, c => c.user) comments: Comment[];
+  @OneToMany(() => WatchProgress, wp => wp.user) watchProgresses: WatchProgress[];
 }
