@@ -2,7 +2,7 @@
 import { Controller, Get, Query, Param } from '@nestjs/common';
 import { VideoService } from './video.service';
 
-@Controller('public/video')   // 统一 /public 前缀，语义清晰
+@Controller('/api/public/video')   // 统一 /public 前缀，语义清晰
 export class PublicVideoController {
   constructor(private readonly videoService: VideoService) {}
 

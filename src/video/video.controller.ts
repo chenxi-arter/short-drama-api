@@ -3,7 +3,7 @@ import { VideoService } from './video.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 @UseGuards(JwtAuthGuard)
-@Controller('video')
+@Controller('/api/video')
 export class VideoController {
   constructor(private readonly videoService: VideoService) {}
   /* 记录/更新断点 */
