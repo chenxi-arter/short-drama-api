@@ -8,7 +8,8 @@ import { AuthGuard } from '@nestjs/passport';
 
 @Injectable()
 export class JwtAuthGuard extends AuthGuard('jwt') {
-  handleRequest(err: any, user: any, info: any) {
+  handleRequest(err: any, user: any, info: any, context: ExecutionContext) {
+    // 1. JWT 校验
     if (err || !user) {
       throw new UnauthorizedException(
         info?.name === 'TokenExpiredError'
@@ -16,6 +17,15 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
           : '登录信息无效或已过期',
       );
     }
+
+    // 2. 简单反爬：拒绝常见爬虫 UA
+    const req = context.switchToHttp().getRequest();
+    const ua = req.get('user-agent') || '';
+    const banned = /bot|crawler|spider|scrapy/i;
+    if (banned.test(ua)) {
+      throw new UnauthorizedException('拒绝访问');
+    }
+
     return user;
   }
 }
