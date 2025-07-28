@@ -16,7 +16,7 @@ import { VideoModule } from './video/video.module';
       username: process.env.DB_USER,
       password: process.env.DB_PASS,
       database: process.env.DB_NAME,
-      synchronize: true, // 开发环境开启
+      synchronize: false, // 开发环境开启
       autoLoadEntities: true, // ✅ 自动加载所有 forFeature 里注册的实体
     }),
     ThrottlerModule.forRoot([{  //反爬虫
