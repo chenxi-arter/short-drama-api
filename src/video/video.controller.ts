@@ -1,6 +1,7 @@
 import { Controller, Post, Body, Get, Query, UseGuards, Req ,Param} from '@nestjs/common';
 import { VideoService } from './video.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { MediaQueryDto } from './dto/media-query.dto';
 
 @UseGuards(JwtAuthGuard)
 @Controller('/api/video')
@@ -32,4 +33,12 @@ export class VideoController {
   ) {
     return this.videoService.addComment(req.user.userId, episodeId, content, appearSecond);
   }
+
+@Get('media')
+async listMediaUser(
+  @Req() req,
+  @Query() dto: MediaQueryDto,
+) {
+  return this.videoService.listMedia(dto.categoryId, dto.type, req.user.userId);
+}
 }
