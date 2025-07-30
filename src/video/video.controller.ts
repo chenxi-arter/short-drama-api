@@ -1,7 +1,8 @@
-import { Controller, Post, Body, Get, Query, UseGuards, Req ,Param} from '@nestjs/common';
+import { Controller, Post, Body, Get, Query, UseGuards, Req, Param } from '@nestjs/common';
 import { VideoService } from './video.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { MediaQueryDto } from './dto/media-query.dto';
+import { VideoDetailsDto } from './dto/video-details.dto';
 
 @UseGuards(JwtAuthGuard)
 @Controller('/api/video')
@@ -40,5 +41,11 @@ async listMediaUser(
   @Query() dto: MediaQueryDto,
 ) {
   return this.videoService.listMedia(dto.categoryId, dto.type, req.user.userId);
+}
+
+/* 获取视频详情 */
+@Get('details')
+async getVideoDetails(@Query() dto: VideoDetailsDto) {
+  return this.videoService.getVideoDetails(dto.id);
 }
 }

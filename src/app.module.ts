@@ -5,6 +5,8 @@ import { ThrottlerModule } from '@nestjs/throttler';
 import { UserModule } from './user/user.module';
 import { TestModule } from './test/test.module';
 import { VideoModule } from './video/video.module';
+import { RedisCacheModule } from './cache/cache.module';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
@@ -23,6 +25,8 @@ import { VideoModule } from './video/video.module';
       ttl: 60,        // 60 秒
       limit: 60,      // 同一 IP 60 次
     }]),
+    RedisCacheModule,
+    AuthModule,
     UserModule,
     VideoModule
   ],

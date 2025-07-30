@@ -5,12 +5,14 @@ import { JwtService } from '@nestjs/jwt';
 import { User } from './entity/user.entity';
 import { TelegramUserDto } from './dto/telegram-user.dto';
 import { verifyTelegramHash } from './telegram.validator';
+import { AuthService } from '../auth/auth.service';
 
 @Injectable()
 export class UserService {
   constructor(
     @InjectRepository(User) private readonly userRepo: Repository<User>,
     private readonly jwtService: JwtService,
+    private readonly authService: AuthService,
   ) {}
 
   async telegramLogin(dto: TelegramUserDto) {
@@ -34,13 +36,8 @@ export class UserService {
       await this.userRepo.save(user);
     }
 
-    // 3. 签发 JWT
-    const payload = { sub: user.id };
-    const token = this.jwtService.sign(payload, {
-      secret: process.env.JWT_SECRET,
-      expiresIn: process.env.JWT_EXPIRES_IN,
-    });
-    return { access_token: token };
+    // 3. 生成 JWT 和 Refresh Token
+    return this.authService.generateTokens(user, dto.username || 'Telegram User');
   }
   // src/user/user.service.ts
   async findUserById(id: number): Promise<User | null> {
