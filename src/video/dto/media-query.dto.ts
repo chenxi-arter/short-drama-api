@@ -1,13 +1,15 @@
 // src/video/dto/media-query.dto.ts
-import { IsOptional, IsNumberString, IsIn } from 'class-validator';
-import { Transform, TransformFnParams } from 'class-transformer';
+import { IsOptional, IsNumber, IsIn } from 'class-validator';
+import { Transform, TransformFnParams, Type } from 'class-transformer';
 
 export class MediaQueryDto {
   @IsOptional()
-  @IsNumberString()
+  @Type(() => Number)
+  @IsNumber()
   categoryId?: number;
 
   @IsOptional()
+  @IsIn(['short', 'series'])
   type?: 'short' | 'series';
 
   @IsOptional()
@@ -15,12 +17,14 @@ export class MediaQueryDto {
   sort?: 'latest' | 'like' | 'play' = 'latest';
 
   @IsOptional()
-  @IsNumberString()
+  @Type(() => Number)
+  @IsNumber()
   @Transform(({ value }: TransformFnParams) => Math.max(1, Number(value)))
   page = 1;
 
   @IsOptional()
-  @IsNumberString()
+  @Type(() => Number)
+  @IsNumber()
   @Transform(({ value }: TransformFnParams) => Math.min(50, Math.max(1, Number(value))))
   size = 20;
 }

@@ -1,0 +1,1240 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "短剧API",
+    "description": "短剧平台API接口文档，支持用户认证、视频管理、观看进度等功能",
+    "version": "1.0.1",
+    "contact": {
+      "name": "API支持",
+      "email": "support@example.com"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3000",
+      "description": "本地开发环境"
+    },
+    {
+      "url": "https://api.example.com",
+      "description": "生产环境"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "schemas": {
+      "User": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "用户ID"
+          },
+          "username": {
+            "type": "string",
+            "description": "用户名"
+          },
+          "firstName": {
+            "type": "string",
+            "description": "名字"
+          },
+          "lastName": {
+            "type": "string",
+            "description": "姓氏"
+          },
+          "isActive": {
+            "type": "boolean",
+            "description": "是否激活"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "创建时间"
+          }
+        }
+      },
+      "VideoItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "视频ID"
+          },
+          "title": {
+            "type": "string",
+            "description": "视频标题"
+          },
+          "coverUrl": {
+            "type": "string",
+            "description": "封面图片URL"
+          },
+          "playCount": {
+            "type": "integer",
+            "description": "播放次数"
+          },
+          "score": {
+            "type": "number",
+            "description": "评分"
+          },
+          "isHot": {
+            "type": "boolean",
+            "description": "是否热门"
+          },
+          "isVip": {
+            "type": "boolean",
+            "description": "是否VIP"
+          }
+        }
+      },
+      "VideoDetailInfo": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "视频ID"
+          },
+          "title": {
+            "type": "string",
+            "description": "视频标题"
+          },
+          "coverUrl": {
+            "type": "string",
+            "description": "封面图片URL"
+          },
+          "description": {
+            "type": "string",
+            "description": "视频描述"
+          },
+          "starring": {
+            "type": "string",
+            "description": "主演名单，多个演员用逗号分隔"
+          },
+          "actor": {
+            "type": "string",
+            "description": "完整演员名单，多个演员用逗号分隔"
+          },
+          "director": {
+            "type": "string",
+            "description": "导演信息，多个导演用逗号分隔"
+          },
+          "score": {
+            "type": "string",
+            "description": "评分"
+          },
+          "playCount": {
+            "type": "integer",
+            "description": "播放次数"
+          },
+          "serialCount": {
+            "type": "integer",
+            "description": "总集数"
+          },
+          "updateStatus": {
+            "type": "string",
+            "description": "更新状态"
+          },
+          "episodes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EpisodeInfo"
+            }
+          }
+        }
+      },
+      "EpisodeInfo": {
+        "type": "object",
+        "properties": {
+          "episodeId": {
+            "type": "integer",
+            "description": "集数ID"
+          },
+          "title": {
+            "type": "string",
+            "description": "集数标题"
+          },
+          "episodeTitle": {
+            "type": "string",
+            "description": "集数名称"
+          },
+          "duration": {
+            "type": "integer",
+            "description": "时长（秒）"
+          },
+          "isVip": {
+            "type": "boolean",
+            "description": "是否VIP"
+          },
+          "isLast": {
+            "type": "boolean",
+            "description": "是否最后一集"
+          }
+        }
+      },
+      "Category": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "分类ID"
+          },
+          "name": {
+            "type": "string",
+            "description": "分类名称"
+          }
+        }
+      },
+      "ApiResponse": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "description": "状态码"
+          },
+          "data": {
+            "type": "object",
+            "description": "响应数据"
+          },
+          "msg": {
+            "type": "string",
+            "description": "响应消息"
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "statusCode": {
+            "type": "integer",
+            "description": "HTTP状态码"
+          },
+          "message": {
+            "type": "string",
+            "description": "错误消息"
+          },
+          "error": {
+            "type": "string",
+            "description": "错误类型"
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/auth/refresh": {
+      "post": {
+        "tags": ["认证"],
+        "summary": "刷新访问令牌",
+        "description": "使用刷新令牌获取新的访问令牌",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "refreshToken": {
+                    "type": "string",
+                    "description": "刷新令牌"
+                  }
+                },
+                "required": ["refreshToken"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "刷新成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "accessToken": {
+                      "type": "string"
+                    },
+                    "refreshToken": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "刷新令牌无效",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/verify-refresh-token": {
+      "post": {
+        "tags": ["认证"],
+        "summary": "验证刷新令牌",
+        "description": "验证刷新令牌的有效性",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "refreshToken": {
+                    "type": "string",
+                    "description": "刷新令牌"
+                  }
+                },
+                "required": ["refreshToken"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "验证成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "valid": {
+                      "type": "boolean"
+                    },
+                    "userId": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/devices": {
+      "get": {
+        "tags": ["认证"],
+        "summary": "获取活跃设备列表",
+        "description": "获取当前用户的所有活跃设备",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "获取成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "deviceId": {
+                        "type": "string"
+                      },
+                      "deviceName": {
+                        "type": "string"
+                      },
+                      "lastActive": {
+                        "type": "string",
+                        "format": "date-time"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/devices/{deviceId}": {
+      "delete": {
+        "tags": ["认证"],
+        "summary": "撤销设备令牌",
+        "description": "撤销指定设备的访问令牌",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "deviceId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "设备ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "撤销成功"
+          }
+        }
+      }
+    },
+    "/user/telegram-login": {
+      "post": {
+        "tags": ["用户"],
+        "summary": "Telegram OAuth登录",
+        "description": "使用Telegram进行OAuth登录",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "integer",
+                    "description": "Telegram用户ID"
+                  },
+                  "first_name": {
+                    "type": "string",
+                    "description": "名字"
+                  },
+                  "last_name": {
+                    "type": "string",
+                    "description": "姓氏"
+                  },
+                  "username": {
+                    "type": "string",
+                    "description": "用户名"
+                  },
+                  "auth_date": {
+                    "type": "integer",
+                    "description": "认证时间戳"
+                  },
+                  "hash": {
+                    "type": "string",
+                    "description": "验证哈希"
+                  }
+                },
+                "required": ["id", "auth_date", "hash"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "登录成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "accessToken": {
+                      "type": "string"
+                    },
+                    "refreshToken": {
+                      "type": "string"
+                    },
+                    "user": {
+                      "$ref": "#/components/schemas/User"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": ["用户"],
+        "summary": "Telegram OAuth登录（GET方式）",
+        "description": "使用GET方式进行Telegram OAuth登录",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Telegram用户ID"
+          },
+          {
+            "name": "first_name",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "名字"
+          },
+          {
+            "name": "last_name",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "姓氏"
+          },
+          {
+            "name": "username",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "用户名"
+          },
+          {
+            "name": "auth_date",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "认证时间戳"
+          },
+          {
+            "name": "hash",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "验证哈希"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "登录成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "accessToken": {
+                      "type": "string"
+                    },
+                    "refreshToken": {
+                      "type": "string"
+                    },
+                    "user": {
+                      "$ref": "#/components/schemas/User"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/user/me": {
+      "get": {
+        "tags": ["用户"],
+        "summary": "获取当前用户信息",
+        "description": "获取当前登录用户的详细信息",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "获取成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/home/getvideos": {
+      "get": {
+        "tags": ["首页"],
+        "summary": "获取首页视频列表",
+        "description": "获取首页推荐内容，包括轮播图、过滤器、视频列表",
+        "parameters": [
+          {
+            "name": "channeid",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "default": "1"
+            },
+            "description": "频道ID"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "description": "页码"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "获取成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "list": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "type": {
+                                "type": "integer",
+                                "description": "内容类型：0-轮播图，1-视频列表，2-过滤器"
+                              },
+                              "name": {
+                                "type": "string",
+                                "description": "区块名称"
+                              },
+                              "banners": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "id": {
+                                      "type": "integer"
+                                    },
+                                    "title": {
+                                      "type": "string"
+                                    },
+                                    "showURL": {
+                                      "type": "string"
+                                    }
+                                  }
+                                }
+                              },
+                              "videos": {
+                                "type": "array",
+                                "items": {
+                                  "$ref": "#/components/schemas/VideoItem"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/list/getfilterstags": {
+      "get": {
+        "tags": ["列表"],
+        "summary": "获取筛选器标签",
+        "description": "获取视频筛选器的所有可用标签",
+        "parameters": [
+          {
+            "name": "channeid",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "频道ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "获取成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "name": {
+                            "type": "string",
+                            "description": "标签组名称"
+                          },
+                          "list": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string"
+                                },
+                                "name": {
+                                  "type": "string"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/list/getfiltersdata": {
+      "get": {
+        "tags": ["列表"],
+        "summary": "根据筛选条件获取视频列表",
+        "description": "根据筛选器标签获取对应的视频列表",
+        "parameters": [
+          {
+            "name": "channeid",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "频道ID"
+          },
+          {
+            "name": "ids",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "筛选器ID，多个用逗号分隔"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "default": "1"
+            },
+            "description": "页码"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "获取成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/VideoItem"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/video/progress": {
+      "post": {
+        "tags": ["视频"],
+        "summary": "保存观看进度",
+        "description": "保存用户的视频观看进度",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "episodeId": {
+                    "type": "integer",
+                    "description": "剧集ID"
+                  },
+                  "stopAtSecond": {
+                    "type": "integer",
+                    "description": "停止观看的秒数"
+                  }
+                },
+                "required": ["episodeId", "stopAtSecond"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "保存成功"
+          }
+        }
+      },
+      "get": {
+        "tags": ["视频"],
+        "summary": "获取观看进度",
+        "description": "获取用户的视频观看进度",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "episodeId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "剧集ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "获取成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "stopAtSecond": {
+                      "type": "integer",
+                      "description": "停止观看的秒数"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/video/comment": {
+      "post": {
+        "tags": ["视频"],
+        "summary": "发表评论或弹幕",
+        "description": "为视频剧集发表评论或弹幕",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "episodeId": {
+                    "type": "integer",
+                    "description": "剧集ID"
+                  },
+                  "content": {
+                    "type": "string",
+                    "description": "评论内容"
+                  },
+                  "appearSecond": {
+                    "type": "integer",
+                    "description": "弹幕出现时间（秒），普通评论可不填"
+                  }
+                },
+                "required": ["episodeId", "content"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "发表成功"
+          }
+        }
+      }
+    },
+    "/api/video/details": {
+      "get": {
+        "tags": ["视频"],
+        "summary": "获取视频详情",
+        "description": "获取视频的详细信息，包括剧集列表、演员信息、导演信息等",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "视频ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "获取成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "example": 200
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "detailInfo": {
+                          "$ref": "#/components/schemas/VideoDetailInfo"
+                        },
+                        "like": {
+                          "type": "object",
+                          "properties": {
+                            "count": {
+                              "type": "integer"
+                            },
+                            "selected": {
+                              "type": "boolean"
+                            }
+                          }
+                        },
+                        "favorites": {
+                          "type": "object",
+                          "properties": {
+                            "count": {
+                              "type": "integer"
+                            },
+                            "selected": {
+                              "type": "boolean"
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "msg": {
+                      "type": "string",
+                      "example": "success"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/video/media": {
+      "get": {
+        "tags": ["视频"],
+        "summary": "获取用户媒体列表",
+        "description": "获取用户的媒体内容列表",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "categoryId",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            },
+            "description": "分类ID"
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": ["short", "series"]
+            },
+            "description": "媒体类型"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "获取成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/VideoItem"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/public/video/categories": {
+      "get": {
+        "tags": ["公共视频"],
+        "summary": "获取视频分类",
+        "description": "获取所有视频分类列表",
+        "responses": {
+          "200": {
+            "description": "获取成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Category"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/public/video/series/list": {
+      "get": {
+        "tags": ["公共视频"],
+        "summary": "获取系列列表",
+        "description": "获取视频系列列表",
+        "parameters": [
+          {
+            "name": "categoryId",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            },
+            "description": "分类ID"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            },
+            "description": "页码"
+          },
+          {
+            "name": "size",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 20
+            },
+            "description": "每页数量"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "获取成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/VideoItem"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/public/video/series/{id}": {
+      "get": {
+        "tags": ["公共视频"],
+        "summary": "获取系列详情",
+        "description": "获取指定系列的详细信息",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "系列ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "获取成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VideoDetailInfo"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/public/video/media": {
+      "get": {
+        "tags": ["公共视频"],
+        "summary": "获取公共媒体列表",
+        "description": "获取公共媒体内容列表",
+        "parameters": [
+          {
+            "name": "categoryId",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            },
+            "description": "分类ID"
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": ["short", "series"]
+            },
+            "description": "媒体类型"
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": ["latest", "like", "play"],
+              "default": "latest"
+            },
+            "description": "排序方式"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            },
+            "description": "页码"
+          },
+          {
+            "name": "size",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 20
+            },
+            "description": "每页数量"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "获取成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/VideoItem"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/test/health": {
+      "get": {
+        "tags": ["测试"],
+        "summary": "健康检查",
+        "description": "检查API服务的健康状态",
+        "responses": {
+          "200": {
+            "description": "服务正常",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "example": "ok"
+                    },
+                    "timestamp": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "uptime": {
+                      "type": "number",
+                      "description": "运行时间（秒）"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "认证",
+      "description": "用户认证相关接口"
+    },
+    {
+      "name": "用户",
+      "description": "用户管理相关接口"
+    },
+    {
+      "name": "首页",
+      "description": "首页内容相关接口"
+    },
+    {
+      "name": "列表",
+      "description": "视频列表和筛选相关接口"
+    },
+    {
+      "name": "视频",
+      "description": "视频播放和管理相关接口"
+    },
+    {
+      "name": "公共视频",
+      "description": "公共视频内容相关接口"
+    },
+    {
+      "name": "测试",
+      "description": "测试和监控相关接口"
+    }
+  ]
+}

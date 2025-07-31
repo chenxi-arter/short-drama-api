@@ -95,12 +95,33 @@ export class Series {
   @Column({ length: 50, nullable: true, name: 'up_status' })
   upStatus: string;
   
-  /**
+  /** 
    * 更新次数
    * 记录系列更新的次数
    */
   @Column({ type: 'int', default: 0, name: 'up_count' })
   upCount: number;
+
+  /** 
+   * 主演名单
+   * 系列的主要演员列表，多个演员用逗号分隔
+   */
+  @Column({ type: 'text', nullable: true, name: 'starring' })
+  starring: string;
+
+  /** 
+   * 演员名单
+   * 系列的完整演员列表，多个演员用逗号分隔
+   */
+  @Column({ type: 'text', nullable: true, name: 'actor' })
+  actor: string;
+
+  /** 
+   * 导演
+   * 系列的导演信息，多个导演用逗号分隔
+   */
+  @Column({ length: 255, nullable: true, name: 'director' })
+  director: string;
 
   /** 
    * 多对多关系：系列标签

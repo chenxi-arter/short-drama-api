@@ -1,17 +1,33 @@
 # 短剧API完整接口文档
 
+## 📋 目录
+
+- [概述](#概述)
+- [认证模块](#1-认证模块-auth)
+- [用户模块](#2-用户模块-user)
+- [首页模块](#3-首页模块-home)
+- [列表模块](#4-列表模块-list)
+- [视频模块](#5-视频模块-video)
+- [公共视频模块](#6-公共视频模块-public-video)
+- [测试模块](#7-测试模块-test)
+- [健壮性改进建议](#健壮性改进建议)
+- [测试建议](#测试建议)
+- [部署和监控](#部署和监控)
+
 ## 概述
 
 本文档包含短剧API项目的所有接口定义、参数说明、响应格式和健壮性改进建议。
 
-### 基础信息
+### 🔧 基础信息
 
 - **基础URL**: `http://localhost:3000`
 - **认证方式**: Bearer Token (JWT)
 - **响应格式**: JSON
 - **字符编码**: UTF-8
+- **API版本**: v1.0
+- **文档更新时间**: 2024-01-01
 
-### 通用响应格式
+### 📝 通用响应格式
 
 ```typescript
 interface ApiResponse<T> {
@@ -23,7 +39,7 @@ interface ApiResponse<T> {
 }
 ```
 
-### 通用错误响应
+### ❌ 通用错误响应
 
 ```typescript
 interface ErrorResponse {
@@ -35,9 +51,21 @@ interface ErrorResponse {
 }
 ```
 
+### 📊 状态码说明
+
+| 状态码 | 说明 | 示例场景 |
+|--------|------|----------|
+| 200 | 请求成功 | 正常获取数据 |
+| 400 | 请求参数错误 | 参数格式不正确 |
+| 401 | 未授权 | Token无效或过期 |
+| 403 | 禁止访问 | 权限不足 |
+| 404 | 资源不存在 | 请求的数据不存在 |
+| 429 | 请求过于频繁 | 触发限流 |
+| 500 | 服务器内部错误 | 系统异常 |
+
 ---
 
-## 1. 认证模块 (Auth)
+## 1. 🔐 认证模块 (Auth)
 
 ### 1.1 刷新访问令牌
 
@@ -130,7 +158,7 @@ interface VerifyTokenRequest {
 
 ---
 
-## 2. 用户模块 (User)
+## 2. 👤 用户模块 (User)
 
 ### 2.1 Telegram登录
 
@@ -189,7 +217,7 @@ interface TelegramLoginRequest {
 
 ---
 
-## 3. 首页模块 (Home)
+## 3. 🏠 首页模块 (Home)
 
 ### 3.1 获取首页视频列表
 
@@ -263,7 +291,7 @@ interface HomeVideosRequest {
 
 ---
 
-## 4. 列表模块 (List)
+## 4. 📋 列表模块 (List)
 
 ### 4.1 获取筛选器标签
 
@@ -357,7 +385,7 @@ interface FilterDataRequest {
 
 ---
 
-## 5. 视频模块 (Video)
+## 5. 🎬 视频模块 (Video)
 
 ### 5.1 保存观看进度
 
@@ -443,7 +471,7 @@ interface AddCommentRequest {
 
 **接口信息**
 - **路径**: `GET /api/video/details`
-- **描述**: 获取视频的详细信息，包括剧集列表、演员信息等
+- **描述**: 获取视频的详细信息，包括剧集列表、演员信息、导演信息等
 - **认证**: 需要Bearer Token
 
 **请求参数**
@@ -464,7 +492,8 @@ interface VideoDetailsRequest {
       "coverUrl": "https://example.com/cover.jpg",
       "description": "这是一部精彩的剧集",
       "starring": "张三,李四",
-      "director": "王五",
+      "actor": "张三,李四,王五,赵六",
+      "director": "导演甲",
       "score": "8.5",
       "playCount": 12345,
       "serialCount": 24,
@@ -492,6 +521,16 @@ interface VideoDetailsRequest {
 }
 ```
 
+**字段说明**
+- `starring`: 主演名单，包含剧集的主要演员，多个演员用逗号分隔
+- `actor`: 完整演员名单，包含剧集的所有演员，多个演员用逗号分隔
+- `director`: 导演信息，包含剧集的导演，多个导演用逗号分隔
+- `serialCount`: 总集数
+- `updateStatus`: 更新状态，如"更新到第10集"、"全集"等
+- `episodes`: 剧集列表，包含每一集的详细信息
+
+---
+
 ### 5.5 获取用户媒体列表
 
 **接口信息**
@@ -512,7 +551,7 @@ interface MediaQueryRequest {
 
 ---
 
-## 6. 公共视频模块 (Public Video)
+## 6. 🌐 公共视频模块 (Public Video)
 
 ### 6.1 获取分类列表
 
@@ -587,7 +626,7 @@ interface PublicMediaRequest {
 
 ---
 
-## 7. 测试模块 (Test)
+## 7. 🧪 测试模块 (Test)
 
 ### 7.1 测试用户信息
 
@@ -613,9 +652,9 @@ interface PublicMediaRequest {
 
 ---
 
-## 健壮性改进建议
+## 🛠️ 健壮性改进建议
 
-### 1. 统一错误处理
+### 1. 🚨 统一错误处理
 
 **当前问题**:
 - 错误响应格式不统一
@@ -650,7 +689,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
 }
 ```
 
-### 2. 请求参数验证增强
+### 2. ✅ 请求参数验证增强
 
 **当前问题**:
 - 部分接口缺少完整的参数验证
@@ -695,7 +734,7 @@ export function IsValidChannelId(validationOptions?: ValidationOptions) {
 }
 ```
 
-### 3. 响应格式标准化
+### 3. 📋 响应格式标准化
 
 **当前问题**:
 - 不同接口的响应格式不一致
@@ -738,7 +777,7 @@ export class ResponseWrapper {
 }
 ```
 
-### 4. 安全性增强
+### 4. 🔒 安全性增强
 
 **当前问题**:
 - 缺少请求频率限制
@@ -779,7 +818,7 @@ export class SensitiveDataFilter {
 }
 ```
 
-### 5. 日志和监控
+### 5. 📊 日志和监控
 
 **改进建议**:
 ```typescript
@@ -808,7 +847,7 @@ export class LoggerMiddleware implements NestMiddleware {
 }
 ```
 
-### 6. 数据库查询优化
+### 6. 🗄️ 数据库查询优化
 
 **改进建议**:
 ```typescript
@@ -838,7 +877,7 @@ export class OptimizedPaginationService {
 }
 ```
 
-### 7. 缓存策略
+### 7. ⚡ 缓存策略
 
 **改进建议**:
 ```typescript
@@ -870,9 +909,9 @@ export function Cacheable(ttl: number = 300) {
 
 ---
 
-## 测试建议
+## 🧪 测试建议
 
-### 1. 单元测试
+### 1. 🔬 单元测试
 ```typescript
 // 控制器测试示例
 describe('HomeController', () => {
@@ -906,7 +945,7 @@ describe('HomeController', () => {
 });
 ```
 
-### 2. 集成测试
+### 2. 🔗 集成测试
 ```typescript
 // E2E测试示例
 describe('Auth (e2e)', () => {
@@ -936,9 +975,9 @@ describe('Auth (e2e)', () => {
 
 ---
 
-## 部署和监控
+## 🚀 部署和监控
 
-### 1. 健康检查
+### 1. ❤️ 健康检查
 ```typescript
 @Controller('health')
 export class HealthController {
@@ -954,7 +993,7 @@ export class HealthController {
 }
 ```
 
-### 2. 性能监控
+### 2. 📈 性能监控
 ```typescript
 // 性能监控中间件
 @Injectable()
@@ -977,16 +1016,39 @@ export class PerformanceMiddleware implements NestMiddleware {
 
 ---
 
-## 总结
+## 📝 总结
 
-本文档提供了短剧API项目的完整接口说明和健壮性改进建议。主要改进方向包括：
+本文档提供了短剧API项目的完整接口说明和健壮性改进建议。
 
-1. **统一错误处理**: 标准化错误响应格式
-2. **参数验证增强**: 更严格的输入验证
-3. **响应格式标准化**: 统一的API响应结构
-4. **安全性提升**: 请求限流、敏感信息保护
-5. **性能优化**: 缓存策略、数据库查询优化
-6. **监控和日志**: 完善的日志记录和性能监控
-7. **测试覆盖**: 单元测试和集成测试
+### 🎯 主要改进方向
 
-建议按优先级逐步实施这些改进，以提升API的稳定性、安全性和用户体验。
+| 优先级 | 改进项目 | 描述 | 预期效果 |
+|--------|----------|------|----------|
+| 🔴 高 | 统一错误处理 | 标准化错误响应格式 | 提升开发体验 |
+| 🔴 高 | 参数验证增强 | 更严格的输入验证 | 减少错误请求 |
+| 🟡 中 | 响应格式标准化 | 统一的API响应结构 | 提升一致性 |
+| 🟡 中 | 安全性提升 | 请求限流、敏感信息保护 | 增强系统安全 |
+| 🟢 低 | 性能优化 | 缓存策略、数据库查询优化 | 提升响应速度 |
+| 🟢 低 | 监控和日志 | 完善的日志记录和性能监控 | 便于问题排查 |
+| 🟢 低 | 测试覆盖 | 单元测试和集成测试 | 保证代码质量 |
+
+### 💡 实施建议
+
+1. **第一阶段** (1-2周): 实施高优先级改进项目
+2. **第二阶段** (3-4周): 完成中优先级改进项目
+3. **第三阶段** (5-6周): 实施低优先级改进项目
+4. **持续优化**: 根据实际使用情况持续改进
+
+### 🎉 预期收益
+
+- ✅ **稳定性提升**: 减少系统错误和异常
+- ✅ **安全性增强**: 防范常见安全威胁
+- ✅ **性能优化**: 提升API响应速度
+- ✅ **开发效率**: 提升开发和维护效率
+- ✅ **用户体验**: 提供更好的API使用体验
+
+---
+
+*📅 文档最后更新: 2024-01-01*  
+*👨‍💻 维护者: 开发团队*  
+*📧 联系方式: dev@example.com*

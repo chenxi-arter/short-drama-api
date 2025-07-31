@@ -3,8 +3,6 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
-import { WatchProgress } from './entity/watch-progress.entity';
-import { Comment } from './entity/comment.entity';
 import { Category } from './entity/category.entity';
 import { Series } from './entity/series.entity';
 import { Episode } from './entity/episode.entity';
@@ -13,24 +11,29 @@ import { ContentBlock, BannerItem, FilterItem, VideoItem } from './dto/home-vide
 import { FilterTagsResponse, FilterTagGroup, FilterTagItem } from './dto/filter-tags.dto';
 import { FilterDataResponse, FilterDataItem } from './dto/filter-data.dto';
 import { VideoDetailsResponse, VideoDetailInfo, EpisodeInfo, InteractionInfo, LanguageInfo } from './dto/video-details.dto';
+import { WatchProgressService } from './services/watch-progress.service';
+import { CommentService } from './services/comment.service';
+import { EpisodeService } from './services/episode.service';
+import { CategoryService } from './services/category.service';
+import { TagService } from './services/tag.service';
 
 @Injectable()
 export class VideoService {
   constructor(
-    @InjectRepository(WatchProgress)
-    private readonly wpRepo: Repository<WatchProgress>,
-    @InjectRepository(Comment)
-    private readonly commentRepo: Repository<Comment>,
-     /* 原有... */
     @InjectRepository(Category) private readonly catRepo: Repository<Category>,
     @InjectRepository(Series)  private readonly seriesRepo: Repository<Series>,
     @InjectRepository(ShortVideo) private readonly shortRepo: Repository<ShortVideo>,
     @InjectRepository(Episode) private readonly epRepo: Repository<Episode>,
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
+    private readonly watchProgressService: WatchProgressService,
+    private readonly commentService: CommentService,
+    private readonly episodeService: EpisodeService,
+    private readonly categoryService: CategoryService,
+    private readonly tagService: TagService,
   ) {}
    /* 列出所有分类 */
   async listCategories() {
-    return this.catRepo.find({ order: { id: 'ASC' } });
+    return this.categoryService.getAllCategories();
   }
 
   /* 根据分类 id 查短剧（电视剧）列表 */
@@ -51,20 +54,18 @@ export class VideoService {
 
   /* 断点：写/读 */
   async saveProgress(userId: number, episodeId: number, stopAtSecond: number) {
-    await this.wpRepo.upsert(
-      { userId, episodeId, stopAtSecond },
-      ['userId', 'episodeId'],
-    );
+    const result = await this.watchProgressService.updateWatchProgress(userId, episodeId, stopAtSecond);
     
     // 清除视频详情缓存 - 观看进度更新后需要更新详情中的进度信息
     await this.cacheManager.del(`video_details_${episodeId}`);
     
-    return { ok: true };
+    return result;
   }
 
   async getProgress(userId: number, episodeId: number) {
-    const row = await this.wpRepo.findOne({ where: { userId, episodeId } });
-    return { stopAtSecond: row?.stopAtSecond || 0 };
+    const progressList = await this.watchProgressService.getUserWatchProgress(userId, episodeId);
+    const progress = progressList.length > 0 ? progressList[0] : null;
+    return { stopAtSecond: progress?.stopAtSecond || 0 };
   }
 
   /* 清除视频相关缓存 */
@@ -113,18 +114,42 @@ export class VideoService {
 
   /* 发弹幕/评论 */
   async addComment(userId: number, episodeId: number, content: string, appearSecond?: number) {
-    const c = this.commentRepo.create({
-      userId,
-      episodeId,
-      content,
-      appearSecond: appearSecond ?? 0,
-    });
-    await this.commentRepo.save(c);
+    const result = await this.commentService.addComment(userId, episodeId, content, appearSecond);
     
     // 清除相关缓存 - 评论更新后清除视频详情缓存
     await this.clearVideoRelatedCache(episodeId.toString());
     
-    return c;
+    return result;
+  }
+
+  /* 创建剧集播放地址 */
+  async createEpisodeUrl(episodeId: number, quality: string, ossUrl: string, cdnUrl: string, subtitleUrl?: string) {
+    const result = await this.episodeService.createEpisodeUrl(episodeId, quality, ossUrl, cdnUrl, subtitleUrl);
+    
+    // 清除相关缓存
+    await this.clearVideoRelatedCache(episodeId.toString());
+    
+    return result;
+  }
+
+  /* 通过访问密钥获取播放地址 */
+  async getEpisodeUrlByAccessKey(accessKey: string) {
+    return this.episodeService.getEpisodeUrlByAccessKey(accessKey);
+  }
+
+  /* 更新剧集续集状态 */
+  async updateEpisodeSequel(episodeId: number, hasSequel: boolean) {
+    await this.epRepo.update(episodeId, { hasSequel });
+    
+    // 清除相关缓存
+    await this.clearVideoRelatedCache(episodeId.toString());
+    
+    return { ok: true };
+  }
+
+  /* 批量为现有播放地址生成访问密钥 */
+  async generateAccessKeysForExisting() {
+    return this.episodeService.generateAccessKeysForExisting();
   }
  
 async listMedia(
@@ -620,7 +645,7 @@ async listSeriesFull(
       }));
       
       const detailInfo: VideoDetailInfo = {
-         starring: "",
+         starring: series.starring || "",
          id: series.id,
          channeName: series.category?.name || "电视剧",
          channeID: series.category?.id || 1,
@@ -631,9 +656,9 @@ async listSeriesFull(
          mediaId: `${series.id}_0,1,4,146`,
          postTime: series.createdAt.toISOString(),
          contentType: series.category?.name || "剧情",
-         actor: "",
+         actor: series.actor || "",
          shareCount: 0,
-         director: "",
+         director: series.director || "",
         description: series.description,
         comments: 0, // TODO: 从评论表统计
         updateStatus: series.upStatus || `更新到${series.totalEpisodes}集`,

@@ -3,7 +3,7 @@
  * 剧集实体类
  * 表示一个电视剧系列中的单集内容
  */
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, OneToMany, JoinColumn, ManyToMany, JoinTable } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, OneToMany, JoinColumn, ManyToMany, JoinTable, CreateDateColumn, UpdateDateColumn } from 'typeorm';
 import { Series } from './series.entity';
 import { EpisodeUrl } from './episode-url.entity';
 import { WatchProgress } from './watch-progress.entity';
@@ -88,6 +88,27 @@ export class Episode {
    */
   @Column({ type: 'int', default: 0 })
   playCount: number;
+
+  /** 
+   * 创建时间 
+   * 记录剧集创建的时间戳
+   */
+  @CreateDateColumn({ name: 'created_at' })
+  createdAt: Date;
+
+  /** 
+   * 更新时间 
+   * 记录剧集最后更新的时间戳
+   */
+  @UpdateDateColumn({ name: 'updated_at' })
+  updatedAt: Date;
+
+  /** 
+   * 是否有续集 
+   * 标识该剧集是否有续集或后续内容
+   */
+  @Column({ type: 'boolean', default: false, name: 'has_sequel' })
+  hasSequel: boolean;
 
   /** 
    * 多对多关系：剧集标签 

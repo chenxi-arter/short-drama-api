@@ -48,4 +48,37 @@ async listMediaUser(
 async getVideoDetails(@Query() dto: VideoDetailsDto) {
   return this.videoService.getVideoDetails(dto.id);
 }
+
+/* 创建剧集播放地址 */
+@Post('episode-url')
+async createEpisodeUrl(
+  @Body('episodeId') episodeId: number,
+  @Body('quality') quality: string,
+  @Body('ossUrl') ossUrl: string,
+  @Body('cdnUrl') cdnUrl: string,
+  @Body('subtitleUrl') subtitleUrl?: string,
+) {
+  return this.videoService.createEpisodeUrl(episodeId, quality, ossUrl, cdnUrl, subtitleUrl);
+}
+
+/* 通过访问密钥获取播放地址 */
+@Get('episode-url/:accessKey')
+async getEpisodeUrlByAccessKey(@Param('accessKey') accessKey: string) {
+  return this.videoService.getEpisodeUrlByAccessKey(accessKey);
+}
+
+/* 更新剧集续集状态 */
+@Post('episode-sequel')
+async updateEpisodeSequel(
+  @Body('episodeId') episodeId: number,
+  @Body('hasSequel') hasSequel: boolean,
+) {
+  return this.videoService.updateEpisodeSequel(episodeId, hasSequel);
+}
+
+/* 批量生成访问密钥 */
+@Post('generate-access-keys')
+async generateAccessKeysForExisting() {
+  return this.videoService.generateAccessKeysForExisting();
+}
 }

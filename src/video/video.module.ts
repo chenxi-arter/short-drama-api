@@ -15,6 +15,11 @@ import { VideoController } from './video.controller';          // 视频相关AP
 import { PublicVideoController } from './public-video.controller'; // 公开视频API控制器
 import { HomeController } from './home.controller';           // 首页相关API控制器
 import { ListController } from './list.controller';           // 列表筛选相关API控制器
+import { WatchProgressService } from './services/watch-progress.service';
+import { CommentService } from './services/comment.service';
+import { EpisodeService } from './services/episode.service';
+import { CategoryService } from './services/category.service';
+import { TagService } from './services/tag.service';
 @Module({
   imports: [
     CacheModule.register(),
@@ -30,7 +35,14 @@ import { ListController } from './list.controller';           // 列表筛选相
       Tag             // 标签数据表
     ])
   ],
-  providers: [VideoService],    // 注册本模块的服务提供者（业务逻辑）
+  providers: [
+    VideoService,
+    WatchProgressService,
+    CommentService,
+    EpisodeService,
+    CategoryService,
+    TagService,
+  ],    // 注册本模块的服务提供者（业务逻辑）
   controllers: [PublicVideoController, VideoController, HomeController, ListController], // 一起注册
   // 注意：如果需要让其他模块使用这些实体或服务，应该在这里添加exports
 })
