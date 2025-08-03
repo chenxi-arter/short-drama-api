@@ -7,6 +7,8 @@ import { Category } from './entity/category.entity';
 import { Series } from './entity/series.entity';
 import { Episode } from './entity/episode.entity';
 import { ShortVideo } from "./entity/short-video.entity";
+import { FilterType } from './entity/filter-type.entity';
+import { FilterOption } from './entity/filter-option.entity';
 import { ContentBlock, BannerItem, FilterItem, VideoItem } from './dto/home-videos.dto';
 import { FilterTagsResponse, FilterTagGroup, FilterTagItem } from './dto/filter-tags.dto';
 import { FilterDataResponse, FilterDataItem } from './dto/filter-data.dto';
@@ -24,6 +26,8 @@ export class VideoService {
     @InjectRepository(Series)  private readonly seriesRepo: Repository<Series>,
     @InjectRepository(ShortVideo) private readonly shortRepo: Repository<ShortVideo>,
     @InjectRepository(Episode) private readonly epRepo: Repository<Episode>,
+    @InjectRepository(FilterType) private readonly filterTypeRepo: Repository<FilterType>,
+    @InjectRepository(FilterOption) private readonly filterOptionRepo: Repository<FilterOption>,
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
     private readonly watchProgressService: WatchProgressService,
     private readonly commentService: CommentService,
@@ -470,58 +474,43 @@ async listSeriesFull(
     if (cachedData) {
       return cachedData as FilterTagsResponse;
     }
-    // 排序标签
-    const sortTags: FilterTagItem[] = [
-      {
-        index: 0,
-        classifyId: 0,
-        classifyName: "最新上传",
-        isDefaultSelect: true
-      },
-      {
-        index: 0,
-        classifyId: 1,
-        classifyName: "最近更新",
-        isDefaultSelect: false
-      },
-      {
-        index: 0,
-        classifyId: 2,
-        classifyName: "人气最高",
-        isDefaultSelect: false
-      }
-    ];
 
-    // 从数据库获取分类标签
-    const categories = await this.catRepo.find({ order: { id: 'ASC' } });
-    const categoryTags: FilterTagItem[] = [
-      {
-        index: 1,
-        classifyId: 0,
-        classifyName: "全部类型",
-        isDefaultSelect: true
-      },
-      ...categories.map(cat => ({
-        index: 1,
-        classifyId: cat.id,
-        classifyName: cat.name,
-        isDefaultSelect: false
-      }))
-    ];
+    // 从数据库获取筛选器类型和选项
+    const filterTypes = await this.filterTypeRepo.find({
+      where: { isActive: true },
+      relations: ['options'],
+      order: { sortOrder: 'ASC', indexPosition: 'ASC' }
+    });
 
-    const tagGroups: FilterTagGroup[] = [
-      {
-        name: "排序标签",
-        list: sortTags
-      },
-      {
-        name: "二级标签",
-        list: categoryTags
+    const tagGroups: FilterTagGroup[] = [];
+
+    for (const filterType of filterTypes) {
+      // 获取该类型下的所有启用选项
+      const activeOptions = filterType.options
+        .filter(option => option.isActive)
+        .sort((a, b) => a.sortOrder - b.sortOrder);
+
+      if (activeOptions.length > 0) {
+        const filterItems: FilterTagItem[] = activeOptions.map(option => ({
+          index: filterType.indexPosition,
+          classifyId: option.id,
+          classifyName: option.name,
+          isDefaultSelect: option.isDefault
+        }));
+
+        tagGroups.push({
+          name: filterType.name,
+          list: filterItems
+        });
       }
-    ];
+    }
 
     const result = {
-      list: tagGroups
+      code: 200,
+      data: {
+        list: tagGroups
+      },
+      msg: null
     };
     
     // 将结果存入缓存，缓存10分钟
@@ -550,8 +539,9 @@ async listSeriesFull(
       return cachedData as FilterDataResponse;
     }
     
-    // 解析筛选条件
-    const [sortType, categoryId] = ids.split(',').map(id => parseInt(id, 10) || 0);
+    // 解析筛选条件 - 格式: sortType,categoryId,regionId,languageId,yearId,statusId
+    const filterIds = ids.split(',').map(id => parseInt(id, 10) || 0);
+    const [sortType = 0, categoryId = 0, regionId = 0, languageId = 0, yearId = 0, statusId = 0] = filterIds;
     
     // 构建查询
     const seriesQb = this.seriesRepo
@@ -562,7 +552,60 @@ async listSeriesFull(
     
     // 应用分类筛选
     if (categoryId > 0) {
-      seriesQb.where('s.category_id = :categoryId', { categoryId });
+      seriesQb.andWhere('s.category_id = :categoryId', { categoryId });
+    }
+    
+    // 应用地区筛选
+    if (regionId > 0) {
+      // 根据地区ID获取地区名称
+      const regionOption = await this.filterOptionRepo.findOne({
+        where: { id: regionId, filterType: { code: 'region' } },
+        relations: ['filterType']
+      });
+      if (regionOption) {
+        // 包含 NULL 值的筛选，因为现有数据可能没有设置地区
+        seriesQb.andWhere('(s.region = :region OR s.region IS NULL)', { region: regionOption.value });
+      }
+    }
+
+    // 应用语言筛选
+    if (languageId > 0) {
+      const languageOption = await this.filterOptionRepo.findOne({
+        where: { id: languageId, filterType: { code: 'language' } },
+        relations: ['filterType']
+      });
+      if (languageOption) {
+        // 包含 NULL 值的筛选，因为现有数据可能没有设置语言
+        seriesQb.andWhere('(s.language = :language OR s.language IS NULL)', { language: languageOption.value });
+      }
+    }
+
+    // 应用年份筛选
+    if (yearId > 0) {
+      const yearOption = await this.filterOptionRepo.findOne({
+        where: { id: yearId, filterType: { code: 'year' } },
+        relations: ['filterType']
+      });
+      if (yearOption) {
+        const year = parseInt(yearOption.value, 10);
+        if (year > 0) {
+          // 包含 NULL 值的筛选，因为现有数据可能没有设置发布日期
+          seriesQb.andWhere('(YEAR(s.release_date) = :year OR s.release_date IS NULL)', { year });
+        }
+      }
+    }
+
+    // 应用状态筛选
+    if (statusId > 0) {
+      const statusOption = await this.filterOptionRepo.findOne({
+        where: { id: statusId, filterType: { code: 'status' } },
+        relations: ['filterType']
+      });
+      if (statusOption) {
+        const isCompleted = statusOption.value === '1';
+        // 包含 NULL 值的筛选，因为现有数据可能没有设置完结状态
+        seriesQb.andWhere('(s.is_completed = :isCompleted OR s.is_completed IS NULL)', { isCompleted });
+      }
     }
     
     // 应用排序
@@ -572,6 +615,9 @@ async listSeriesFull(
         break;
       case 2: // 人气最高
         seriesQb.orderBy('s.playCount', 'DESC');
+        break;
+      case 3: // 评分最高
+        seriesQb.orderBy('s.score', 'DESC');
         break;
       default: // 最新上传
         seriesQb.orderBy('s.createdAt', 'DESC');

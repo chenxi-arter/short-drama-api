@@ -10,6 +10,8 @@ import { WatchProgress } from './entity/watch-progress.entity';// 观看进度�
 import { Category } from './entity/category.entity';           // 视频分类实体
 import { ShortVideo } from './entity/short-video.entity';      // 短视频实体
 import { Tag } from './entity/tag.entity';                     // 标签实体
+import { FilterType } from './entity/filter-type.entity';      // 筛选器类型实体
+import { FilterOption } from './entity/filter-option.entity';  // 筛选器选项实体
 import { VideoService } from './video.service';                // 视频业务逻辑服务
 import { VideoController } from './video.controller';          // 视频相关API控制器
 import { PublicVideoController } from './public-video.controller'; // 公开视频API控制器
@@ -32,7 +34,9 @@ import { TagService } from './services/tag.service';
       WatchProgress,  // 用户观看进度数据表
       Category,       // 分类目录数据表
       ShortVideo,     // 短视频数据表
-      Tag             // 标签数据表
+      Tag,            // 标签数据表
+      FilterType,     // 筛选器类型数据表
+      FilterOption    // 筛选器选项数据表
     ])
   ],
   providers: [

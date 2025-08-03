@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>短剧API路由测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .route-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background-color: #fafafa;
+        }
+        .route-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 15px;
+        }
+        .route-item {
+            margin: 10px 0;
+            padding: 10px;
+            background: white;
+            border-radius: 5px;
+            border-left: 4px solid #3498db;
+        }
+        .route-url {
+            font-family: monospace;
+            color: #e74c3c;
+            font-weight: bold;
+        }
+        .route-desc {
+            color: #666;
+            margin-top: 5px;
+        }
+        .test-btn {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 3px;
+            cursor: pointer;
+            margin-left: 10px;
+        }
+        .test-btn:hover {
+            background: #2980b9;
+        }
+        .result {
+            margin-top: 10px;
+            padding: 10px;
+            background: #ecf0f1;
+            border-radius: 3px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎬 短剧API路由测试页面</h1>
+        
+        <div class="route-section">
+            <div class="route-title">🏠 主页路由</div>
+            <div class="route-item">
+                <span class="route-url">GET /</span>
+                <button class="test-btn" onclick="testRoute('/')">测试</button>
+                <div class="route-desc">主页数据（默认短剧）</div>
+                <div id="result-/" class="result" style="display:none;"></div>
+            </div>
+        </div>
+
+        <div class="route-section">
+            <div class="route-title">🎭 短剧模块</div>
+            <div class="route-item">
+                <span class="route-url">GET /drama</span>
+                <button class="test-btn" onclick="testRoute('/drama')">测试</button>
+                <div class="route-desc">短剧首页数据</div>
+                <div id="result-/drama" class="result" style="display:none;"></div>
+            </div>
+            <div class="route-item">
+                <span class="route-url">GET /drama/filters</span>
+                <button class="test-btn" onclick="testRoute('/drama/filters')">测试</button>
+                <div class="route-desc">短剧筛选器标签</div>
+                <div id="result-/drama/filters" class="result" style="display:none;"></div>
+            </div>
+            <div class="route-item">
+                <span class="route-url">GET /drama/list</span>
+                <button class="test-btn" onclick="testRoute('/drama/list?page=1')">测试</button>
+                <div class="route-desc">短剧筛选列表</div>
+                <div id="result-/drama/list?page=1" class="result" style="display:none;"></div>
+            </div>
+        </div>
+
+        <div class="route-section">
+            <div class="route-title">🎬 电影模块</div>
+            <div class="route-item">
+                <span class="route-url">GET /movie</span>
+                <button class="test-btn" onclick="testRoute('/movie')">测试</button>
+                <div class="route-desc">电影首页数据</div>
+                <div id="result-/movie" class="result" style="display:none;"></div>
+            </div>
+            <div class="route-item">
+                <span class="route-url">GET /movie/filters</span>
+                <button class="test-btn" onclick="testRoute('/movie/filters')">测试</button>
+                <div class="route-desc">电影筛选器标签</div>
+                <div id="result-/movie/filters" class="result" style="display:none;"></div>
+            </div>
+            <div class="route-item">
+                <span class="route-url">GET /movie/list</span>
+                <button class="test-btn" onclick="testRoute('/movie/list?page=1')">测试</button>
+                <div class="route-desc">电影筛选列表</div>
+                <div id="result-/movie/list?page=1" class="result" style="display:none;"></div>
+            </div>
+        </div>
+
+        <div class="route-section">
+            <div class="route-title">🎪 综艺模块</div>
+            <div class="route-item">
+                <span class="route-url">GET /variety</span>
+                <button class="test-btn" onclick="testRoute('/variety')">测试</button>
+                <div class="route-desc">综艺首页数据</div>
+                <div id="result-/variety" class="result" style="display:none;"></div>
+            </div>
+            <div class="route-item">
+                <span class="route-url">GET /variety/filters</span>
+                <button class="test-btn" onclick="testRoute('/variety/filters')">测试</button>
+                <div class="route-desc">综艺筛选器标签</div>
+                <div id="result-/variety/filters" class="result" style="display:none;"></div>
+            </div>
+            <div class="route-item">
+                <span class="route-url">GET /variety/list</span>
+                <button class="test-btn" onclick="testRoute('/variety/list?page=1')">测试</button>
+                <div class="route-desc">综艺筛选列表</div>
+                <div id="result-/variety/list?page=1" class="result" style="display:none;"></div>
+            </div>
+        </div>
+
+        <div class="route-section">
+            <div class="route-title">⚙️ 原有API路由（兼容性）</div>
+            <div class="route-item">
+                <span class="route-url">GET /api/home/getvideos</span>
+                <button class="test-btn" onclick="testRoute('/api/home/getvideos')">测试</button>
+                <div class="route-desc">原首页API</div>
+                <div id="result-/api/home/getvideos" class="result" style="display:none;"></div>
+            </div>
+            <div class="route-item">
+                <span class="route-url">GET /api/list/getfilterstags</span>
+                <button class="test-btn" onclick="testRoute('/api/list/getfilterstags')">测试</button>
+                <div class="route-desc">原筛选标签API</div>
+                <div id="result-/api/list/getfilterstags" class="result" style="display:none;"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function testRoute(path) {
+            const resultId = 'result-' + path;
+            const resultDiv = document.getElementById(resultId);
+            
+            try {
+                resultDiv.style.display = 'block';
+                resultDiv.innerHTML = '请求中...';
+                
+                const response = await fetch(`http://localhost:3000${path}`);
+                const data = await response.json();
+                
+                resultDiv.innerHTML = `状态: ${response.status}\n` + 
+                                    `响应: ${JSON.stringify(data, null, 2)}`;
+            } catch (error) {
+                resultDiv.innerHTML = `错误: ${error.message}`;
+            }
+        }
+    </script>
+</body>
+</html>

@@ -33,5 +33,9 @@ export interface FilterTagGroup {
  * 筛选器标签响应
  */
 export interface FilterTagsResponse {
-  list: FilterTagGroup[];
+  code: number;
+  data: {
+    list: FilterTagGroup[];
+  };
+  msg: string | null;
 }

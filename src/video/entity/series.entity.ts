@@ -124,6 +124,41 @@ export class Series {
   director: string;
 
   /** 
+   * 地区
+   * 系列的制作地区，如：中国大陆、香港、台湾等
+   */
+  @Column({ length: 50, nullable: true, name: 'region' })
+  region: string;
+
+  /** 
+   * 语言
+   * 系列的主要语言，如：中文、英文等
+   */
+  @Column({ length: 50, nullable: true, name: 'language' })
+  language: string;
+
+  /** 
+   * 发布日期
+   * 系列的首播或发布日期
+   */
+  @Column({ type: 'date', nullable: true, name: 'release_date' })
+  releaseDate: Date;
+
+  /** 
+   * 是否完结
+   * 标识系列是否已经完结
+   */
+  @Column({ type: 'boolean', default: false, name: 'is_completed' })
+  isCompleted: boolean;
+
+  /** 
+   * 更新时间
+   * 记录系列最后更新的时间
+   */
+  @Column({ type: 'timestamp', nullable: true, name: 'updated_at' })
+  updatedAt: Date;
+
+  /** 
    * 多对多关系：系列标签
    * 一个系列可以有多个标签，一个标签可以属于多个系列
    */
