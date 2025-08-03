@@ -5,9 +5,14 @@ import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
 import { Tag } from '../entity/tag.entity';
 import { Series } from '../entity/series.entity';
+import { CacheKeys } from '../utils/cache-keys.util';
+import { AppLoggerService } from '../../common/logger/app-logger.service';
+import { QueryOptimizer } from '../../common/utils/query-optimizer.util';
 
 @Injectable()
 export class TagService {
+  private readonly logger: AppLoggerService;
+
   constructor(
     @InjectRepository(Tag)
     private readonly tagRepo: Repository<Tag>,
@@ -15,79 +20,119 @@ export class TagService {
     private readonly seriesRepo: Repository<Series>,
     @Inject(CACHE_MANAGER)
     private readonly cacheManager: Cache,
-  ) {}
+    appLogger: AppLoggerService,
+  ) {
+    this.logger = appLogger.createChildLogger('TagService');
+  }
 
   /**
    * 获取所有标签
    */
-  async getAllTags() {
-    const cacheKey = 'tags:all';
+  async getAllTags(): Promise<Tag[]> {
+    const cacheKey = CacheKeys.tags();
+    const startTime = Date.now();
     
-    // 尝试从缓存获取
-    let tags = await this.cacheManager.get(cacheKey);
-    if (tags) {
+    try {
+      // 尝试从缓存获取
+      const cached = await this.cacheManager.get<Tag[]>(cacheKey);
+      if (cached) {
+        this.logger.logCacheOperation('GET', cacheKey, true);
+        return cached;
+      }
+      this.logger.logCacheOperation('GET', cacheKey, false);
+
+      // 从数据库查询
+      const queryBuilder = this.tagRepo.createQueryBuilder('tag');
+      QueryOptimizer.addSorting(queryBuilder, 'tag.name', 'ASC');
+      
+      const tags = await queryBuilder.getMany();
+      const duration = Date.now() - startTime;
+      
+      this.logger.logDatabaseOperation('SELECT', 'tag', { count: tags.length }, duration);
+
+      // 存入缓存
+      await this.cacheManager.set(cacheKey, tags, CacheKeys.TTL.VERY_LONG);
+      this.logger.logCacheOperation('SET', cacheKey, undefined, CacheKeys.TTL.VERY_LONG);
+      
       return tags;
+    } catch (error) {
+      this.logger.error('获取标签列表失败', error.stack);
+      throw new Error('获取标签列表失败');
     }
-
-    // 从数据库获取
-    tags = await this.tagRepo.find({
-      order: { name: 'ASC' },
-    });
-
-    // 缓存结果（缓存1小时）
-    await this.cacheManager.set(cacheKey, tags, 3600000);
-    
-    return tags;
   }
 
   /**
    * 根据ID获取标签
    */
-  async getTagById(id: number) {
-    const cacheKey = `tag:${id}`;
+  async getTagById(id: number): Promise<Tag | null> {
+    const cacheKey = `${CacheKeys.tags()}_detail_${id}`;
+    const startTime = Date.now();
     
-    // 尝试从缓存获取
-    let tag = await this.cacheManager.get(cacheKey);
-    if (tag) {
+    try {
+      // 尝试从缓存获取
+      const cached = await this.cacheManager.get<Tag>(cacheKey);
+      if (cached) {
+        this.logger.logCacheOperation('GET', cacheKey, true);
+        return cached;
+      }
+      this.logger.logCacheOperation('GET', cacheKey, false);
+
+      // 从数据库查询
+      const tag = await this.tagRepo.findOne({
+        where: { id },
+      });
+      
+      const duration = Date.now() - startTime;
+      this.logger.logDatabaseOperation('SELECT', 'tag', { id, found: !!tag }, duration);
+
+      if (tag) {
+        // 存入缓存
+        await this.cacheManager.set(cacheKey, tag, CacheKeys.TTL.LONG);
+        this.logger.logCacheOperation('SET', cacheKey, undefined, CacheKeys.TTL.LONG);
+      }
+      
       return tag;
+    } catch (error) {
+      this.logger.error(`获取标签详情失败: ${id}`, error.stack);
+      throw new Error('获取标签详情失败');
     }
-
-    // 从数据库获取
-    tag = await this.tagRepo.findOne({
-      where: { id },
-    });
-
-    if (tag) {
-      // 缓存结果（缓存1小时）
-      await this.cacheManager.set(cacheKey, tag, 3600000);
-    }
-    
-    return tag;
   }
 
   /**
    * 根据名称获取标签
    */
-  async getTagByName(name: string) {
-    const cacheKey = `tag:name:${name}`;
+  async getTagByName(name: string): Promise<Tag | null> {
+    const cacheKey = `${CacheKeys.tags()}_name_${name}`;
+    const startTime = Date.now();
     
-    // 尝试从缓存获取
-    let tag = await this.cacheManager.get(cacheKey);
-    if (tag) {
+    try {
+      // 尝试从缓存获取
+      const cached = await this.cacheManager.get<Tag>(cacheKey);
+      if (cached) {
+        this.logger.logCacheOperation('GET', cacheKey, true);
+        return cached;
+      }
+      this.logger.logCacheOperation('GET', cacheKey, false);
+
+      // 从数据库查询
+      const tag = await this.tagRepo.findOne({
+        where: { name },
+      });
+      
+      const duration = Date.now() - startTime;
+      this.logger.logDatabaseOperation('SELECT', 'tag', { name, found: !!tag }, duration);
+
+      if (tag) {
+        // 存入缓存
+        await this.cacheManager.set(cacheKey, tag, CacheKeys.TTL.LONG);
+        this.logger.logCacheOperation('SET', cacheKey, undefined, CacheKeys.TTL.LONG);
+      }
+      
       return tag;
+    } catch (error) {
+      this.logger.error(`根据名称获取标签失败: ${name}`, error.stack);
+      throw new Error('根据名称获取标签失败');
     }
-
-    // 从数据库获取
-    tag = await this.tagRepo.findOne({
-      where: { name },
-    });
-
-    if (tag) {
-      // 缓存结果（缓存1小时）
-      await this.cacheManager.set(cacheKey, tag, 3600000);
-    }
-    
-    return tag;
   }
 
   /**

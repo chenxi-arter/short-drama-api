@@ -18,6 +18,9 @@ import { CommentService } from './services/comment.service';
 import { EpisodeService } from './services/episode.service';
 import { CategoryService } from './services/category.service';
 import { TagService } from './services/tag.service';
+import { FilterService } from './services/filter.service';
+import { SeriesService } from './services/series.service';
+import { CacheKeys } from './utils/cache-keys.util';
 
 @Injectable()
 export class VideoService {
@@ -26,14 +29,14 @@ export class VideoService {
     @InjectRepository(Series)  private readonly seriesRepo: Repository<Series>,
     @InjectRepository(ShortVideo) private readonly shortRepo: Repository<ShortVideo>,
     @InjectRepository(Episode) private readonly epRepo: Repository<Episode>,
-    @InjectRepository(FilterType) private readonly filterTypeRepo: Repository<FilterType>,
-    @InjectRepository(FilterOption) private readonly filterOptionRepo: Repository<FilterOption>,
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
     private readonly watchProgressService: WatchProgressService,
     private readonly commentService: CommentService,
     private readonly episodeService: EpisodeService,
     private readonly categoryService: CategoryService,
     private readonly tagService: TagService,
+    private readonly filterService: FilterService,
+    private readonly seriesService: SeriesService,
   ) {}
    /* 列出所有分类 */
   async listCategories() {
@@ -42,18 +45,13 @@ export class VideoService {
 
   /* 根据分类 id 查短剧（电视剧）列表 */
   async listSeriesByCategory(categoryId: number) {
-    return this.seriesRepo.find({
-      where: { category: { id: categoryId } },
-      order: { createdAt: 'DESC' },
-    });
+    const result = await this.seriesService.getSeriesByCategory(categoryId);
+    return result.series;
   }
 
   /* 根据短剧 id 查详情（含所有剧集） */
   async getSeriesDetail(seriesId: number) {
-    return this.seriesRepo.findOne({
-      where: { id: seriesId },
-      relations: ['category', 'episodes', 'episodes.urls'],
-    });
+    return this.seriesService.getSeriesDetail(seriesId);
   }
 
   /* 断点：写/读 */
@@ -76,19 +74,15 @@ export class VideoService {
   private async clearVideoRelatedCache(videoId: string, categoryId?: number) {
     try {
       // 清除视频详情缓存
-      await this.cacheManager.del(`video_details_${videoId}`);
+      await this.cacheManager.del(CacheKeys.videoDetails(videoId));
       
-      // 清除首页视频缓存（所有分类和页面）
-      const homeKeys = ['home_videos_1_1', 'home_videos_1_2', 'home_videos_1_3'];
-      for (const key of homeKeys) {
-        await this.cacheManager.del(key);
+      // 清除首页视频缓存
+      for (let page = 1; page <= 3; page++) {
+        await this.cacheManager.del(CacheKeys.homeVideos(1, page));
       }
       
-      // 清除筛选器数据缓存
-      const filterKeys = ['filter_data_1_0,0,0,0,0_1', 'filter_data_1_0,0,0,0,0_2'];
-      for (const key of filterKeys) {
-        await this.cacheManager.del(key);
-      }
+      // 清除筛选器相关缓存
+      await this.filterService.clearFilterCache();
     } catch (error) {
       console.error('清除缓存失败:', error);
     }
@@ -98,19 +92,12 @@ export class VideoService {
   private async clearAllListCache() {
     try {
       // 清除首页缓存
-      const homeKeys = ['home_videos_1_1', 'home_videos_1_2', 'home_videos_1_3'];
-      for (const key of homeKeys) {
-        await this.cacheManager.del(key);
+      for (let page = 1; page <= 3; page++) {
+        await this.cacheManager.del(CacheKeys.homeVideos(1, page));
       }
       
-      // 清除筛选器标签缓存
-      await this.cacheManager.del('filter_tags_1');
-      
-      // 清除筛选器数据缓存
-      const filterKeys = ['filter_data_1_0,0,0,0,0_1', 'filter_data_1_0,0,0,0,0_2', 'filter_data_1_0,0,0,0,0_3'];
-      for (const key of filterKeys) {
-        await this.cacheManager.del(key);
-      }
+      // 清除筛选器缓存
+      await this.filterService.clearFilterCache();
     } catch (error) {
       console.error('清除列表缓存失败:', error);
     }
@@ -376,6 +363,156 @@ async listSeriesFull(
   }
   
   /**
+   * 获取电影首页视频列表
+   * @param catid 分类ID
+   * @param page 页码
+   * @returns 电影首页视频列表数据
+   */
+  async getMovieVideos(catid?: string, page: number = 1): Promise<any> {
+    const categoryId = catid ? parseInt(catid, 10) : 2; // 默认电影分类ID为2
+    return this.getModuleVideos('movie', categoryId, page);
+  }
+
+  /**
+   * 获取短剧首页视频列表
+   * @param catid 分类ID
+   * @param page 页码
+   * @returns 短剧首页视频列表数据
+   */
+  async getDramaVideos(catid?: string, page: number = 1): Promise<any> {
+    const categoryId = catid ? parseInt(catid, 10) : 1; // 默认短剧分类ID为1
+    return this.getModuleVideos('drama', categoryId, page);
+  }
+
+  /**
+   * 获取综艺首页视频列表
+   * @param catid 分类ID
+   * @param page 页码
+   * @returns 综艺首页视频列表数据
+   */
+  async getVarietyVideos(catid?: string, page: number = 1): Promise<any> {
+    const categoryId = catid ? parseInt(catid, 10) : 3; // 默认综艺分类ID为3
+    return this.getModuleVideos('variety', categoryId, page);
+  }
+
+  /**
+   * 通用模块视频获取方法
+   * @param moduleType 模块类型
+   * @param categoryId 分类ID
+   * @param page 页码
+   * @returns 模块视频列表数据
+   */
+  private async getModuleVideos(moduleType: string, categoryId: number, page: number = 1): Promise<any> {
+    const size = 20;
+    
+    // 生成缓存键
+    const cacheKey = `${moduleType}_videos_${categoryId}_${page}`;
+    
+    // 尝试从缓存获取数据
+    const cachedData = await this.cacheManager.get(cacheKey);
+    if (cachedData) {
+      return cachedData;
+    }
+    
+    // 构建响应数据结构
+    const blocks: ContentBlock[] = [];
+    
+    // 1. 添加轮播图板块
+    const banners = await this.getTopSeries(5);
+    blocks.push({
+      type: 0,
+      name: "轮播图",
+      filters: [],
+      banners: banners.map(series => ({
+        showURL: series.coverUrl,
+        title: series.title,
+        id: series.id,
+        channeID: categoryId,
+        url: series.id.toString(),
+      })),
+      list: [],
+    });
+    
+    // 2. 添加搜索过滤器板块
+    const moduleNames = {
+      movie: '电影',
+      drama: '短剧',
+      variety: '综艺'
+    };
+    
+    blocks.push({
+      type: 1001,
+      name: "搜索过滤器",
+      filters: [
+        {
+          channeID: categoryId,
+          name: moduleNames[moduleType],
+          title: "全部",
+          ids: "0,0,0,0,0",
+        },
+        {
+          channeID: categoryId,
+          name: moduleNames[moduleType],
+          title: "最新上传",
+          ids: "0,0,0,0,0",
+        },
+        {
+          channeID: categoryId,
+          name: moduleNames[moduleType],
+          title: "人气高",
+          ids: "1,0,0,0,0",
+        },
+        {
+          channeID: categoryId,
+          name: moduleNames[moduleType],
+          title: "评分高",
+          ids: "2,0,0,0,0",
+        },
+        {
+          channeID: categoryId,
+          name: moduleNames[moduleType],
+          title: "最新更新",
+          ids: "3,0,0,0,0",
+        },
+      ],
+      banners: [],
+      list: [],
+    });
+    
+    // 3. 添加广告板块（示例）
+    blocks.push({
+      type: -1,
+      name: "广告",
+      filters: [],
+      banners: [],
+      list: [],
+    });
+    
+    // 4. 添加视频列表板块
+    const videoList = await this.getVideoList(categoryId, page, size);
+    blocks.push({
+      type: 3,
+      name: moduleNames[moduleType],
+      filters: undefined,
+      banners: [],
+      list: videoList,
+    });
+    
+    const result = {
+      data: {
+        list: blocks,
+      },
+      code: 200,
+      msg: null,
+    };
+    
+    // 将结果存入缓存，缓存5分钟
+    await this.cacheManager.set(cacheKey, result, 300000);
+    
+    return result;
+  }
+
+  /**
    * 获取热门系列作为轮播图
    * @param limit 限制数量
    * @returns 热门系列列表
@@ -467,56 +604,7 @@ async listSeriesFull(
    * @returns 筛选器标签列表
    */
   async getFiltersTags(channeid: string): Promise<FilterTagsResponse> {
-    const cacheKey = `filter_tags_${channeid}`;
-    
-    // 尝试从缓存获取数据
-    const cachedData = await this.cacheManager.get(cacheKey);
-    if (cachedData) {
-      return cachedData as FilterTagsResponse;
-    }
-
-    // 从数据库获取筛选器类型和选项
-    const filterTypes = await this.filterTypeRepo.find({
-      where: { isActive: true },
-      relations: ['options'],
-      order: { sortOrder: 'ASC', indexPosition: 'ASC' }
-    });
-
-    const tagGroups: FilterTagGroup[] = [];
-
-    for (const filterType of filterTypes) {
-      // 获取该类型下的所有启用选项
-      const activeOptions = filterType.options
-        .filter(option => option.isActive)
-        .sort((a, b) => a.sortOrder - b.sortOrder);
-
-      if (activeOptions.length > 0) {
-        const filterItems: FilterTagItem[] = activeOptions.map(option => ({
-          index: filterType.indexPosition,
-          classifyId: option.id,
-          classifyName: option.name,
-          isDefaultSelect: option.isDefault
-        }));
-
-        tagGroups.push({
-          name: filterType.name,
-          list: filterItems
-        });
-      }
-    }
-
-    const result = {
-      code: 200,
-      data: {
-        list: tagGroups
-      },
-      msg: null
-    };
-    
-    // 将结果存入缓存，缓存10分钟
-    await this.cacheManager.set(cacheKey, result, 600000);
-    
-    return result;
+    return this.filterService.getFiltersTags(channeid);
   }
 
   /**
@@ -527,130 +615,31 @@ async listSeriesFull(
    * @returns 筛选后的视频列表
    */
   async getFiltersData(channeid: string, ids: string, page: string): Promise<FilterDataResponse> {
-    const pageNum = parseInt(page, 10) || 1;
-    const size = 20;
-    const skip = (pageNum - 1) * size;
-    
-    const cacheKey = `filter_data_${channeid}_${ids}_${page}`;
-    
-    // 尝试从缓存获取数据
-    const cachedData = await this.cacheManager.get(cacheKey);
-    if (cachedData) {
-      return cachedData as FilterDataResponse;
-    }
-    
-    // 解析筛选条件 - 格式: sortType,categoryId,regionId,languageId,yearId,statusId
-    const filterIds = ids.split(',').map(id => parseInt(id, 10) || 0);
-    const [sortType = 0, categoryId = 0, regionId = 0, languageId = 0, yearId = 0, statusId = 0] = filterIds;
-    
-    // 构建查询
-    const seriesQb = this.seriesRepo
-      .createQueryBuilder('s')
-      .leftJoinAndSelect('s.category', 'c')
-      .skip(skip)
-      .take(size);
-    
-    // 应用分类筛选
-    if (categoryId > 0) {
-      seriesQb.andWhere('s.category_id = :categoryId', { categoryId });
-    }
-    
-    // 应用地区筛选
-    if (regionId > 0) {
-      // 根据地区ID获取地区名称
-      const regionOption = await this.filterOptionRepo.findOne({
-        where: { id: regionId, filterType: { code: 'region' } },
-        relations: ['filterType']
-      });
-      if (regionOption) {
-        // 包含 NULL 值的筛选，因为现有数据可能没有设置地区
-        seriesQb.andWhere('(s.region = :region OR s.region IS NULL)', { region: regionOption.value });
-      }
-    }
+    return this.filterService.getFiltersData(channeid, ids, page);
+  }
 
-    // 应用语言筛选
-    if (languageId > 0) {
-      const languageOption = await this.filterOptionRepo.findOne({
-        where: { id: languageId, filterType: { code: 'language' } },
-        relations: ['filterType']
-      });
-      if (languageOption) {
-        // 包含 NULL 值的筛选，因为现有数据可能没有设置语言
-        seriesQb.andWhere('(s.language = :language OR s.language IS NULL)', { language: languageOption.value });
-      }
-    }
+  /* 创建筛选器选项 */
+  async createFilterOption(data: any) {
+    // 委托给FilterService处理
+    throw new Error('此功能已迁移到FilterService，请直接使用FilterService');
+  }
 
-    // 应用年份筛选
-    if (yearId > 0) {
-      const yearOption = await this.filterOptionRepo.findOne({
-        where: { id: yearId, filterType: { code: 'year' } },
-        relations: ['filterType']
-      });
-      if (yearOption) {
-        const year = parseInt(yearOption.value, 10);
-        if (year > 0) {
-          // 包含 NULL 值的筛选，因为现有数据可能没有设置发布日期
-          seriesQb.andWhere('(YEAR(s.release_date) = :year OR s.release_date IS NULL)', { year });
-        }
-      }
-    }
+  /* 更新筛选器选项 */
+  async updateFilterOption(id: number, data: any) {
+    // 委托给FilterService处理
+    throw new Error('此功能已迁移到FilterService，请直接使用FilterService');
+  }
 
-    // 应用状态筛选
-    if (statusId > 0) {
-      const statusOption = await this.filterOptionRepo.findOne({
-        where: { id: statusId, filterType: { code: 'status' } },
-        relations: ['filterType']
-      });
-      if (statusOption) {
-        const isCompleted = statusOption.value === '1';
-        // 包含 NULL 值的筛选，因为现有数据可能没有设置完结状态
-        seriesQb.andWhere('(s.is_completed = :isCompleted OR s.is_completed IS NULL)', { isCompleted });
-      }
-    }
-    
-    // 应用排序
-    switch (sortType) {
-      case 1: // 最近更新
-        seriesQb.orderBy('s.updatedAt', 'DESC');
-        break;
-      case 2: // 人气最高
-        seriesQb.orderBy('s.playCount', 'DESC');
-        break;
-      case 3: // 评分最高
-        seriesQb.orderBy('s.score', 'DESC');
-        break;
-      default: // 最新上传
-        seriesQb.orderBy('s.createdAt', 'DESC');
-        break;
-    }
-    
-    const series = await seriesQb.getMany();
-    
-    const filterItems: FilterDataItem[] = series.map(s => ({
-      id: s.id,
-      coverUrl: s.coverUrl,
-      title: s.title,
-      playCount: s.playCount || 0,
-      upStatus: s.upStatus || (s.totalEpisodes ? `${s.totalEpisodes}集全` : "全集"),
-      upCount: s.upCount || 0,
-      score: s.score?.toString() || "0.0",
-      isSerial: true,
-      cidMapper: s.category?.name || "剧情",
-      isRecommend: s.playCount > 10000 // 播放量超过1万认为是推荐
-    }));
-    
-    const result = {
-      code: 200,
-      data: {
-        list: filterItems
-      },
-      msg: null
-    };
-    
-    // 将结果存入缓存，缓存3分钟
-    await this.cacheManager.set(cacheKey, result, 180000);
-    
-    return result;
+  /* 删除筛选器选项 */
+  async deleteFilterOption(id: number) {
+    // 委托给FilterService处理
+    throw new Error('此功能已迁移到FilterService，请直接使用FilterService');
+  }
+
+  /* 批量创建筛选器选项 */
+  async batchCreateFilterOptions(options: any[]) {
+    // 委托给FilterService处理
+    throw new Error('此功能已迁移到FilterService，请直接使用FilterService');
   }
 
   /**

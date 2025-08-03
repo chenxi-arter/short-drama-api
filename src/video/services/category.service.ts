@@ -1,13 +1,18 @@
-import { Injectable, Inject } from '@nestjs/common';
+import { Injectable, Inject, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
 import { Category } from '../entity/category.entity';
 import { Series } from '../entity/series.entity';
+import { CacheKeys } from '../utils/cache-keys.util';
+import { AppLoggerService } from '../../common/logger/app-logger.service';
+import { QueryOptimizer } from '../../common/utils/query-optimizer.util';
 
 @Injectable()
 export class CategoryService {
+  private readonly logger: AppLoggerService;
+
   constructor(
     @InjectRepository(Category)
     private readonly categoryRepo: Repository<Category>,
@@ -15,61 +20,89 @@ export class CategoryService {
     private readonly seriesRepo: Repository<Series>,
     @Inject(CACHE_MANAGER)
     private readonly cacheManager: Cache,
-  ) {}
+    appLogger: AppLoggerService,
+  ) {
+    this.logger = appLogger.createChildLogger('CategoryService');
+  }
 
   /**
    * 获取所有分类
    */
-  async getAllCategories() {
-    const cacheKey = 'categories:all';
+  async getAllCategories(): Promise<Category[]> {
+    const cacheKey = CacheKeys.categories();
+    const startTime = Date.now();
     
-    // 尝试从缓存获取
-    let categories = await this.cacheManager.get(cacheKey);
-    if (categories) {
+    try {
+      // 尝试从缓存获取
+      const cached = await this.cacheManager.get<Category[]>(cacheKey);
+      if (cached) {
+        this.logger.logCacheOperation('GET', cacheKey, true);
+        return cached;
+      }
+      this.logger.logCacheOperation('GET', cacheKey, false);
+
+      // 从数据库查询
+      const queryBuilder = this.categoryRepo.createQueryBuilder('category');
+      QueryOptimizer.addSorting(queryBuilder, 'category.name', 'ASC');
+      
+      const categories = await queryBuilder.getMany();
+      const duration = Date.now() - startTime;
+      
+      this.logger.logDatabaseOperation('SELECT', 'category', { count: categories.length }, duration);
+
+      // 存入缓存
+      await this.cacheManager.set(cacheKey, categories, CacheKeys.TTL.VERY_LONG);
+      this.logger.logCacheOperation('SET', cacheKey, undefined, CacheKeys.TTL.VERY_LONG);
+      
       return categories;
+    } catch (error) {
+      this.logger.error('获取分类列表失败', error.stack);
+      throw new Error('获取分类列表失败');
     }
-
-    // 从数据库获取
-    categories = await this.categoryRepo.find({
-      order: { name: 'ASC' },
-    });
-
-    // 缓存结果（缓存1小时）
-    await this.cacheManager.set(cacheKey, categories, 3600000);
-    
-    return categories;
   }
 
   /**
    * 根据ID获取分类
    */
-  async getCategoryById(id: number) {
-    const cacheKey = `category:${id}`;
+  async getCategoryById(id: number): Promise<Category | null> {
+    const cacheKey = `${CacheKeys.categories()}_detail_${id}`;
+    const startTime = Date.now();
     
-    // 尝试从缓存获取
-    let category = await this.cacheManager.get(cacheKey);
-    if (category) {
+    try {
+      // 尝试从缓存获取
+      const cached = await this.cacheManager.get<Category>(cacheKey);
+      if (cached) {
+        this.logger.logCacheOperation('GET', cacheKey, true);
+        return cached;
+      }
+      this.logger.logCacheOperation('GET', cacheKey, false);
+
+      // 从数据库查询
+      const category = await this.categoryRepo.findOne({
+        where: { id },
+      });
+      
+      const duration = Date.now() - startTime;
+      this.logger.logDatabaseOperation('SELECT', 'category', { id, found: !!category }, duration);
+
+      if (category) {
+        // 存入缓存
+        await this.cacheManager.set(cacheKey, category, CacheKeys.TTL.LONG);
+        this.logger.logCacheOperation('SET', cacheKey, undefined, CacheKeys.TTL.LONG);
+      }
+      
       return category;
+    } catch (error) {
+      this.logger.error(`获取分类详情失败: ${id}`, error.stack);
+      throw new Error('获取分类详情失败');
     }
-
-    // 从数据库获取
-    category = await this.categoryRepo.findOne({
-      where: { id },
-    });
-
-    if (category) {
-      // 缓存结果（缓存1小时）
-      await this.cacheManager.set(cacheKey, category, 3600000);
-    }
-    
-    return category;
   }
 
   /**
    * 获取分类下的剧集数量
    */
   async getCategorySeriesCount(categoryId: number) {
-    const cacheKey = `category:${categoryId}:series_count`;
+    const cacheKey = `${CacheKeys.categories()}_stats_${categoryId}`;
     
     // 尝试从缓存获取
     let count = await this.cacheManager.get(cacheKey);
@@ -77,15 +110,20 @@ export class CategoryService {
       return count;
     }
 
-    // 从数据库获取
-    count = await this.seriesRepo.count({
-      where: { category: { id: categoryId } },
-    });
+    try {
+      // 从数据库获取
+      count = await this.seriesRepo.count({
+        where: { category: { id: categoryId } },
+      });
 
-    // 缓存结果（缓存30分钟）
-    await this.cacheManager.set(cacheKey, count, 1800000);
-    
-    return count;
+      // 缓存结果
+      await this.cacheManager.set(cacheKey, count, CacheKeys.TTL.MEDIUM);
+      
+      return count;
+    } catch (error) {
+      console.error('获取分类剧集数量失败:', error);
+      return 0;
+    }
   }
 
   /**

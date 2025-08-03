@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>模块路由测试</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .module-section {
+            margin-bottom: 40px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+        }
+        .module-title {
+            font-size: 24px;
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+        }
+        .api-buttons {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .api-btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+        .api-btn.getvideos {
+            background-color: #3498db;
+            color: white;
+        }
+        .api-btn.getfilterstags {
+            background-color: #2ecc71;
+            color: white;
+        }
+        .api-btn.getfiltersdata {
+            background-color: #e74c3c;
+            color: white;
+        }
+        .api-btn:hover {
+            opacity: 0.8;
+            transform: translateY(-2px);
+        }
+        .result-container {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 15px;
+            margin-top: 15px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .loading {
+            color: #666;
+            font-style: italic;
+        }
+        .error {
+            color: #dc3545;
+            font-weight: bold;
+        }
+        .success {
+            color: #28a745;
+        }
+        pre {
+            background-color: #2d3748;
+            color: #e2e8f0;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+        .url-display {
+            background-color: #e9ecef;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+            margin-bottom: 10px;
+            word-break: break-all;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎬 模块路由功能测试</h1>
+        
+        <!-- 短剧模块 -->
+        <div class="module-section">
+            <div class="module-title">📺 短剧模块 (/api/drama)</div>
+            <div class="api-buttons">
+                <button class="api-btn getvideos" onclick="testAPI('drama', 'getvideos')">获取短剧视频列表</button>
+                <button class="api-btn getfilterstags" onclick="testAPI('drama', 'getfilterstags')">获取筛选标签</button>
+                <button class="api-btn getfiltersdata" onclick="testAPI('drama', 'getfiltersdata')">获取筛选数据</button>
+            </div>
+            <div id="drama-result" class="result-container">
+                <div class="loading">点击按钮测试API</div>
+            </div>
+        </div>
+        
+        <!-- 电影模块 -->
+        <div class="module-section">
+            <div class="module-title">🎬 电影模块 (/api/movie)</div>
+            <div class="api-buttons">
+                <button class="api-btn getvideos" onclick="testAPI('movie', 'getvideos')">获取电影视频列表</button>
+                <button class="api-btn getfilterstags" onclick="testAPI('movie', 'getfilterstags')">获取筛选标签</button>
+                <button class="api-btn getfiltersdata" onclick="testAPI('movie', 'getfiltersdata')">获取筛选数据</button>
+            </div>
+            <div id="movie-result" class="result-container">
+                <div class="loading">点击按钮测试API</div>
+            </div>
+        </div>
+        
+        <!-- 综艺模块 -->
+        <div class="module-section">
+            <div class="module-title">🎪 综艺模块 (/api/variety)</div>
+            <div class="api-buttons">
+                <button class="api-btn getvideos" onclick="testAPI('variety', 'getvideos')">获取综艺视频列表</button>
+                <button class="api-btn getfilterstags" onclick="testAPI('variety', 'getfilterstags')">获取筛选标签</button>
+                <button class="api-btn getfiltersdata" onclick="testAPI('variety', 'getfiltersdata')">获取筛选数据</button>
+            </div>
+            <div id="variety-result" class="result-container">
+                <div class="loading">点击按钮测试API</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:3000/api';
+        
+        async function testAPI(module, endpoint) {
+            const resultContainer = document.getElementById(`${module}-result`);
+            
+            // 构建URL
+            let url = `${API_BASE}/${module}/${endpoint}`;
+            let params = '';
+            
+            // 根据不同的endpoint添加参数
+            switch(endpoint) {
+                case 'getvideos':
+                    params = '?channeid=1&page=1';
+                    break;
+                case 'getfilterstags':
+                    const channelIds = { drama: '1', movie: '2', variety: '3' };
+                    params = `?channeid=${channelIds[module]}`;
+                    break;
+                case 'getfiltersdata':
+                    const channelIds2 = { drama: '1', movie: '2', variety: '3' };
+                    params = `?channeid=${channelIds2[module]}&ids=0,0,0,0,0&page=1`;
+                    break;
+            }
+            
+            url += params;
+            
+            // 显示请求URL
+            resultContainer.innerHTML = `
+                <div class="url-display">请求URL: ${url}</div>
+                <div class="loading">正在请求...</div>
+            `;
+            
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                let statusClass = response.ok ? 'success' : 'error';
+                let statusText = response.ok ? '✅ 请求成功' : '❌ 请求失败';
+                
+                resultContainer.innerHTML = `
+                    <div class="url-display">请求URL: ${url}</div>
+                    <div class="${statusClass}">${statusText} (状态码: ${response.status})</div>
+                    <pre>${JSON.stringify(data, null, 2)}</pre>
+                `;
+            } catch (error) {
+                resultContainer.innerHTML = `
+                    <div class="url-display">请求URL: ${url}</div>
+                    <div class="error">❌ 请求失败: ${error.message}</div>
+                `;
+            }
+        }
+        
+        // 页面加载完成后显示说明
+        window.onload = function() {
+            console.log('模块路由测试页面已加载');
+            console.log('可用的API路由:');
+            console.log('- /api/drama/getvideos - 短剧视频列表');
+            console.log('- /api/drama/getfilterstags - 短剧筛选标签');
+            console.log('- /api/drama/getfiltersdata - 短剧筛选数据');
+            console.log('- /api/movie/getvideos - 电影视频列表');
+            console.log('- /api/movie/getfilterstags - 电影筛选标签');
+            console.log('- /api/movie/getfiltersdata - 电影筛选数据');
+            console.log('- /api/variety/getvideos - 综艺视频列表');
+            console.log('- /api/variety/getfilterstags - 综艺筛选标签');
+            console.log('- /api/variety/getfiltersdata - 综艺筛选数据');
+        };
+    </script>
+</body>
+</html>

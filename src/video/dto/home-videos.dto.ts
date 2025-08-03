@@ -1,5 +1,6 @@
-import { IsOptional, IsString, IsNumber } from 'class-validator';
+import { IsOptional, IsString, IsNumber, Min } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
+import { EnhancedStringLength } from '../../common/validators/enhanced-validation.decorator';
 
 /**
  * 首页视频列表请求DTO
@@ -9,7 +10,8 @@ export class HomeVideosDto {
    * 频道唯一标识
    */
   @IsOptional()
-  @IsString()
+  @IsString({ message: '频道ID必须是字符串' })
+  @EnhancedStringLength(1, 50, { message: '频道ID长度必须在1到50个字符之间' })
   channeid?: string;
 
   /**
@@ -17,7 +19,8 @@ export class HomeVideosDto {
    */
   @IsOptional()
   @Type(() => Number)
-  @IsNumber()
+  @IsNumber({}, { message: '页码必须是数字' })
+  @Min(1, { message: '页码必须大于等于1' })
   @Transform(({ value }) => Math.max(1, Number(value) || 1))
   page?: number = 1;
 }

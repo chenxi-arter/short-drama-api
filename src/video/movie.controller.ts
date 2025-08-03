@@ -3,25 +3,25 @@ import { VideoService } from './video.service';
 import { BaseModuleController } from './base-module.controller';
 
 /**
- * 首页相关控制器
+ * 电影相关控制器
  */
-@Controller('/api/home')
-export class HomeController extends BaseModuleController {
+@Controller('/api/movie')
+export class MovieController extends BaseModuleController {
   constructor(videoService: VideoService) {
     super(videoService);
   }
 
   /**
-   * 获取首页模块的默认频道ID
+   * 获取电影模块的默认频道ID
    */
   protected getDefaultChannelId(): string {
-    return '1';
+    return '2';
   }
 
   /**
-   * 获取首页视频列表的服务方法
+   * 获取电影视频列表的服务方法
    */
   protected getModuleVideosMethod() {
-    return this.videoService.getHomeVideos;
+    return this.videoService.getMovieVideos;
   }
 }

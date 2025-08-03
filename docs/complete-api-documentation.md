@@ -7,9 +7,13 @@
 - [用户模块](#2-用户模块-user)
 - [首页模块](#3-首页模块-home)
 - [列表模块](#4-列表模块-list)
-- [视频模块](#5-视频模块-video)
-- [公共视频模块](#6-公共视频模块-public-video)
-- [测试模块](#7-测试模块-test)
+- [短剧模块](#5-短剧模块-drama)
+- [电影模块](#6-电影模块-movie)
+- [综艺模块](#7-综艺模块-variety)
+- [视频模块](#8-视频模块-video)
+- [公共视频模块](#9-公共视频模块-public-video)
+- [测试模块](#10-测试模块-test)
+- [架构设计](#架构设计)
 - [健壮性改进建议](#健壮性改进建议)
 - [测试建议](#测试建议)
 - [部署和监控](#部署和监控)
@@ -26,6 +30,7 @@
 - **字符编码**: UTF-8
 - **API版本**: v1.0
 - **文档更新时间**: 2024-01-01
+- **最新版本**: v1.1.0 (新增模块化路由支持)
 
 ### 📝 通用响应格式
 
@@ -385,9 +390,139 @@ interface FilterDataRequest {
 
 ---
 
-## 5. 🎬 视频模块 (Video)
+## 5. 🎭 短剧模块 (Drama)
 
-### 5.1 保存观看进度
+短剧模块提供专门针对短剧内容的API接口，继承自基础模块控制器，支持完整的筛选和分页功能。
+
+### 5.1 获取短剧视频列表
+
+**接口信息**
+- **路径**: `GET /api/drama/getvideos`
+- **描述**: 获取短剧推荐内容，包括轮播图、过滤器、视频列表
+- **认证**: 无需认证
+- **默认频道**: 1 (短剧频道)
+
+**请求参数**
+```typescript
+interface DramaVideosRequest {
+  channeid?: string;  // 可选，频道ID，默认为"1"
+  page?: number;      // 可选，页码，默认为1，最小值1
+}
+```
+
+**响应格式**: 与首页模块相同的数据结构
+
+### 5.2 获取短剧筛选器标签
+
+**接口信息**
+- **路径**: `GET /api/drama/getfilterstags`
+- **描述**: 获取短剧筛选器的标签分组
+- **认证**: 无需认证
+
+**请求参数**
+```typescript
+interface DramaFilterTagsRequest {
+  channeid?: string;  // 可选，频道ID，默认为"1"
+}
+```
+
+**响应格式**: 与列表模块相同的筛选器标签结构
+
+### 5.3 获取短剧筛选器数据
+
+**接口信息**
+- **路径**: `GET /api/drama/getfiltersdata`
+- **描述**: 根据筛选条件获取短剧列表
+- **认证**: 无需认证
+
+**请求参数**
+```typescript
+interface DramaFilterDataRequest {
+  channeid?: string;  // 可选，频道ID，默认为"1"
+  ids?: string;       // 可选，筛选ID组合，默认为"0,0,0,0,0"
+  page?: string;      // 可选，页码，默认为"1"
+}
+```
+
+**响应格式**: 与列表模块相同的筛选数据结构
+
+---
+
+## 6. 🎬 电影模块 (Movie)
+
+电影模块提供专门针对电影内容的API接口，继承自基础模块控制器，支持完整的筛选和分页功能。
+
+### 6.1 获取电影视频列表
+
+**接口信息**
+- **路径**: `GET /api/movie/getvideos`
+- **描述**: 获取电影推荐内容，包括轮播图、过滤器、视频列表
+- **认证**: 无需认证
+- **默认频道**: 2 (电影频道)
+
+**请求参数**
+```typescript
+interface MovieVideosRequest {
+  channeid?: string;  // 可选，频道ID，默认为"2"
+  page?: number;      // 可选，页码，默认为1，最小值1
+}
+```
+
+### 6.2 获取电影筛选器标签
+
+**接口信息**
+- **路径**: `GET /api/movie/getfilterstags`
+- **描述**: 获取电影筛选器的标签分组
+- **认证**: 无需认证
+
+### 6.3 获取电影筛选器数据
+
+**接口信息**
+- **路径**: `GET /api/movie/getfiltersdata`
+- **描述**: 根据筛选条件获取电影列表
+- **认证**: 无需认证
+
+---
+
+## 7. 📺 综艺模块 (Variety)
+
+综艺模块提供专门针对综艺内容的API接口，继承自基础模块控制器，支持完整的筛选和分页功能。
+
+### 7.1 获取综艺视频列表
+
+**接口信息**
+- **路径**: `GET /api/variety/getvideos`
+- **描述**: 获取综艺推荐内容，包括轮播图、过滤器、视频列表
+- **认证**: 无需认证
+- **默认频道**: 3 (综艺频道)
+
+**请求参数**
+```typescript
+interface VarietyVideosRequest {
+  channeid?: string;  // 可选，频道ID，默认为"3"
+  page?: number;      // 可选，页码，默认为1，最小值1
+}
+```
+
+### 7.2 获取综艺筛选器标签
+
+**接口信息**
+- **路径**: `GET /api/variety/getfilterstags`
+- **描述**: 获取综艺筛选器的标签分组
+- **认证**: 无需认证
+
+### 7.3 获取综艺筛选器数据
+
+**接口信息**
+- **路径**: `GET /api/variety/getfiltersdata`
+- **描述**: 根据筛选条件获取综艺列表
+- **认证**: 无需认证
+
+---
+
+## 8. 🎬 视频模块 (Video)
+
+### 8.1 保存观看进度
 
 **接口信息**
 - **路径**: `POST /api/video/progress`
@@ -414,7 +549,7 @@ interface SaveProgressRequest {
 }
 ```
 
-### 5.2 获取观看进度
+### 8.2 获取观看进度
 
 **接口信息**
 - **路径**: `GET /api/video/progress`
@@ -437,7 +572,7 @@ interface GetProgressRequest {
 }
 ```
 
-### 5.3 发表评论
+### 8.3 发表评论
 
 **接口信息**
 - **路径**: `POST /api/video/comment`
@@ -467,7 +602,7 @@ interface AddCommentRequest {
 }
 ```
 
-### 5.4 获取视频详情
+### 8.4 获取视频详情
 
 **接口信息**
 - **路径**: `GET /api/video/details`
@@ -531,7 +666,7 @@ interface VideoDetailsRequest {
 
 ---
 
-### 5.5 获取用户媒体列表
+### 8.5 获取用户媒体列表
 
 **接口信息**
 - **路径**: `GET /api/video/media`
@@ -551,9 +686,9 @@ interface MediaQueryRequest {
 
 ---
 
-## 6. 🌐 公共视频模块 (Public Video)
+## 9. 🌐 公共视频模块 (Public Video)
 
-### 6.1 获取分类列表
+### 9.1 获取分类列表
 
 **接口信息**
 - **路径**: `GET /api/public/video/categories`
@@ -580,7 +715,7 @@ interface MediaQueryRequest {
 }
 ```
 
-### 6.2 获取系列列表
+### 9.2 获取系列列表
 
 **接口信息**
 - **路径**: `GET /api/public/video/series/list`
@@ -596,7 +731,7 @@ interface SeriesListRequest {
 }
 ```
 
-### 6.3 获取系列详情
+### 9.3 获取系列详情
 
 **接口信息**
 - **路径**: `GET /api/public/video/series/:id`
@@ -606,7 +741,7 @@ interface SeriesListRequest {
 **路径参数**
 - `id`: 系列ID (number)
 
-### 6.4 获取媒体列表
+### 9.4 获取媒体列表
 
 **接口信息**
 - **路径**: `GET /api/public/video/media`
@@ -626,9 +761,9 @@ interface PublicMediaRequest {
 
 ---
 
-## 7. 🧪 测试模块 (Test)
+## 10. 🧪 测试模块 (Test)
 
-### 7.1 测试用户信息
+### 10.1 测试用户信息
 
 **接口信息**
 - **路径**: `GET /test/me`
@@ -1046,6 +1181,65 @@ export class PerformanceMiddleware implements NestMiddleware {
 - ✅ **性能优化**: 提升API响应速度
 - ✅ **开发效率**: 提升开发和维护效率
 - ✅ **用户体验**: 提供更好的API使用体验
+
+---
+
+## 🏗️ 架构设计
+
+### 基础模块控制器 (BaseModuleController)
+
+为了减少代码重复并提高维护性，系统采用了基类控制器设计模式。所有内容模块（短剧、电影、综艺）都继承自 `BaseModuleController`。
+
+**设计优势**:
+- **代码复用**: 通用的接口逻辑只需实现一次
+- **一致性**: 所有模块提供相同的API接口结构
+- **维护性**: 修改通用逻辑时只需更新基类
+- **扩展性**: 新增模块只需实现抽象方法
+
+**抽象方法**:
+```typescript
+abstract getDefaultChannelId(): string;  // 获取模块默认频道ID
+abstract getModuleVideosMethod(): string; // 获取模块视频的方法名
+```
+
+**通用接口**:
+- `getvideos`: 获取推荐视频列表
+- `getfilterstags`: 获取筛选器标签
+- `getfiltersdata`: 获取筛选数据
+
+### 筛选器系统架构
+
+筛选器系统采用灵活的实体关系设计，支持动态配置筛选条件。
+
+**核心实体**:
+- `FilterType`: 筛选器类型（分类、地区、语言、年份、状态等）
+- `FilterOption`: 筛选器选项（具体的筛选值）
+
+**筛选参数结构**:
+```typescript
+interface FilterIds {
+  sortType: number;    // 排序类型
+  categoryId: number;  // 分类ID
+  regionId: number;    // 地区ID
+  languageId: number;  // 语言ID
+  yearId: number;      // 年份ID
+  statusId: number;    // 状态ID
+}
+```
+
+**缓存机制**:
+- 筛选器标签缓存: 24小时
+- 筛选数据缓存: 10分钟
+- 提高响应速度，减少数据库查询
+
+### 模块映射关系
+
+| 模块 | 路由前缀 | 默认频道ID | 内容类型 |
+|------|----------|------------|----------|
+| 短剧 | `/api/drama` | 1 | 短剧内容 |
+| 电影 | `/api/movie` | 2 | 电影内容 |
+| 综艺 | `/api/variety` | 3 | 综艺内容 |
+| 首页 | `/api/home` | 1 | 混合推荐 |
 
 ---
 

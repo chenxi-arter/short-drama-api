@@ -17,11 +17,18 @@ import { VideoController } from './video.controller';          // 视频相关AP
 import { PublicVideoController } from './public-video.controller'; // 公开视频API控制器
 import { HomeController } from './home.controller';           // 首页相关API控制器
 import { ListController } from './list.controller';           // 列表筛选相关API控制器
+import { MovieController } from './movie.controller';         // 电影相关API控制器
+import { DramaController } from './drama.controller';         // 短剧相关API控制器
+import { VarietyController } from './variety.controller';     // 综艺相关API控制器
 import { WatchProgressService } from './services/watch-progress.service';
 import { CommentService } from './services/comment.service';
 import { EpisodeService } from './services/episode.service';
 import { CategoryService } from './services/category.service';
 import { TagService } from './services/tag.service';
+import { FilterService } from './services/filter.service';
+import { SeriesService } from './services/series.service';
+import { AppLoggerService } from '../common/logger/app-logger.service';
+import { AppConfigService } from '../common/config/app-config.service';
 @Module({
   imports: [
     CacheModule.register(),
@@ -46,8 +53,20 @@ import { TagService } from './services/tag.service';
     EpisodeService,
     CategoryService,
     TagService,
+    FilterService,
+    SeriesService,
+    AppLoggerService,
+    AppConfigService,
   ],    // 注册本模块的服务提供者（业务逻辑）
-  controllers: [PublicVideoController, VideoController, HomeController, ListController], // 一起注册
+  controllers: [
+    PublicVideoController, 
+    VideoController, 
+    HomeController, 
+    ListController,
+    MovieController,
+    DramaController,
+    VarietyController
+  ], // 一起注册
   // 注意：如果需要让其他模块使用这些实体或服务，应该在这里添加exports
 })
 export class VideoModule {}
