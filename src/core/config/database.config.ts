@@ -75,13 +75,14 @@ export class DatabaseConfig {
       password: this.password,
       database: this.database,
       charset: this.charset,
-      timezone: this.timezone,
+      timezone: '+08:00', // 修改时区格式
       synchronize: this.synchronize,
       logging: this.logging,
       extra: {
         connectionLimit: this.maxConnections,
-        acquireTimeout: this.acquireTimeout,
-        timeout: this.timeout,
+        // 移除 acquireTimeout 和 timeout
+        // acquireTimeout: this.acquireTimeout,  // 删除这行
+        // timeout: this.timeout,                // 删除这行
       },
       autoLoadEntities: true,
       retryAttempts: 3,
