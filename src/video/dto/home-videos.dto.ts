@@ -12,7 +12,7 @@ export class HomeVideosDto {
   @IsOptional()
   @IsString({ message: '频道ID必须是字符串' })
   @EnhancedStringLength(1, 50, { message: '频道ID长度必须在1到50个字符之间' })
-  channeid?: string;
+  catid?: string;
 
   /**
    * 页数

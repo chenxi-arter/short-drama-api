@@ -3,10 +3,9 @@
  * 剧集系列实体类
  * 表示一个完整的电视剧或系列，包含多个剧集
  */
-import { Entity, PrimaryGeneratedColumn, Column, OneToMany, CreateDateColumn, ManyToOne, JoinColumn, ManyToMany, JoinTable } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, OneToMany, CreateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
 import { Episode } from './episode.entity';
 import { Category } from './category.entity';
-import { Tag } from './tag.entity';
 
 @Entity('series')
 export class Series {
@@ -158,15 +157,10 @@ export class Series {
   @Column({ type: 'timestamp', nullable: true, name: 'updated_at' })
   updatedAt: Date;
 
-  /** 
-   * 多对多关系：系列标签
-   * 一个系列可以有多个标签，一个标签可以属于多个系列
+  /**
+   * 分类ID
+   * 关联到category表的外键
    */
-  @ManyToMany(() => Tag, tag => tag.series)
-  @JoinTable({
-    name: 'series_tags',      // 中间表表名
-    joinColumn: { name: 'series_id', referencedColumnName: 'id' },
-    inverseJoinColumn: { name: 'tag_id', referencedColumnName: 'id' }
-  })
-  tags: Tag[];
+  @Column({ type: 'varchar', nullable: true, name: 'category_id' })
+  categoryId: string;
 }

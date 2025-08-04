@@ -3,12 +3,11 @@
  * 剧集实体类
  * 表示一个电视剧系列中的单集内容
  */
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, OneToMany, JoinColumn, ManyToMany, JoinTable, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, OneToMany, JoinColumn, CreateDateColumn, UpdateDateColumn } from 'typeorm';
 import { Series } from './series.entity';
 import { EpisodeUrl } from './episode-url.entity';
 import { WatchProgress } from './watch-progress.entity';
 import { Comment } from './comment.entity';
-import { Tag } from './tag.entity';
 
 @Entity('episodes')
 export class Episode {
@@ -110,15 +109,8 @@ export class Episode {
   @Column({ type: 'boolean', default: false, name: 'has_sequel' })
   hasSequel: boolean;
 
-  /** 
-   * 多对多关系：剧集标签 
-   * 一个剧集可以有多个标签，一个标签可以属于多个剧集
+  /**
+   * 剧集分类通过所属系列的category进行管理
+   * 不再需要单独的tags字段
    */
-  @ManyToMany(() => Tag, tag => tag.episodes)
-  @JoinTable({
-    name: 'episode_tags',
-    joinColumn: { name: 'episode_id', referencedColumnName: 'id' },
-    inverseJoinColumn: { name: 'tag_id', referencedColumnName: 'id' }
-  })
-  tags: Tag[];
 }

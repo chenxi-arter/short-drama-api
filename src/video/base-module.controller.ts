@@ -29,7 +29,7 @@ export abstract class BaseModuleController {
   @Get('getvideos')
   async getVideos(@Query() dto: HomeVideosDto) {
     const method = this.getModuleVideosMethod();
-    return method.call(this.videoService, dto.channeid, dto.page || 1);
+    return method.call(this.videoService, dto.catid, dto.page || 1);
   }
 
   /**

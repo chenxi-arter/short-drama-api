@@ -9,7 +9,7 @@ import { Comment } from './entity/comment.entity';             // 用户评论�
 import { WatchProgress } from './entity/watch-progress.entity';// 观看进度记录实体
 import { Category } from './entity/category.entity';           // 视频分类实体
 import { ShortVideo } from './entity/short-video.entity';      // 短视频实体
-import { Tag } from './entity/tag.entity';                     // 标签实体
+
 import { FilterType } from './entity/filter-type.entity';      // 筛选器类型实体
 import { FilterOption } from './entity/filter-option.entity';  // 筛选器选项实体
 import { VideoService } from './video.service';                // 视频业务逻辑服务
@@ -20,11 +20,12 @@ import { ListController } from './list.controller';           // 列表筛选相
 import { MovieController } from './movie.controller';         // 电影相关API控制器
 import { DramaController } from './drama.controller';         // 短剧相关API控制器
 import { VarietyController } from './variety.controller';     // 综艺相关API控制器
+import { CategoryController } from './category.controller';   // 分类相关API控制器
 import { WatchProgressService } from './services/watch-progress.service';
 import { CommentService } from './services/comment.service';
 import { EpisodeService } from './services/episode.service';
 import { CategoryService } from './services/category.service';
-import { TagService } from './services/tag.service';
+
 import { FilterService } from './services/filter.service';
 import { SeriesService } from './services/series.service';
 import { AppLoggerService } from '../common/logger/app-logger.service';
@@ -41,7 +42,7 @@ import { AppConfigService } from '../common/config/app-config.service';
       WatchProgress,  // 用户观看进度数据表
       Category,       // 分类目录数据表
       ShortVideo,     // 短视频数据表
-      Tag,            // 标签数据表
+
       FilterType,     // 筛选器类型数据表
       FilterOption    // 筛选器选项数据表
     ])
@@ -52,7 +53,7 @@ import { AppConfigService } from '../common/config/app-config.service';
     CommentService,
     EpisodeService,
     CategoryService,
-    TagService,
+
     FilterService,
     SeriesService,
     AppLoggerService,
@@ -65,7 +66,8 @@ import { AppConfigService } from '../common/config/app-config.service';
     ListController,
     MovieController,
     DramaController,
-    VarietyController
+    VarietyController,
+    CategoryController
   ], // 一起注册
   // 注意：如果需要让其他模块使用这些实体或服务，应该在这里添加exports
 })

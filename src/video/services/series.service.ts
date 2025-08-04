@@ -83,7 +83,7 @@ export class SeriesService {
     try {
       const series = await this.seriesRepo.findOne({
         where: { id: seriesId },
-        relations: ['category', 'episodes', 'tags'],
+        relations: ['category', 'episodes', 'episodes.urls'],
       });
 
       if (series) {

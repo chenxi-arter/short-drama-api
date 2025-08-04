@@ -283,4 +283,60 @@ export class CategoryService {
     
     return popularCategories;
   }
+
+  /**
+   * 获取分类列表（用于前端接口）
+   * 返回格式化的分类列表数据
+   */
+  async getCategoryList(versionNo?: number) {
+    const cacheKey = CacheKeys.categories() + ':list';
+    const startTime = Date.now();
+    
+    try {
+      // 尝试从缓存获取
+      const cached = await this.cacheManager.get(cacheKey);
+      if (cached) {
+        this.logger.logCacheOperation('GET', cacheKey, true);
+        return cached;
+      }
+      this.logger.logCacheOperation('GET', cacheKey, false);
+
+      // 从数据库查询启用的分类
+      const categories = await this.categoryRepo.find({
+        where: { isEnabled: true },
+        order: { index: 'ASC' }
+      });
+      
+      const duration = Date.now() - startTime;
+      this.logger.logDatabaseOperation('SELECT', 'category', { count: categories.length }, duration);
+
+      // 格式化数据
+      const formattedList = categories.map(category => ({
+        categoryId: category.categoryId,
+        name: category.name,
+        type: category.type,
+        index: category.index,
+        routeName: category.routeName,
+        ...(category.styleType !== null && { styleType: category.styleType })
+      }));
+
+      const result = {
+        ret: 200,
+        data: {
+          versionNo: versionNo || 20240112,
+          list: formattedList
+        },
+        msg: null
+      };
+
+      // 存入缓存（缓存1小时）
+      await this.cacheManager.set(cacheKey, result, CacheKeys.TTL.LONG);
+      this.logger.logCacheOperation('SET', cacheKey, undefined, CacheKeys.TTL.LONG);
+      
+      return result;
+    } catch (error) {
+      this.logger.error('获取分类列表失败', error.stack);
+      throw new Error('获取分类列表失败');
+    }
+  }
 }

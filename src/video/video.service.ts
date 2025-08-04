@@ -17,7 +17,7 @@ import { WatchProgressService } from './services/watch-progress.service';
 import { CommentService } from './services/comment.service';
 import { EpisodeService } from './services/episode.service';
 import { CategoryService } from './services/category.service';
-import { TagService } from './services/tag.service';
+
 import { FilterService } from './services/filter.service';
 import { SeriesService } from './services/series.service';
 import { CacheKeys } from './utils/cache-keys.util';
@@ -34,7 +34,7 @@ export class VideoService {
     private readonly commentService: CommentService,
     private readonly episodeService: EpisodeService,
     private readonly categoryService: CategoryService,
-    private readonly tagService: TagService,
+
     private readonly filterService: FilterService,
     private readonly seriesService: SeriesService,
   ) {}

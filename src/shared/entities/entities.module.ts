@@ -13,7 +13,7 @@ import { Comment } from '../../video/entity/comment.entity';
 import { WatchProgress } from '../../video/entity/watch-progress.entity';
 import { Category } from '../../video/entity/category.entity';
 import { ShortVideo } from '../../video/entity/short-video.entity';
-import { Tag } from '../../video/entity/tag.entity';
+
 
 /**
  * 全局实体模块
@@ -35,7 +35,7 @@ import { Tag } from '../../video/entity/tag.entity';
       WatchProgress,
       Category,
       ShortVideo,
-      Tag,
+
     ])
   ],
   exports: [TypeOrmModule]
