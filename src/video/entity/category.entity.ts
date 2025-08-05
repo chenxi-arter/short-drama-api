@@ -20,7 +20,7 @@ export class Category {
    * 分类ID（可以是数字或字符串）
    * 用于前端识别的分类标识
    */
-  @Column({ length: 50, name: 'category_id' })
+  @Column({ length: 50, name: 'category_id', unique: true })
   categoryId: string;
 
   /** 

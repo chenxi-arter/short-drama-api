@@ -312,7 +312,7 @@ export class CategoryService {
 
       // 格式化数据
       const formattedList = categories.map(category => ({
-        categoryId: category.categoryId,
+        catid: category.categoryId,
         name: category.name,
         type: category.type,
         index: category.index,

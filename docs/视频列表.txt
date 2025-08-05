@@ -1,0 +1,108 @@
+
+1、视频列表接口
+/home/getvideos
+
+// 请求参数
+{
+catid            string               `json:"catid"`               // 频道唯一标识
+page           string              `json:"page"`             // 页数
+}
+
+
+// 响应数据
+{
+    "data": {
+        "list": [
+            {               // 轮播图
+                "type": 0,                // 板块类型
+                "name": "轮播图",          // 搜索列表
+                "filters": null, 
+                "banners": [                // 轮播列表
+                    {
+                        "showURL": "https://static.yfsp.tv/upload/user/202507041859235983553.jpg",  // 图片的URL地址，用于显示轮播封面图片
+                        "title": "水饺皇后",  // 视频的标题或名称
+                        "id": 1131527,      // 视频的唯一标识符ID
+                        "channeID": 1,  // 频道分类ID
+                        "url": "1131527",  // 视频详情页path
+                    }
+                ],
+                "list": [],                // 视频列表
+
+            },
+            {               // 搜索
+                "type": 1001,                // 板块类型
+                "name": "轮播图",
+                "filters": [                // 过滤器列表
+                    {
+                        "channeID": 1,  // 频道分类ID
+                        "name": "短剧",
+                        "title": "全部",
+                        "ids": "0,0,0,0,0", // 
+
+                    },
+                    {
+                        "channeID": 1,  // 频道分类ID
+                        "name": "短剧",
+                        "title": "最新上传",
+                        "ids": "0,0,0,0,0", 
+
+                    },
+                    {
+                        "channeID": 1,  // 频道分类ID
+                        "name": "短剧",
+                        "title": "人气高",
+                        "ids": "1,0,0,0,0", 
+
+                    },
+                    {
+                        "channeID": 1,  // 频道分类ID
+                        "name": "短剧",
+                        "title": "评分高",
+                        "ids": "2,0,0,0,0", 
+                    },
+                                        {
+                        "channeID": 1,  // 频道分类ID
+                        "name": "短剧",
+                        "title": "最新更新",
+                        "ids": "3,0,0,0,0", 
+
+                    },
+                ], 
+                "banners": [],                // 轮播列表
+                "list": [],                // 视频列表
+
+            },
+            {               // 广告
+                "type": -1,                 // 板块类型
+                "name": "广告",             // 搜索列表
+                "filters": null,            // 轮播列表
+                "banners": [],              // 视频列表
+                "list": [],
+
+            },
+            {               // 视频
+                "type": 3,                  // 板块类型
+                "name": "电影",             // 搜索列表
+                "filters": null,           // 轮播列表
+                "banners": [],              // 视频列表
+                "list": [
+                    {
+                        "id": 1140468,          // 视频ID
+                        "coverUrl": "https://static.yfsp.tv/upload/video/202507281547324760826.gif",  // 封面图URL，视频的封面图片地址
+                        "title": "兽性",        // 视频的标题
+                        "score": "5.8",        // 视频评分
+                        "playCount": 12785,    // 视频的播放次数
+                        "url": "1140468",       // 视频详情path
+                        "type": "剧情·恐怖"     // 分类映射
+                        "isSerial": false,       // 是否是系列剧集，false表示不是
+                        "upStatus": "全集",     // 更新到09集
+                        "upCount": 0,        // 更新次数，当前为0
+                    }
+                ],
+
+            },
+        ]
+    },
+    "code": 200,
+    "msg": null,
+}

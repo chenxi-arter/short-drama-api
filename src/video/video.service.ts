@@ -20,6 +20,7 @@ import { CategoryService } from './services/category.service';
 
 import { FilterService } from './services/filter.service';
 import { SeriesService } from './services/series.service';
+import { BannerService } from './services/banner.service';
 import { CacheKeys } from './utils/cache-keys.util';
 
 @Injectable()
@@ -37,6 +38,7 @@ export class VideoService {
 
     private readonly filterService: FilterService,
     private readonly seriesService: SeriesService,
+    private readonly bannerService: BannerService,
   ) {}
    /* 列出所有分类 */
   async listCategories() {
@@ -273,19 +275,12 @@ async listSeriesFull(
     const blocks: ContentBlock[] = [];
     
     // 1. 添加轮播图板块
-    const banners = await this.getTopSeries(5);
+    const banners = await this.bannerService.getActiveBanners(categoryId, 5);
     blocks.push({
       type: 0,
       name: "轮播图",
       filters: [],
-      banners: banners.map(series => ({
-        showURL: series.coverUrl,
-        title: series.title,
-        id: series.id,
-        uuid: series.uuid,
-        channeID: series.category?.id || 1,
-        url: series.id.toString(),
-      })),
+      banners: banners,
       list: [],
     });
     
@@ -415,63 +410,62 @@ async listSeriesFull(
       return cachedData;
     }
     
+    // 根据categoryId获取分类信息
+    const category = await this.catRepo.findOne({ where: { id: categoryId } });
+    const categoryName = category?.name || '未知分类';
+    
     // 构建响应数据结构
     const blocks: ContentBlock[] = [];
     
     // 1. 添加轮播图板块
-    const banners = await this.getTopSeries(5);
+    const banners = await this.getTopSeries(5, categoryId);
     blocks.push({
       type: 0,
       name: "轮播图",
-      filters: [],
+      filters: undefined,
       banners: banners.map(series => ({
-        showURL: series.coverUrl,
+        showURL: series.coverUrl || '',
         title: series.title,
         id: series.id,
+        uuid: series.uuid,
         channeID: categoryId,
-        url: series.id.toString(),
+        url: `/video/details/${series.uuid || series.id}`,
       })),
       list: [],
     });
     
     // 2. 添加搜索过滤器板块
-    const moduleNames = {
-      movie: '电影',
-      drama: '短剧',
-      variety: '综艺'
-    };
-    
     blocks.push({
       type: 1001,
       name: "搜索过滤器",
       filters: [
         {
           channeID: categoryId,
-          name: moduleNames[moduleType],
+          name: categoryName,
           title: "全部",
           ids: "0,0,0,0,0",
         },
         {
           channeID: categoryId,
-          name: moduleNames[moduleType],
+          name: categoryName,
           title: "最新上传",
           ids: "0,0,0,0,0",
         },
         {
           channeID: categoryId,
-          name: moduleNames[moduleType],
+          name: categoryName,
           title: "人气高",
           ids: "1,0,0,0,0",
         },
         {
           channeID: categoryId,
-          name: moduleNames[moduleType],
+          name: categoryName,
           title: "评分高",
           ids: "2,0,0,0,0",
         },
         {
           channeID: categoryId,
-          name: moduleNames[moduleType],
+          name: categoryName,
           title: "最新更新",
           ids: "3,0,0,0,0",
         },
@@ -480,11 +474,11 @@ async listSeriesFull(
       list: [],
     });
     
-    // 3. 添加广告板块（示例）
+    // 3. 添加广告板块
     blocks.push({
       type: -1,
       name: "广告",
-      filters: [],
+      filters: undefined,
       banners: [],
       list: [],
     });
@@ -493,7 +487,7 @@ async listSeriesFull(
     const videoList = await this.getVideoList(categoryId, page, size);
     blocks.push({
       type: 3,
-      name: moduleNames[moduleType],
+      name: categoryName,
       filters: undefined,
       banners: [],
       list: videoList,
@@ -516,17 +510,22 @@ async listSeriesFull(
   /**
    * 获取热门系列作为轮播图
    * @param limit 限制数量
+   * @param categoryId 分类ID
    * @returns 热门系列列表
    */
-  private async getTopSeries(limit: number = 5) {
-    return this.seriesRepo.find({
-      relations: ['category'],
-      order: {
-        playCount: 'DESC',
-        score: 'DESC',
-      },
-      take: limit,
-    });
+  private async getTopSeries(limit: number = 5, categoryId?: number) {
+    const queryBuilder = this.seriesRepo
+      .createQueryBuilder('s')
+      .leftJoinAndSelect('s.category', 'c')
+      .orderBy('s.playCount', 'DESC')
+      .addOrderBy('s.score', 'DESC')
+      .take(limit);
+    
+    if (categoryId) {
+      queryBuilder.where('s.category_id = :categoryId', { categoryId });
+    }
+    
+    return queryBuilder.getMany();
   }
   
   /**

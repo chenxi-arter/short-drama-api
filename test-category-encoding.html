@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>分类接口编码测试</title>
+    <style>
+        body {
+            font-family: 'Microsoft YaHei', Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #333;
+        }
+        .test-button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px;
+            font-size: 16px;
+        }
+        .test-button:hover {
+            background: #0056b3;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 5px;
+            background: #f8f9fa;
+            border-left: 4px solid #007bff;
+        }
+        .category-item {
+            background: white;
+            margin: 10px 0;
+            padding: 15px;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .category-name {
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+        }
+        .category-details {
+            font-size: 14px;
+            color: #666;
+        }
+        .error {
+            color: #dc3545;
+            background: #f8d7da;
+            border-left-color: #dc3545;
+        }
+        .success {
+            color: #155724;
+            background: #d4edda;
+            border-left-color: #28a745;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎬 分类接口中文编码测试</h1>
+            <p>测试 /category/list 接口返回的中文字符是否正确显示</p>
+        </div>
+        
+        <div class="test-section">
+            <button class="test-button" onclick="testCategoryList()">测试分类列表接口</button>
+            <button class="test-button" onclick="clearResult()">清空结果</button>
+        </div>
+
+        <div id="result" class="result" style="display: none;"></div>
+        
+        <div id="categories" style="margin-top: 20px;"></div>
+    </div>
+
+    <script>
+        async function testCategoryList() {
+            const resultDiv = document.getElementById('result');
+            const categoriesDiv = document.getElementById('categories');
+            
+            try {
+                resultDiv.style.display = 'block';
+                resultDiv.className = 'result';
+                resultDiv.innerHTML = '正在请求分类列表...';
+                
+                const response = await fetch('http://localhost:3001/category/list');
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                
+                resultDiv.className = 'result success';
+                resultDiv.innerHTML = `
+                    <h3>✅ 请求成功</h3>
+                    <p><strong>状态码:</strong> ${data.ret}</p>
+                    <p><strong>版本号:</strong> ${data.data.versionNo}</p>
+                    <p><strong>分类数量:</strong> ${data.data.list.length}</p>
+                `;
+                
+                // 显示分类列表
+                categoriesDiv.innerHTML = '<h3>📋 分类列表</h3>';
+                
+                data.data.list.forEach(category => {
+                    const categoryDiv = document.createElement('div');
+                    categoryDiv.className = 'category-item';
+                    categoryDiv.innerHTML = `
+                        <div>
+                            <div class="category-name">${category.name}</div>
+                            <div class="category-details">
+                                ID: ${category.catid} | 
+                                类型: ${category.type} | 
+                                索引: ${category.index} | 
+                                路由: ${category.routeName}
+                            </div>
+                        </div>
+                    `;
+                    categoriesDiv.appendChild(categoryDiv);
+                });
+                
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `
+                    <h3>❌ 请求失败</h3>
+                    <p><strong>错误信息:</strong> ${error.message}</p>
+                    <p><strong>建议:</strong> 请确保服务器正在运行在 http://localhost:3001</p>
+                `;
+                categoriesDiv.innerHTML = '';
+            }
+        }
+        
+        function clearResult() {
+            document.getElementById('result').style.display = 'none';
+            document.getElementById('categories').innerHTML = '';
+        }
+        
+        // 页面加载时自动测试
+        window.onload = function() {
+            testCategoryList();
+        };
+    </script>
+</body>
+</html>

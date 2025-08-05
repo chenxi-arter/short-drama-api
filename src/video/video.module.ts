@@ -9,6 +9,7 @@ import { Comment } from './entity/comment.entity';             // 用户评论�
 import { WatchProgress } from './entity/watch-progress.entity';// 观看进度记录实体
 import { Category } from './entity/category.entity';           // 视频分类实体
 import { ShortVideo } from './entity/short-video.entity';      // 短视频实体
+import { Banner } from './entity/banner.entity';              // 轮播图实体
 
 import { FilterType } from './entity/filter-type.entity';      // 筛选器类型实体
 import { FilterOption } from './entity/filter-option.entity';  // 筛选器选项实体
@@ -17,9 +18,6 @@ import { VideoController } from './video.controller';          // 视频相关AP
 import { PublicVideoController } from './public-video.controller'; // 公开视频API控制器
 import { HomeController } from './home.controller';           // 首页相关API控制器
 import { ListController } from './list.controller';           // 列表筛选相关API控制器
-import { MovieController } from './movie.controller';         // 电影相关API控制器
-import { DramaController } from './drama.controller';         // 短剧相关API控制器
-import { VarietyController } from './variety.controller';     // 综艺相关API控制器
 import { CategoryController } from './category.controller';   // 分类相关API控制器
 import { WatchProgressService } from './services/watch-progress.service';
 import { CommentService } from './services/comment.service';
@@ -28,6 +26,7 @@ import { CategoryService } from './services/category.service';
 
 import { FilterService } from './services/filter.service';
 import { SeriesService } from './services/series.service';
+import { BannerService } from './services/banner.service';     // 轮播图服务
 import { AppLoggerService } from '../common/logger/app-logger.service';
 import { AppConfigService } from '../common/config/app-config.service';
 @Module({
@@ -42,6 +41,7 @@ import { AppConfigService } from '../common/config/app-config.service';
       WatchProgress,  // 用户观看进度数据表
       Category,       // 分类目录数据表
       ShortVideo,     // 短视频数据表
+      Banner,         // 轮播图数据表
 
       FilterType,     // 筛选器类型数据表
       FilterOption    // 筛选器选项数据表
@@ -53,6 +53,7 @@ import { AppConfigService } from '../common/config/app-config.service';
     CommentService,
     EpisodeService,
     CategoryService,
+    BannerService,
 
     FilterService,
     SeriesService,
@@ -64,9 +65,6 @@ import { AppConfigService } from '../common/config/app-config.service';
     VideoController, 
     HomeController, 
     ListController,
-    MovieController,
-    DramaController,
-    VarietyController,
     CategoryController
   ], // 一起注册
   // 注意：如果需要让其他模块使用这些实体或服务，应该在这里添加exports
