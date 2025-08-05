@@ -8,6 +8,12 @@ import { ValidationPipe } from '@nestjs/common';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
+  // ✅ 设置字符编码
+  app.use((req, res, next) => {
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    next();
+  });
+
   // ✅ 启用全局验证管道
   app.useGlobalPipes(new ValidationPipe({
     transform: true,

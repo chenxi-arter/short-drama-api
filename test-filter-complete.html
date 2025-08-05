@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎬 短剧筛选器完整功能测试</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        
+        .content {
+            padding: 30px;
+        }
+        
+        .api-section {
+            margin-bottom: 40px;
+            padding: 25px;
+            border: 2px solid #f0f0f0;
+            border-radius: 15px;
+            background: #fafafa;
+        }
+        
+        .api-title {
+            font-size: 1.5em;
+            color: #333;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .api-description {
+            color: #666;
+            margin-bottom: 20px;
+            line-height: 1.6;
+        }
+        
+        .test-controls {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        
+        .control-group label {
+            font-weight: 600;
+            color: #555;
+            font-size: 0.9em;
+        }
+        
+        .control-group select,
+        .control-group input {
+            padding: 8px 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 0.9em;
+            transition: border-color 0.3s;
+        }
+        
+        .control-group select:focus,
+        .control-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .test-button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: transform 0.2s;
+        }
+        
+        .test-button:hover {
+            transform: translateY(-2px);
+        }
+        
+        .result-container {
+            background: white;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+        
+        .url-display {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85em;
+            margin-bottom: 15px;
+            word-break: break-all;
+            border-left: 4px solid #667eea;
+        }
+        
+        .loading {
+            text-align: center;
+            color: #666;
+            font-style: italic;
+            padding: 20px;
+        }
+        
+        .success {
+            color: #28a745;
+            font-weight: 600;
+            margin-bottom: 15px;
+        }
+        
+        .error {
+            color: #dc3545;
+            font-weight: 600;
+            margin-bottom: 15px;
+        }
+        
+        .json-result {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 5px;
+            padding: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85em;
+            max-height: 400px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        
+        .video-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        .video-card {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 10px;
+            padding: 15px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            transition: transform 0.2s;
+        }
+        
+        .video-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .video-title {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 8px;
+        }
+        
+        .video-info {
+            font-size: 0.9em;
+            color: #666;
+            margin-bottom: 5px;
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            font-weight: 600;
+        }
+        
+        .status-completed {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .status-ongoing {
+            background: #fff3cd;
+            color: #856404;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎬 短剧筛选器完整功能测试</h1>
+            <p>测试所有筛选接口的功能和参数</p>
+        </div>
+        
+        <div class="content">
+            <!-- 筛选器标签接口 -->
+            <div class="api-section">
+                <div class="api-title">
+                    🏷️ 筛选器标签接口 (getfilterstags)
+                </div>
+                <div class="api-description">
+                    获取所有可用的筛选器分类和选项，用于构建筛选器UI界面。
+                </div>
+                <div class="test-controls">
+                    <div class="control-group">
+                        <label>频道ID:</label>
+                        <select id="tagsChannelId">
+                            <option value="1">频道1</option>
+                            <option value="64">短剧(64)</option>
+                            <option value="63">电影(63)</option>
+                            <option value="65">综艺(65)</option>
+                        </select>
+                    </div>
+                    <button class="test-button" onclick="testFilterTags()">测试接口</button>
+                </div>
+                <div id="tagsResult" class="result-container" style="display: none;"></div>
+            </div>
+            
+            <!-- 筛选器数据接口 -->
+            <div class="api-section">
+                <div class="api-title">
+                    📊 筛选器数据接口 (getfiltersdata)
+                </div>
+                <div class="api-description">
+                    根据筛选条件获取视频列表，支持排序、分类、地区、语言、年份、状态等多维度筛选。
+                </div>
+                <div class="test-controls">
+                    <div class="control-group">
+                        <label>频道ID:</label>
+                        <select id="dataChannelId">
+                            <option value="64">短剧(64)</option>
+                            <option value="63">电影(63)</option>
+                            <option value="65">综艺(65)</option>
+                        </select>
+                    </div>
+                    <div class="control-group">
+                        <label>筛选条件 (ids):</label>
+                        <input type="text" id="dataIds" value="0,0,0,0,0,0" placeholder="排序,分类,地区,语言,年份,状态">
+                    </div>
+                    <div class="control-group">
+                        <label>页码:</label>
+                        <input type="number" id="dataPage" value="1" min="1">
+                    </div>
+                    <button class="test-button" onclick="testFilterData()">测试接口</button>
+                </div>
+                <div id="dataResult" class="result-container" style="display: none;"></div>
+            </div>
+            
+            <!-- 条件筛选接口 -->
+            <div class="api-section">
+                <div class="api-title">
+                    🎯 条件筛选接口 (getconditionfilterdata)
+                </div>
+                <div class="api-description">
+                    高级筛选接口，支持更多参数和分页信息，返回完整的筛选结果和统计数据。
+                </div>
+                <div class="test-controls">
+                    <div class="control-group">
+                        <label>标题ID:</label>
+                        <select id="conditionTitleId">
+                            <option value="drama">短剧</option>
+                            <option value="movie">电影</option>
+                            <option value="variety">综艺</option>
+                            <option value="home">首页</option>
+                        </select>
+                    </div>
+                    <div class="control-group">
+                        <label>筛选条件 (ids):</label>
+                        <input type="text" id="conditionIds" value="0,0,0,0,0,0" placeholder="排序,分类,地区,语言,年份,状态">
+                    </div>
+                    <div class="control-group">
+                        <label>页码:</label>
+                        <input type="number" id="conditionPage" value="1" min="1">
+                    </div>
+                    <div class="control-group">
+                        <label>每页数量:</label>
+                        <input type="number" id="conditionSize" value="10" min="1" max="50">
+                    </div>
+                    <button class="test-button" onclick="testConditionFilter()">测试接口</button>
+                </div>
+                <div id="conditionResult" class="result-container" style="display: none;"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:3001/api';
+        
+        // 测试筛选器标签接口
+        async function testFilterTags() {
+            const channelId = document.getElementById('tagsChannelId').value;
+            const resultContainer = document.getElementById('tagsResult');
+            const url = `${API_BASE}/list/getfilterstags?channeid=${channelId}`;
+            
+            resultContainer.style.display = 'block';
+            resultContainer.innerHTML = `
+                <div class="url-display">请求URL: ${url}</div>
+                <div class="loading">正在请求...</div>
+            `;
+            
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                let statusClass = response.ok ? 'success' : 'error';
+                let statusText = response.ok ? '✅ 请求成功' : '❌ 请求失败';
+                
+                resultContainer.innerHTML = `
+                    <div class="url-display">请求URL: ${url}</div>
+                    <div class="${statusClass}">${statusText} (状态码: ${response.status})</div>
+                    <div class="json-result">${JSON.stringify(data, null, 2)}</div>
+                `;
+            } catch (error) {
+                resultContainer.innerHTML = `
+                    <div class="url-display">请求URL: ${url}</div>
+                    <div class="error">❌ 请求失败: ${error.message}</div>
+                `;
+            }
+        }
+        
+        // 测试筛选器数据接口
+        async function testFilterData() {
+            const channelId = document.getElementById('dataChannelId').value;
+            const ids = document.getElementById('dataIds').value;
+            const page = document.getElementById('dataPage').value;
+            const resultContainer = document.getElementById('dataResult');
+            const url = `${API_BASE}/list/getfiltersdata?channeid=${channelId}&ids=${ids}&page=${page}`;
+            
+            resultContainer.style.display = 'block';
+            resultContainer.innerHTML = `
+                <div class="url-display">请求URL: ${url}</div>
+                <div class="loading">正在请求...</div>
+            `;
+            
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                let statusClass = response.ok ? 'success' : 'error';
+                let statusText = response.ok ? '✅ 请求成功' : '❌ 请求失败';
+                
+                let content = `
+                    <div class="url-display">请求URL: ${url}</div>
+                    <div class="${statusClass}">${statusText} (状态码: ${response.status})</div>
+                `;
+                
+                if (response.ok && data.data && data.data.list) {
+                    content += renderVideoGrid(data.data.list);
+                    content += `<div class="json-result">${JSON.stringify(data, null, 2)}</div>`;
+                } else {
+                    content += `<div class="json-result">${JSON.stringify(data, null, 2)}</div>`;
+                }
+                
+                resultContainer.innerHTML = content;
+            } catch (error) {
+                resultContainer.innerHTML = `
+                    <div class="url-display">请求URL: ${url}</div>
+                    <div class="error">❌ 请求失败: ${error.message}</div>
+                `;
+            }
+        }
+        
+        // 测试条件筛选接口
+        async function testConditionFilter() {
+            const titleId = document.getElementById('conditionTitleId').value;
+            const ids = document.getElementById('conditionIds').value;
+            const page = document.getElementById('conditionPage').value;
+            const size = document.getElementById('conditionSize').value;
+            const resultContainer = document.getElementById('conditionResult');
+            const url = `${API_BASE}/list/getconditionfilterdata?titleid=${titleId}&ids=${ids}&page=${page}&size=${size}`;
+            
+            resultContainer.style.display = 'block';
+            resultContainer.innerHTML = `
+                <div class="url-display">请求URL: ${url}</div>
+                <div class="loading">正在请求...</div>
+            `;
+            
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                let statusClass = response.ok ? 'success' : 'error';
+                let statusText = response.ok ? '✅ 请求成功' : '❌ 请求失败';
+                
+                let content = `
+                    <div class="url-display">请求URL: ${url}</div>
+                    <div class="${statusClass}">${statusText} (状态码: ${response.status})</div>
+                `;
+                
+                if (response.ok && data.data && data.data.list) {
+                    content += `
+                        <div style="margin: 15px 0; padding: 10px; background: #e8f4fd; border-radius: 5px;">
+                            📊 <strong>统计信息:</strong> 总数: ${data.data.total || 0}, 当前页: ${data.data.page || 1}, 每页: ${data.data.size || 0}, 是否有更多: ${data.data.hasMore ? '是' : '否'}
+                        </div>
+                    `;
+                    content += renderVideoGrid(data.data.list);
+                    content += `<div class="json-result">${JSON.stringify(data, null, 2)}</div>`;
+                } else {
+                    content += `<div class="json-result">${JSON.stringify(data, null, 2)}</div>`;
+                }
+                
+                resultContainer.innerHTML = content;
+            } catch (error) {
+                resultContainer.innerHTML = `
+                    <div class="url-display">请求URL: ${url}</div>
+                    <div class="error">❌ 请求失败: ${error.message}</div>
+                `;
+            }
+        }
+        
+        // 渲染视频网格
+        function renderVideoGrid(videos) {
+            if (!videos || videos.length === 0) {
+                return '<div style="text-align: center; color: #666; padding: 20px;">📭 没有找到视频数据</div>';
+            }
+            
+            let html = '<div class="video-grid">';
+            
+            videos.forEach(video => {
+                const statusClass = video.upStatus === '已完结' ? 'status-completed' : 'status-ongoing';
+                html += `
+                    <div class="video-card">
+                        <div class="video-title">${video.title}</div>
+                        <div class="video-info">📊 评分: ${video.score}</div>
+                        <div class="video-info">👀 播放: ${video.playCount.toLocaleString()}</div>
+                        <div class="video-info">🎬 类型: ${video.isSerial ? '连续剧' : '单集'}</div>
+                        <div class="video-info">
+                            📺 状态: <span class="status-indicator ${statusClass}">${video.upStatus}</span>
+                        </div>
+                        <div class="video-info">🆔 ID: ${video.id}</div>
+                    </div>
+                `;
+            });
+            
+            html += '</div>';
+            return html;
+        }
+        
+        // 页面加载完成后自动测试筛选器标签
+        window.addEventListener('load', () => {
+            testFilterTags();
+        });
+    </script>
+</body>
+</html>

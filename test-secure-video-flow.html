@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>安全视频访问流程测试</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .step {
+            border-left: 4px solid #007bff;
+            padding-left: 15px;
+            margin-bottom: 20px;
+        }
+        .step h3 {
+            color: #007bff;
+            margin-top: 0;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, select, textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+        .result {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 15px;
+            margin-top: 10px;
+            white-space: pre-wrap;
+            font-family: monospace;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .success {
+            border-color: #28a745;
+            background-color: #d4edda;
+        }
+        .error {
+            border-color: #dc3545;
+            background-color: #f8d7da;
+        }
+        .video-item {
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 10px;
+            margin: 10px 0;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .video-item:hover {
+            background-color: #f8f9fa;
+        }
+        .video-item.selected {
+            background-color: #e3f2fd;
+            border-color: #2196f3;
+        }
+        .episode-item {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 8px;
+            margin: 5px 0;
+            cursor: pointer;
+        }
+        .episode-item:hover {
+            background-color: #e9ecef;
+        }
+        .security-info {
+            background-color: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 4px;
+            padding: 15px;
+            margin: 10px 0;
+        }
+        .security-info h4 {
+            color: #856404;
+            margin-top: 0;
+        }
+        .flow-diagram {
+            text-align: center;
+            margin: 20px 0;
+        }
+        .flow-step {
+            display: inline-block;
+            background-color: #007bff;
+            color: white;
+            padding: 10px 15px;
+            border-radius: 20px;
+            margin: 0 5px;
+            position: relative;
+        }
+        .flow-step::after {
+            content: '→';
+            position: absolute;
+            right: -20px;
+            color: #007bff;
+            font-weight: bold;
+        }
+        .flow-step:last-child::after {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔒 安全视频访问流程测试</h1>
+        <p>本页面演示如何安全地从筛选结果获取视频播放地址，展示完整的数据保护流程。</p>
+        
+        <div class="security-info">
+            <h4>🛡️ 安全机制说明</h4>
+            <ul>
+                <li><strong>JWT身份验证</strong>：所有API调用都需要有效的JWT令牌</li>
+                <li><strong>UUID标识符</strong>：使用UUID替代数字ID，防止枚举攻击</li>
+                <li><strong>访问密钥</strong>：播放地址通过32位随机密钥保护</li>
+                <li><strong>分层访问</strong>：元数据与播放地址分离，需要多步验证</li>
+            </ul>
+        </div>
+        
+        <div class="flow-diagram">
+            <div class="flow-step">筛选数据</div>
+            <div class="flow-step">选择视频</div>
+            <div class="flow-step">获取详情</div>
+            <div class="flow-step">选择剧集</div>
+            <div class="flow-step">获取播放地址</div>
+        </div>
+    </div>
+
+    <!-- 步骤1：获取筛选数据 -->
+    <div class="container">
+        <div class="step">
+            <h3>步骤1：获取筛选数据</h3>
+            <div class="form-group">
+                <label for="filterChannelId">频道ID：</label>
+                <select id="filterChannelId">
+                    <option value="64">短剧 (64)</option>
+                    <option value="63">电影 (63)</option>
+                    <option value="65">综艺 (65)</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="filterIds">筛选条件 (排序,分类,地区,语言,年份,状态)：</label>
+                <input type="text" id="filterIds" value="0,0,0,0,0,0" placeholder="例如：1,0,0,0,0,0">
+            </div>
+            <div class="form-group">
+                <label for="filterPage">页码：</label>
+                <input type="number" id="filterPage" value="1" min="1">
+            </div>
+            <button onclick="getFilterData()">🔍 获取筛选数据</button>
+            <div id="filterResult" class="result"></div>
+        </div>
+    </div>
+
+    <!-- 步骤2：选择视频 -->
+    <div class="container">
+        <div class="step">
+            <h3>步骤2：选择视频</h3>
+            <p>从上面的筛选结果中选择一个视频：</p>
+            <div id="videoList"></div>
+            <div id="selectedVideo" class="result"></div>
+        </div>
+    </div>
+
+    <!-- 步骤3：获取视频详情 -->
+    <div class="container">
+        <div class="step">
+            <h3>步骤3：获取视频详情</h3>
+            <button onclick="getVideoDetails()" id="getDetailsBtn" disabled>📋 获取视频详情</button>
+            <div id="detailsResult" class="result"></div>
+        </div>
+    </div>
+
+    <!-- 步骤4：选择剧集 -->
+    <div class="container">
+        <div class="step">
+            <h3>步骤4：选择剧集</h3>
+            <p>从视频详情中选择要播放的剧集：</p>
+            <div id="episodeList"></div>
+            <div id="selectedEpisode" class="result"></div>
+        </div>
+    </div>
+
+    <!-- 步骤5：获取播放地址 -->
+    <div class="container">
+        <div class="step">
+            <h3>步骤5：获取播放地址</h3>
+            <button onclick="getPlayUrl()" id="getPlayUrlBtn" disabled>🎬 获取播放地址</button>
+            <div id="playUrlResult" class="result"></div>
+        </div>
+    </div>
+
+    <!-- 安全分析 -->
+    <div class="container">
+        <div class="step">
+            <h3>🔐 安全分析</h3>
+            <div id="securityAnalysis" class="result">
+等待操作完成后显示安全分析...
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:3001/api';
+        let selectedVideo = null;
+        let selectedEpisode = null;
+        let securitySteps = [];
+
+        // 有效的JWT令牌（用于测试）
+        const mockJWT = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI3ODQ1MDc4ODQ0IiwiaWF0IjoxNzU0NDExNDYxLCJleHAiOjE3NTUwMTYyNjF9.tvs3YYLBhwjAqTwIxS3SznlINBbFz_aNR98P2fRDodI';
+
+        // 通用API调用函数
+        async function apiCall(url, options = {}) {
+            const defaultOptions = {
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${mockJWT}`
+                }
+            };
+            
+            const response = await fetch(url, {
+                ...defaultOptions,
+                ...options,
+                headers: {
+                    ...defaultOptions.headers,
+                    ...options.headers
+                }
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
+            return response.json();
+        }
+
+        // 步骤1：获取筛选数据
+        async function getFilterData() {
+            try {
+                const channelId = document.getElementById('filterChannelId').value;
+                const ids = document.getElementById('filterIds').value;
+                const page = document.getElementById('filterPage').value;
+                
+                securitySteps.push(`🔐 使用JWT令牌进行身份验证`);
+                securitySteps.push(`📊 请求筛选数据 - 频道:${channelId}, 条件:${ids}, 页码:${page}`);
+                
+                const categoryMap = {
+                    '64': 'drama',
+                    '63': 'movie', 
+                    '65': 'variety'
+                };
+                
+                const params = new URLSearchParams({
+                    titleid: categoryMap[channelId],
+                    ids: ids,
+                    page: page,
+                    size: '10'
+                });
+                
+                const data = await apiCall(`${API_BASE}/list/getconditionfilterdata?${params}`, {
+                    method: 'GET'
+                });
+                
+                document.getElementById('filterResult').textContent = JSON.stringify(data, null, 2);
+                document.getElementById('filterResult').className = 'result success';
+                
+                // 显示视频列表
+                displayVideoList(data.data.list);
+                
+                securitySteps.push(`✅ 成功获取${data.data.list.length}个视频的元数据`);
+                securitySteps.push(`🔒 注意：此阶段只返回基本信息，不包含播放地址`);
+                
+            } catch (error) {
+                document.getElementById('filterResult').textContent = `错误: ${error.message}`;
+                document.getElementById('filterResult').className = 'result error';
+                securitySteps.push(`❌ 筛选数据获取失败: ${error.message}`);
+            }
+            
+            updateSecurityAnalysis();
+        }
+
+        // 显示视频列表
+        function displayVideoList(videos) {
+            const videoList = document.getElementById('videoList');
+            videoList.innerHTML = '';
+            
+            videos.forEach(video => {
+                const videoItem = document.createElement('div');
+                videoItem.className = 'video-item';
+                videoItem.innerHTML = `
+                    <strong>${video.title}</strong><br>
+                    <small>ID: ${video.id} | UUID: ${video.uuid || '未设置'}</small><br>
+                    <small>评分: ${video.score} | 播放: ${video.playCount}次</small>
+                `;
+                
+                videoItem.onclick = () => selectVideo(video, videoItem);
+                videoList.appendChild(videoItem);
+            });
+        }
+
+        // 选择视频
+        function selectVideo(video, element) {
+            // 清除之前的选择
+            document.querySelectorAll('.video-item').forEach(item => {
+                item.classList.remove('selected');
+            });
+            
+            // 选择当前视频
+            element.classList.add('selected');
+            selectedVideo = video;
+            
+            document.getElementById('selectedVideo').textContent = JSON.stringify(video, null, 2);
+            document.getElementById('selectedVideo').className = 'result success';
+            document.getElementById('getDetailsBtn').disabled = false;
+            
+            securitySteps.push(`🎯 选择视频: ${video.title}`);
+            securitySteps.push(`🔑 准备使用${video.uuid ? 'UUID' : 'ID'}获取详情`);
+            updateSecurityAnalysis();
+        }
+
+        // 步骤3：获取视频详情
+        async function getVideoDetails() {
+            if (!selectedVideo) {
+                alert('请先选择一个视频');
+                return;
+            }
+            
+            try {
+                const identifier = selectedVideo.uuid || selectedVideo.id;
+                const paramName = selectedVideo.uuid ? 'uuid' : 'id';
+                
+                securitySteps.push(`🔍 使用${paramName.toUpperCase()}获取详情: ${identifier}`);
+                
+                const data = await apiCall(`${API_BASE}/video/details?${paramName}=${identifier}`);
+                
+                document.getElementById('detailsResult').textContent = JSON.stringify(data, null, 2);
+                document.getElementById('detailsResult').className = 'result success';
+                
+                // 显示剧集列表
+                if (data.data && data.data.detailInfo && data.data.detailInfo.episodes) {
+                    displayEpisodeList(data.data.detailInfo.episodes);
+                    securitySteps.push(`📺 获取到${data.data.detailInfo.episodes.length}个剧集信息`);
+                    securitySteps.push(`🔐 每个剧集都有独立的访问密钥保护`);
+                }
+                
+            } catch (error) {
+                document.getElementById('detailsResult').textContent = `错误: ${error.message}`;
+                document.getElementById('detailsResult').className = 'result error';
+                securitySteps.push(`❌ 视频详情获取失败: ${error.message}`);
+            }
+            
+            updateSecurityAnalysis();
+        }
+
+        // 显示剧集列表
+        function displayEpisodeList(episodes) {
+            const episodeList = document.getElementById('episodeList');
+            episodeList.innerHTML = '';
+            
+            episodes.forEach(episode => {
+                const episodeItem = document.createElement('div');
+                episodeItem.className = 'episode-item';
+                episodeItem.innerHTML = `
+                    <strong>第${episode.episodeTitle}集</strong><br>
+                    <small>剧集ID: ${episode.episodeId}</small><br>
+                    <small>时长: ${episode.epSecond}秒</small><br>
+                    <small>🔑 访问密钥: ${episode.accessKey || '需要生成'}</small>
+                `;
+                
+                episodeItem.onclick = () => selectEpisode(episode, episodeItem);
+                episodeList.appendChild(episodeItem);
+            });
+        }
+
+        // 选择剧集
+        function selectEpisode(episode, element) {
+            // 清除之前的选择
+            document.querySelectorAll('.episode-item').forEach(item => {
+                item.style.backgroundColor = '#f8f9fa';
+            });
+            
+            // 选择当前剧集
+            element.style.backgroundColor = '#e3f2fd';
+            selectedEpisode = episode;
+            
+            document.getElementById('selectedEpisode').textContent = JSON.stringify(episode, null, 2);
+            document.getElementById('selectedEpisode').className = 'result success';
+            document.getElementById('getPlayUrlBtn').disabled = !episode.accessKey;
+            
+            securitySteps.push(`🎬 选择剧集: 第${episode.episodeTitle}集`);
+            if (episode.accessKey) {
+                securitySteps.push(`🔑 获取到访问密钥: ${episode.accessKey}`);
+            } else {
+                securitySteps.push(`⚠️ 该剧集缺少访问密钥，无法获取播放地址`);
+            }
+            updateSecurityAnalysis();
+        }
+
+        // 步骤5：获取播放地址
+        async function getPlayUrl() {
+            if (!selectedEpisode || !selectedEpisode.accessKey) {
+                alert('请先选择一个有访问密钥的剧集');
+                return;
+            }
+            
+            try {
+                securitySteps.push(`🔐 使用访问密钥请求播放地址`);
+                securitySteps.push(`🔍 验证密钥格式: ${selectedEpisode.accessKey}`);
+                
+                const data = await apiCall(`${API_BASE}/video/episode-url/${selectedEpisode.accessKey}`);
+                
+                document.getElementById('playUrlResult').textContent = JSON.stringify(data, null, 2);
+                document.getElementById('playUrlResult').className = 'result success';
+                
+                securitySteps.push(`✅ 成功获取播放地址`);
+                securitySteps.push(`🎯 CDN地址: ${data.cdnUrl}`);
+                securitySteps.push(`💾 OSS备份: ${data.ossUrl}`);
+                if (data.subtitleUrl) {
+                    securitySteps.push(`📝 字幕地址: ${data.subtitleUrl}`);
+                }
+                
+            } catch (error) {
+                document.getElementById('playUrlResult').textContent = `错误: ${error.message}`;
+                document.getElementById('playUrlResult').className = 'result error';
+                securitySteps.push(`❌ 播放地址获取失败: ${error.message}`);
+            }
+            
+            updateSecurityAnalysis();
+        }
+
+        // 更新安全分析
+        function updateSecurityAnalysis() {
+            const analysis = document.getElementById('securityAnalysis');
+            let content = '🔒 安全流程分析:\n\n';
+            
+            securitySteps.forEach((step, index) => {
+                content += `${index + 1}. ${step}\n`;
+            });
+            
+            content += '\n🛡️ 安全特性总结:\n';
+            content += '• JWT身份验证：防止未授权访问\n';
+            content += '• UUID标识符：防止ID枚举攻击\n';
+            content += '• 访问密钥：播放地址二次保护\n';
+            content += '• 分层访问：元数据与资源分离\n';
+            content += '• 缓存策略：提高性能同时保证安全\n';
+            
+            analysis.textContent = content;
+        }
+
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            updateSecurityAnalysis();
+        });
+    </script>
+</body>
+</html>

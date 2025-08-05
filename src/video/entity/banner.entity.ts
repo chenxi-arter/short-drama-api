@@ -13,7 +13,11 @@ export class Banner {
   /**
    * 轮播图标题
    */
-  @Column({ length: 255 })
+  @Column({ 
+    length: 255,
+    charset: 'utf8mb4',
+    collation: 'utf8mb4_unicode_ci'
+  })
   title: string;
 
   /**
@@ -67,7 +71,12 @@ export class Banner {
   /**
    * 描述信息
    */
-  @Column({ type: 'text', nullable: true })
+  @Column({ 
+    type: 'text', 
+    nullable: true,
+    charset: 'utf8mb4',
+    collation: 'utf8mb4_unicode_ci'
+  })
   description?: string;
 
   @CreateDateColumn({ name: 'created_at' })

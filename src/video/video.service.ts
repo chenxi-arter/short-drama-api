@@ -12,6 +12,7 @@ import { FilterOption } from './entity/filter-option.entity';
 import { ContentBlock, BannerItem, FilterItem, VideoItem } from './dto/home-videos.dto';
 import { FilterTagsResponse, FilterTagGroup, FilterTagItem } from './dto/filter-tags.dto';
 import { FilterDataResponse, FilterDataItem } from './dto/filter-data.dto';
+import { ConditionFilterDto, ConditionFilterResponse } from './dto/condition-filter.dto';
 import { VideoDetailsResponse, VideoDetailInfo, EpisodeInfo, InteractionInfo, LanguageInfo } from './dto/video-details.dto';
 import { WatchProgressService } from './services/watch-progress.service';
 import { CommentService } from './services/comment.service';
@@ -618,6 +619,148 @@ async listSeriesFull(
    */
   async getFiltersData(channeid: string, ids: string, page: string): Promise<FilterDataResponse> {
     return this.filterService.getFiltersData(channeid, ids, page);
+  }
+
+  /**
+   * 获取条件筛选数据
+   * @param dto 筛选条件
+   * @returns 筛选后的视频列表
+   */
+  async getConditionFilterData(dto: ConditionFilterDto): Promise<ConditionFilterResponse> {
+    try {
+      // 将 titleid 转换为实际的 category_id
+      const categoryMap: Record<string, string> = {
+        'drama': '64',   // 短剧
+        'movie': '63',   // 电影
+        'variety': '65', // 综艺
+        'home': '62'     // 首页
+      };
+      
+      const categoryId = categoryMap[dto.titleid || 'drama'] || '63';
+      const ids = dto.ids || '0,0,0,0,0';
+      const pageNum = dto.page || 1;
+      const pageSize = dto.size || 21;
+      const offset = (pageNum - 1) * pageSize;
+      
+      // 解析筛选条件
+      const filterIds = this.parseFilterIds(ids);
+      
+      // 构建查询
+      const queryBuilder = this.seriesRepo.createQueryBuilder('series')
+        .leftJoinAndSelect('series.category', 'category')
+        .leftJoinAndSelect('series.episodes', 'episodes')
+        .where('category.id = :categoryId', { categoryId: parseInt(categoryId) });
+      
+      // 应用排序
+      this.applySorting(queryBuilder, filterIds.sortType);
+      
+      // 分页
+      const [series, total] = await queryBuilder
+        .skip(offset)
+        .take(pageSize)
+        .getManyAndCount();
+      
+      // 转换为响应格式
+      const items = series.map(s => ({
+        id: s.id,
+        uuid: s.uuid || '',
+        coverUrl: s.coverUrl || '',
+        title: s.title,
+        description: s.description || '',
+        score: s.score?.toString() || '0.0',
+        playCount: s.playCount || 0,
+        totalEpisodes: s.totalEpisodes || 0,
+        isSerial: (s.episodes && s.episodes.length > 1) || false,
+        upStatus: s.upStatus || '已完结',
+        upCount: s.upCount || 0,
+        status: s.status || 'on-going',
+        starring: s.starring || '',
+        actor: s.actor || '',
+        director: s.director || '',
+        region: s.region || '',
+        language: s.language || '',
+        releaseDate: s.releaseDate ? (s.releaseDate instanceof Date ? s.releaseDate.toISOString() : new Date(s.releaseDate).toISOString()) : undefined,
+        isCompleted: s.isCompleted || false,
+        cidMapper: s.category?.id?.toString() || '0',
+        categoryName: s.category?.name || '',
+        isRecommend: false,
+        duration: '未知',
+        createdAt: s.createdAt?.toISOString() || new Date().toISOString(),
+        updateTime: s.updatedAt?.toISOString() || new Date().toISOString(),
+        episodeCount: s.episodes?.length || 0,
+        tags: []
+      }));
+      
+      const response: ConditionFilterResponse = {
+        code: 200,
+        data: {
+          list: items,
+          total,
+          page: pageNum,
+          size: pageSize,
+          hasMore: total > pageNum * pageSize
+        },
+        msg: null
+      };
+      
+      return response;
+    } catch (error) {
+      console.error('获取条件筛选数据失败:', error);
+      return {
+        code: 500,
+        data: {
+          list: [],
+          total: 0,
+          page: dto.page || 1,
+          size: dto.size || 21,
+          hasMore: false
+        },
+        msg: '获取数据失败'
+      };
+    }
+  }
+  
+  /**
+   * 解析筛选条件ID字符串
+   */
+  private parseFilterIds(ids: string): {
+    sortType: number;
+    categoryId: number;
+    regionId: number;
+    languageId: number;
+    yearId: number;
+    statusId: number;
+  } {
+    const parts = ids.split(',').map(id => parseInt(id) || 0);
+    
+    return {
+      sortType: parts[0] || 0,
+      categoryId: parts[1] || 0,
+      regionId: parts[2] || 0,
+      languageId: parts[3] || 0,
+      yearId: parts[4] || 0,
+      statusId: parts[5] || 0,
+    };
+  }
+  
+  /**
+   * 应用排序条件
+   */
+  private applySorting(queryBuilder: any, sortType: number): void {
+    switch (sortType) {
+      case 1: // 人气高
+        queryBuilder.orderBy('series.playCount', 'DESC');
+        break;
+      case 2: // 评分高
+        queryBuilder.orderBy('series.score', 'DESC');
+        break;
+      case 3: // 最新更新
+        queryBuilder.orderBy('series.updatedAt', 'DESC');
+        break;
+      default: // 最新上传
+        queryBuilder.orderBy('series.createdAt', 'DESC');
+        break;
+    }
   }
 
   /* 创建筛选器选项 */

@@ -127,7 +127,7 @@ export class FilterService {
         .where('1=1'); // 基础条件
 
       // 应用筛选条件
-      this.applyFilters(queryBuilder, filterIds, channelId);
+      await this.applyFilters(queryBuilder, filterIds, channelId);
 
       // 排序
       this.applySorting(queryBuilder, filterIds.sortType);
@@ -201,7 +201,7 @@ export class FilterService {
   /**
    * 应用筛选条件到查询构建器
    */
-  private applyFilters(queryBuilder: any, filterIds: any, channelId: string): void {
+  private async applyFilters(queryBuilder: any, filterIds: any, channelId: string): Promise<void> {
     // 频道筛选
     if (channelId && channelId !== '0') {
       queryBuilder.andWhere('category.id = :channelId', { channelId: parseInt(channelId) });
@@ -212,24 +212,45 @@ export class FilterService {
       queryBuilder.andWhere('category.id = :categoryId', { categoryId: filterIds.categoryId });
     }
 
-    // 地区筛选（假设series表有region字段）
+    // 地区筛选 - 根据筛选器选项名称匹配
     if (filterIds.regionId > 0) {
-      queryBuilder.andWhere('series.regionId = :regionId', { regionId: filterIds.regionId });
+      // 先获取筛选器选项的名称
+      const regionOption = await this.filterOptionRepo.findOne({ where: { id: filterIds.regionId } });
+      if (regionOption) {
+        queryBuilder.andWhere('series.region = :region', { region: regionOption.name });
+      }
     }
 
-    // 语言筛选（假设series表有language字段）
+    // 语言筛选 - 根据筛选器选项名称匹配
     if (filterIds.languageId > 0) {
-      queryBuilder.andWhere('series.languageId = :languageId', { languageId: filterIds.languageId });
+      const languageOption = await this.filterOptionRepo.findOne({ where: { id: filterIds.languageId } });
+      if (languageOption) {
+        queryBuilder.andWhere('series.language = :language', { language: languageOption.name });
+      }
     }
 
-    // 年份筛选（假设series表有year字段）
+    // 年份筛选 - 根据发布日期年份匹配
     if (filterIds.yearId > 0) {
-      queryBuilder.andWhere('series.year = :year', { year: filterIds.yearId });
+      const yearOption = await this.filterOptionRepo.findOne({ where: { id: filterIds.yearId } });
+      if (yearOption) {
+        const year = parseInt(yearOption.name.replace('年', ''));
+        if (!isNaN(year)) {
+          queryBuilder.andWhere('YEAR(series.release_date) = :year', { year });
+        }
+      }
     }
 
-    // 状态筛选
+    // 状态筛选 - 根据筛选器选项名称匹配
     if (filterIds.statusId > 0) {
-      queryBuilder.andWhere('series.statusId = :statusId', { statusId: filterIds.statusId });
+      const statusOption = await this.filterOptionRepo.findOne({ where: { id: filterIds.statusId } });
+      if (statusOption) {
+        // 根据状态名称匹配
+        if (statusOption.name === '连载中') {
+          queryBuilder.andWhere('series.is_completed = :isCompleted', { isCompleted: false });
+        } else if (statusOption.name === '已完结') {
+          queryBuilder.andWhere('series.is_completed = :isCompleted', { isCompleted: true });
+        }
+      }
     }
   }
 

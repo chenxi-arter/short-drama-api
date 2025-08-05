@@ -2,6 +2,7 @@ import { Controller, Get, Query } from '@nestjs/common';
 import { VideoService } from './video.service';
 import { FilterTagsDto } from './dto/filter-tags.dto';
 import { FilterDataDto } from './dto/filter-data.dto';
+import { ConditionFilterDto } from './dto/condition-filter.dto';
 
 /**
  * 列表筛选相关控制器
@@ -32,5 +33,15 @@ export class ListController {
       dto.ids || '0,0,0,0,0',
       dto.page || '1'
     );
+  }
+
+  /**
+   * 获取条件筛选数据
+   * @param dto 请求参数
+   * @returns 根据条件筛选的视频列表
+   */
+  @Get('getconditionfilterdata')
+  async getConditionFilterData(@Query() dto: ConditionFilterDto) {
+    return this.videoService.getConditionFilterData(dto);
   }
 }

@@ -74,12 +74,16 @@ export class DatabaseConfig {
       username: this.username,
       password: this.password,
       database: this.database,
-      charset: this.charset,
+      charset: 'utf8mb4',
       timezone: '+08:00', // 修改时区格式
       synchronize: this.synchronize,
       logging: this.logging,
       extra: {
         connectionLimit: this.maxConnections,
+        charset: 'utf8mb4',
+        collation: 'utf8mb4_unicode_ci',
+        // 强制设置字符编码
+        initSql: "SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci;",
         // 移除 acquireTimeout 和 timeout
         // acquireTimeout: this.acquireTimeout,  // 删除这行
         // timeout: this.timeout,                // 删除这行
