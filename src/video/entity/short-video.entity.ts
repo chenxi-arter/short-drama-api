@@ -3,7 +3,7 @@
  * 短视频实体类
  * 表示独立的短视频内容，不属于任何系列
  */
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, ManyToOne, JoinColumn, Generated } from 'typeorm';
 import { Category } from './category.entity';
 
 @Entity('short_videos')
@@ -14,6 +14,14 @@ export class ShortVideo {
    */
   @PrimaryGeneratedColumn({ name: 'id' })
   id: number;
+
+  /** 
+   * UUID标识符（防枚举攻击）
+   * 用于外部API访问的安全标识符
+   */
+  @Column({ type: 'varchar', length: 36, unique: true, nullable: true, name: 'uuid' })
+  @Generated('uuid')
+  uuid: string;
 
   /** 
    * 短视频标题 

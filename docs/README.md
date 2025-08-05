@@ -17,12 +17,15 @@
 
 ### 架构和优化
 - 🏗️ [NestJS结构优化](./nestjs-structure-optimization.md) - 项目架构优化指南
+- 📋 [健壮性实现指南](./robustness-implementation-guide.md) - 系统稳定性和容错机制
+- ✅ [结构优化完成](./structure-optimization-completed.md) - 项目结构优化总结
 
 ### 缓存和性能
-- ⚡ [Redis缓存指南](./redis-cache-guide.md) - 缓存策略和使用方法
+- ⚡ [Redis缓存指南](./redis-cache-guide.md) - 缓存策略、使用方法和主动失效机制
 
 ### 认证和安全
 - 🔐 [Token刷新实现](./token-refresh-implementation.md) - JWT令牌刷新机制
+- 🛡️ [防枚举攻击安全指南](./anti-enumeration-security-guide.md) - 安全防护措施和JWT Token管理
 
 ## 📋 文档分类
 
@@ -31,6 +34,12 @@
 |------|------|----------|
 | [完整API文档](./complete-api-documentation.md) | 详细的接口说明、参数、响应格式 | 所有开发者 |
 | [API快速参考](./api-quick-reference.md) | 接口速查表和常用示例 | 有经验的开发者 |
+| [API变更日志](./api-changelog.md) | API版本变更记录 | 所有开发者 |
+| [API测试示例](./api-test-examples.md) | 接口测试用例和示例 | 测试人员、开发者 |
+| [Apifox导入指南](./apifox-import-guide.md) | API文档导入工具使用指南 | 所有开发者 |
+| [分类列表API](./category-list-api.md) | 分类相关接口 | 前端开发者 |
+| [视频详情使用指南](./video-details-usage-guide.md) | 视频详情接口使用说明 | 前端开发者 |
+| [UUID实现示例](./uuid-implementation-example.md) | UUID防枚举攻击实现 | 后端开发者 |
 | [OpenAPI规范](./apifox-openapi.json) | 标准化API接口定义文件 | 工具集成、自动化测试 |
 
 ### 🗄️ 数据库文档
@@ -88,4 +97,60 @@
 
 ## 📁 项目文件结构
 
-### 📚 docs 目录（9个文件）
+### 📚 docs 目录（20个文件）
+
+#### 📖 API文档类 (9个文件)
+- `complete-api-documentation.md` - 完整API文档 (1645行)
+- `api-quick-reference.md` - API快速参考手册
+- `api-changelog.md` - API版本变更记录
+- `api-test-examples.md` - API测试示例
+- `apifox-import-guide.md` - Apifox导入指南
+- `apifox-openapi.json` - OpenAPI规范文件
+- `category-list-api.md` - 分类列表API文档
+- `video-details-usage-guide.md` - 视频详情使用指南
+- `uuid-implementation-example.md` - UUID实现示例
+
+#### 🏗️ 技术架构类 (5个文件)
+- `nestjs-structure-optimization.md` - NestJS结构优化
+- `structure-optimization-completed.md` - 结构优化完成总结
+- `robustness-implementation-guide.md` - 健壮性实现指南
+- `file-organization-plan.md` - 文件整理计划
+- `directory-optimization-summary.md` - 目录整理优化总结
+
+#### 🔐 安全认证类 (2个文件)
+- `anti-enumeration-security-guide.md` - 防枚举攻击安全指南
+- `token-refresh-implementation.md` - Token刷新实现
+
+#### ⚡ 性能优化类 (1个文件)
+- `redis-cache-guide.md` - Redis缓存指南
+
+#### 🗄️ 数据库类 (2个文件)
+- `mysql.md` - 数据库表结构文档
+- `entity-relationship-diagram.svg` - 实体关系图
+
+#### 📋 索引文档 (1个文件)
+- `README.md` - 文档中心索引
+
+### 🗄️ migrations 目录（13个文件）
+
+#### 🚀 完整初始化 (2个文件)
+- `complete-setup.sql` - 完整数据库初始化脚本 (504行)
+- `insert-test-data.sql` - 测试数据插入脚本
+
+#### 🔧 功能增强 (4个文件)
+- `add-uuid-fields.sql` - UUID字段添加脚本
+- `add-series-filter-fields.sql` - 系列筛选字段脚本
+- `add-actor-fields-to-series.sql` - 演员信息字段脚本
+- `add-episode-fields.sql` - 剧集字段增强脚本
+
+#### 📊 结构优化 (3个文件)
+- `update-series-category-relation.sql` - 系列分类关系更新
+- `update-category-table.sql` - 分类表结构更新
+- `update-category-data.sql` - 分类数据更新
+
+#### 🛠️ 数据管理 (1个文件)
+- `check-data-stats.sql` - 数据统计检查脚本
+
+#### 🔧 辅助工具 (2个文件)
+- `run-test-data.sh` - 一键执行测试数据插入
+- `README.md` - 迁移脚本说明文档

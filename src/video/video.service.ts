@@ -282,6 +282,7 @@ async listSeriesFull(
         showURL: series.coverUrl,
         title: series.title,
         id: series.id,
+        uuid: series.uuid,
         channeID: series.category?.id || 1,
         url: series.id.toString(),
       })),
@@ -570,6 +571,7 @@ async listSeriesFull(
     // 合并并转换为VideoItem格式
     const seriesItems: VideoItem[] = series.map(s => ({
       id: s.id,
+      uuid: s.uuid,
       coverUrl: s.coverUrl,
       title: s.title,
       score: s.score?.toString() || "0.0",
@@ -583,6 +585,7 @@ async listSeriesFull(
     
     const shortItems: VideoItem[] = shorts.map(sv => ({
       id: sv.id,
+      uuid: sv.uuid,
       coverUrl: sv.coverUrl,
       title: sv.title,
       score: "0.0",
@@ -644,13 +647,12 @@ async listSeriesFull(
 
   /**
    * 获取视频详情
-   * @param id 视频ID
+   * @param identifier 视频ID或UUID
+   * @param isUuid 是否为UUID查询
    * @returns 视频详情信息
    */
-  async getVideoDetails(id: string): Promise<VideoDetailsResponse> {
-    const videoId = parseInt(id, 10);
-    
-    const cacheKey = `video_details_${id}`;
+  async getVideoDetails(identifier: string, isUuid: boolean = false): Promise<VideoDetailsResponse> {
+    const cacheKey = `video_details_${isUuid ? 'uuid' : 'id'}_${identifier}`;
     
     // 尝试从缓存获取数据
     const cachedData = await this.cacheManager.get(cacheKey);
@@ -658,11 +660,37 @@ async listSeriesFull(
       return cachedData as VideoDetailsResponse;
     }
     
-    // 先尝试从系列中查找
-    const series = await this.seriesRepo.findOne({
-      where: { id: videoId },
-      relations: ['category', 'episodes', 'episodes.urls']
-    });
+    let series;
+    let shortVideo;
+    
+    if (isUuid) {
+      // UUID查询
+      series = await this.seriesRepo.findOne({
+        where: { uuid: identifier },
+        relations: ['category', 'episodes', 'episodes.urls']
+      });
+      
+      if (!series) {
+        shortVideo = await this.shortRepo.findOne({
+          where: { uuid: identifier },
+          relations: ['category']
+        });
+      }
+    } else {
+      // ID查询（向后兼容）
+      const videoId = parseInt(identifier, 10);
+      series = await this.seriesRepo.findOne({
+        where: { id: videoId },
+        relations: ['category', 'episodes', 'episodes.urls']
+      });
+      
+      if (!series) {
+        shortVideo = await this.shortRepo.findOne({
+          where: { id: videoId },
+          relations: ['category']
+        });
+      }
+    }
     
     if (series) {
       // 构建剧集信息
@@ -738,11 +766,7 @@ async listSeriesFull(
       return result;
     }
     
-    // 如果不是系列，尝试从短视频中查找
-    const shortVideo = await this.shortRepo.findOne({
-      where: { id: videoId },
-      relations: ['category']
-    });
+    // 如果不是系列且还没有找到短视频，处理短视频逻辑
     
     if (shortVideo) {
       const detailInfo: VideoDetailInfo = {

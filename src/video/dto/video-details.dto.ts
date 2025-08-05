@@ -1,12 +1,34 @@
-import { IsNotEmpty, IsString } from 'class-validator';
+import { IsNotEmpty, IsString, IsOptional, IsUUID, ValidateIf } from 'class-validator';
+import { Transform } from 'class-transformer';
 
 /**
  * 视频详情请求DTO
+ * 支持UUID和ID两种方式，推荐使用UUID防枚举攻击
  */
 export class VideoDetailsDto {
-  @IsNotEmpty()
+  /**
+   * 视频UUID标识符（推荐）
+   * 格式：xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx
+   */
+  @IsOptional()
+  @IsUUID(4, { message: '无效的UUID格式' })
+  uuid?: string;
+
+  /**
+   * 视频ID（向后兼容）
+   * 建议迁移到uuid字段
+   */
+  @IsOptional()
   @IsString()
-  id: string; // 视频的唯一标识符
+  @Transform(({ value }) => value?.toString())
+  id?: string;
+
+  /**
+   * 验证至少提供一个标识符
+   */
+  @ValidateIf(o => !o.uuid && !o.id)
+  @IsNotEmpty({ message: '必须提供uuid或id参数' })
+  _validator?: any;
 }
 
 /**

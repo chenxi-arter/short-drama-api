@@ -46,7 +46,14 @@ async listMediaUser(
 /* 获取视频详情 */
 @Get('details')
 async getVideoDetails(@Query() dto: VideoDetailsDto) {
-  return this.videoService.getVideoDetails(dto.id);
+  // 优先使用UUID，如果没有则使用ID（向后兼容）
+  if (dto.uuid) {
+    return this.videoService.getVideoDetails(dto.uuid, true);
+  } else if (dto.id) {
+    return this.videoService.getVideoDetails(dto.id, false);
+  } else {
+    throw new Error('必须提供uuid或id参数');
+  }
 }
 
 /* 创建剧集播放地址 */

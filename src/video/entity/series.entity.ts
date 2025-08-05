@@ -3,7 +3,7 @@
  * 剧集系列实体类
  * 表示一个完整的电视剧或系列，包含多个剧集
  */
-import { Entity, PrimaryGeneratedColumn, Column, OneToMany, CreateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, OneToMany, CreateDateColumn, ManyToOne, JoinColumn, Generated } from 'typeorm';
 import { Episode } from './episode.entity';
 import { Category } from './category.entity';
 
@@ -15,6 +15,14 @@ export class Series {
    */
   @PrimaryGeneratedColumn({ name: 'id' })
   id: number;
+
+  /** 
+   * UUID标识符（防枚举攻击）
+   * 用于外部API访问的安全标识符
+   */
+  @Column({ type: 'varchar', length: 36, unique: true, nullable: true, name: 'uuid' })
+  @Generated('uuid')
+  uuid: string;
 
   /** 
    * 电视剧标题 

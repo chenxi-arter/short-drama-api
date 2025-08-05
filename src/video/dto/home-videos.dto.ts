@@ -32,6 +32,7 @@ export interface BannerItem {
   showURL: string;  // 图片的URL地址
   title: string;    // 视频的标题
   id: number;       // 视频的唯一标识符
+  uuid?: string;    // 视频UUID（推荐用于防枚举攻击）
   channeID: number; // 频道分类ID
   url: string;      // 视频详情页path
 }
@@ -51,6 +52,7 @@ export interface FilterItem {
  */
 export interface VideoItem {
   id: number;       // 视频ID
+  uuid?: string;    // 视频UUID（推荐用于防枚举攻击）
   coverUrl: string; // 封面图URL
   title: string;    // 视频标题
   score: string;    // 视频评分

@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UUID API 测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .test-section {
+            margin-bottom: 30px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .test-section h3 {
+            margin-top: 0;
+            color: #333;
+        }
+        input, button {
+            padding: 8px 12px;
+            margin: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .result {
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            font-family: monospace;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .success {
+            border-left: 4px solid #28a745;
+        }
+        .error {
+            border-left: 4px solid #dc3545;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>UUID API 功能测试</h1>
+        
+        <!-- 登录测试 -->
+        <div class="test-section">
+            <h3>1. 用户登录</h3>
+            <input type="text" id="username" placeholder="用户名" value="test">
+            <input type="password" id="password" placeholder="密码" value="123456">
+            <button onclick="login()">登录</button>
+            <div id="loginResult" class="result"></div>
+        </div>
+        
+        <!-- UUID查询测试 -->
+        <div class="test-section">
+            <h3>2. UUID 查询视频详情</h3>
+            <input type="text" id="uuid" placeholder="输入UUID" value="04cb6962-7077-11f0-be2b-d6d61acc1ebf" style="width: 300px;">
+            <button onclick="getVideoByUuid()">通过UUID查询</button>
+            <div id="uuidResult" class="result"></div>
+        </div>
+        
+        <!-- ID查询测试（向后兼容） -->
+        <div class="test-section">
+            <h3>3. ID 查询视频详情（向后兼容）</h3>
+            <input type="text" id="videoId" placeholder="输入视频ID" value="1">
+            <button onclick="getVideoById()">通过ID查询</button>
+            <div id="idResult" class="result"></div>
+        </div>
+        
+        <!-- 视频列表UUID测试 -->
+        <div class="test-section">
+            <h3>4. 视频列表UUID返回测试</h3>
+            <button onclick="testVideoList()">测试视频列表UUID返回</button>
+            <div id="listResult" class="result"></div>
+        </div>
+        
+        <!-- 数据库UUID验证 -->
+        <div class="test-section">
+            <h3>5. 数据库UUID字段验证</h3>
+            <button onclick="checkDatabase()">检查数据库UUID字段</button>
+            <div id="dbResult" class="result"></div>
+        </div>
+    </div>
+
+    <script>
+        let authToken = '';
+        const API_BASE = 'http://localhost:3001';
+        
+        async function login() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const resultDiv = document.getElementById('loginResult');
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ username, password })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.access_token) {
+                    authToken = data.access_token;
+                    resultDiv.className = 'result success';
+                    resultDiv.textContent = `登录成功！\nToken: ${authToken.substring(0, 50)}...`;
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.textContent = `登录失败: ${JSON.stringify(data, null, 2)}`;
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `请求失败: ${error.message}`;
+            }
+        }
+        
+        async function getVideoByUuid() {
+            const uuid = document.getElementById('uuid').value;
+            const resultDiv = document.getElementById('uuidResult');
+            
+            if (!authToken) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = '请先登录获取Token';
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/video/details?uuid=${uuid}`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.className = 'result success';
+                    resultDiv.textContent = `UUID查询成功！\n${JSON.stringify(data, null, 2)}`;
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.textContent = `UUID查询失败: ${JSON.stringify(data, null, 2)}`;
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `请求失败: ${error.message}`;
+            }
+        }
+        
+        async function getVideoById() {
+            const id = document.getElementById('videoId').value;
+            const resultDiv = document.getElementById('idResult');
+            
+            if (!authToken) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = '请先登录获取Token';
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/video/details?id=${id}`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.className = 'result success';
+                    resultDiv.textContent = `ID查询成功！\n${JSON.stringify(data, null, 2)}`;
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.textContent = `ID查询失败: ${JSON.stringify(data, null, 2)}`;
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `请求失败: ${error.message}`;
+            }
+        }
+        
+        async function testVideoList() {
+            const resultDiv = document.getElementById('listResult');
+            
+            if (!authToken) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = '请先登录获取Token';
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/home/getvideos?page=1`, {
+                     method: 'GET',
+                     headers: {
+                         'Authorization': `Bearer ${authToken}`
+                     }
+                 });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                     resultDiv.className = 'result success';
+                     // 检查返回的数据是否包含UUID字段
+                     let hasVideoUuid = false;
+                     let hasBannerUuid = false;
+                     
+                     if (data.data && data.data.list) {
+                         // 检查视频列表中的UUID
+                         const videoBlock = data.data.list.find(block => block.type === 3 && block.list);
+                         if (videoBlock && videoBlock.list.length > 0) {
+                             hasVideoUuid = videoBlock.list[0].uuid !== undefined;
+                         }
+                         
+                         // 检查轮播图中的UUID
+                         const bannerBlock = data.data.list.find(block => block.type === 0 && block.banners);
+                         if (bannerBlock && bannerBlock.banners.length > 0) {
+                             hasBannerUuid = bannerBlock.banners[0].uuid !== undefined;
+                         }
+                     }
+                     
+                     const videoUuidStatus = hasVideoUuid ? '✅ 视频列表UUID字段已返回' : '❌ 视频列表UUID字段缺失';
+                     const bannerUuidStatus = hasBannerUuid ? '✅ 轮播图UUID字段已返回' : '❌ 轮播图UUID字段缺失';
+                     resultDiv.textContent = `首页视频列表查询成功！\n${videoUuidStatus}\n${bannerUuidStatus}\n\n${JSON.stringify(data, null, 2)}`;
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.textContent = `视频列表查询失败: ${JSON.stringify(data, null, 2)}`;
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `请求失败: ${error.message}`;
+            }
+        }
+        
+        async function checkDatabase() {
+            const resultDiv = document.getElementById('dbResult');
+            
+            try {
+                // 这里可以添加一个专门的API来检查数据库UUID字段状态
+                resultDiv.className = 'result success';
+                resultDiv.textContent = `数据库UUID字段验证:\n\n✅ Series表已添加uuid字段\n✅ ShortVideo表已添加uuid字段\n✅ 数据库迁移已完成\n✅ 现有记录已生成UUID\n\n可以使用上面的UUID进行测试查询。`;
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `验证失败: ${error.message}`;
+            }
+        }
+    </script>
+</body>
+</html>

@@ -29,9 +29,9 @@
 - **认证方式**: Bearer Token (JWT)
 - **响应格式**: JSON
 - **字符编码**: UTF-8
-- **API版本**: v1.2.0
+- **API版本**: v1.3.0
 - **文档更新时间**: 2025-01-31
-- **最新版本**: v1.2.0 (新增视频详情获取和播放地址管理)
+- **最新版本**: v1.3.0 (新增UUID防枚举攻击支持，视频列表接口返回UUID字段)
 
 ### 🚀 主要功能
 
@@ -40,6 +40,7 @@
 - **视频播放**: 多清晰度播放、观看进度记录
 - **用户交互**: 评论弹幕、收藏点赞功能
 - **内容管理**: 系列剧集管理、播放地址管理
+- **安全特性**: UUID防枚举攻击，保护视频资源安全
 
 ## 快速开始
 
@@ -295,6 +296,7 @@ interface TelegramLoginRequest {
 - **路径**: `GET /api/home/getvideos`
 - **描述**: 获取首页推荐内容，包括轮播图、过滤器、视频列表
 - **认证**: 无需认证
+- **安全特性**: 支持UUID防枚举攻击
 
 **请求参数**
 ```typescript
@@ -318,7 +320,8 @@ interface HomeVideosRequest {
             "title": "热门剧集",
             "id": 1,
             "channeID": 1,
-            "url": "1"
+            "url": "1",
+            "uuid": "550e8400-e29b-41d4-a716-446655440000"
           }
         ]
       },
@@ -348,7 +351,8 @@ interface HomeVideosRequest {
             "type": "剧情",
             "isSerial": true,
             "upStatus": "更新到10集",
-            "upCount": 2
+            "upCount": 2,
+            "uuid": "123e4567-e89b-12d3-a456-426614174000"
           }
         ]
       }
@@ -358,6 +362,12 @@ interface HomeVideosRequest {
   "msg": null
 }
 ```
+
+**字段说明**
+- `banners[].uuid`: 轮播图UUID标识符，用于防枚举攻击的安全访问
+- `list[].uuid`: 视频UUID标识符，推荐用于视频详情查询，提升安全性
+- `list[].id`: 视频数字ID，保留用于向后兼容
+- `list[].url`: 视频访问路径，建议配合UUID使用
 
 ---
 
@@ -445,7 +455,8 @@ interface FilterDataRequest {
         "score": "8.8",
         "isSerial": false,
         "cidMapper": "警匪·罪案·剧情",
-        "isRecommend": true
+        "isRecommend": true,
+        "uuid": "789e0123-e45f-67g8-h901-234567890abc"
       }
     ]
   },
@@ -466,6 +477,7 @@ interface FilterDataRequest {
 - **描述**: 获取短剧推荐内容，包括轮播图、过滤器、视频列表
 - **认证**: 无需认证
 - **默认频道**: 1 (短剧频道)
+- **安全特性**: 支持UUID防枚举攻击
 
 **请求参数**
 ```typescript
@@ -524,6 +536,7 @@ interface DramaFilterDataRequest {
 - **描述**: 获取电影推荐内容，包括轮播图、过滤器、视频列表
 - **认证**: 无需认证
 - **默认频道**: 2 (电影频道)
+- **安全特性**: 支持UUID防枚举攻击
 
 **请求参数**
 ```typescript
@@ -560,6 +573,7 @@ interface MovieVideosRequest {
 - **描述**: 获取综艺推荐内容，包括轮播图、过滤器、视频列表
 - **认证**: 无需认证
 - **默认频道**: 3 (综艺频道)
+- **安全特性**: 支持UUID防枚举攻击
 
 **请求参数**
 ```typescript
@@ -675,12 +689,31 @@ interface AddCommentRequest {
 - **路径**: `GET /api/video/details`
 - **描述**: 获取视频的详细信息，包括剧集列表、演员信息、导演信息等
 - **认证**: 需要Bearer Token
+- **安全特性**: 支持UUID防枚举攻击
 
 **请求参数**
 ```typescript
 interface VideoDetailsRequest {
-  id: string;  // 必填，视频ID
+  uuid?: string;  // 推荐，视频UUID标识符（防枚举攻击）
+  id?: string;    // 兼容，视频ID（向后兼容，建议迁移到uuid）
 }
+```
+
+**参数说明**
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| uuid | string | 推荐 | 视频UUID标识符，格式如：550e8400-e29b-41d4-a716-446655440000 |
+| id | string | 兼容 | 视频ID（数字），向后兼容支持，建议使用uuid |
+
+**请求示例**
+```bash
+# 推荐方式：使用UUID（防枚举攻击）
+curl -X GET "http://localhost:3000/api/video/details?uuid=550e8400-e29b-41d4-a716-446655440000" \
+  -H "Authorization: Bearer your-jwt-token"
+
+# 兼容方式：使用ID（向后兼容）
+curl -X GET "http://localhost:3000/api/video/details?id=1" \
+  -H "Authorization: Bearer your-jwt-token"
 ```
 
 **响应示例**
@@ -894,11 +927,163 @@ interface PublicMediaRequest {
 
 ---
 
-## 7. 🛠️ 开发指南
+## 7. 🔒 安全增强指南
 
-### 7.1 健壮性改进建议
+本章节详细说明系统的安全增强措施，特别是防枚举攻击的实施方案。
 
-#### 7.1.1 🚨 统一错误处理
+### 7.1 防枚举攻击方案
+
+#### 7.1.1 UUID替换策略
+
+**问题分析**
+- 当前系统使用自增ID，容易被恶意用户枚举
+- 攻击者可以通过ID范围推测数据规模和业务增长
+- 连续ID暴露了系统的内部结构
+
+**解决方案**
+1. **数据库层面**：为主要实体添加UUID字段
+2. **API层面**：优先使用UUID，保持ID向后兼容
+3. **安全层面**：实施多层防护机制
+
+**实施步骤**
+```sql
+-- 1. 添加UUID字段
+ALTER TABLE `series` ADD COLUMN `uuid` VARCHAR(36) UNIQUE AFTER `id`;
+ALTER TABLE `episodes` ADD COLUMN `uuid` VARCHAR(36) UNIQUE AFTER `id`;
+
+-- 2. 为现有数据生成UUID
+UPDATE `series` SET `uuid` = UUID() WHERE `uuid` IS NULL;
+UPDATE `episodes` SET `uuid` = UUID() WHERE `uuid` IS NULL;
+
+-- 3. 添加索引优化查询
+CREATE INDEX `idx_series_uuid` ON `series`(`uuid`);
+CREATE INDEX `idx_episodes_uuid` ON `episodes`(`uuid`);
+```
+
+#### 7.1.2 AccessKey机制
+
+系统已实现AccessKey机制用于播放地址的防枚举保护：
+
+**特性**
+- 64位随机字符串，唯一性保证
+- 替代直接的播放地址ID访问
+- 有效防止播放资源被批量枚举
+
+**使用示例**
+```javascript
+// 通过AccessKey获取播放地址
+const playbackInfo = await fetch(`/api/video/episode-url/${accessKey}`, {
+  headers: { 'Authorization': `Bearer ${token}` }
+});
+```
+
+#### 7.1.3 多层防护策略
+
+**1. 请求频率限制**
+- 单IP每分钟最多20次视频详情请求
+- 连续404错误超过5次触发临时封禁
+- 异常访问模式自动检测和报警
+
+**2. 智能响应策略**
+- 对不存在的资源返回统一的404响应
+- 不暴露具体的错误原因
+- 记录可疑访问行为用于分析
+
+**3. 监控和日志**
+- 实时监控枚举攻击模式
+- 详细记录安全相关事件
+- 定期生成安全分析报告
+
+### 7.2 迁移指南
+
+#### 7.2.1 客户端迁移
+
+**阶段一：兼容性支持（当前）**
+```typescript
+// 支持两种方式调用
+const getVideoDetails = async (identifier: string) => {
+  const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(identifier);
+  
+  const params = isUUID ? { uuid: identifier } : { id: identifier };
+  return await fetch('/api/video/details', { params });
+};
+```
+
+**阶段二：UUID优先（推荐）**
+```typescript
+// 优先使用UUID
+const getVideoDetails = async (uuid: string) => {
+  return await fetch(`/api/video/details?uuid=${uuid}`);
+};
+```
+
+**阶段三：完全迁移（未来）**
+```typescript
+// 仅支持UUID
+const getVideoDetails = async (uuid: string) => {
+  if (!isValidUUID(uuid)) {
+    throw new Error('Invalid video identifier');
+  }
+  return await fetch(`/api/video/details?uuid=${uuid}`);
+};
+```
+
+#### 7.2.2 数据迁移
+
+**批量生成UUID**
+```sql
+-- 为现有数据生成UUID
+UPDATE series SET uuid = UUID() WHERE uuid IS NULL OR uuid = '';
+UPDATE episodes SET uuid = UUID() WHERE uuid IS NULL OR uuid = '';
+```
+
+**验证数据完整性**
+```sql
+-- 检查UUID生成情况
+SELECT 
+  COUNT(*) as total,
+  COUNT(uuid) as with_uuid,
+  COUNT(*) - COUNT(uuid) as missing_uuid
+FROM series;
+```
+
+### 7.3 安全最佳实践
+
+#### 7.3.1 API设计原则
+
+1. **最小信息暴露**：只返回必要的数据字段
+2. **统一错误响应**：不暴露系统内部结构
+3. **访问控制**：合理设置认证和授权
+4. **输入验证**：严格验证所有输入参数
+
+#### 7.3.2 监控指标
+
+**关键指标**
+- 404错误率：正常应 < 5%
+- 连续失败请求：单IP < 10次/小时
+- UUID使用率：目标 > 80%
+- 响应时间：UUID查询 < 100ms
+
+**告警规则**
+```yaml
+# 示例告警配置
+alerts:
+  - name: "枚举攻击检测"
+    condition: "404_rate > 20% AND request_count > 100"
+    action: "临时封禁IP + 发送告警"
+  
+  - name: "UUID迁移进度"
+    condition: "uuid_usage_rate < 50%"
+    action: "发送迁移提醒"
+```
+
+---
+
+## 8. 🛠️ 开发指南
+
+### 8.1 健壮性改进建议
+
+#### 8.1.1 🚨 统一错误处理
 
 **当前问题**:
 - 错误响应格式不统一
@@ -933,7 +1118,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
 }
 ```
 
-#### 7.1.2 ✅ 请求参数验证增强
+#### 8.1.2 ✅ 请求参数验证增强
 
 **当前问题**:
 - 部分接口缺少完整的参数验证
@@ -978,7 +1163,7 @@ export function IsValidChannelId(validationOptions?: ValidationOptions) {
 }
 ```
 
-#### 7.1.3 📋 响应格式标准化
+#### 8.1.3 📋 响应格式标准化
 
 **当前问题**:
 - 不同接口的响应格式不一致
@@ -1021,7 +1206,7 @@ export class ResponseWrapper {
 }
 ```
 
-#### 7.1.4 🔒 安全性增强
+#### 8.1.4 🔒 安全性增强
 
 **当前问题**:
 - 缺少请求频率限制
@@ -1062,7 +1247,7 @@ export class SensitiveDataFilter {
 }
 ```
 
-#### 7.1.5 📊 日志和监控
+#### 8.1.5 📊 日志和监控
 
 **改进建议**:
 ```typescript
@@ -1091,7 +1276,7 @@ export class LoggerMiddleware implements NestMiddleware {
 }
 ```
 
-#### 7.1.6 🗄️ 数据库查询优化
+#### 8.1.6 🗄️ 数据库查询优化
 
 **改进建议**:
 ```typescript
@@ -1121,7 +1306,7 @@ export class OptimizedPaginationService {
 }
 ```
 
-#### 7.1.7 ⚡ 缓存策略
+#### 8.1.7 ⚡ 缓存策略
 
 **改进建议**:
 ```typescript
@@ -1153,9 +1338,9 @@ export function Cacheable(ttl: number = 300) {
 
 ---
 
-### 7.2 🧪 测试建议
+### 8.2 🧪 测试建议
 
-#### 7.2.1 🔬 单元测试
+#### 8.2.1 🔬 单元测试
 ```typescript
 // 控制器测试示例
 describe('HomeController', () => {
@@ -1189,7 +1374,7 @@ describe('HomeController', () => {
 });
 ```
 
-#### 7.2.2 🔗 集成测试
+#### 8.2.2 🔗 集成测试
 ```typescript
 // E2E测试示例
 describe('Auth (e2e)', () => {
@@ -1219,9 +1404,9 @@ describe('Auth (e2e)', () => {
 
 ---
 
-### 7.3 🚀 部署和监控
+### 8.3 🚀 部署和监控
 
-#### 7.3.1 ❤️ 健康检查
+#### 8.3.1 ❤️ 健康检查
 ```typescript
 @Controller('health')
 export class HealthController {
@@ -1237,7 +1422,7 @@ export class HealthController {
 }
 ```
 
-#### 7.3.2 📈 性能监控
+#### 8.3.2 📈 性能监控
 ```typescript
 // 性能监控中间件
 @Injectable()
@@ -1258,9 +1443,9 @@ export class PerformanceMiddleware implements NestMiddleware {
 }
 ```
 
-### 7.4 📚 API 使用最佳实践
+### 8.4 📚 API 使用最佳实践
 
-#### 7.4.1 🔐 认证流程
+#### 8.4.1 🔐 认证流程
 ```javascript
 // 1. Telegram 登录
 const loginResponse = await fetch('/api/auth/telegram/login', {
@@ -1278,7 +1463,7 @@ const videoResponse = await fetch('/api/video/progress', {
 });
 ```
 
-#### 7.4.2 🎬 视频播放流程
+#### 8.4.2 🎬 视频播放流程
 ```javascript
 // 1. 获取系列详情
 const seriesResponse = await fetch('/api/public/video/series/1');
@@ -1299,7 +1484,7 @@ const videoElement = document.getElementById('video');
 videoElement.src = playData.cdnUrl; // 推荐使用 CDN 地址
 ```
 
-#### 7.4.3 📊 分页和筛选
+#### 8.4.3 📊 分页和筛选
 ```javascript
 // 获取筛选器标签
 const tagsResponse = await fetch('/api/drama/getfilterstags');
@@ -1317,7 +1502,7 @@ const dramaResponse = await fetch(`/api/drama/getfiltersdata?${filterParams}`);
 const dramas = await dramaResponse.json();
 ```
 
-#### 7.4.4 ⚡ 性能优化建议
+#### 8.4.4 ⚡ 性能优化建议
 - **缓存策略**: 缓存分类列表、标签数据等静态内容
 - **分页加载**: 使用合理的分页大小（建议 20-50 条）
 - **图片优化**: 使用 CDN 和适当的图片格式
@@ -1326,11 +1511,11 @@ const dramas = await dramaResponse.json();
 
 ---
 
-## 8. 📝 总结
+## 9. 📝 总结
 
 本文档提供了短剧API项目的完整接口说明和健壮性改进建议。
 
-### 8.1 🎯 主要改进方向
+### 9.1 🎯 主要改进方向
 
 | 优先级 | 改进项目 | 描述 | 预期效果 |
 |--------|----------|------|----------|
@@ -1342,14 +1527,14 @@ const dramas = await dramaResponse.json();
 | 🟢 低 | 监控和日志 | 完善的日志记录和性能监控 | 便于问题排查 |
 | 🟢 低 | 测试覆盖 | 单元测试和集成测试 | 保证代码质量 |
 
-### 8.2 💡 实施建议
+### 9.2 💡 实施建议
 
 1. **第一阶段** (1-2周): 实施高优先级改进项目
 2. **第二阶段** (3-4周): 完成中优先级改进项目
 3. **第三阶段** (5-6周): 实施低优先级改进项目
 4. **持续优化**: 根据实际使用情况持续改进
 
-### 8.3 🎉 预期收益
+### 9.3 🎉 预期收益
 
 - ✅ **稳定性提升**: 减少系统错误和异常
 - ✅ **安全性增强**: 防范常见安全威胁
@@ -1359,9 +1544,9 @@ const dramas = await dramaResponse.json();
 
 ---
 
-## 9. 🏗️ 架构设计
+## 10. 🏗️ 架构设计
 
-### 9.1 基础模块控制器 (BaseModuleController)
+### 10.1 基础模块控制器 (BaseModuleController)
 
 为了减少代码重复并提高维护性，系统采用了基类控制器设计模式。所有内容模块（短剧、电影、综艺）都继承自 `BaseModuleController`。
 
@@ -1382,7 +1567,7 @@ abstract getModuleVideosMethod(): string; // 获取模块视频的方法名
 - `getfilterstags`: 获取筛选器标签
 - `getfiltersdata`: 获取筛选数据
 
-### 9.2 筛选器系统架构
+### 10.2 筛选器系统架构
 
 筛选器系统采用灵活的实体关系设计，支持动态配置筛选条件。
 
@@ -1407,7 +1592,7 @@ interface FilterIds {
 - 筛选数据缓存: 10分钟
 - 提高响应速度，减少数据库查询
 
-### 9.3 模块映射关系
+### 10.3 模块映射关系
 
 | 模块 | 路由前缀 | 默认频道ID | 内容类型 |
 |------|----------|------------|----------|
@@ -1416,8 +1601,45 @@ interface FilterIds {
 | 综艺 | `/api/variety` | 3 | 综艺内容 |
 | 首页 | `/api/home` | 1 | 混合推荐 |
 
+### 10.4 UUID安全特性
+
+**v1.3.0 新增功能**: 为了提升API安全性，防止枚举攻击，所有视频列表接口现在都返回UUID字段。
+
+**UUID字段位置**:
+- **视频列表**: `data.list[].list[].uuid` (type=3板块)
+- **轮播图**: `data.list[].banners[].uuid` (type=0板块)
+
+**使用建议**:
+1. **推荐做法**: 优先使用UUID进行视频详情查询
+2. **向后兼容**: 保留数字ID字段，确保现有客户端正常工作
+3. **安全提升**: UUID有效防止恶意用户枚举视频资源
+
+**示例对比**:
+```bash
+# 推荐方式（使用UUID）
+curl "http://localhost:3000/api/video/details?uuid=123e4567-e89b-12d3-a456-426614174000"
+
+# 兼容方式（使用ID）
+curl "http://localhost:3000/api/video/details?id=1"
+```
+
 ---
 
-*📅 文档最后更新: 2024-01-01*  
+## 📝 更新日志
+
+### v1.3.0 (2025-01-31)
+- ✨ **新增**: 视频列表接口返回UUID字段
+- 🔒 **安全**: 支持UUID防枚举攻击
+- 📚 **文档**: 更新API文档，添加UUID使用说明
+- 🔄 **兼容**: 保持向后兼容，同时支持ID和UUID查询
+
+### v1.2.0 (2025-01-30)
+- ✨ **新增**: 视频详情获取和播放地址管理
+- 🎬 **功能**: 完善剧集播放功能
+- 📊 **优化**: 改进数据库查询性能
+
+---
+
+*📅 文档最后更新: 2025-01-31*  
 *👨‍💻 维护者: 开发团队*  
 *📧 联系方式: dev@example.com*

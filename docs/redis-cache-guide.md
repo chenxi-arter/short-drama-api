@@ -44,6 +44,105 @@ docker pull redis:latest
 docker run -d --name redis -p 6379:6379 redis:latest
 ```
 
+## 缓存主动失效机制
+
+本项目已实现缓存主动失效机制，在关键数据更新操作时自动清除相关缓存，确保数据一致性。
+
+### 已实现的主动失效场景
+
+#### 1. 评论/弹幕更新
+
+**触发条件**: 用户发表评论或弹幕时
+
+**清除范围**:
+- 视频详情缓存 (`video_details_{episodeId}`)
+- 首页视频缓存 (`home_videos_*`)
+- 筛选器数据缓存 (`filter_data_*`)
+
+**实现位置**: `VideoService.addComment()`
+
+```typescript
+// 自动清除相关缓存
+await this.clearVideoRelatedCache(episodeId.toString());
+```
+
+#### 2. 观看进度更新
+
+**触发条件**: 用户更新观看进度时
+
+**清除范围**:
+- 视频详情缓存 (`video_details_{episodeId}`)
+
+**实现位置**: `VideoService.saveProgress()`
+
+```typescript
+// 清除视频详情缓存 - 更新进度信息
+await this.cacheManager.del(`video_details_${episodeId}`);
+```
+
+### 缓存清除方法
+
+#### clearVideoRelatedCache()
+
+清除特定视频相关的所有缓存
+
+```typescript
+private async clearVideoRelatedCache(videoId: string, categoryId?: number)
+```
+
+**清除内容**:
+- 视频详情缓存
+- 首页视频缓存（多页面）
+- 筛选器数据缓存
+
+#### clearAllListCache()
+
+清除所有列表相关缓存
+
+```typescript
+private async clearAllListCache()
+```
+
+**清除内容**:
+- 首页视频缓存
+- 筛选器标签缓存
+- 筛选器数据缓存
+
+### 手动清除缓存
+
+#### 使用 Redis CLI
+
+```bash
+# 连接到 Redis
+redis-cli
+
+# 清除特定缓存
+DEL video_details_123
+DEL home_videos_1_1
+
+# 查看所有缓存键
+KEYS *
+
+# 清除所有缓存（谨慎使用）
+FLUSHALL
+```
+
+#### 批量清除脚本
+
+```bash
+#!/bin/bash
+# 清除所有视频相关缓存
+
+redis-cli <<EOF
+KEYS home_videos_* | xargs DEL
+KEYS filter_data_* | xargs DEL
+KEYS filter_tags_* | xargs DEL
+KEYS video_details_* | xargs DEL
+EOF
+
+echo "缓存清除完成"
+```
+
 ## 已缓存的接口
 
 以下接口已添加 Redis 缓存优化：
