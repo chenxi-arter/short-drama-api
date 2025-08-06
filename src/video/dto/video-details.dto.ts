@@ -11,7 +11,7 @@ export class VideoDetailsDto {
    * 格式：xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx
    */
   @IsOptional()
-  @IsUUID(4, { message: '无效的UUID格式' })
+  @IsUUID()
   uuid?: string;
 
   /**
@@ -27,8 +27,16 @@ export class VideoDetailsDto {
    * 验证至少提供一个标识符
    */
   @ValidateIf(o => !o.uuid && !o.id)
-  @IsNotEmpty({ message: '必须提供uuid或id参数' })
-  _validator?: any;
+  @IsString({ message: '必须提供uuid或id参数' })
+  _validator?: string;
+}
+
+/**
+ * 播放地址信息
+ */
+export interface EpisodeUrlInfo {
+  quality: string;       // 清晰度
+  accessKey: string;     // 访问密钥，用于获取详细播放信息
 }
 
 /**
@@ -36,7 +44,7 @@ export class VideoDetailsDto {
  */
 export interface EpisodeInfo {
   channeID: number;      // 频道ID
-  episodeId: number;     // 集数ID
+  episodeId: string;     // 集数UUID（防枚举攻击）
   title: string;         // 视频标题
   resolutionDes: string; // 分辨率描述
   resolution: string;    // 分辨率
@@ -45,6 +53,7 @@ export interface EpisodeInfo {
   episodeTitle: string;  // 集数标题
   opSecond: number;      // 开头广告时长
   epSecond: number;      // 集数总时长（秒）
+  urls?: EpisodeUrlInfo[]; // 播放地址列表
 }
 
 /**

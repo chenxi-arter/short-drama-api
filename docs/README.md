@@ -15,6 +15,11 @@
 
 ## 🛠️ 技术指南
 
+### 开发和部署
+- 👨‍💻 [开发指南](./development-guide.md) - 完整的开发环境搭建和开发流程
+- 🚀 [部署指南](./deployment-guide.md) - 生产环境部署和运维指南
+- 🧪 [API测试指南](./api-testing-guide.md) - 接口测试、性能测试和安全测试
+
 ### 架构和优化
 - 🏗️ [NestJS结构优化](./nestjs-structure-optimization.md) - 项目架构优化指南
 - 📋 [健壮性实现指南](./robustness-implementation-guide.md) - 系统稳定性和容错机制
@@ -32,36 +37,46 @@
 ### 📖 API文档
 | 文档 | 描述 | 适用人群 |
 |------|------|----------|
-| [完整API文档](./complete-api-documentation.md) | 详细的接口说明、参数、响应格式 | 所有开发者 |
-| [API快速参考](./api-quick-reference.md) | 接口速查表和常用示例 | 有经验的开发者 |
-| [API变更日志](./api-changelog.md) | API版本变更记录 | 所有开发者 |
-| [API测试示例](./api-test-examples.md) | 接口测试用例和示例 | 测试人员、开发者 |
-| [Apifox导入指南](./apifox-import-guide.md) | API文档导入工具使用指南 | 所有开发者 |
-| [分类列表API](./category-list-api.md) | 分类相关接口 | 前端开发者 |
-| [视频详情使用指南](./video-details-usage-guide.md) | 视频详情接口使用说明 | 前端开发者 |
+| [API接口汇总](./api-summary-documentation.md) | 完整的API接口说明和使用指南 | 所有开发者 |
+| [API测试指南](./api-testing-guide.md) | 接口测试、性能测试和安全测试 | 测试人员、开发者 |
 | [UUID实现示例](./uuid-implementation-example.md) | UUID防枚举攻击实现 | 后端开发者 |
-| [OpenAPI规范](./apifox-openapi.json) | 标准化API接口定义文件 | 工具集成、自动化测试 |
 
 ### 🗄️ 数据库文档
 | 文档 | 描述 | 适用人群 |
 |------|------|----------|
-| [数据库表结构](./mysql.md) | 完整的数据库表设计和字段说明 | 后端开发者、DBA |
-| [实体关系图](./entity-relationship-diagram.svg) | 可视化数据库关系图 | 架构师、开发者 |
+| [数据库设计文档](./database-schema-documentation.md) | 完整的数据库表结构和关系说明 | 后端开发者、DBA |
 
-### 🏗️ 架构文档
+### 🚀 开发和部署文档
 | 文档 | 描述 | 适用人群 |
 |------|------|----------|
-| [NestJS结构优化](./nestjs-structure-optimization.md) | 项目架构设计和优化方案 | 架构师、高级开发者 |
+| [开发指南](./development-guide.md) | 开发环境搭建、代码规范、开发流程 | 新手开发者、团队成员 |
+| [部署指南](./deployment-guide.md) | 生产环境部署、运维监控、故障排除 | 运维工程师、DevOps |
 
-### ⚡ 性能文档
+### 🔧 技术实现文档
 | 文档 | 描述 | 适用人群 |
 |------|------|----------|
-| [Redis缓存指南](./redis-cache-guide.md) | 缓存策略和Redis使用 | 后端开发者、运维人员 |
+| [结构优化完成](./structure-optimization-completed.md) | NestJS项目架构优化总结 | 架构师、高级开发者 |
+| [健壮性实现指南](./robustness-implementation-guide.md) | 系统稳定性和容错机制实现 | 后端开发者 |
+| [Redis缓存指南](./redis-cache-guide.md) | 缓存策略和使用方法 | 后端开发者、运维工程师 |
+| [Token刷新实现](./token-refresh-implementation.md) | JWT令牌刷新机制实现 | 后端开发者 |
 
-### 🔐 安全文档
-| 文档 | 描述 | 适用人群 |
-|------|------|----------|
-| [Token刷新实现](./token-refresh-implementation.md) | JWT令牌管理机制 | 前端、后端开发者 |
+## 📋 文档维护
+
+### 文档更新记录
+- **2024年最新**: 新增开发指南、部署指南、API测试指南
+- **架构优化**: 完成NestJS项目结构重构和优化
+- **安全增强**: 实现UUID防枚举、Token刷新机制
+- **性能提升**: 集成Redis缓存和健壮性改进
+
+### 维护清单
+- [ ] 定期更新API文档
+- [ ] 同步代码变更到文档
+- [ ] 验证部署指南的有效性
+- [ ] 更新依赖包版本信息
+- [ ] 检查文档链接的有效性
+
+### 版本记录
+- 📝 [项目变更日志](./changelog.md) - 详细的版本更新记录和迁移指南
 
 ## 🎯 使用场景
 

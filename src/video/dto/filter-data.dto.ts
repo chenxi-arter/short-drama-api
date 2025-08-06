@@ -35,6 +35,7 @@ export interface FilterDataItem {
   isSerial: boolean;   // 是否是系列剧集
   cidMapper: string;   // 分类映射
   isRecommend: boolean; // 是否推荐
+  createdAt: string;   // 创建时间
 }
 
 /**

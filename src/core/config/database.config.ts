@@ -81,12 +81,9 @@ export class DatabaseConfig {
       extra: {
         connectionLimit: this.maxConnections,
         charset: 'utf8mb4',
-        collation: 'utf8mb4_unicode_ci',
-        // 强制设置字符编码
-        initSql: "SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci;",
-        // 移除 acquireTimeout 和 timeout
-        // acquireTimeout: this.acquireTimeout,  // 删除这行
-        // timeout: this.timeout,                // 删除这行
+        // 移除不支持的配置选项
+        // collation: 'utf8mb4_unicode_ci',  // MySQL2不支持此选项
+        // initSql: "SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci;",  // MySQL2不支持此选项
       },
       autoLoadEntities: true,
       retryAttempts: 3,

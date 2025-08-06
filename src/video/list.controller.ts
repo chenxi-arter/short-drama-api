@@ -16,7 +16,7 @@ export class ListController {
    * @param dto 请求参数
    * @returns 筛选器标签列表
    */
-  @Get('getfilterstags')
+  @Get('/getFiltersTags')
   async getFiltersTags(@Query() dto: FilterTagsDto) {
     return this.videoService.getFiltersTags(dto.channeid || '1');
   }
@@ -43,5 +43,19 @@ export class ListController {
   @Get('getconditionfilterdata')
   async getConditionFilterData(@Query() dto: ConditionFilterDto) {
     return this.videoService.getConditionFilterData(dto);
+  }
+
+  /**
+   * 清除筛选器缓存（测试用）
+   * @param channeid 可选，指定频道ID
+   */
+  @Get('clearfiltercache')
+  async clearFilterCache(@Query('channeid') channeid?: string) {
+    await this.videoService.clearFilterCache(channeid);
+    return {
+      code: 200,
+      msg: channeid ? `已清除频道 ${channeid} 的筛选器缓存` : '已清除所有筛选器缓存',
+      data: null
+    };
   }
 }

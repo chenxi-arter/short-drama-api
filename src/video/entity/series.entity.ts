@@ -74,6 +74,13 @@ export class Series {
   @JoinColumn({ name: 'category_id' })
   category: Category;
 
+  /**
+   * 分类ID字段
+   * 存储关联的分类主键ID
+   */
+  @Column({ type: 'int', nullable: true, name: 'category_id' })
+  categoryId: number;
+
   /** 
    * 评分
    * 系列的平均评分，默认为0
@@ -85,7 +92,7 @@ export class Series {
    * 播放次数
    * 记录系列的总播放次数，默认为0
    */
-  @Column({ type: 'int', default: 0 })
+  @Column({ type: 'int', default: 0, name: 'play_count' })
   playCount: number;
 
   /** 
@@ -165,10 +172,4 @@ export class Series {
   @Column({ type: 'timestamp', nullable: true, name: 'updated_at' })
   updatedAt: Date;
 
-  /**
-   * 分类ID
-   * 关联到category表的外键
-   */
-  @Column({ type: 'varchar', nullable: true, name: 'category_id' })
-  categoryId: string;
 }

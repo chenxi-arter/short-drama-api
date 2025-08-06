@@ -19,6 +19,7 @@ import { PublicVideoController } from './public-video.controller'; // 公开视�
 import { HomeController } from './home.controller';           // 首页相关API控制器
 import { ListController } from './list.controller';           // 列表筛选相关API控制器
 import { CategoryController } from './category.controller';   // 分类相关API控制器
+import { BannerController } from './controllers/banner.controller'; // 轮播图API控制器
 import { WatchProgressService } from './services/watch-progress.service';
 import { CommentService } from './services/comment.service';
 import { EpisodeService } from './services/episode.service';
@@ -65,7 +66,8 @@ import { AppConfigService } from '../common/config/app-config.service';
     VideoController, 
     HomeController, 
     ListController,
-    CategoryController
+    CategoryController,
+    BannerController
   ], // 一起注册
   // 注意：如果需要让其他模块使用这些实体或服务，应该在这里添加exports
 })

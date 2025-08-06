@@ -3,7 +3,7 @@
  * 剧集实体类
  * 表示一个电视剧系列中的单集内容
  */
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, OneToMany, JoinColumn, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, OneToMany, JoinColumn, CreateDateColumn, UpdateDateColumn, Generated } from 'typeorm';
 import { Series } from './series.entity';
 import { EpisodeUrl } from './episode-url.entity';
 import { WatchProgress } from './watch-progress.entity';
@@ -17,6 +17,14 @@ export class Episode {
    */
   @PrimaryGeneratedColumn({ name: 'id' })
   id: number;
+
+  /** 
+   * UUID标识符（防枚举攻击）
+   * 用于外部API访问的安全标识符
+   */
+  @Column({ type: 'varchar', length: 36, unique: true, nullable: true, name: 'uuid' })
+  @Generated('uuid')
+  uuid: string;
 
   /** 
    * 所属电视剧ID 
@@ -82,10 +90,10 @@ export class Episode {
   @OneToMany(() => Comment, c => c.episode)
   comments: Comment[];
   /** 
-   * 播放次数 
-   * 记录剧集的总播放次数，默认为0
+   * 播放次数
+   * 记录剧集的播放次数，默认为0
    */
-  @Column({ type: 'int', default: 0 })
+  @Column({ type: 'int', default: 0, name: 'play_count' })
   playCount: number;
 
   /** 

@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
 import { Comment } from '../entity/comment.entity';
+import { Episode } from '../entity/episode.entity';
 
 /**
  * 评论管理服务
@@ -14,6 +15,8 @@ export class CommentService {
   constructor(
     @InjectRepository(Comment)
     private readonly commentRepo: Repository<Comment>,
+    @InjectRepository(Episode)
+    private readonly episodeRepo: Repository<Episode>,
     @Inject(CACHE_MANAGER)
     private readonly cacheManager: Cache,
   ) {}
@@ -81,6 +84,22 @@ export class CommentService {
       order: { appearSecond: 'ASC' },
       relations: ['user'],
     });
+  }
+
+  /**
+   * 通过UUID获取剧集的弹幕列表
+   */
+  async getDanmuByEpisodeUuid(episodeUuid: string) {
+    // 需要先通过UUID找到episode
+    const episode = await this.episodeRepo.findOne({
+      where: { uuid: episodeUuid }
+    });
+    
+    if (!episode) {
+      throw new Error('剧集不存在');
+    }
+    
+    return this.getDanmuByEpisode(episode.id);
   }
 
   /**

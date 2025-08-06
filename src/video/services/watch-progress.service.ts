@@ -14,7 +14,7 @@ export class WatchProgressService {
   ) {}
 
   /**
-   * 更新观看进度
+   * 更新观看进度（通过episode ID）
    */
   async updateWatchProgress(
     userId: number,

@@ -105,11 +105,21 @@ export class EpisodeService {
   }
 
   /**
-   * 获取剧集详情
+   * 获取剧集详情（通过ID）
    */
   async getEpisodeById(episodeId: number) {
     return this.episodeRepo.findOne({
       where: { id: episodeId },
+      relations: ['series', 'urls'],
+    });
+  }
+
+  /**
+   * 获取剧集详情（通过UUID）
+   */
+  async getEpisodeByUuid(episodeUuid: string) {
+    return this.episodeRepo.findOne({
+      where: { uuid: episodeUuid },
       relations: ['series', 'urls'],
     });
   }

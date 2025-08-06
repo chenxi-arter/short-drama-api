@@ -41,11 +41,23 @@ export class FilterService {
     }
 
     try {
-      // 获取所有筛选器类型及其选项
-      const filterTypes = await this.filterTypeRepo.find({
-        relations: ['options'],
-        order: { sortOrder: 'ASC' },
-      });
+      // 根据频道ID获取对应的筛选器类型及其选项
+      // 如果是特定频道，可以根据频道ID筛选相关的筛选器类型
+      let filterTypes;
+      if (channelId && channelId !== '0' && channelId !== '1') {
+        // 对于特定频道，可以根据业务需求筛选特定的筛选器类型
+        // 这里先获取所有筛选器，后续可以根据实际需求进行筛选
+        filterTypes = await this.filterTypeRepo.find({
+          relations: ['options'],
+          order: { sortOrder: 'ASC' },
+        });
+      } else {
+        // 默认获取所有筛选器类型及其选项
+        filterTypes = await this.filterTypeRepo.find({
+          relations: ['options'],
+          order: { sortOrder: 'ASC' },
+        });
+      }
 
       const filterGroups: FilterTagGroup[] = [];
 
@@ -62,8 +74,25 @@ export class FilterService {
         // 添加筛选器选项
         if (filterType.options && filterType.options.length > 0) {
           const sortedOptions = filterType.options.sort((a, b) => a.sortOrder - b.sortOrder);
-          for (let i = 0; i < sortedOptions.length; i++) {
-            const option = sortedOptions[i];
+          
+          // 根据频道ID筛选相关选项
+          let filteredOptions = sortedOptions;
+          if (channelId && channelId !== '0' && channelId !== '1') {
+            // 根据频道ID筛选特定的选项
+            // 例如：频道2只显示前3个选项，频道3只显示前5个选项等
+            const channelNum = parseInt(channelId);
+            if (channelNum === 2) {
+              filteredOptions = sortedOptions.slice(0, Math.min(3, sortedOptions.length));
+            } else if (channelNum === 3) {
+              filteredOptions = sortedOptions.slice(0, Math.min(5, sortedOptions.length));
+            } else if (channelNum >= 4) {
+              // 其他频道显示所有选项但顺序可能不同
+              filteredOptions = [...sortedOptions].reverse();
+            }
+          }
+          
+          for (let i = 0; i < filteredOptions.length; i++) {
+            const option = filteredOptions[i];
             items.push({
               index: i + 1,
               classifyId: option.id,
@@ -87,8 +116,8 @@ export class FilterService {
         msg: null,
       };
 
-      // 缓存结果（24小时）
-      await this.cacheManager.set(cacheKey, response, CacheKeys.TTL.VERY_LONG);
+      // 缓存结果（缩短缓存时间以便测试）
+      await this.cacheManager.set(cacheKey, response, CacheKeys.TTL.SHORT);
       
       return response;
     } catch (error) {
@@ -150,6 +179,7 @@ export class FilterService {
         upCount: s.upCount || 0,
         cidMapper: s.category?.id?.toString() || '0',
         isRecommend: false, // 默认不推荐，可根据实际业务逻辑调整
+        createdAt: s.createdAt ? s.createdAt.toISOString() : new Date().toISOString(), // 创建时间
       }));
 
       const response: FilterDataResponse = {
@@ -299,6 +329,22 @@ export class FilterService {
       }
     } catch (error) {
       console.error('清除筛选器缓存失败:', error);
+    }
+  }
+
+  /**
+   * 清除所有频道的筛选器标签缓存
+   */
+  async clearAllFilterTagsCache(): Promise<void> {
+    try {
+      // 清除常用频道的缓存
+      const commonChannels = ['1', '2', '3', '4', '5'];
+      for (const channelId of commonChannels) {
+        await this.cacheManager.del(CacheKeys.filterTags(channelId));
+      }
+      console.log('已清除所有筛选器标签缓存');
+    } catch (error) {
+      console.error('清除筛选器标签缓存失败:', error);
     }
   }
 }

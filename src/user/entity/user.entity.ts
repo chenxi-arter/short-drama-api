@@ -2,7 +2,7 @@
  * 用户实体类
  * 存储系统用户的基本信息
  */
-import { Entity, PrimaryColumn, Column, CreateDateColumn, OneToMany } from 'typeorm';
+import { Entity, PrimaryColumn, Column, CreateDateColumn, OneToMany, Generated } from 'typeorm';
 import { Comment } from '../../video/entity/comment.entity';
 import { WatchProgress } from '../../video/entity/watch-progress.entity';
 
@@ -14,6 +14,14 @@ export class User {
    */
   @PrimaryColumn({ type: 'bigint' })
   id: number;
+
+  /** 
+   * UUID标识符（防枚举攻击）
+   * 用于外部API访问的安全标识符
+   */
+  @Column({ type: 'varchar', length: 36, unique: true, nullable: true, name: 'uuid' })
+  @Generated('uuid')
+  uuid: string;
 
   /** 
    * 用户名字 

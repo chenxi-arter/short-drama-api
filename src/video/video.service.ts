@@ -13,7 +13,7 @@ import { ContentBlock, BannerItem, FilterItem, VideoItem } from './dto/home-vide
 import { FilterTagsResponse, FilterTagGroup, FilterTagItem } from './dto/filter-tags.dto';
 import { FilterDataResponse, FilterDataItem } from './dto/filter-data.dto';
 import { ConditionFilterDto, ConditionFilterResponse } from './dto/condition-filter.dto';
-import { VideoDetailsResponse, VideoDetailInfo, EpisodeInfo, InteractionInfo, LanguageInfo } from './dto/video-details.dto';
+import { VideoDetailsResponse, VideoDetailInfo, EpisodeInfo, EpisodeUrlInfo, InteractionInfo, LanguageInfo } from './dto/video-details.dto';
 import { WatchProgressService } from './services/watch-progress.service';
 import { CommentService } from './services/comment.service';
 import { EpisodeService } from './services/episode.service';
@@ -71,6 +71,11 @@ export class VideoService {
     const progressList = await this.watchProgressService.getUserWatchProgress(userId, episodeId);
     const progress = progressList.length > 0 ? progressList[0] : null;
     return { stopAtSecond: progress?.stopAtSecond || 0 };
+  }
+
+  /* 通过UUID获取剧集信息 */
+  async getEpisodeByUuid(episodeUuid: string) {
+    return this.episodeService.getEpisodeByUuid(episodeUuid);
   }
 
   /* 清除视频相关缓存 */
@@ -272,6 +277,13 @@ async listSeriesFull(
       return cachedData;
     }
     
+    // 根据categoryId获取分类信息
+    let categoryName = "全部";
+    if (categoryId) {
+      const category = await this.catRepo.findOne({ where: { categoryId: categoryId.toString() } });
+      categoryName = category?.name || "未知分类";
+    }
+    
     // 构建响应数据结构
     const blocks: ContentBlock[] = [];
     
@@ -339,7 +351,7 @@ async listSeriesFull(
     const videoList = await this.getVideoList(categoryId, page, size);
     blocks.push({
       type: 3,
-      name: "电影",
+      name: categoryName,
       filters: undefined,
       banners: [],
       list: videoList,
@@ -611,6 +623,18 @@ async listSeriesFull(
   }
 
   /**
+   * 清除筛选器缓存
+   * @param channeid 可选，指定频道ID
+   */
+  async clearFilterCache(channeid?: string): Promise<void> {
+    if (channeid) {
+      await this.filterService.clearFilterCache(channeid);
+    } else {
+      await this.filterService.clearAllFilterTagsCache();
+    }
+  }
+
+  /**
    * 获取筛选器数据
    * @param channeid 频道ID
    * @param ids 筛选标识
@@ -630,13 +654,13 @@ async listSeriesFull(
     try {
       // 将 titleid 转换为实际的 category_id
       const categoryMap: Record<string, string> = {
-        'drama': '64',   // 短剧
-        'movie': '63',   // 电影
-        'variety': '65', // 综艺
-        'home': '62'     // 首页
+        'drama': 'drama',     // 短剧
+        'movie': 'movie',     // 电影
+        'variety': 'variety', // 综艺
+        'home': 'drama'       // 首页默认为短剧
       };
       
-      const categoryId = categoryMap[dto.titleid || 'drama'] || '63';
+      const categoryId = categoryMap[dto.titleid || 'drama'] || 'movie';
       const ids = dto.ids || '0,0,0,0,0';
       const pageNum = dto.page || 1;
       const pageSize = dto.size || 21;
@@ -838,15 +862,19 @@ async listSeriesFull(
       // 构建剧集信息
       const episodes: EpisodeInfo[] = series.episodes.map(ep => ({
         channeID: series.category?.id || 1,
-        episodeId: ep.id,
-        title: series.title,
+        episodeId: ep.uuid, // 使用UUID而不是ID，防止枚举攻击
+        title: ep.title || `第${ep.episodeNumber}集`,
         resolutionDes: "576P",
         resolution: "576",
         isVip: false,
         isLast: ep.episodeNumber === series.totalEpisodes,
         episodeTitle: ep.episodeNumber.toString().padStart(2, '0'),
         opSecond: 37, // 默认开头广告时长
-        epSecond: ep.duration || 1086 // 默认时长
+        epSecond: ep.duration || 1086, // 默认时长
+        urls: ep.urls?.map(url => ({
+          quality: url.quality,
+          accessKey: url.accessKey
+        })) || []
       }));
       
       const detailInfo: VideoDetailInfo = {
