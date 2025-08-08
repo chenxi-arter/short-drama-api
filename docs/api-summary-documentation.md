@@ -14,12 +14,12 @@
 
 | 接口名称 | 方法 | 路径 | 描述 | 认证要求 |
 |---------|------|------|------|----------|
-| 刷新令牌 | POST | `/auth/refresh` | 使用refresh_token获取新的access_token | ❌ |
-| 验证令牌 | POST | `/auth/verify-refresh-token` | 验证refresh_token有效性 | ❌ |
-| 登出 | POST | `/auth/logout` | 撤销指定的refresh_token | ❌ |
-| 全设备登出 | POST | `/auth/logout-all` | 撤销用户所有设备的令牌 | ✅ |
-| 获取设备列表 | GET | `/auth/devices` | 获取用户活跃设备列表 | ✅ |
-| 撤销设备 | DELETE | `/auth/devices/:id` | 撤销指定设备的令牌 | ✅ |
+| 刷新令牌 | POST | `/auth/refresh` 🔐 | 使用refresh_token获取新的access_token | ✅ |
+| 验证令牌 | POST | `/auth/verify-refresh-token` 🔐 | 验证refresh_token有效性 | ✅ |
+| 登出 | POST | `/auth/logout` 🔐 | 撤销指定的refresh_token | ✅ |
+| 全设备登出 | POST | `/auth/logout-all` 🔐 | 撤销用户所有设备的令牌 | ✅ |
+| 获取设备列表 | GET | `/auth/devices` 🔐 | 获取用户活跃设备列表 | ✅ |
+| 撤销设备 | DELETE | `/auth/devices/:id` 🔐 | 撤销指定设备的令牌 | ✅ |
 
 #### 请求参数
 
@@ -89,7 +89,7 @@
 | 接口名称 | 方法 | 路径 | 描述 | 认证要求 |
 |---------|------|------|------|----------|
 | Telegram登录 | POST/GET | `/user/telegram-login` | Telegram OAuth登录 | ❌ |
-| 获取用户信息 | GET | `/user/me` | 获取当前用户信息 | ✅ |
+| 获取用户信息 | GET | `/user/me` 🔐 | 获取当前用户信息 | ✅ |
 
 #### 请求参数
 
@@ -132,10 +132,10 @@
 | 更新轮播图 | PUT | `/api/banners/:id` | 更新指定轮播图 | ❌ |
 | 删除轮播图 | DELETE | `/api/banners/:id` | 删除指定轮播图 | ❌ |
 | 获取轮播图详情 | GET | `/api/banners/:id` | 获取指定轮播图详情 | ❌ |
-| 获取轮播图列表 | GET | `/api/banners` | 获取轮播图列表（分页） | ❌ |
+| 获取轮播图列表 | GET | `/api/banners` 🔐 | 获取轮播图列表（分页） | ✅ |
 | 切换轮播图状态 | PUT | `/api/banners/:id/status` | 启用/禁用轮播图 | ❌ |
 | 更新轮播图权重 | PUT | `/api/banners/weights` | 批量更新轮播图权重 | ❌ |
-| 获取活跃轮播图 | GET | `/api/banners/active/list` | 获取活跃状态的轮播图列表 | ❌ |
+| 获取活跃轮播图 | GET | `/api/banners/active/list` 🔐 | 获取活跃状态的轮播图列表 | ✅ |
 
 #### 请求参数
 
@@ -243,9 +243,9 @@
 
 | 接口名称 | 方法 | 路径 | 描述 | 认证要求 |
 |---------|------|------|------|----------|
-| 获取首页视频 | GET | `/api/home/getvideos` | 获取首页推荐视频列表 | ❌ |
-| 获取筛选标签 | GET | `/api/home/getfilterstags` | 获取首页筛选器标签 | ❌ |
-| 获取筛选数据 | GET | `/api/home/getfiltersdata` | 根据条件筛选首页视频 | ❌ |
+| 获取首页视频 | GET | `/api/home/getvideos` 🔐 | 获取首页推荐视频列表 | ✅ |
+| 获取筛选标签 | GET | `/api/home/getfilterstags` 🔐 | 获取首页筛选器标签 | ✅ |
+| 获取筛选数据 | GET | `/api/home/getfiltersdata` 🔐 | 根据条件筛选首页视频 | ✅ |
 
 #### 请求参数
 
@@ -265,10 +265,10 @@
 
 | 接口名称 | 方法 | 路径 | 描述 | 认证要求 |
 |---------|------|------|------|----------|
-| 获取筛选标签 | GET | `/api/list/getFiltersTags` | 获取筛选器标签配置 | ❌ |
-| 获取筛选数据 | GET | `/api/list/getfiltersdata` | 根据筛选条件获取视频列表 | ❌ |
-| 条件筛选数据 | GET | `/api/list/getconditionfilterdata` | 根据复杂条件筛选视频 | ❌ |
-| 清除筛选缓存 | GET | `/api/list/clearfiltercache` | 清除筛选器缓存（测试用） | ❌ |
+| 获取筛选标签 | GET | `/api/list/getFiltersTags` 🔐 | 获取筛选器标签配置 | ✅ |
+| 获取筛选数据 | GET | `/api/list/getfiltersdata` 🔐 | 根据筛选条件获取视频列表 | ✅ |
+| 条件筛选数据 | GET | `/api/list/getconditionfilterdata` 🔐 | 根据复杂条件筛选视频 | ✅ |
+| 清除筛选缓存 | GET | `/api/list/clearfiltercache` 🔐 | 清除筛选器缓存（测试用） | ✅ |
 
 #### 请求参数
 
@@ -363,15 +363,15 @@
 
 | 接口名称 | 方法 | 路径 | 描述 | 认证要求 |
 |---------|------|------|------|----------|
-| 记录观看进度 | POST | `/api/video/progress` | 记录/更新用户观看进度（支持ID/UUID） | ✅ |
-| 获取观看进度 | GET | `/api/video/progress` | 获取用户观看进度（支持ID/UUID） | ✅ |
-| 发表评论 | POST | `/api/video/comment` | 发表弹幕/评论（支持ID/UUID） | ✅ |
-| 获取用户媒体 | GET | `/api/video/media` | 获取用户相关媒体列表 | ✅ |
-| 获取视频详情 | GET | `/api/video/details` | 获取视频详细信息 | ✅ |
-| 创建剧集URL | POST | `/api/video/episode-url` | 创建剧集播放URL | ✅ |
-| 获取剧集URL | GET | `/api/video/episode-url/:accessKey` | 通过访问密钥获取剧集URL | ✅ |
-| 更新剧集续集状态 | POST | `/api/video/episode-sequel` | 更新剧集是否有续集 | ✅ |
-| 生成访问密钥 | POST | `/api/video/generate-access-keys` | 为现有剧集生成访问密钥 | ✅ |
+| 记录观看进度 | POST | `/api/video/progress` 🔐 | 记录/更新用户观看进度（支持ID/UUID） | ✅ |
+| 获取观看进度 | GET | `/api/video/progress` 🔐 | 获取用户观看进度（支持ID/UUID） | ✅ |
+| 发表评论 | POST | `/api/video/comment` 🔐 | 发表弹幕/评论（支持ID/UUID） | ✅ |
+| 获取用户媒体 | GET | `/api/video/media` 🔐 | 获取用户相关媒体列表 | ✅ |
+| 获取视频详情 | GET | `/api/video/details` 🔐 | 获取视频详细信息 | ✅ |
+| 创建剧集URL | POST | `/api/video/episode-url` 🔐 | 创建剧集播放URL | ✅ |
+| 获取剧集URL | GET | `/api/video/episode-url/:accessKey` | 通过访问密钥获取剧集URL | ❌ |
+| 更新剧集续集状态 | POST | `/api/video/episode-sequel` 🔐 | 更新剧集是否有续集 | ✅ |
+| 生成访问密钥 | POST | `/api/video/generate-access-keys` 🔐 | 为现有剧集生成访问密钥 | ✅ |
 
 #### 请求参数
 
@@ -452,8 +452,8 @@
 
 | 接口名称 | 方法 | 路径 | 描述 | 认证要求 |
 |---------|------|------|------|----------|
-| 获取分类列表 | GET | `/api/public/video/categories` | 获取所有视频分类 | ❌ |
-| 获取系列列表（完整） | GET | `/api/public/video/series/list` | 获取系列列表（支持分页） | ❌ |
+| 获取分类列表 | GET | `/api/public/video/categories` 🔐 | 获取所有视频分类 | ✅ |
+| 获取系列列表（完整） | GET | `/api/public/video/series/list` 🔐 | 获取系列列表（支持分页） | ✅ |
 | 获取系列列表（按分类） | GET | `/api/public/video/series` | 根据分类获取系列列表 | ❌ |
 | 获取系列详情 | GET | `/api/public/video/series/:id` | 获取指定系列的详细信息 | ❌ |
 | 获取媒体列表 | GET | `/api/public/video/media` | 获取媒体内容列表 | ❌ |
@@ -479,7 +479,7 @@
 
 | 接口名称 | 方法 | 路径 | 描述 | 认证要求 |
 |---------|------|------|------|----------|
-| 获取分类列表 | GET | `/category/list` | 获取所有分类列表 | ❌ |
+| 获取分类列表 | GET | `/category/list` 🔐 | 获取所有分类列表 | ✅ |
 
 #### 请求参数
 
@@ -519,9 +519,9 @@
 
 | 接口名称 | 方法 | 路径 | 描述 | 认证要求 |
 |---------|------|------|------|----------|
-| 创建轮播图 | POST | `/banner` | 创建新的轮播图 | ✅ |
-| 更新轮播图 | PUT | `/banner/:id` | 更新指定轮播图 | ✅ |
-| 删除轮播图 | DELETE | `/banner/:id` | 删除指定轮播图 | ✅ |
+| 创建轮播图 | POST | `/banner` 🔐 | 创建新的轮播图 | ✅ |
+| 更新轮播图 | PUT | `/banner/:id` 🔐 | 更新指定轮播图 | ✅ |
+| 删除轮播图 | DELETE | `/banner/:id` 🔐 | 删除指定轮播图 | ✅ |
 | 获取轮播图列表 | GET | `/banner` | 获取轮播图列表 | ❌ |
 | 获取轮播图详情 | GET | `/banner/:id` | 获取指定轮播图详情 | ❌ |
 
@@ -561,9 +561,9 @@
 
 | 接口名称 | 方法 | 路径 | 描述 | 认证要求 |
 |---------|------|------|------|----------|
-| 基础健康检查 | GET | `/health` | 检查服务基本状态 | ❌ |
-| 详细健康检查 | GET | `/health/detailed` | 检查服务详细状态 | ❌ |
-| 系统信息 | GET | `/health/system` | 获取系统信息 | ❌ |
+| 基础健康检查 | GET | `/health` 🔐 | 检查服务基本状态 | ✅ |
+| 详细健康检查 | GET | `/health/detailed` 🔐 | 检查服务详细状态 | ✅ |
+| 系统信息 | GET | `/health/system` 🔐 | 获取系统信息 | ✅ |
 
 ---
 
@@ -573,7 +573,7 @@
 
 | 接口名称 | 方法 | 路径 | 描述 | 认证要求 |
 |---------|------|------|------|----------|
-| 获取当前用户 | GET | `/test/me` | 测试JWT认证并获取用户信息 | ✅ |
+| 获取当前用户 | GET | `/test/me` 🔐 | 测试JWT认证并获取用户信息 | ✅ |
 
 ---
 
@@ -684,7 +684,7 @@
 
 | 接口名称 | 方法 | 路径 | 描述 | 认证要求 |
 |---------|------|------|------|----------|
-| 测试用户信息 | GET | `/test/me` | 测试JWT认证和用户信息获取 | ✅ |
+| 测试用户信息 | GET | `/test/me` 🔐 | 测试JWT认证和用户信息获取 | ✅ |
 
 #### 响应格式
 

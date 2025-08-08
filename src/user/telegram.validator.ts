@@ -6,13 +6,21 @@ export function verifyTelegramHash(
   data: TelegramUserDto,
 ): boolean {
   const { hash, ...userData } = data;
-  const checkString = Object.keys(userData)
+
+  // 过滤掉undefined值
+  const filteredData = Object.fromEntries(
+    Object.entries(userData).filter(([, value]) => value !== undefined),
+  );
+
+  const checkString = Object.keys(filteredData)
     .sort()
-    .map((k) => `${k}=${userData[k]}`)
+    .map((k) => `${k}=${filteredData[k]}`)
     .join('\n');
+
   const secretKey = createHash('sha256').update(botToken).digest();
   const calculatedHash = createHmac('sha256', secretKey)
     .update(checkString)
     .digest('hex');
+
   return calculatedHash === hash;
 }

@@ -37,7 +37,10 @@ export class UserService {
     }
 
     // 3. 生成 JWT 和 Refresh Token
-    return this.authService.generateTokens(user, dto.username || 'Telegram User');
+    return this.authService.generateTokens(
+      user,
+      dto.username || 'Telegram User',
+    );
   }
   // src/user/user.service.ts
   async findUserById(id: number): Promise<User | null> {

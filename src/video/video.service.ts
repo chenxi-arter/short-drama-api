@@ -14,6 +14,7 @@ import { FilterTagsResponse, FilterTagGroup, FilterTagItem } from './dto/filter-
 import { FilterDataResponse, FilterDataItem } from './dto/filter-data.dto';
 import { ConditionFilterDto, ConditionFilterResponse } from './dto/condition-filter.dto';
 import { VideoDetailsResponse, VideoDetailInfo, EpisodeInfo, EpisodeUrlInfo, InteractionInfo, LanguageInfo } from './dto/video-details.dto';
+import { EpisodeListResponse, EpisodeBasicInfo } from './dto/episode-list.dto';
 import { WatchProgressService } from './services/watch-progress.service';
 import { CommentService } from './services/comment.service';
 import { EpisodeService } from './services/episode.service';
@@ -673,7 +674,7 @@ async listSeriesFull(
       const queryBuilder = this.seriesRepo.createQueryBuilder('series')
         .leftJoinAndSelect('series.category', 'category')
         .leftJoinAndSelect('series.episodes', 'episodes')
-        .where('category.id = :categoryId', { categoryId: parseInt(categoryId) });
+        .where('category.category_id = :categoryId', { categoryId });
       
       // 应用排序
       this.applySorting(queryBuilder, filterIds.sortType);
@@ -1011,5 +1012,84 @@ async listSeriesFull(
     
     // 如果都找不到，返回错误
     throw new Error('视频不存在');
+  }
+
+  /**
+   * 获取剧集列表（不包含播放链接）
+   * @param seriesIdentifier 剧集标识符（UUID或ID）
+   * @param isUuid 是否为UUID
+   * @param page 页码
+   * @param size 每页数量
+   * @returns 剧集列表
+   */
+  async getEpisodeList(
+    seriesIdentifier?: string,
+    isUuid: boolean = false,
+    page: number = 1,
+    size: number = 20
+  ): Promise<EpisodeListResponse> {
+    try {
+      const offset = (page - 1) * size;
+      
+      let queryBuilder = this.epRepo.createQueryBuilder('episode')
+        .leftJoinAndSelect('episode.series', 'series')
+        .orderBy('episode.episodeNumber', 'ASC');
+      
+      // 如果提供了剧集标识符，则按剧集筛选
+      if (seriesIdentifier) {
+        if (isUuid) {
+          queryBuilder = queryBuilder.where('series.uuid = :seriesUuid', { seriesUuid: seriesIdentifier });
+        } else {
+          const seriesId = parseInt(seriesIdentifier, 10);
+          queryBuilder = queryBuilder.where('series.id = :seriesId', { seriesId });
+        }
+      }
+      
+      // 分页查询
+      const [episodes, total] = await queryBuilder
+        .skip(offset)
+        .take(size)
+        .getManyAndCount();
+      
+      // 转换为响应格式
+      const episodeList: EpisodeBasicInfo[] = episodes.map(ep => ({
+        id: ep.id,
+        uuid: ep.uuid,
+        episodeNumber: ep.episodeNumber,
+        title: ep.title || `第${ep.episodeNumber}集`,
+        duration: ep.duration || 0,
+        status: ep.status || 'active',
+        createdAt: ep.createdAt?.toISOString() || new Date().toISOString(),
+        updatedAt: ep.updatedAt?.toISOString() || new Date().toISOString(),
+        seriesId: ep.series?.id || 0,
+        seriesTitle: ep.series?.title || '',
+        seriesUuid: ep.series?.uuid || ''
+      }));
+      
+      return {
+        code: 200,
+        data: {
+          list: episodeList,
+          total,
+          page,
+          size,
+          hasMore: total > page * size
+        },
+        msg: null
+      };
+    } catch (error) {
+      console.error('获取剧集列表失败:', error);
+      return {
+        code: 500,
+        data: {
+          list: [],
+          total: 0,
+          page,
+          size,
+          hasMore: false
+        },
+        msg: '获取剧集列表失败'
+      };
+    }
   }
 }

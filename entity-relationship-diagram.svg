@@ -1,0 +1,208 @@
+<svg width="1400" height="1000" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <style>
+      .entity-box {
+        fill: #f8f9fa;
+        stroke: #343a40;
+        stroke-width: 2;
+        rx: 8;
+      }
+      .entity-title {
+        font-family: 'Arial', sans-serif;
+        font-size: 14px;
+        font-weight: bold;
+        fill: #495057;
+        text-anchor: middle;
+      }
+      .field-text {
+        font-family: 'Arial', sans-serif;
+        font-size: 11px;
+        fill: #6c757d;
+      }
+      .primary-key {
+        fill: #dc3545;
+        font-weight: bold;
+      }
+      .foreign-key {
+        fill: #007bff;
+      }
+      .relationship-line {
+        stroke: #6c757d;
+        stroke-width: 2;
+        fill: none;
+      }
+      .relationship-text {
+        font-family: 'Arial', sans-serif;
+        font-size: 10px;
+        fill: #495057;
+        text-anchor: middle;
+      }
+    </style>
+  </defs>
+  
+  <!-- 标题 -->
+  <text x="700" y="30" class="entity-title" style="font-size: 18px;">短剧API系统 - 实体关系图</text>
+  
+  <!-- User 实体 -->
+  <rect x="50" y="60" width="200" height="140" class="entity-box"/>
+  <text x="150" y="80" class="entity-title">User (用户)</text>
+  <text x="60" y="100" class="field-text primary-key">• id: bigint (用户ID)</text>
+  <text x="60" y="115" class="field-text">• uuid: varchar(36) (UUID标识)</text>
+  <text x="60" y="130" class="field-text">• first_name: varchar(255) (名字)</text>
+  <text x="60" y="145" class="field-text">• last_name: varchar(255) (姓氏)</text>
+  <text x="60" y="160" class="field-text">• username: varchar(255) (用户名)</text>
+  <text x="60" y="175" class="field-text">• is_active: boolean (是否激活)</text>
+  <text x="60" y="190" class="field-text">• created_at: timestamp (创建时间)</text>
+  
+  <!-- Category 实体 -->
+  <rect x="300" y="60" width="220" height="160" class="entity-box"/>
+  <text x="410" y="80" class="entity-title">Category (分类)</text>
+  <text x="310" y="100" class="field-text primary-key">• id: int (分类ID)</text>
+  <text x="310" y="115" class="field-text">• category_id: varchar(50) (分类标识)</text>
+  <text x="310" y="130" class="field-text">• name: varchar(50) (分类名称)</text>
+  <text x="310" y="145" class="field-text">• type: int (分类类型)</text>
+  <text x="310" y="160" class="field-text">• index: int (排序索引)</text>
+  <text x="310" y="175" class="field-text">• route_name: varchar(50) (路由名称)</text>
+  <text x="310" y="190" class="field-text">• style_type: int (样式类型)</text>
+  <text x="310" y="205" class="field-text">• is_enabled: boolean (是否启用)</text>
+  
+  <!-- Series 实体 -->
+  <rect x="570" y="60" width="240" height="200" class="entity-box"/>
+  <text x="690" y="80" class="entity-title">Series (剧集系列)</text>
+  <text x="580" y="100" class="field-text primary-key">• id: int (系列ID)</text>
+  <text x="580" y="115" class="field-text">• uuid: varchar(36) (UUID标识)</text>
+  <text x="580" y="130" class="field-text">• title: varchar(255) (标题)</text>
+  <text x="580" y="145" class="field-text">• description: text (简介)</text>
+  <text x="580" y="160" class="field-text">• cover_url: varchar(255) (封面地址)</text>
+  <text x="580" y="175" class="field-text">• total_episodes: int (总集数)</text>
+  <text x="580" y="190" class="field-text foreign-key">• category_id: int (分类ID)</text>
+  <text x="580" y="205" class="field-text">• score: float (评分)</text>
+  <text x="580" y="220" class="field-text">• play_count: int (播放次数)</text>
+  <text x="580" y="235" class="field-text">• status: varchar (状态)</text>
+  <text x="580" y="250" class="field-text">• created_at: timestamp (创建时间)</text>
+  
+  <!-- Episode 实体 -->
+  <rect x="850" y="60" width="220" height="160" class="entity-box"/>
+  <text x="960" y="80" class="entity-title">Episode (剧集)</text>
+  <text x="860" y="100" class="field-text primary-key">• id: int (剧集ID)</text>
+  <text x="860" y="115" class="field-text">• uuid: varchar(36) (UUID标识)</text>
+  <text x="860" y="130" class="field-text foreign-key">• series_id: int (系列ID)</text>
+  <text x="860" y="145" class="field-text">• episode_number: int (集数编号)</text>
+  <text x="860" y="160" class="field-text">• title: varchar(255) (标题)</text>
+  <text x="860" y="175" class="field-text">• duration: int (时长)</text>
+  <text x="860" y="190" class="field-text">• status: varchar (状态)</text>
+  <text x="860" y="205" class="field-text">• play_count: int (播放次数)</text>
+  
+  <!-- EpisodeUrl 实体 -->
+  <rect x="1120" y="60" width="240" height="160" class="entity-box"/>
+  <text x="1240" y="80" class="entity-title">EpisodeUrl (剧集播放地址)</text>
+  <text x="1130" y="100" class="field-text primary-key">• id: int (地址ID)</text>
+  <text x="1130" y="115" class="field-text foreign-key">• episode_id: int (剧集ID)</text>
+  <text x="1130" y="130" class="field-text">• quality: varchar(50) (清晰度)</text>
+  <text x="1130" y="145" class="field-text">• oss_url: varchar(255) (OSS地址)</text>
+  <text x="1130" y="160" class="field-text">• cdn_url: varchar(255) (CDN地址)</text>
+  <text x="1130" y="175" class="field-text">• subtitle_url: varchar(255) (字幕地址)</text>
+  <text x="1130" y="190" class="field-text">• access_key: varchar(64) (访问密钥)</text>
+  <text x="1130" y="205" class="field-text">• created_at: timestamp (创建时间)</text>
+  
+  <!-- WatchProgress 实体 -->
+  <rect x="300" y="300" width="220" height="120" class="entity-box"/>
+  <text x="410" y="320" class="entity-title">WatchProgress (观看进度)</text>
+  <text x="310" y="340" class="field-text primary-key">• user_id: bigint (用户ID)</text>
+  <text x="310" y="355" class="field-text primary-key">• episode_id: int (剧集ID)</text>
+  <text x="310" y="370" class="field-text">• stop_at_second: int (停止秒数)</text>
+  <text x="310" y="385" class="field-text">• updated_at: timestamp (更新时间)</text>
+  
+  <!-- Comment 实体 -->
+  <rect x="570" y="300" width="220" height="140" class="entity-box"/>
+  <text x="680" y="320" class="entity-title">Comment (评论/弹幕)</text>
+  <text x="580" y="340" class="field-text primary-key">• id: int (评论ID)</text>
+  <text x="580" y="355" class="field-text foreign-key">• user_id: bigint (用户ID)</text>
+  <text x="580" y="370" class="field-text foreign-key">• episode_id: int (剧集ID)</text>
+  <text x="580" y="385" class="field-text">• content: text (内容)</text>
+  <text x="580" y="400" class="field-text">• appear_second: int (出现秒数)</text>
+  <text x="580" y="415" class="field-text">• created_at: timestamp (创建时间)</text>
+  
+  <!-- RefreshToken 实体 -->
+  <rect x="50" y="250" width="200" height="140" class="entity-box"/>
+  <text x="150" y="270" class="entity-title">RefreshToken (刷新令牌)</text>
+  <text x="60" y="290" class="field-text primary-key">• id: int (令牌ID)</text>
+  <text x="60" y="305" class="field-text foreign-key">• user_id: bigint (用户ID)</text>
+  <text x="60" y="320" class="field-text">• token: varchar(255) (令牌值)</text>
+  <text x="60" y="335" class="field-text">• expires_at: timestamp (过期时间)</text>
+  <text x="60" y="350" class="field-text">• is_revoked: boolean (是否撤销)</text>
+  <text x="60" y="365" class="field-text">• device_info: varchar(500) (设备信息)</text>
+  <text x="60" y="380" class="field-text">• ip_address: varchar(45) (IP地址)</text>
+  
+  <!-- ShortVideo 实体 -->
+  <rect x="850" y="300" width="220" height="160" class="entity-box"/>
+  <text x="960" y="320" class="entity-title">ShortVideo (短视频)</text>
+  <text x="860" y="340" class="field-text primary-key">• id: int (短视频ID)</text>
+  <text x="860" y="355" class="field-text">• uuid: varchar(36) (UUID标识)</text>
+  <text x="860" y="370" class="field-text">• title: varchar(255) (标题)</text>
+  <text x="860" y="385" class="field-text">• description: text (简介)</text>
+  <text x="860" y="400" class="field-text">• cover_url: varchar(255) (封面地址)</text>
+  <text x="860" y="415" class="field-text">• video_url: varchar(255) (视频地址)</text>
+  <text x="860" y="430" class="field-text">• duration: int (时长)</text>
+  <text x="860" y="445" class="field-text foreign-key">• category_id: int (分类ID)</text>
+  
+  <!-- 关系线 -->
+  <!-- User -> RefreshToken (1:N) -->
+  <path d="M 150 200 L 150 250" class="relationship-line"/>
+  <text x="160" y="225" class="relationship-text">1:N</text>
+  
+  <!-- User -> WatchProgress (1:N) -->
+  <path d="M 250 150 L 300 150 L 300 340" class="relationship-line"/>
+  <text x="275" y="145" class="relationship-text">1:N</text>
+  
+  <!-- User -> Comment (1:N) -->
+  <path d="M 250 130 L 580 130 L 580 355" class="relationship-line"/>
+  <text x="415" y="125" class="relationship-text">1:N</text>
+  
+  <!-- Category -> Series (1:N) -->
+  <path d="M 520 140 L 570 140" class="relationship-line"/>
+  <text x="545" y="135" class="relationship-text">1:N</text>
+  
+  <!-- Category -> ShortVideo (1:N) -->
+  <path d="M 520 180 L 850 180 L 850 445" class="relationship-line"/>
+  <text x="685" y="175" class="relationship-text">1:N</text>
+  
+  <!-- Series -> Episode (1:N) -->
+  <path d="M 810 140 L 850 140" class="relationship-line"/>
+  <text x="830" y="135" class="relationship-text">1:N</text>
+  
+  <!-- Episode -> EpisodeUrl (1:N) -->
+  <path d="M 1070 140 L 1120 140" class="relationship-line"/>
+  <text x="1095" y="135" class="relationship-text">1:N</text>
+  
+  <!-- Episode -> WatchProgress (1:N) -->
+  <path d="M 850 200 L 520 200 L 520 355" class="relationship-line"/>
+  <text x="685" y="195" class="relationship-text">1:N</text>
+  
+  <!-- Episode -> Comment (1:N) -->
+  <path d="M 850 180 L 790 180 L 790 370" class="relationship-line"/>
+  <text x="820" y="175" class="relationship-text">1:N</text>
+  
+  <!-- 图例 -->
+  <rect x="50" y="500" width="300" height="120" fill="#f8f9fa" stroke="#dee2e6" stroke-width="1" rx="5"/>
+  <text x="200" y="520" class="entity-title">图例说明</text>
+  <text x="60" y="540" class="field-text primary-key">• 红色文字：主键字段</text>
+  <text x="60" y="555" class="field-text foreign-key">• 蓝色文字：外键字段</text>
+  <text x="60" y="570" class="field-text">• 灰色文字：普通字段</text>
+  <text x="60" y="585" class="relationship-text">• 1:N 表示一对多关系</text>
+  <text x="60" y="600" class="relationship-text">• 线条连接表示实体间的关联关系</text>
+  
+  <!-- 系统说明 -->
+  <rect x="400" y="500" width="500" height="180" fill="#f8f9fa" stroke="#dee2e6" stroke-width="1" rx="5"/>
+  <text x="650" y="520" class="entity-title">系统架构说明</text>
+  <text x="410" y="540" class="field-text">• User: 用户实体，支持Telegram登录，存储用户基本信息</text>
+  <text x="410" y="555" class="field-text">• Category: 分类管理，支持视频和短视频的分类</text>
+  <text x="410" y="570" class="field-text">• Series: 剧集系列，包含多个Episode</text>
+  <text x="410" y="585" class="field-text">• Episode: 单集内容，属于某个Series</text>
+  <text x="410" y="600" class="field-text">• EpisodeUrl: 剧集播放地址，支持多清晰度</text>
+  <text x="410" y="615" class="field-text">• WatchProgress: 观看进度记录，支持断点续播</text>
+  <text x="410" y="630" class="field-text">• Comment: 评论和弹幕系统</text>
+  <text x="410" y="645" class="field-text">• RefreshToken: JWT刷新令牌管理</text>
+  <text x="410" y="660" class="field-text">• ShortVideo: 独立短视频内容</text>
+  
+</svg>

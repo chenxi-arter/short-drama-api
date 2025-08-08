@@ -32,8 +32,19 @@ export class AccessKeyUtil {
    * @returns 是否为有效格式
    */
   static isValidAccessKey(key: string): boolean {
-    // 检查是否为32位十六进制字符串
-    return /^[a-f0-9]{32}$/i.test(key);
+    // 检查是否为有效的访问密钥格式：
+    // 1. 32位或64位十六进制字符串
+    // 2. 或者32位包含字母数字的字符串（支持现有格式）
+    if (!key || typeof key !== 'string') {
+      return false;
+    }
+    
+    // 支持32位或64位十六进制
+    const hexPattern = /^[a-f0-9]{32}$|^[a-f0-9]{64}$/i;
+    // 支持32位字母数字组合（现有格式）
+    const alphanumericPattern = /^[a-zA-Z0-9]{32}$/;
+    
+    return hexPattern.test(key) || alphanumericPattern.test(key);
   }
 
   /**

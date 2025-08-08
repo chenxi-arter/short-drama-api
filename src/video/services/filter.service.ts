@@ -234,7 +234,13 @@ export class FilterService {
   private async applyFilters(queryBuilder: any, filterIds: any, channelId: string): Promise<void> {
     // 频道筛选
     if (channelId && channelId !== '0') {
-      queryBuilder.andWhere('category.id = :channelId', { channelId: parseInt(channelId) });
+      // 如果channelId是字符串（如'drama'），需要根据category_id查找对应的数字ID
+      const isNumeric = /^\d+$/.test(channelId);
+      if (isNumeric) {
+        queryBuilder.andWhere('category.id = :channelId', { channelId: parseInt(channelId) });
+      } else {
+        queryBuilder.andWhere('category.category_id = :categoryId', { categoryId: channelId });
+      }
     }
 
     // 分类筛选

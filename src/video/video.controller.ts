@@ -3,6 +3,7 @@ import { VideoService } from './video.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { MediaQueryDto } from './dto/media-query.dto';
 import { VideoDetailsDto } from './dto/video-details.dto';
+import { EpisodeListDto } from './dto/episode-list.dto';
 
 @UseGuards(JwtAuthGuard)
 @Controller('/api/video')
@@ -120,5 +121,22 @@ async updateEpisodeSequel(
 @Post('generate-access-keys')
 async generateAccessKeysForExisting() {
   return this.videoService.generateAccessKeysForExisting();
+}
+
+/* 获取剧集列表（不包含播放链接） */
+@Get('episodes')
+async getEpisodeList(@Query() dto: EpisodeListDto) {
+  const page = parseInt(dto.page || '1', 10);
+  const size = parseInt(dto.size || '20', 10);
+  
+  // 优先使用UUID，如果没有则使用ID
+  if (dto.seriesUuid) {
+    return this.videoService.getEpisodeList(dto.seriesUuid, true, page, size);
+  } else if (dto.seriesId) {
+    return this.videoService.getEpisodeList(dto.seriesId, false, page, size);
+  } else {
+    // 如果都没有提供，返回所有剧集
+    return this.videoService.getEpisodeList(undefined, false, page, size);
+  }
 }
 }
