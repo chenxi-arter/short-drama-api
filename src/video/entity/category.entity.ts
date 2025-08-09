@@ -30,19 +30,7 @@ export class Category {
   @Column({ length: 50, name: 'name' })
   name: string;
 
-  /** 
-   * 分类类型
-   * 0: 首页, 1: 视频分类, 2: 短视频分类, 6: 片单等
-   */
-  @Column({ type: 'int', name: 'type' })
-  type: number;
 
-  /** 
-   * 排序索引
-   * 用于控制分类在列表中的显示顺序
-   */
-  @Column({ type: 'int', name: 'index' })
-  index: number;
 
   /** 
    * 路由名称
@@ -51,12 +39,7 @@ export class Category {
   @Column({ length: 50, nullable: true, name: 'route_name' })
   routeName: string;
 
-  /** 
-   * 样式类型
-   * 用于前端样式控制，可选字段
-   */
-  @Column({ type: 'int', nullable: true, name: 'style_type' })
-  styleType: number;
+
 
   /** 
    * 是否启用

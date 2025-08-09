@@ -252,9 +252,37 @@
 **获取首页视频**
 ```typescript
 {
-  "catid?": string,  // 可选，频道ID，默认"1"
+  "catid?": string,  // 可选，分类ID（对应categories表的category_id字段），支持：'home', 'drama', 'movie', 'variety'
   "page?": number    // 可选，页码，默认1
 }
+```
+
+**catid参数说明：**
+- `catid` 对应数据库 `categories` 表中的 `category_id` 字段（字符串类型，唯一约束）
+- 支持的值：`'home'`, `'drama'`, `'movie'`, `'variety'`
+- 如果传入不存在的 `catid`，将显示为"未知分类"
+- 不传入 `catid` 参数时，显示"全部"分类
+
+**分页行为说明：**
+- `page=1`：返回完整数据结构，包含轮播图、搜索过滤器、广告和视频列表等4个板块
+- `page>1`：仅返回视频列表板块，不包含轮播图等其他数据，提高加载性能
+
+**请求示例：**
+```bash
+# 获取短剧分类视频
+curl "http://localhost:8080/api/home/getvideos?catid=drama"
+
+# 获取电影分类视频
+curl "http://localhost:8080/api/home/getvideos?catid=movie"
+
+# 获取综艺分类视频
+curl "http://localhost:8080/api/home/getvideos?catid=variety"
+
+# 获取首页分类视频
+curl "http://localhost:8080/api/home/getvideos?catid=home"
+
+# 获取全部分类视频（不传catid）
+curl "http://localhost:8080/api/home/getvideos"
 ```
 
 ---

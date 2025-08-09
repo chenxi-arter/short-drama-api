@@ -171,7 +171,7 @@ export class BannerService {
       showURL: banner.imageUrl,
       title: banner.title,
       id: banner.seriesId || banner.id,
-      uuid: banner.series?.uuid,
+      uuid: banner.series?.shortId,
       channeID: banner.categoryId,
       url: banner.linkUrl || (banner.seriesId ? banner.seriesId.toString() : banner.id.toString()),
     }));
@@ -231,7 +231,7 @@ export class BannerService {
       series: banner.series ? {
         id: banner.series.id,
         title: banner.series.title,
-        uuid: banner.series.uuid,
+        uuid: banner.series.shortId,
       } : undefined,
     };
   }

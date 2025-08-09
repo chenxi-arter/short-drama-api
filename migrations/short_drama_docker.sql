@@ -67,10 +67,7 @@ CREATE TABLE `categories` (
   `id` int NOT NULL AUTO_INCREMENT,
   `category_id` varchar(50) COLLATE utf8mb4_general_ci NOT NULL,
   `name` varchar(50) COLLATE utf8mb4_general_ci NOT NULL,
-  `type` int NOT NULL,
-  `index` int NOT NULL,
   `route_name` varchar(50) COLLATE utf8mb4_general_ci DEFAULT NULL,
-  `style_type` int DEFAULT NULL,
   `is_enabled` tinyint NOT NULL DEFAULT '1',
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -82,10 +79,10 @@ CREATE TABLE `categories` (
 -- Records of categories
 -- ----------------------------
 BEGIN;
-INSERT INTO `categories` (`id`, `category_id`, `name`, `type`, `index`, `route_name`, `style_type`, `is_enabled`, `created_at`, `updated_at`) VALUES (0, 'home', '首页', 0, 0, 'home', 1, 1, '2025-08-06 07:26:12', '2025-08-06 07:26:34');
-INSERT INTO `categories` (`id`, `category_id`, `name`, `type`, `index`, `route_name`, `style_type`, `is_enabled`, `created_at`, `updated_at`) VALUES (1, 'drama', '电视剧', 1, 1, 'drama', 1, 1, '2025-08-06 07:09:03', '2025-08-06 07:09:03');
-INSERT INTO `categories` (`id`, `category_id`, `name`, `type`, `index`, `route_name`, `style_type`, `is_enabled`, `created_at`, `updated_at`) VALUES (2, 'movie', '电影', 1, 2, 'movie', 1, 1, '2025-08-06 07:09:03', '2025-08-06 07:09:03');
-INSERT INTO `categories` (`id`, `category_id`, `name`, `type`, `index`, `route_name`, `style_type`, `is_enabled`, `created_at`, `updated_at`) VALUES (3, 'variety', '综艺', 1, 3, 'variety', 1, 1, '2025-08-06 07:09:03', '2025-08-06 07:09:03');
+INSERT INTO `categories` (`id`, `category_id`, `name`, `route_name`, `is_enabled`, `created_at`, `updated_at`) VALUES (0, 'home', '首页', 'home', 1, '2025-08-06 07:26:12', '2025-08-06 07:26:34');
+INSERT INTO `categories` (`id`, `category_id`, `name`, `route_name`, `is_enabled`, `created_at`, `updated_at`) VALUES (1, 'drama', '电视剧', 'drama', 1, '2025-08-06 07:09:03', '2025-08-06 07:09:03');
+INSERT INTO `categories` (`id`, `category_id`, `name`, `route_name`, `is_enabled`, `created_at`, `updated_at`) VALUES (2, 'movie', '电影', 'movie', 1, '2025-08-06 07:09:03', '2025-08-06 07:09:03');
+INSERT INTO `categories` (`id`, `category_id`, `name`, `route_name`, `is_enabled`, `created_at`, `updated_at`) VALUES (3, 'variety', '综艺', 'variety', 1, '2025-08-06 07:09:03', '2025-08-06 07:09:03');
 COMMIT;
 
 -- ----------------------------

@@ -3,11 +3,12 @@
  * 剧集实体类
  * 表示一个电视剧系列中的单集内容
  */
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, OneToMany, JoinColumn, CreateDateColumn, UpdateDateColumn, Generated } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, OneToMany, JoinColumn, CreateDateColumn, UpdateDateColumn, BeforeInsert } from 'typeorm';
 import { Series } from './series.entity';
 import { EpisodeUrl } from './episode-url.entity';
 import { WatchProgress } from './watch-progress.entity';
 import { Comment } from './comment.entity';
+import { ShortIdUtil } from '../../shared/utils/short-id.util';
 
 @Entity('episodes')
 export class Episode {
@@ -19,12 +20,11 @@ export class Episode {
   id: number;
 
   /** 
-   * UUID标识符（防枚举攻击）
-   * 用于外部API访问的安全标识符
+   * 短ID标识符（防枚举攻击）
+   * 用于外部API访问的安全标识符，11位类似base64编码
    */
-  @Column({ type: 'varchar', length: 36, unique: true, nullable: true, name: 'uuid' })
-  @Generated('uuid')
-  uuid: string;
+  @Column({ type: 'varchar', length: 11, unique: true, nullable: true, name: 'short_id' })
+  shortId: string;
 
   /** 
    * 所属电视剧ID 
@@ -121,4 +121,14 @@ export class Episode {
    * 剧集分类通过所属系列的category进行管理
    * 不再需要单独的tags字段
    */
+  
+  /**
+   * 在插入前自动生成短ID
+   */
+  @BeforeInsert()
+  generateShortId() {
+    if (!this.shortId) {
+      this.shortId = ShortIdUtil.generate();
+    }
+  }
 }

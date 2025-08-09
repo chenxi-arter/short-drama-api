@@ -48,11 +48,11 @@
 | 字段名 | 数据类型 | 约束 | 描述 |
 |--------|----------|------|------|
 | id | int | PRIMARY KEY AUTO_INCREMENT | 分类主键ID |
-| name | varchar(100) | NOT NULL | 分类名称 |
-| description | text | NULLABLE | 分类描述 |
-| is_active | tinyint | DEFAULT 1 | 是否启用 |
-| sort_order | int | DEFAULT 0 | 排序顺序 |
-| created_at | datetime(6) | DEFAULT CURRENT_TIMESTAMP(6) | 创建时间 |
+| category_id | varchar(50) | UNIQUE NOT NULL | 分类业务ID，用于前端标识 |
+| name | varchar(50) | NOT NULL | 分类名称 |
+| route_name | varchar(50) | NULLABLE | 路由名称 |
+| is_enabled | tinyint | DEFAULT 1 | 是否启用 |
+| created_at | timestamp | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
 | updated_at | timestamp | DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP | 更新时间 |
 
 **关系：**

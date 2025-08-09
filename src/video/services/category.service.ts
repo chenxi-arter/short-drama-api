@@ -1,4 +1,4 @@
-import { Injectable, Inject, Logger } from '@nestjs/common';
+import { Injectable, Inject } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
@@ -121,7 +121,7 @@ export class CategoryService {
       
       return count;
     } catch (error) {
-      console.error('获取分类剧集数量失败:', error);
+      console.error('获取分类剧集数量失败:', error instanceof Error ? error.stack : error);
       return 0;
     }
   }
@@ -133,7 +133,7 @@ export class CategoryService {
     const cacheKey = 'categories:with_stats';
     
     // 尝试从缓存获取
-    let result = await this.cacheManager.get(cacheKey);
+    const result = await this.cacheManager.get(cacheKey);
     if (result) {
       return result;
     }
@@ -265,7 +265,7 @@ export class CategoryService {
     const cacheKey = `categories:popular:${limit}`;
     
     // 尝试从缓存获取
-    let result = await this.cacheManager.get(cacheKey);
+    const result = await this.cacheManager.get(cacheKey);
     if (result) {
       return result;
     }
@@ -304,7 +304,7 @@ export class CategoryService {
       // 从数据库查询启用的分类
       const categories = await this.categoryRepo.find({
         where: { isEnabled: true },
-        order: { index: 'ASC' }
+        order: { categoryId: 'ASC' }
       });
       
       const duration = Date.now() - startTime;
@@ -314,10 +314,7 @@ export class CategoryService {
       const formattedList = categories.map(category => ({
         catid: category.categoryId,
         name: category.name,
-        type: category.type,
-        index: category.index,
-        routeName: category.routeName,
-        ...(category.styleType !== null && { styleType: category.styleType })
+        routeName: category.routeName
       }));
 
       const result = {

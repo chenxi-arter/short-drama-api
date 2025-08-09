@@ -2,7 +2,7 @@
 /**
  * 分类列表相关的数据传输对象
  */
-import { IsOptional, IsNumber, IsString } from 'class-validator';
+import { IsOptional, IsNumber } from 'class-validator';
 import { Transform } from 'class-transformer';
 
 /**
@@ -26,7 +26,7 @@ export interface CategoryItem {
   /**
    * 分类ID
    */
-  categoryId: string | number;
+  catid: string;
 
   /**
    * 分类名称
@@ -34,25 +34,9 @@ export interface CategoryItem {
   name: string;
 
   /**
-   * 分类类型
-   * 0: 首页, 1: 视频分类, 2: 短视频分类, 6: 片单等
-   */
-  type: number;
-
-  /**
-   * 排序索引
-   */
-  index: number;
-
-  /**
    * 路由名称
    */
   routeName: string;
-
-  /**
-   * 样式类型（可选）
-   */
-  styleType?: number;
 }
 
 /**

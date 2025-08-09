@@ -62,6 +62,8 @@ export interface VideoItem {
   isSerial: boolean;// 是否是系列剧集
   upStatus: string; // 更新状态
   upCount: number;  // 更新次数
+  author?: string;  // 作者/主演信息
+  description?: string; // 简介
 }
 
 /**

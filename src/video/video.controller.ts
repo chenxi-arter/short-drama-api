@@ -16,11 +16,11 @@ export class VideoController {
     @Body('episodeIdentifier') episodeIdentifier: string | number,
     @Body('stopAtSecond') stopAtSecond: number,
   ) {
-    // 自动识别是UUID还是ID
-    const isUuid = typeof episodeIdentifier === 'string' && episodeIdentifier.includes('-');
-    if (isUuid) {
-      // 通过UUID找到episode ID
-      const episode = await this.videoService.getEpisodeByUuid(episodeIdentifier as string);
+    // 自动识别是shortId还是ID
+    const isShortId = typeof episodeIdentifier === 'string' && episodeIdentifier.length === 11 && !/^\d+$/.test(episodeIdentifier);
+    if (isShortId) {
+      // 通过shortId找到episode ID
+      const episode = await this.videoService.getEpisodeByShortId(episodeIdentifier as string);
       if (!episode) {
         throw new BadRequestException('剧集不存在');
       }
@@ -30,14 +30,14 @@ export class VideoController {
     }
   }
 
-  /* 拉取断点（支持ID或UUID自动识别） */
+  /* 拉取断点（支持ID或shortId自动识别） */
   @Get('progress')
   async getProgress(@Req() req, @Query('episodeIdentifier') episodeIdentifier: string) {
-    // 自动识别是UUID还是ID
-    const isUuid = episodeIdentifier.includes('-');
-    if (isUuid) {
-      // 通过UUID找到episode ID
-      const episode = await this.videoService.getEpisodeByUuid(episodeIdentifier);
+    // 自动识别是shortId还是ID（shortId长度为11，不包含连字符）
+    const isShortId = episodeIdentifier.length === 11 && !/^\d+$/.test(episodeIdentifier);
+    if (isShortId) {
+      // 通过shortId找到episode ID
+      const episode = await this.videoService.getEpisodeByShortId(episodeIdentifier);
       if (!episode) {
         throw new BadRequestException('剧集不存在');
       }
@@ -55,11 +55,11 @@ export class VideoController {
     @Body('content') content: string,
     @Body('appearSecond') appearSecond?: number,
   ) {
-    // 自动识别是UUID还是ID
-    const isUuid = typeof episodeIdentifier === 'string' && episodeIdentifier.includes('-');
-    if (isUuid) {
-      // 通过UUID找到episode ID
-      const episode = await this.videoService.getEpisodeByUuid(episodeIdentifier as string);
+    // 自动识别是shortId还是ID
+    const isShortId = typeof episodeIdentifier === 'string' && episodeIdentifier.length === 11 && !/^\d+$/.test(episodeIdentifier);
+    if (isShortId) {
+      // 通过shortId找到episode ID
+      const episode = await this.videoService.getEpisodeByShortId(episodeIdentifier as string);
       if (!episode) {
         throw new BadRequestException('剧集不存在');
       }
@@ -80,13 +80,13 @@ async listMediaUser(
 /* 获取视频详情 */
 @Get('details')
 async getVideoDetails(@Query() dto: VideoDetailsDto) {
-  // 优先使用UUID，如果没有则使用ID（向后兼容）
-  if (dto.uuid) {
-    return this.videoService.getVideoDetails(dto.uuid, true);
+  // 优先使用shortId，如果没有则使用ID（向后兼容）
+  if (dto.shortId) {
+    return this.videoService.getVideoDetails(dto.shortId, true);
   } else if (dto.id) {
     return this.videoService.getVideoDetails(dto.id, false);
   } else {
-    throw new BadRequestException('必须提供uuid或id参数');
+    throw new BadRequestException('必须提供shortId或id参数');
   }
 }
 
@@ -129,9 +129,9 @@ async getEpisodeList(@Query() dto: EpisodeListDto) {
   const page = parseInt(dto.page || '1', 10);
   const size = parseInt(dto.size || '20', 10);
   
-  // 优先使用UUID，如果没有则使用ID
-  if (dto.seriesUuid) {
-    return this.videoService.getEpisodeList(dto.seriesUuid, true, page, size);
+  // 优先使用shortId，如果没有则使用ID
+  if (dto.seriesShortId) {
+    return this.videoService.getEpisodeList(dto.seriesShortId, true, page, size);
   } else if (dto.seriesId) {
     return this.videoService.getEpisodeList(dto.seriesId, false, page, size);
   } else {

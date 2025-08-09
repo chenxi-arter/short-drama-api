@@ -2,9 +2,10 @@
  * 用户实体类
  * 存储系统用户的基本信息
  */
-import { Entity, PrimaryColumn, Column, CreateDateColumn, OneToMany, Generated } from 'typeorm';
+import { Entity, PrimaryColumn, Column, CreateDateColumn, OneToMany, BeforeInsert } from 'typeorm';
 import { Comment } from '../../video/entity/comment.entity';
 import { WatchProgress } from '../../video/entity/watch-progress.entity';
+import { ShortIdUtil } from '../../shared/utils/short-id.util';
 
 @Entity('users')
 export class User {
@@ -16,12 +17,11 @@ export class User {
   id: number;
 
   /** 
-   * UUID标识符（防枚举攻击）
-   * 用于外部API访问的安全标识符
+   * 短ID标识符（防枚举攻击）
+   * 用于外部API访问的安全标识符，11位类似base64编码
    */
-  @Column({ type: 'varchar', length: 36, unique: true, nullable: true, name: 'uuid' })
-  @Generated('uuid')
-  uuid: string;
+  @Column({ type: 'varchar', length: 11, unique: true, nullable: true, name: 'short_id' })
+  shortId: string;
 
   /** 
    * 用户名字 
@@ -71,4 +71,14 @@ export class User {
    */
   @OneToMany(() => WatchProgress, wp => wp.user) 
   watchProgresses: WatchProgress[];
+  
+  /**
+   * 在插入前自动生成短ID
+   */
+  @BeforeInsert()
+  generateShortId() {
+    if (!this.shortId) {
+      this.shortId = ShortIdUtil.generate();
+    }
+  }
 }

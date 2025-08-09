@@ -1,22 +1,22 @@
-import { IsNotEmpty, IsString, IsOptional, IsUUID, ValidateIf } from 'class-validator';
+import { IsNotEmpty, IsString, IsOptional, ValidateIf } from 'class-validator';
 import { Transform } from 'class-transformer';
 
 /**
  * 视频详情请求DTO
- * 支持UUID和ID两种方式，推荐使用UUID防枚举攻击
+ * 支持shortId和ID两种方式，推荐使用shortId防枚举攻击
  */
 export class VideoDetailsDto {
   /**
-   * 视频UUID标识符（推荐）
-   * 格式：xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx
+   * 视频shortId标识符（推荐）
+   * 格式：11位Base64字符
    */
   @IsOptional()
-  @IsUUID()
-  uuid?: string;
+  @IsString()
+  shortId?: string;
 
   /**
    * 视频ID（向后兼容）
-   * 建议迁移到uuid字段
+   * 建议迁移到shortId字段
    */
   @IsOptional()
   @IsString()
@@ -26,8 +26,8 @@ export class VideoDetailsDto {
   /**
    * 验证至少提供一个标识符
    */
-  @ValidateIf(o => !o.uuid && !o.id)
-  @IsString({ message: '必须提供uuid或id参数' })
+  @ValidateIf((o: VideoDetailsDto) => !o.shortId && !o.id)
+  @IsString({ message: '必须提供shortId或id参数' })
   _validator?: string;
 }
 

@@ -3,9 +3,10 @@
  * 剧集系列实体类
  * 表示一个完整的电视剧或系列，包含多个剧集
  */
-import { Entity, PrimaryGeneratedColumn, Column, OneToMany, CreateDateColumn, ManyToOne, JoinColumn, Generated } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, OneToMany, CreateDateColumn, ManyToOne, JoinColumn, BeforeInsert } from 'typeorm';
 import { Episode } from './episode.entity';
 import { Category } from './category.entity';
+import { ShortIdUtil } from '../../shared/utils/short-id.util';
 
 @Entity('series')
 export class Series {
@@ -17,12 +18,11 @@ export class Series {
   id: number;
 
   /** 
-   * UUID标识符（防枚举攻击）
-   * 用于外部API访问的安全标识符
+   * 短ID标识符（防枚举攻击）
+   * 用于外部API访问的安全标识符，11位类似base64编码
    */
-  @Column({ type: 'varchar', length: 36, unique: true, nullable: true, name: 'uuid' })
-  @Generated('uuid')
-  uuid: string;
+  @Column({ type: 'varchar', length: 11, unique: true, nullable: true, name: 'short_id' })
+  shortId: string;
 
   /** 
    * 电视剧标题 
@@ -171,5 +171,15 @@ export class Series {
    */
   @Column({ type: 'timestamp', nullable: true, name: 'updated_at' })
   updatedAt: Date;
+  
+  /**
+   * 在插入前自动生成短ID
+   */
+  @BeforeInsert()
+  generateShortId() {
+    if (!this.shortId) {
+      this.shortId = ShortIdUtil.generate();
+    }
+  }
 
 }

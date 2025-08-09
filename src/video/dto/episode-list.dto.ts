@@ -7,7 +7,7 @@ import { Transform } from 'class-transformer';
 export class EpisodeListDto {
   @IsOptional()
   @IsString()
-  seriesUuid?: string; // 剧集UUID
+  seriesShortId?: string; // 剧集shortId
 
   @IsOptional()
   @IsNumberString()
@@ -29,7 +29,7 @@ export class EpisodeListDto {
  */
 export interface EpisodeBasicInfo {
   id: number;                    // 剧集ID
-  uuid: string;                  // 剧集UUID
+  shortId: string;               // 剧集shortId
   episodeNumber: number;         // 集数
   title: string;                 // 剧集标题
   duration: number;              // 时长（秒）
@@ -38,7 +38,7 @@ export interface EpisodeBasicInfo {
   updatedAt: string;             // 更新时间
   seriesId: number;              // 所属剧集ID
   seriesTitle: string;           // 所属剧集标题
-  seriesUuid: string;            // 所属剧集UUID
+  seriesShortId: string;         // 所属剧集shortId
 }
 
 /**

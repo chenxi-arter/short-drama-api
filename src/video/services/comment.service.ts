@@ -87,12 +87,12 @@ export class CommentService {
   }
 
   /**
-   * 通过UUID获取剧集的弹幕列表
+   * 通过shortId获取剧集的弹幕列表
    */
-  async getDanmuByEpisodeUuid(episodeUuid: string) {
-    // 需要先通过UUID找到episode
+  async getDanmuByEpisodeShortId(episodeShortId: string) {
+    // 需要先通过shortId找到episode
     const episode = await this.episodeRepo.findOne({
-      where: { uuid: episodeUuid }
+      where: { shortId: episodeShortId }
     });
     
     if (!episode) {

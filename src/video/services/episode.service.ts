@@ -117,9 +117,9 @@ export class EpisodeService {
   /**
    * 获取剧集详情（通过UUID）
    */
-  async getEpisodeByUuid(episodeUuid: string) {
+  async getEpisodeByShortId(episodeShortId: string) {
     return this.episodeRepo.findOne({
-      where: { uuid: episodeUuid },
+      where: { shortId: episodeShortId },
       relations: ['series', 'urls'],
     });
   }

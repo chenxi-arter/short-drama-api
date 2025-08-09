@@ -97,13 +97,13 @@ curl -X GET \
 **请求示例:**
 ```bash
 curl -X GET \
-  "http://localhost:8080/api/home/getvideos" \
+  "http://localhost:8080/api/home/getvideos?catid=drama"\
   -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI3ODQ1MDc4ODQ0IiwiaWF0IjoxNzU0NDcwODQ2LCJleHAiOjE3NTUwNzU2NDZ9.kScM1EGRDMrPV4h5QePRqZM46g_O51w5on7griBEqWc"
 ```
 
 **请求参数:**
 {
-  "channeid?": string  // 可选，频道ID（注意：当前API不支持此参数）
+  "catid?": string  // 可选，频道ID // drama / home /movie /variety categories表中的category_id字段
 }
 
 **响应示例:**
@@ -120,7 +120,7 @@ curl -X GET \
             "showURL": "https://img.example.com/banner/drama2.jpg",
             "title": "古装大剧《盛世王朝》",
             "id": 1002,
-            "uuid": "550e8400-e29b-41d4-a716-446655440002",
+            "uuid": "p8aUvzGtbvE",
             "channeID": 1,
             "url": "1002"
           },
@@ -149,7 +149,7 @@ curl -X GET \
             "showURL": "https://img.example.com/banner/drama3.jpg",
             "title": "悬疑剧《迷雾重重》",
             "id": 1003,
-            "uuid": "550e8400-e29b-41d4-a716-446655440003",
+            "uuid": "KTQ6EGtPzVF",
             "channeID": 1,
             "url": "1003"
           }
@@ -203,12 +203,43 @@ curl -X GET \
       },
       {
         "type": 3,
-        "name": "全部",
+        "name": "电视剧",
+        "filters": [],
         "banners": [],
         "list": [
           {
+            "id": 2001,
+            "uuid": "fpcxnnFA6m9",
+            "coverUrl": "https://example.com/covers/series2001.jpg",
+            "title": "霸道总裁爱上我",
+            "score": "9.2",
+            "playCount": 156800,
+            "url": "2001",
+            "type": "电视剧",
+            "isSerial": true,
+            "upStatus": "全24集",
+            "upCount": 24,
+            "author": "张三,李四",
+            "description": "一个普通女孩与霸道总裁的爱情故事，充满甜蜜与波折"
+          },
+          {
+            "id": 2002,
+            "uuid": "kaNqkt7QENy",
+            "coverUrl": "https://example.com/covers/series2002.jpg",
+            "title": "古装仙侠传",
+            "score": "8.8",
+            "playCount": 234500,
+            "url": "2002",
+            "type": "电视剧",
+            "isSerial": true,
+            "upStatus": "更新至第30集",
+            "upCount": 30,
+            "author": "仙女A,仙男B",
+            "description": "修仙世界的爱恨情仇，仙侠传奇故事"
+          },
+          {
             "id": 1005,
-            "uuid": "550e8400-e29b-41d4-a716-446655440005",
+            "uuid": "68jDaAEyHp4",
             "coverUrl": "https://example.com/cover5.jpg",
             "title": "古装电视剧",
             "score": "9.5",
@@ -217,37 +248,13 @@ curl -X GET \
             "type": "电视剧",
             "isSerial": true,
             "upStatus": "hot",
-            "upCount": 4560
-          },
-          {
-            "id": 1004,
-            "uuid": "550e8400-e29b-41d4-a716-446655440004",
-            "coverUrl": "https://example.com/cover4.jpg",
-            "title": "搞笑综艺",
-            "score": "8",
-            "playCount": 32100,
-            "url": "1004",
-            "type": "综艺",
-            "isSerial": true,
-            "upStatus": "popular",
-            "upCount": 3210
-          },
-          {
-            "id": 1003,
-            "uuid": "550e8400-e29b-41d4-a716-446655440003",
-            "coverUrl": "https://example.com/cover3.jpg",
-            "title": "悬疑电影",
-            "score": "8.8",
-            "playCount": 18900,
-            "url": "1003",
-            "type": "电影",
-            "isSerial": true,
-            "upStatus": "hot",
-            "upCount": 1890
+            "upCount": 4560,
+            "author": "刘诗诗,胡歌",
+            "description": "古代宫廷题材电视剧"
           },
           {
             "id": 1002,
-            "uuid": "550e8400-e29b-41d4-a716-446655440002",
+            "uuid": "p8aUvzGtbvE",
             "coverUrl": "https://example.com/cover2.jpg",
             "title": "都市爱情剧",
             "score": "9.2",
@@ -256,11 +263,13 @@ curl -X GET \
             "type": "电视剧",
             "isSerial": true,
             "upStatus": "new",
-            "upCount": 2560
+            "upCount": 2560,
+            "author": "赵丽颖,杨洋",
+            "description": "现代都市背景的爱情故事"
           },
           {
             "id": 1001,
-            "uuid": "550e8400-e29b-41d4-a716-446655440001",
+            "uuid": "jTX5ctteb9h",
             "coverUrl": "https://example.com/cover1.jpg",
             "title": "测试剧集系列",
             "score": "8.5",
@@ -269,7 +278,9 @@ curl -X GET \
             "type": "电视剧",
             "isSerial": true,
             "upStatus": "hot",
-            "upCount": 1250
+            "upCount": 1250,
+            "author": "张三,李四,王五",
+            "description": "这是一个用于测试的剧集系列，包含多个精彩剧集"
           }
         ]
       }
@@ -586,7 +597,7 @@ curl -X GET \
     "list": [
       {
         "id": 2001,
-        "uuid": "cfd7d3c1-acc1-4148-9d01-8c91d62ead32",
+        "uuid": "fpcxnnFA6m9",
         "coverUrl": "https://example.com/covers/series2001.jpg",
         "title": "霸道总裁爱上我",
         "description": "一个普通女孩与霸道总裁的爱情故事，充满甜蜜与波折",
@@ -608,13 +619,13 @@ curl -X GET \
         "isRecommend": false,
         "duration": "未知",
         "createdAt": "2025-08-05T23:55:00.000Z",
-        "updateTime": "2025-08-06T11:49:33.754Z",
+        "updateTime": "2025-08-09T06:54:54.370Z",
         "episodeCount": 24,
         "tags": []
       },
       {
         "id": 2002,
-        "uuid": "a1b5b77d-9fdd-40b8-b233-f29ab6a94877",
+        "uuid": "kaNqkt7QENy",
         "coverUrl": "https://example.com/covers/series2002.jpg",
         "title": "古装仙侠传",
         "description": "修仙世界的爱恨情仇，仙侠传奇故事",
@@ -636,8 +647,95 @@ curl -X GET \
         "isRecommend": false,
         "duration": "未知",
         "createdAt": "2025-08-05T23:55:00.000Z",
-        "updateTime": "2025-08-06T11:49:33.754Z",
+        "updateTime": "2025-08-09T06:54:54.370Z",
         "episodeCount": 30,
+        "tags": []
+      },
+      {
+        "id": 1005,
+        "uuid": "68jDaAEyHp4",
+        "coverUrl": "https://example.com/cover5.jpg",
+        "title": "古装电视剧",
+        "description": "古代宫廷题材电视剧",
+        "score": "9.5",
+        "playCount": 45600,
+        "totalEpisodes": 45,
+        "isSerial": false,
+        "upStatus": "hot",
+        "upCount": 4560,
+        "status": "completed",
+        "starring": "刘诗诗,胡歌",
+        "actor": "刘诗诗,胡歌,袁弘,林更新",
+        "director": "古装剧导演D",
+        "region": "中国大陆",
+        "language": "中文",
+        "releaseDate": "2023-12-15T00:00:00.000Z",
+        "isCompleted": true,
+        "cidMapper": "1",
+        "categoryName": "电视剧",
+        "isRecommend": false,
+        "duration": "未知",
+        "createdAt": "2025-08-05T23:39:01.639Z",
+        "updateTime": "2025-08-09T06:54:54.370Z",
+        "episodeCount": 0,
+        "tags": []
+      },
+      {
+        "id": 1002,
+        "uuid": "p8aUvzGtbvE",
+        "coverUrl": "https://example.com/cover2.jpg",
+        "title": "都市爱情剧",
+        "description": "现代都市背景的爱情故事",
+        "score": "9.2",
+        "playCount": 25600,
+        "totalEpisodes": 20,
+        "isSerial": false,
+        "upStatus": "new",
+        "upCount": 2560,
+        "status": "ongoing",
+        "starring": "赵丽颖,杨洋",
+        "actor": "赵丽颖,杨洋,王子文,李现",
+        "director": "著名导演A",
+        "region": "中国大陆",
+        "language": "中文",
+        "releaseDate": "2024-02-01T00:00:00.000Z",
+        "isCompleted": false,
+        "cidMapper": "1",
+        "categoryName": "电视剧",
+        "isRecommend": false,
+        "duration": "未知",
+        "createdAt": "2025-08-05T23:39:01.615Z",
+        "updateTime": "2025-08-09T06:54:54.370Z",
+        "episodeCount": 0,
+        "tags": []
+      },
+      {
+        "id": 1001,
+        "uuid": "jTX5ctteb9h",
+        "coverUrl": "https://example.com/cover1.jpg",
+        "title": "测试剧集系列",
+        "description": "这是一个用于测试的剧集系列，包含多个精彩剧集",
+        "score": "8.5",
+        "playCount": 12580,
+        "totalEpisodes": 10,
+        "isSerial": true,
+        "upStatus": "hot",
+        "upCount": 1250,
+        "status": "completed",
+        "starring": "张三,李四,王五",
+        "actor": "张三,李四,王五,赵六",
+        "director": "知名导演",
+        "region": "中国大陆",
+        "language": "中文",
+        "releaseDate": "2024-01-15T00:00:00.000Z",
+        "isCompleted": true,
+        "cidMapper": "1",
+        "categoryName": "电视剧",
+        "isRecommend": false,
+        "duration": "未知",
+        "createdAt": "2024-01-15T02:00:00.000Z",
+        "updateTime": "2025-08-05T23:09:03.000Z",
+        "episodeCount": 3,
         "tags": []
       }
     ],
@@ -662,9 +760,9 @@ curl -X GET \
 
 **请求示例:**
 ```bash
-# 获取指定剧集的所有集数（通过UUID）
+# 获取指定剧集的所有集数（通过shortId）
 curl -X GET \
-  "http://localhost:8080/api/video/episodes?seriesUuid=cfd7d3c1-acc1-4148-9d01-8c91d62ead32&page=1&size=20" \
+  "http://localhost:8080/api/video/episodes?seriesShortId=jTX5ctteb9h&page=1&size=20" \
   -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI3ODQ1MDc4ODQ0IiwiaWF0IjoxNzU0NDcwODQ2LCJleHAiOjE3NTUwNzU2NDZ9.kScM1EGRDMrPV4h5QePRqZM46g_O51w5on7griBEqWc"
 
 # 获取指定剧集的所有集数（通过ID）
@@ -679,7 +777,7 @@ curl -X GET \
 ```
 
 **请求参数:**
-- `seriesUuid` (可选): 剧集UUID
+- `seriesUuid` (可选): 剧集seriesUuid
 - `seriesId` (可选): 剧集ID（向后兼容）
 - `page` (可选): 页码，默认为1
 - `size` (可选): 每页数量，默认为20
@@ -691,28 +789,54 @@ curl -X GET \
   "data": {
     "list": [
       {
-        "id": 1,
-        "uuid": "episode-uuid-1",
+        "id": 2001,
+        "shortId": "J7YUMwhxXsA",
         "episodeNumber": 1,
-        "title": "第1集",
-        "duration": 1086,
-        "status": "active",
-        "createdAt": "2024-01-01T00:00:00.000Z",
-        "updatedAt": "2024-01-01T00:00:00.000Z",
-        "seriesId": 1,
-        "seriesTitle": "示例剧集",
-        "seriesUuid": "cfd7d3c1-acc1-4148-9d01-8c91d62ead32"
+        "title": "第一集：开端",
+        "duration": 2400,
+        "status": "published",
+        "createdAt": "2024-01-15T02:30:00.000Z",
+        "updatedAt": "2025-08-08T22:33:37.000Z",
+        "seriesId": 1001,
+        "seriesTitle": "测试剧集系列",
+        "seriesShortId": "jTX5ctteb9h"
+      },
+      {
+        "id": 2002,
+        "shortId": "AjSEuEQrKBQ",
+        "episodeNumber": 2,
+        "title": "第二集：发展",
+        "duration": 2350,
+        "status": "published",
+        "createdAt": "2024-01-16T02:30:00.000Z",
+        "updatedAt": "2025-08-08T22:33:37.000Z",
+        "seriesId": 1001,
+        "seriesTitle": "测试剧集系列",
+        "seriesShortId": "jTX5ctteb9h"
+      },
+      {
+        "id": 2003,
+        "shortId": "9mGrm9fWWSt",
+        "episodeNumber": 3,
+        "title": "第三集：高潮",
+        "duration": 2480,
+        "status": "published",
+        "createdAt": "2024-01-17T02:30:00.000Z",
+        "updatedAt": "2025-08-08T22:33:37.000Z",
+        "seriesId": 1001,
+        "seriesTitle": "测试剧集系列",
+        "seriesShortId": "jTX5ctteb9h"
       }
     ],
-    "total": 10,
+    "total": 3,
     "page": 1,
     "size": 20,
     "hasMore": false
   },
   "msg": null
 }
-```
 
+```
 ---
 
 ## 7. 获取剧集详细信息
@@ -720,20 +844,20 @@ curl -X GET \
 **接口信息:**
 - **方法:** GET
 - **路径:** `/api/video/details`
-- **描述:** 通过UUID或ID获取视频详细信息，包含所有剧集的详细数据
+- **描述:** 通过shortId或ID获取视频详细信息，包含所有剧集的详细数据
 - **状态:** ✅ (正常工作)
 
 **请求示例:**
 ```bash
 curl -X GET \
-  "http://localhost:8080/api/video/details?uuid=cfd7d3c1-acc1-4148-9d01-8c91d62ead32" \
+  "http://localhost:8080/api/video/details?shortId=kaNqkt7QENy" \
   -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI3ODQ1MDc4ODQ0IiwiaWF0IjoxNzU0NDcwODQ2LCJleHAiOjE3NTUwNzU2NDZ9.kScM1EGRDMrPV4h5QePRqZM46g_O51w5on7griBEqWc"
 ```
 
 **请求参数:**
-- `uuid` (string): 视频UUID标识符（推荐使用，防枚举攻击）
+- `shortId` (string): 视频shortId标识符（推荐使用，防枚举攻击）
 - `id` (string): 视频ID（向后兼容）
-- 注意：必须提供uuid或id参数中的一个
+- 注意：必须提供shortId或id参数中的一个
 
 **响应示例:**
 ```json
@@ -741,117 +865,819 @@ curl -X GET \
   "code": 200,
   "data": {
     "detailInfo": {
-      "starring": "张三,李四",
-      "id": 2001,
+      "starring": "仙女A,仙男B",
+      "id": 2002,
       "channeName": "电视剧",
       "channeID": 1,
-      "title": "霸道总裁爱上我",
-      "coverUrl": "https://example.com/covers/series2001.jpg",
+      "title": "古装仙侠传",
+      "coverUrl": "https://example.com/covers/series2002.jpg",
       "mediaUrl": "",
-      "fileName": "series-2001",
-      "mediaId": "2001_0,1,4,146",
+      "fileName": "series-2002",
+      "mediaId": "2002_0,1,4,146",
       "postTime": "2025-08-05T23:55:00.000Z",
       "contentType": "电视剧",
-      "actor": "张三,李四,王五,赵六",
+      "actor": "仙女A,仙男B,配角C,配角D",
       "shareCount": 0,
-      "director": "导演A",
-      "description": "一个普通女孩与霸道总裁的爱情故事，充满甜蜜与波折",
+      "director": "导演B",
+      "description": "修仙世界的爱恨情仇，仙侠传奇故事",
       "comments": 0,
-      "updateStatus": "全24集",
+      "updateStatus": "更新至第30集",
       "watch_progress": 0,
-      "playCount": 156800,
+      "playCount": 234500,
       "isHot": true,
       "isVip": false,
       "episodes": [
         {
           "channeID": 1,
-          "episodeId": "a3e862c5-96f4-4200-9597-2f1c5b38ac80",
-          "title": "第1集：初次相遇",
+          "episodeId": "VkmGQB5efpt",
+          "title": "第1集：初入仙门",
           "resolutionDes": "576P",
           "resolution": "576",
           "isVip": false,
           "isLast": false,
           "episodeTitle": "01",
           "opSecond": 37,
-          "epSecond": 2118,
+          "epSecond": 2446,
           "urls": [
             {
               "quality": "720p",
-              "accessKey": "kot4JgxK12l1hjkTq1ukph4tQIafme7a"
+              "accessKey": "DosFGFPcJGR0dikmF7GtV2SgDsA1y9ed"
             },
             {
               "quality": "1080p",
-              "accessKey": "CFWMo6cdUi5Rhx3F7FMAst0TjhLzcgS4"
+              "accessKey": "os2mgtxrRxP76h53rdu2CwspCi82PS3H"
             },
             {
               "quality": "4K",
-              "accessKey": "APoC3chZnDKCPSyh3PHL9EsjpWSz2VPt"
+              "accessKey": "R0At9692x5h7qwX2tVfFEK8Zt4EC36BS"
             }
           ]
         },
         {
           "channeID": 1,
-          "episodeId": "1751f0c3-ce01-4581-b992-62a684da6c4d",
-          "title": "第2集：误会重重",
+          "episodeId": "CGfQrYnXagJ",
+          "title": "第2集：修炼之路",
           "resolutionDes": "576P",
           "resolution": "576",
           "isVip": false,
           "isLast": false,
           "episodeTitle": "02",
           "opSecond": 37,
-          "epSecond": 2211,
+          "epSecond": 2529,
           "urls": [
             {
               "quality": "720p",
-              "accessKey": "uNDdU4QDIURn6ukQe6i3C0gJNWpavnlv"
+              "accessKey": "tYZ9W000I1diIuL9G29mhhdAtmQwxGWe"
             },
             {
               "quality": "1080p",
-              "accessKey": "lJtIhPzxS2fSxDiTi2poG8wlV3n1u7XF"
+              "accessKey": "A2rpejM6hwnJF4gU6ylwSo17eZd6KOT4"
             },
             {
               "quality": "4K",
-              "accessKey": "wksU7uum9UpVLfcQwI46i8tBYAp3g3jA"
+              "accessKey": "9RAwEhM91w1K7HYdEwwEn9NvkHETGM6L"
             }
           ]
         },
         {
           "channeID": 1,
-          "episodeId": "df54aa43-8974-4840-91bb-c3458c211fe9",
-          "title": "第3集：渐生情愫",
+          "episodeId": "G9bM9G6cj7G",
+          "title": "第3集：师父传艺",
           "resolutionDes": "576P",
           "resolution": "576",
           "isVip": false,
           "isLast": false,
           "episodeTitle": "03",
           "opSecond": 37,
-          "epSecond": 2333,
+          "epSecond": 2963,
           "urls": [
             {
               "quality": "720p",
-              "accessKey": "DnmuYm2NISRvFMREI056pSJJhWNzBVCG"
+              "accessKey": "NFutBpP6rUoBHN3fDg1e5ejXvP1HpGye"
             },
             {
               "quality": "1080p",
-              "accessKey": "dteWkjsI9kD9RiSZ2SbKfEWj74j52EDt"
+              "accessKey": "RZIztcIT5UX7JHDlguYYK6HFHiFmuDTG"
             },
             {
               "quality": "4K",
-              "accessKey": "QZfH5PD3B0BEJhhpFzaRseJBGT5zBByZ"
+              "accessKey": "8aiUMBMDTuAKZYScQdfEKKuN931rB7f6"
+            }
+          ]
+        },
+        {
+          "channeID": 1,
+          "episodeId": "BS2UGvjmQaR",
+          "title": "第4集：同门切磋",
+          "resolutionDes": "576P",
+          "resolution": "576",
+          "isVip": false,
+          "isLast": false,
+          "episodeTitle": "04",
+          "opSecond": 37,
+          "epSecond": 2439,
+          "urls": [
+            {
+              "quality": "720p",
+              "accessKey": "8AnA4Z2grlhsTgB4JPtP1a9RPKDKAuch"
+            },
+            {
+              "quality": "1080p",
+              "accessKey": "YgSlXlAqlbfaphfLXFLd64VNmYHfe8Wi"
+            },
+            {
+              "quality": "4K",
+              "accessKey": "g0FkgEhYTVm5vr0gAIE6n8KW38KYvxyj"
+            }
+          ]
+        },
+        {
+          "channeID": 1,
+          "episodeId": "VVNrgRFymqP",
+          "title": "第5集：历练试炼",
+          "resolutionDes": "576P",
+          "resolution": "576",
+          "isVip": false,
+          "isLast": false,
+          "episodeTitle": "05",
+          "opSecond": 37,
+          "epSecond": 2864,
+          "urls": [
+            {
+              "quality": "720p",
+              "accessKey": "1dLPz8cFw2nFiCrFndYzYvmwvGZjPmQA"
+            },
+            {
+              "quality": "1080p",
+              "accessKey": "uIowu8dgAAGv9XleEWAhcnhqnCpptciL"
+            },
+            {
+              "quality": "4K",
+              "accessKey": "HDeAYLvVqu7bP6tlho8tGDLlTMZQr9Pi"
+            }
+          ]
+        },
+        {
+          "channeID": 1,
+          "episodeId": "M6n4pbWKfZx",
+          "title": "第6集：邂逅红颜",
+          "resolutionDes": "576P",
+          "resolution": "576",
+          "isVip": false,
+          "isLast": false,
+          "episodeTitle": "06",
+          "opSecond": 37,
+          "epSecond": 2460,
+          "urls": [
+            {
+              "quality": "720p",
+              "accessKey": "vsftIFguJJDB8prnuzzTJdsd9VQ732z5"
+            },
+            {
+              "quality": "1080p",
+              "accessKey": "jRCctgS1Xe7hwfwoa9t7tHZ73n3XhvUf"
+            },
+            {
+              "quality": "4K",
+              "accessKey": "WlRMxPQ6eC1QeTE22TGwVYSG4iZW6nWP"
+            }
+          ]
+        },
+        {
+          "channeID": 1,
+          "episodeId": "J3zJAq2XPA2",
+          "title": "第7集：魔族入侵",
+          "resolutionDes": "576P",
+          "resolution": "576",
+          "isVip": false,
+          "isLast": false,
+          "episodeTitle": "07",
+          "opSecond": 37,
+          "epSecond": 2541,
+          "urls": [
+            {
+              "quality": "720p",
+              "accessKey": "nJdReIOHMkXeUHG8hUp3nw5ZZraOdDui"
+            },
+            {
+              "quality": "1080p",
+              "accessKey": "vGnukHvJ6uxyfsxCdwlniazHnjRCJ2C8"
+            },
+            {
+              "quality": "4K",
+              "accessKey": "yzphMkqejgLWl8Th9S6KGpKwB0WYfEcK"
+            }
+          ]
+        },
+        {
+          "channeID": 1,
+          "episodeId": "4fqAXg79qf6",
+          "title": "第8集：生死考验",
+          "resolutionDes": "576P",
+          "resolution": "576",
+          "isVip": false,
+          "isLast": false,
+          "episodeTitle": "08",
+          "opSecond": 37,
+          "epSecond": 2819,
+          "urls": [
+            {
+              "quality": "720p",
+              "accessKey": "n8Xt8xL1M2HSZZL6yo0ZUpXDcVrdRJSy"
+            },
+            {
+              "quality": "1080p",
+              "accessKey": "Xx1WEWlWRtC75sIJRemZHu5S52fJnsex"
+            },
+            {
+              "quality": "4K",
+              "accessKey": "iXRdNy2zNJWBcAEy5CMx9zgBGEPFBT18"
+            }
+          ]
+        },
+        {
+          "channeID": 1,
+          "episodeId": "fdcbwwYv83h",
+          "title": "第9集：突破瓶颈",
+          "resolutionDes": "576P",
+          "resolution": "576",
+          "isVip": false,
+          "isLast": false,
+          "episodeTitle": "09",
+          "opSecond": 37,
+          "epSecond": 2866,
+          "urls": [
+            {
+              "quality": "720p",
+              "accessKey": "w351M4JPdCIepdviPw1whH3YPeFFJchP"
+            },
+            {
+              "quality": "1080p",
+              "accessKey": "bJr7sblsOFlDWywLejbshoBJ1Wm8nfoa"
+            },
+            {
+              "quality": "4K",
+              "accessKey": "3mSbCJTwpanTfq6OEsKO5VKzHz6umcCE"
+            }
+          ]
+        },
+        {
+          "channeID": 1,
+          "episodeId": "FZHYmDcSuQ8",
+          "title": "第10集：仙界大战",
+          "resolutionDes": "576P",
+          "resolution": "576",
+          "isVip": false,
+          "isLast": false,
+          "episodeTitle": "10",
+          "opSecond": 37,
+          "epSecond": 2702,
+          "urls": [
+            {
+              "quality": "720p",
+              "accessKey": "tNjcfp1ddfLbMvh7hPlNmzPiC8VWCXlx"
+            },
+            {
+              "quality": "1080p",
+              "accessKey": "esiHKWrf77f7UVZtaVkOyCxV6x4tsWYc"
+            },
+            {
+              "quality": "4K",
+              "accessKey": "YF2RvyqEZC4JpbycwgBYEfyChszYJ2F7"
+            }
+          ]
+        },
+        {
+          "channeID": 1,
+          "episodeId": "NjYnKUvpcUb",
+          "title": "第11集：情深义重",
+          "resolutionDes": "576P",
+          "resolution": "576",
+          "isVip": false,
+          "isLast": false,
+          "episodeTitle": "11",
+          "opSecond": 37,
+          "epSecond": 2753,
+          "urls": [
+            {
+              "quality": "720p",
+              "accessKey": "d76rsjzwoqCdWYFIRFPpPzFr1Wgu1HP0"
+            },
+            {
+              "quality": "1080p",
+              "accessKey": "K4O07Gf7eR95cIlyEuJYHzkIVxdLXg5K"
+            },
+            {
+              "quality": "4K",
+              "accessKey": "mRKxedksPtLWz5drvNeejQf39y1VzYzg"
+            }
+          ]
+        },
+        {
+          "channeID": 1,
+          "episodeId": "3vaEjrpx6k4",
+          "title": "第12集：背叛与原谅",
+          "resolutionDes": "576P",
+          "resolution": "576",
+          "isVip": false,
+          "isLast": false,
+          "episodeTitle": "12",
+          "opSecond": 37,
+          "epSecond": 2667,
+          "urls": [
+            {
+              "quality": "720p",
+              "accessKey": "INFtIjHbXLHULDnKII6kgjWz9oE9R9tr"
+            },
+            {
+              "quality": "1080p",
+              "accessKey": "3KPCUfivzyo66LH2x3fJvlHhZSeGUsVo"
+            },
+            {
+              "quality": "4K",
+              "accessKey": "NycBs8me8lS3Gyz8ICC0C8R3qMHai27Q"
+            }
+          ]
+        },
+        {
+          "channeID": 1,
+          "episodeId": "V6ZYsn5UcRT",
+          "title": "第13集：天劫降临",
+          "resolutionDes": "576P",
+          "resolution": "576",
+          "isVip": false,
+          "isLast": false,
+          "episodeTitle": "13",
+          "opSecond": 37,
+          "epSecond": 2958,
+          "urls": [
+            {
+              "quality": "720p",
+              "accessKey": "1mKPVR44ElACLueAob1OTR3SG2t4z1iD"
+            },
+            {
+              "quality": "1080p",
+              "accessKey": "oo3poFlzUXGX7uZ1KPTzwe4hjQ1FsVDE"
+            },
+            {
+              "quality": "4K",
+              "accessKey": "p07xWFO9ZZmOi1K4JY2cfqOVzwcgMPB6"
+            }
+          ]
+        },
+        {
+          "channeID": 1,
+          "episodeId": "ZPPaaaQN2RP",
+          "title": "第14集：涅槃重生",
+          "resolutionDes": "576P",
+          "resolution": "576",
+          "isVip": false,
+          "isLast": false,
+          "episodeTitle": "14",
+          "opSecond": 37,
+          "epSecond": 2631,
+          "urls": [
+            {
+              "quality": "720p",
+              "accessKey": "z9fHxzTm5lwlXHw3PyttdzLocDsygvvV"
+            },
+            {
+              "quality": "1080p",
+              "accessKey": "K8clPPMfjyYl2td9v1jV3bbvGh8V4j98"
+            },
+            {
+              "quality": "4K",
+              "accessKey": "mR4Lv7L1PEBF7mBCsYI22O1qteu3Mv81"
+            }
+          ]
+        },
+        {
+          "channeID": 1,
+          "episodeId": "JaRpG6xgNuh",
+          "title": "第15集：仙魔恋情",
+          "resolutionDes": "576P",
+          "resolution": "576",
+          "isVip": false,
+          "isLast": false,
+          "episodeTitle": "15",
+          "opSecond": 37,
+          "epSecond": 2863,
+          "urls": [
+            {
+              "quality": "720p",
+              "accessKey": "bTJh1Wt9TxigqPbgCD60a1LkmLyoZHtx"
+            },
+            {
+              "quality": "1080p",
+              "accessKey": "9GiM6I76JQHnyI2fGwrQ1u5lfzk1ADTf"
+            },
+            {
+              "quality": "4K",
+              "accessKey": "oClhhMepAamt0sjq6DhkzacH9HbDSTqs"
+            }
+          ]
+        },
+        {
+          "channeID": 1,
+          "episodeId": "eFMkvqT4TbZ",
+          "title": "第16集：宗门危机",
+          "resolutionDes": "576P",
+          "resolution": "576",
+          "isVip": false,
+          "isLast": false,
+          "episodeTitle": "16",
+          "opSecond": 37,
+          "epSecond": 2594,
+          "urls": [
+            {
+              "quality": "720p",
+              "accessKey": "FbAV3cIs9wKkSFoIhXZYT4GRJO4Ne4gv"
+            },
+            {
+              "quality": "1080p",
+              "accessKey": "Dycl1GOSux7IXDEnrJ7a7KWUQ4DTEHa2"
+            },
+            {
+              "quality": "4K",
+              "accessKey": "qX2SHRM5ZEAVWpPXShf6tniJNsqETjhE"
+            }
+          ]
+        },
+        {
+          "channeID": 1,
+          "episodeId": "qEgtTMtAzN3",
+          "title": "第17集：英雄救美",
+          "resolutionDes": "576P",
+          "resolution": "576",
+          "isVip": false,
+          "isLast": false,
+          "episodeTitle": "17",
+          "opSecond": 37,
+          "epSecond": 2644,
+          "urls": [
+            {
+              "quality": "720p",
+              "accessKey": "Fp8Thu0AMPRRw6o2nDmaQH9nX4v0Ldo8"
+            },
+            {
+              "quality": "1080p",
+              "accessKey": "EAPmnxTFBPTPmkI9HQFrOqDwg60anN7u"
+            },
+            {
+              "quality": "4K",
+              "accessKey": "iGvPauMEwNeJV79wSjuPx5lTflGzRWtT"
+            }
+          ]
+        },
+        {
+          "channeID": 1,
+          "episodeId": "ZzmmbpR5wA9",
+          "title": "第18集：修为大进",
+          "resolutionDes": "576P",
+          "resolution": "576",
+          "isVip": false,
+          "isLast": false,
+          "episodeTitle": "18",
+          "opSecond": 37,
+          "epSecond": 2469,
+          "urls": [
+            {
+              "quality": "720p",
+              "accessKey": "yYR3lUuexx9OPbBXztS0Y5AoVG01g7zq"
+            },
+            {
+              "quality": "1080p",
+              "accessKey": "WDCxkcrGpmjoaRCercYqDd7DEDLET1ue"
+            },
+            {
+              "quality": "4K",
+              "accessKey": "ax775yQoTv1gEfwzsbvfXVqCAv5xZaN0"
+            }
+          ]
+        },
+        {
+          "channeID": 1,
+          "episodeId": "Ck7raxdsY52",
+          "title": "第19集：仙界震动",
+          "resolutionDes": "576P",
+          "resolution": "576",
+          "isVip": false,
+          "isLast": false,
+          "episodeTitle": "19",
+          "opSecond": 37,
+          "epSecond": 2878,
+          "urls": [
+            {
+              "quality": "720p",
+              "accessKey": "ZWRGWNcSil8mQlL2l3M35jVIsoJK7swy"
+            },
+            {
+              "quality": "1080p",
+              "accessKey": "4fkpCVowLG8ryuKkyCBxbQ01aHaMKIyP"
+            },
+            {
+              "quality": "4K",
+              "accessKey": "9HC5RXYgHYUiHwacKnPhWNYiMY34xpCe"
+            }
+          ]
+        },
+        {
+          "channeID": 1,
+          "episodeId": "MfgUhA6kaz3",
+          "title": "第20集：爱恨纠葛",
+          "resolutionDes": "576P",
+          "resolution": "576",
+          "isVip": false,
+          "isLast": false,
+          "episodeTitle": "20",
+          "opSecond": 37,
+          "epSecond": 2743,
+          "urls": [
+            {
+              "quality": "720p",
+              "accessKey": "3rGw8Exf2AwRSF6iYTK8zvIIWNfpBOmB"
+            },
+            {
+              "quality": "1080p",
+              "accessKey": "b4XhMnPX9pP5kHPSdm38P3PrV1vf7e4t"
+            },
+            {
+              "quality": "4K",
+              "accessKey": "DwmYQB0JW900KNhA5Sodttu0LB2eE19x"
+            }
+          ]
+        },
+        {
+          "channeID": 1,
+          "episodeId": "QFgdhYdzwAT",
+          "title": "第21集：最终决战",
+          "resolutionDes": "576P",
+          "resolution": "576",
+          "isVip": false,
+          "isLast": false,
+          "episodeTitle": "21",
+          "opSecond": 37,
+          "epSecond": 2829,
+          "urls": [
+            {
+              "quality": "720p",
+              "accessKey": "2y7vwBxtwoB4PmQxCVc0oDxa3yA64xRk"
+            },
+            {
+              "quality": "1080p",
+              "accessKey": "SmkyBacNJd9WqHpapvCGaQFtXz5mxnQc"
+            },
+            {
+              "quality": "4K",
+              "accessKey": "gPMgPBu3mlv65d01YFmvdmFOHtPbbzhH"
+            }
+          ]
+        },
+        {
+          "channeID": 1,
+          "episodeId": "FynCjPfRGbJ",
+          "title": "第22集：牺牲与拯救",
+          "resolutionDes": "576P",
+          "resolution": "576",
+          "isVip": false,
+          "isLast": false,
+          "episodeTitle": "22",
+          "opSecond": 37,
+          "epSecond": 2700,
+          "urls": [
+            {
+              "quality": "720p",
+              "accessKey": "FWTxPuddf0NaNK8Kc0jUA70XX9ySrNhb"
+            },
+            {
+              "quality": "1080p",
+              "accessKey": "QkXLnFQKuzfeytcfdT8DTPumnjM63cXj"
+            },
+            {
+              "quality": "4K",
+              "accessKey": "iV2EDwB0WZcMpxYNlA1LBgQU4IPXG3zN"
+            }
+          ]
+        },
+        {
+          "channeID": 1,
+          "episodeId": "dBDmfntUR5P",
+          "title": "第23集：仙界和平",
+          "resolutionDes": "576P",
+          "resolution": "576",
+          "isVip": false,
+          "isLast": false,
+          "episodeTitle": "23",
+          "opSecond": 37,
+          "epSecond": 2578,
+          "urls": [
+            {
+              "quality": "720p",
+              "accessKey": "czcA0R1gyOlfDOlugheooT7STgaH5RQm"
+            },
+            {
+              "quality": "1080p",
+              "accessKey": "yKUDrDyUT0fY5LMVLcjkU5DkAbYxG8e7"
+            },
+            {
+              "quality": "4K",
+              "accessKey": "e2dAPouSDQNqpL9xHadd9yV8TIRbyn4b"
+            }
+          ]
+        },
+        {
+          "channeID": 1,
+          "episodeId": "MPMdG4syCB3",
+          "title": "第24集：情定三生",
+          "resolutionDes": "576P",
+          "resolution": "576",
+          "isVip": false,
+          "isLast": false,
+          "episodeTitle": "24",
+          "opSecond": 37,
+          "epSecond": 2442,
+          "urls": [
+            {
+              "quality": "720p",
+              "accessKey": "mn8P1IlALrK2U9Bj3YQIWNxPkjjS3lf4"
+            },
+            {
+              "quality": "1080p",
+              "accessKey": "2kNyCcjs9vtJOn3RNFL5TAHoxsCwt8wE"
+            },
+            {
+              "quality": "4K",
+              "accessKey": "acjlIXuW3YSm5xucVTmwZAx6WhAhHXEy"
+            }
+          ]
+        },
+        {
+          "channeID": 1,
+          "episodeId": "ShQYg82vcYf",
+          "title": "第25集：飞升成仙",
+          "resolutionDes": "576P",
+          "resolution": "576",
+          "isVip": false,
+          "isLast": false,
+          "episodeTitle": "25",
+          "opSecond": 37,
+          "epSecond": 2579,
+          "urls": [
+            {
+              "quality": "720p",
+              "accessKey": "nCaVKCu7wUfUixu3AWSVjt1kLHFVl3aV"
+            },
+            {
+              "quality": "1080p",
+              "accessKey": "oOeMrXUPM8ysKJn9afrjTzJprdjhUzVe"
+            },
+            {
+              "quality": "4K",
+              "accessKey": "Ft27sZDSiDxHcRkV2OnwgbrCaOXi7XJd"
+            }
+          ]
+        },
+        {
+          "channeID": 1,
+          "episodeId": "RjyjxJ9kZun",
+          "title": "第26集：新的开始",
+          "resolutionDes": "576P",
+          "resolution": "576",
+          "isVip": false,
+          "isLast": false,
+          "episodeTitle": "26",
+          "opSecond": 37,
+          "epSecond": 2584,
+          "urls": [
+            {
+              "quality": "720p",
+              "accessKey": "Zy7vcLMHWDtxbQirRFQ4X9H4LUuXT0nJ"
+            },
+            {
+              "quality": "1080p",
+              "accessKey": "exd5maXi6qbqYGuM0VeNCob749ijLAYf"
+            },
+            {
+              "quality": "4K",
+              "accessKey": "iQ1YoGSqfbbfJHdFumcTQAca2AJI44kM"
+            }
+          ]
+        },
+        {
+          "channeID": 1,
+          "episodeId": "5X3Y7DARKQa",
+          "title": "第27集：仙界新秩序",
+          "resolutionDes": "576P",
+          "resolution": "576",
+          "isVip": false,
+          "isLast": false,
+          "episodeTitle": "27",
+          "opSecond": 37,
+          "epSecond": 2671,
+          "urls": [
+            {
+              "quality": "720p",
+              "accessKey": "wWpFvbD3cZsv72VKcIBd3AromFyc0ZgO"
+            },
+            {
+              "quality": "1080p",
+              "accessKey": "HwbS63yIDDDJKMg22j4ezJla0hDqebdm"
+            },
+            {
+              "quality": "4K",
+              "accessKey": "hY4hSycpxNkbbsFTIhiZE7Qbem5q1oyR"
+            }
+          ]
+        },
+        {
+          "channeID": 1,
+          "episodeId": "AhHxqEqP2gK",
+          "title": "第28集：传承衣钵",
+          "resolutionDes": "576P",
+          "resolution": "576",
+          "isVip": false,
+          "isLast": false,
+          "episodeTitle": "28",
+          "opSecond": 37,
+          "epSecond": 2672,
+          "urls": [
+            {
+              "quality": "720p",
+              "accessKey": "Zvap0UAznBoMSmjXFKx4v9JxPwwuYx7I"
+            },
+            {
+              "quality": "1080p",
+              "accessKey": "h93Y8q8HOBkOBcHBLOgcKi8mmDw1ksUQ"
+            },
+            {
+              "quality": "4K",
+              "accessKey": "SiwlX04a4c1SWAXIDTgfBjX9Nf7ZwgvP"
+            }
+          ]
+        },
+        {
+          "channeID": 1,
+          "episodeId": "pnAJejvcKvf",
+          "title": "第29集：师父归来",
+          "resolutionDes": "576P",
+          "resolution": "576",
+          "isVip": false,
+          "isLast": false,
+          "episodeTitle": "29",
+          "opSecond": 37,
+          "epSecond": 2450,
+          "urls": [
+            {
+              "quality": "720p",
+              "accessKey": "GDh2S3UEZCM9ImYLLGa0t8yQexat2KzC"
+            },
+            {
+              "quality": "1080p",
+              "accessKey": "Fh5Y2M9ozDSCM21DlFgroZ18vFfo6PUj"
+            },
+            {
+              "quality": "4K",
+              "accessKey": "hds5nID2VIIrYHO5l9sKNLvGmQBGaIHx"
+            }
+          ]
+        },
+        {
+          "channeID": 1,
+          "episodeId": "bg384TzwtXv",
+          "title": "第30集：圆满结局",
+          "resolutionDes": "576P",
+          "resolution": "576",
+          "isVip": false,
+          "isLast": false,
+          "episodeTitle": "30",
+          "opSecond": 37,
+          "epSecond": 2518,
+          "urls": [
+            {
+              "quality": "720p",
+              "accessKey": "eFUbgjyZkDz1Dgj4WVV79VygikK2erLk"
+            },
+            {
+              "quality": "1080p",
+              "accessKey": "rHJySNkHEqThpdOH57Mq2y2wnjQl472L"
+            },
+            {
+              "quality": "4K",
+              "accessKey": "FpUImOXTZgxrB0vC766plbDKh0lCDzzy"
             }
           ]
         }
       ],
-      "score": "9.2",
+      "score": "8.8",
       "adGold": 20,
       "cidMapper": "电视剧",
       "regional": "大陆",
-      "playRecordUrl": "https://w.anygate.vip/api/Counter/PlusOne?key=AddHitToMovie&id=2001&cid=0,1,4,146&uid=0&title=%E9%9C%B8%E9%81%93%E6%80%BB%E8%A3%81%E7%88%B1%E4%B8%8A%E6%88%91&imgpath=https%3A%2F%2Fexample.com%2Fcovers%2Fseries2001.jpg",
+      "playRecordUrl": "https://w.anygate.vip/api/Counter/PlusOne?key=AddHitToMovie&id=2002&cid=0,1,4,146&uid=0&title=%E5%8F%A4%E8%A3%85%E4%BB%99%E4%BE%A0%E4%BC%A0&imgpath=https%3A%2F%2Fexample.com%2Fcovers%2Fseries2002.jpg",
       "labels": [],
       "isShow": true,
       "charge": 0,
       "isLive": false,
-      "serialCount": 24
+      "serialCount": 36
     },
     "userInfo": {},
     "adsPlayer": {},
