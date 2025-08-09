@@ -4,7 +4,7 @@ module.exports = {
       name: 'short-drama-api',   // pm2 ls 里看到的名字
       script: 'dist/src/main.js',    // build 后的入口
       cwd: '/home/deploy/workspace/short-drama-api',
-      instances: 'max',          // 核数满额多进程，可改成 1
+      instances: '1',          // 核数满额多进程，可改成 1
       exec_mode: 'cluster',      // 负载均衡模式（单实例可改 fork）
       env: {
         NODE_ENV: 'production',
