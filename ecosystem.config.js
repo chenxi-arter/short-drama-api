@@ -8,7 +8,7 @@ module.exports = {
       exec_mode: 'cluster',      // 负载均衡模式（单实例可改 fork）
       env: {
         NODE_ENV: 'production',
-        PORT: 3001              // 你的 Nest 监听端口
+        PORT: 8080              // 你的 Nest 监听端口
       },
       log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
       log_file: './logs/combined.log',
