@@ -14,14 +14,14 @@ export class HomeController extends BaseModuleController {
   /**
    * 获取首页模块的默认频道ID
    */
-  protected getDefaultChannelId(): string {
-    return '1';
+  protected getDefaultChannelId(): number {
+    return 1;
   }
 
   /**
    * 获取首页视频列表的服务方法
    */
   protected getModuleVideosMethod() {
-    return this.videoService.getHomeVideos;
+    return (channeid: number, page: number) => this.videoService.getHomeVideos(channeid, page);
   }
 }

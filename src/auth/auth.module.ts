@@ -4,7 +4,6 @@ import { PassportModule } from '@nestjs/passport';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { AuthService } from './auth.service';
-import { AuthController } from './auth.controller';
 import { RefreshToken } from './entity/refresh-token.entity';
 
 @Module({
@@ -16,7 +15,7 @@ import { RefreshToken } from './entity/refresh-token.entity';
       signOptions: { expiresIn: process.env.JWT_EXPIRES_IN },
     }),
   ],
-  controllers: [AuthController],
+  controllers: [],
   providers: [JwtStrategy, AuthService],
   exports: [PassportModule, AuthService],
 })

@@ -90,20 +90,21 @@ curl -X GET \
 
 **接口信息:**
 - **方法:** GET
-- **路径:** `/api/home/getvideos`
+- **路径:** `/api/home/gethomemodules`
 - **描述:** 获取首页推荐视频列表
 - **状态:** ✅ (正常工作)
 
 **请求示例:**
 ```bash
 curl -X GET \
-  "http://localhost:8080/api/home/getvideos?catid=drama"\
+  "http://localhost:8080/api/home/gethomemodules?channeid=1"\
   -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI3ODQ1MDc4ODQ0IiwiaWF0IjoxNzU0NDcwODQ2LCJleHAiOjE3NTUwNzU2NDZ9.kScM1EGRDMrPV4h5QePRqZM46g_O51w5on7griBEqWc"
 ```
 
 **请求参数:**
 {
-  "catid?": string  // 可选，频道ID // drama / home /movie /variety categories表中的category_id字段
+  "channeid?": number  // 可选，频道ID，对应categories表中的id字段（数字类型，主键）
+                       // 注意：不传入channeid参数时，接口会返回错误提示
 }
 
 **响应示例:**

@@ -8,36 +8,51 @@
 
 ---
 
-## 🔐 认证相关接口
+## 👤 用户相关接口
 
-### AuthController (`/auth`)
+### UserController (`/user`)
 
 | 接口名称 | 方法 | 路径 | 描述 | 认证要求 |
 |---------|------|------|------|----------|
-| 刷新令牌 | POST | `/auth/refresh` 🔐 | 使用refresh_token获取新的access_token | ✅ |
-| 验证令牌 | POST | `/auth/verify-refresh-token` 🔐 | 验证refresh_token有效性 | ✅ |
-| 登出 | POST | `/auth/logout` 🔐 | 撤销指定的refresh_token | ✅ |
-| 全设备登出 | POST | `/auth/logout-all` 🔐 | 撤销用户所有设备的令牌 | ✅ |
-| 获取设备列表 | GET | `/auth/devices` 🔐 | 获取用户活跃设备列表 | ✅ |
-| 撤销设备 | DELETE | `/auth/devices/:id` 🔐 | 撤销指定设备的令牌 | ✅ |
+| Telegram登录 | POST/GET | `/user/telegram-login` | Telegram OAuth登录 | ❌ |
+| 获取用户信息 | GET | `/user/me` 🔐 | 获取当前用户信息 | ✅ |
+| 刷新令牌 | POST | `/user/refresh` 🔐 | 使用refresh_token获取新的access_token | ✅ |
+| 验证令牌 | POST | `/user/verify-refresh-token` 🔐 | 验证refresh_token有效性 | ✅ |
+| 登出 | POST | `/user/logout` 🔐 | 撤销指定的refresh_token | ✅ |
+| 全设备登出 | POST | `/user/logout-all` 🔐 | 撤销用户所有设备的令牌 | ✅ |
+| 获取设备列表 | GET | `/user/devices` 🔐 | 获取用户活跃设备列表 | ✅ |
+| 撤销设备 | DELETE | `/user/devices/:id` 🔐 | 撤销指定设备的令牌 | ✅ |
 
 #### 请求参数
 
-**刷新令牌 (POST /auth/refresh)**
+**Telegram登录**
+```typescript
+{
+  "id": number,           // 必填，Telegram用户ID
+  "first_name": string,   // 必填，用户名
+  "last_name?": string,   // 可选，姓氏
+  "username?": string,    // 可选，用户名
+  "auth_date": number,    // 必填，认证时间戳
+  "hash": string,         // 必填，验证哈希
+  "photo_url?": string    // 可选，头像URL
+}
+```
+
+**刷新令牌 (POST /user/refresh)**
 ```typescript
 {
   "refresh_token": string // 必填，刷新令牌
 }
 ```
 
-**验证令牌 (POST /auth/verify-refresh-token)**
+**验证令牌 (POST /user/verify-refresh-token)**
 ```typescript
 {
   "refresh_token": string // 必填，待验证的刷新令牌
 }
 ```
 
-**登出 (POST /auth/logout)**
+**登出 (POST /user/logout)**
 ```typescript
 {
   "refresh_token": string // 必填，要撤销的刷新令牌
@@ -45,6 +60,18 @@
 ```
 
 #### 响应格式
+
+**用户信息响应**
+```typescript
+{
+  "id": number,
+  "username": string,
+  "firstName": string,
+  "lastName": string,
+  "isActive": boolean,
+  "createdAt": string
+}
+```
 
 **令牌响应**
 ```typescript
@@ -77,46 +104,6 @@
 {
   "valid": boolean,
   "message": string
-}
-```
-
----
-
-## 👤 用户相关接口
-
-### UserController (`/user`)
-
-| 接口名称 | 方法 | 路径 | 描述 | 认证要求 |
-|---------|------|------|------|----------|
-| Telegram登录 | POST/GET | `/user/telegram-login` | Telegram OAuth登录 | ❌ |
-| 获取用户信息 | GET | `/user/me` 🔐 | 获取当前用户信息 | ✅ |
-
-#### 请求参数
-
-**Telegram登录**
-```typescript
-{
-  "id": number,           // 必填，Telegram用户ID
-  "first_name": string,   // 必填，用户名
-  "last_name?": string,   // 可选，姓氏
-  "username?": string,    // 可选，用户名
-  "auth_date": number,    // 必填，认证时间戳
-  "hash": string,         // 必填，验证哈希
-  "photo_url?": string    // 可选，头像URL
-}
-```
-
-#### 响应格式
-
-**用户信息响应**
-```typescript
-{
-  "id": number,
-  "username": string,
-  "firstName": string,
-  "lastName": string,
-  "isActive": boolean,
-  "createdAt": string
 }
 ```
 
@@ -237,31 +224,67 @@
 
 ---
 
+## 📂 分类相关接口
+
+### CategoryController (`/category`)
+
+| 接口名称 | 方法 | 路径 | 描述 | 认证要求 |
+|---------|------|------|------|----------|
+| 获取分类列表 | GET | `/category/list` 🔐 | 获取所有分类列表 | ✅ |
+
+#### 请求参数
+
+```typescript
+{
+  "versionNo?": number  // 可选，版本号，用于缓存控制
+}
+```
+
+#### 响应格式
+
+```typescript
+{
+  "ret": number,
+  "data": {
+    "versionNo": number,
+    "list": [
+      {
+        "channeid": number,    // 频道ID（对应categories表的id字段）
+        "name": string,        // 分类名称
+        "routeName": string    // 路由名称
+      }
+    ]
+  },
+  "msg": string | null
+}
+```
+
+---
+
 ## 🏠 首页相关接口
 
 ### HomeController (`/api/home`)
 
 | 接口名称 | 方法 | 路径 | 描述 | 认证要求 |
 |---------|------|------|------|----------|
-| 获取首页视频 | GET | `/api/home/getvideos` 🔐 | 获取首页推荐视频列表 | ✅ |
-| 获取筛选标签 | GET | `/api/home/getfilterstags` 🔐 | 获取首页筛选器标签 | ✅ |
-| 获取筛选数据 | GET | `/api/home/getfiltersdata` 🔐 | 根据条件筛选首页视频 | ✅ |
+| 获取首页视频 | GET | `/api/home/gethomemodules` | 获取首页推荐视频列表 | ✅ |
+| 获取筛选标签 | GET | `/api/home/getfilterstags` | 获取首页筛选器标签 | ✅ |
+| 获取筛选数据 | GET | `/api/home/getfiltersdata` | 根据条件筛选首页视频 | ✅ |
 
 #### 请求参数
 
 **获取首页视频**
 ```typescript
 {
-  "catid?": string,  // 可选，分类ID（对应categories表的category_id字段），支持：'home', 'drama', 'movie', 'variety'
-  "page?": number    // 可选，页码，默认1
+  "channeid?": number,  // 可选，频道ID（对应categories表的id字段）
+  "page?": number       // 可选，页码，默认1
 }
 ```
 
-**catid参数说明：**
-- `catid` 对应数据库 `categories` 表中的 `category_id` 字段（字符串类型，唯一约束）
-- 支持的值：`'home'`, `'drama'`, `'movie'`, `'variety'`
-- 如果传入不存在的 `catid`，将显示为"未知分类"
-- 不传入 `catid` 参数时，显示"全部"分类
+**channeid参数说明：**
+- `channeid` 对应数据库 `categories` 表中的 `id` 字段（数字类型，主键）
+- 如果传入不存在的 `channeid`，将返回相关错误信息
+- 不传入 `channeid` 参数时，返回错误提示："请选择具体的频道分类，不支持显示全部分类"
 
 **分页行为说明：**
 - `page=1`：返回完整数据结构，包含轮播图、搜索过滤器、广告和视频列表等4个板块
@@ -269,20 +292,18 @@
 
 **请求示例：**
 ```bash
-# 获取短剧分类视频
-curl "http://localhost:8080/api/home/getvideos?catid=drama"
+# 获取短剧分类视频（channeid=1）
+curl "http://localhost:8080/api/home/gethomemodules?channeid=1"
 
-# 获取电影分类视频
-curl "http://localhost:8080/api/home/getvideos?catid=movie"
+# 获取电影分类视频（channeid=2）
+curl "http://localhost:8080/api/home/gethomemodules?channeid=2"
 
-# 获取综艺分类视频
-curl "http://localhost:8080/api/home/getvideos?catid=variety"
+# 获取综艺分类视频（channeid=3）
+curl "http://localhost:8080/api/home/gethomemodules?channeid=3"
 
-# 获取首页分类视频
-curl "http://localhost:8080/api/home/getvideos?catid=home"
-
-# 获取全部分类视频（不传catid）
-curl "http://localhost:8080/api/home/getvideos"
+# 不传channeid参数会返回错误提示
+curl "http://localhost:8080/api/home/gethomemodules"
+# 返回: {"code": 400, "msg": "请选择具体的频道分类，不支持显示全部分类"}
 ```
 
 ---
@@ -499,45 +520,7 @@ curl "http://localhost:8080/api/home/getvideos"
 }
 ```
 
----
 
-## 📂 分类相关接口
-
-### CategoryController (`/category`)
-
-| 接口名称 | 方法 | 路径 | 描述 | 认证要求 |
-|---------|------|------|------|----------|
-| 获取分类列表 | GET | `/category/list` 🔐 | 获取所有分类列表 | ✅ |
-
-#### 请求参数
-
-```typescript
-{
-  "versionNo?": number  // 可选，版本号，用于缓存控制
-}
-```
-
-#### 响应格式
-
-```typescript
-{
-  "ret": number,
-  "data": {
-    "versionNo": number,
-    "list": [
-      {
-        "categoryId": string | number,
-        "name": string,
-        "type": number,        // 0:首页, 1:视频分类, 2:短视频分类, 6:片单
-        "index": number,       // 排序索引
-        "routeName": string,   // 路由名称
-        "styleType?": number   // 样式类型
-      }
-    ]
-  },
-  "msg": string | null
-}
-```
 
 ---
 
@@ -657,7 +640,7 @@ curl "http://localhost:8080/api/home/getvideos"
 
 1. **获取Token**: 通过 `/user/telegram-login` 登录获取
 2. **使用Token**: 在请求头中添加 `Authorization: Bearer <access_token>`
-3. **刷新Token**: 使用 `/auth/refresh` 接口刷新过期的access_token
+3. **刷新Token**: 使用 `/user/refresh` 接口刷新过期的access_token
 
 ### Token 生命周期
 

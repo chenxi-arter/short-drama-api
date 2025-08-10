@@ -30,6 +30,7 @@ import { SeriesService } from './services/series.service';
 import { BannerService } from './services/banner.service';     // 轮播图服务
 import { AppLoggerService } from '../common/logger/app-logger.service';
 import { AppConfigService } from '../common/config/app-config.service';
+import { IsValidChannelExistsConstraint } from './validators/channel-exists.validator';
 @Module({
   imports: [
     CacheModule.register(),
@@ -60,6 +61,7 @@ import { AppConfigService } from '../common/config/app-config.service';
     SeriesService,
     AppLoggerService,
     AppConfigService,
+    IsValidChannelExistsConstraint,
   ],    // 注册本模块的服务提供者（业务逻辑）
   controllers: [
     PublicVideoController, 

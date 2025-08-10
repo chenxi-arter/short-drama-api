@@ -1,10 +1,10 @@
 
 1、视频列表接口
-/home/getvideos
+/home/gethomemodules
 
 // 请求参数
 {
-catid            string               `json:"catid"`               // 频道唯一标识
+channeid         number               `json:"channeid"`            // 频道ID（对应categories表的id字段）
 page           string              `json:"page"`             // 页数
 }
 

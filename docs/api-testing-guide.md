@@ -56,7 +56,7 @@ curl http://localhost:3000/health
 
 ```bash
 # 模拟Telegram登录（需要实际的Telegram用户数据）
-curl -X POST http://localhost:3000/auth/telegram \
+curl -X POST http://localhost:3000/user/telegram-login \
   -H "Content-Type: application/json" \
   -d '{
     "id": 123456789,
@@ -87,7 +87,7 @@ curl -X POST http://localhost:3000/auth/telegram \
 
 ```bash
 # 刷新访问令牌
-curl -X POST http://localhost:3000/auth/refresh \
+curl -X POST http://localhost:3000/user/refresh \
   -H "Content-Type: application/json" \
   -d '{
     "refresh_token": "your_refresh_token_here"
@@ -98,7 +98,7 @@ curl -X POST http://localhost:3000/auth/refresh \
 
 ```bash
 # 验证刷新令牌
-curl -X POST http://localhost:3000/auth/verify-refresh-token \
+curl -X POST http://localhost:3000/user/verify-refresh-token \
   -H "Content-Type: application/json" \
   -d '{
     "refresh_token": "your_refresh_token_here"

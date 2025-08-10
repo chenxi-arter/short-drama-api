@@ -105,7 +105,7 @@ export class AuthService {
 
     return {
       access_token: accessToken,
-      expires_in: 3600,
+      expires_in: this.getExpiresInSeconds(),
       token_type: 'Bearer',
     };
   }

@@ -268,20 +268,20 @@ async listSeriesFull(
    * 获取首页视频列表 - 重构版本（通俗易懂）
    * 
    * 功能说明：
-   * 1. 根据分类ID(catid)获取对应分类的视频内容
+   * 1. 根据频道ID(channeid)获取对应分类的视频内容
    * 2. 第一页返回完整内容：轮播图 + 搜索过滤器 + 广告位 + 视频列表
    * 3. 后续页面只返回视频列表（性能优化）
    * 
-   * @param catid 分类标识符（对应categories表的category_id字段，如：'drama'、'movie'等）
+   * @param channeid 频道ID（对应categories表的id字段）
    * @param page 页码，从1开始
    * @returns 首页视频数据，包含轮播图、过滤器、视频列表等
    */
-  async getHomeVideos(catid?: string, page: number = 1): Promise<any> {
+  async getHomeVideos(channeid?: number, page: number = 1): Promise<any> {
     // 每页显示的视频数量
     const pageSize = 20;
     
     // 第一步：生成缓存键，提高接口响应速度
-    const cacheKey = `home_videos_${catid || 'all'}_page_${page}`;
+    const cacheKey = `home_videos_${channeid || 'all'}_page_${page}`;
     
     // 第二步：尝试从缓存中获取数据
     const cachedResult = await this.cacheManager.get(cacheKey);
@@ -290,8 +290,8 @@ async listSeriesFull(
       return cachedResult;
     }
     
-    // 第三步：根据catid查找对应的分类信息
-     const categoryInfo = await this.findCategoryInfo(catid);
+    // 第三步：根据channeid查找对应的分类信息
+     const categoryInfo = await this.findCategoryInfo(channeid);
     
     // 第四步：构建返回的数据块列表
     const dataBlocks: ContentBlock[] = [];
@@ -337,32 +337,29 @@ async listSeriesFull(
   }
   
   /**
-   * 根据分类标识符查找分类信息
-   * @param catid 分类标识符
+   * 根据频道ID查找分类信息
+   * @param channeid 频道ID（对应categories表的id字段）
    * @returns 分类信息对象
    */
-  private async findCategoryInfo(catid?: string): Promise<{name: string, numericId?: number}> {
-    if (!catid) {
+  private async findCategoryInfo(channeid?: number): Promise<{name: string, numericId?: number}> {
+    if (!channeid) {
       return { name: "全部", numericId: undefined };
     }
     
-    // 直接通过 categoryId 字段查询 categories 表
-    const category = await this.catRepo.findOne({ 
-      where: { categoryId: catid } 
-    });
-    
-    if (category) {
-      return {
-        name: category.name,
-        numericId: category.id
-      };
-    }
-    
-    // 如果找不到，返回默认值
-    return {
-      name: "未知分类",
-      numericId: undefined
-    };
+    // 直接通过 id 字段查询 categories 表
+     const category = await this.catRepo.findOne({ 
+       where: { id: channeid, isEnabled: true } 
+     });
+     
+     if (category) {
+       return {
+         name: category.name,
+         numericId: category.id
+       };
+     }
+     
+     // 如果找不到，抛出异常
+     throw new Error(`频道ID ${channeid} 不存在或已禁用`);
   }
   
   /**
@@ -847,19 +844,19 @@ async listSeriesFull(
   private applySorting(queryBuilder: any, sortType: number): void {
     switch (sortType) {
       case 1: // 最新
-        (queryBuilder as any).orderBy('series.createdAt', 'DESC');
+        queryBuilder.orderBy('series.createdAt', 'DESC');
         break;
       case 2: // 人气
-        (queryBuilder as any).orderBy('series.playCount', 'DESC');
+        queryBuilder.orderBy('series.playCount', 'DESC');
         break;
       case 3: // 评分
-        (queryBuilder as any).orderBy('series.score', 'DESC');
+        queryBuilder.orderBy('series.score', 'DESC');
         break;
       case 4: // 最近更新
-        (queryBuilder as any).orderBy('series.updatedAt', 'DESC');
+        queryBuilder.orderBy('series.updatedAt', 'DESC');
         break;
       default:
-        (queryBuilder as any).orderBy('series.createdAt', 'DESC');
+        queryBuilder.orderBy('series.createdAt', 'DESC');
     }
   }
 
@@ -936,7 +933,7 @@ async listSeriesFull(
     
     if (series) {
       // 构建剧集信息
-      const episodes: EpisodeInfo[] = (series.episodes || []).map((ep: any) => ({
+      const episodes: EpisodeInfo[] = (series.episodes || []).map((ep) => ({
         channeID: series.category?.id || 1,
         episodeId: ep.shortId || ep.id.toString(), // 使用shortId而不是ID，防止枚举攻击
         title: ep.title || `第${ep.episodeNumber}集`,
@@ -947,7 +944,7 @@ async listSeriesFull(
         episodeTitle: ep.episodeNumber.toString().padStart(2, '0'),
         opSecond: 37, // 默认开头广告时长
         epSecond: ep.duration || 1086, // 默认时长
-        urls: (ep.urls || []).map((url: any) => ({
+        urls: (ep.urls || []).map((url) => ({
           quality: url.quality,
           accessKey: url.accessKey
         }))

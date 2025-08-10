@@ -125,7 +125,7 @@ mysql -h host -u user -p database < migrations/insert-test-data.sql
 ### 主要模块
 
 - **用户认证** (`/api/user`) - Telegram登录、用户信息
-- **认证管理** (`/api/auth`) - Token刷新、登出、设备管理
+- **认证管理** (`/api/user`) - Token刷新、登出、设备管理
 - **视频模块** (`/api/video`) - 视频列表、详情、进度、评论
 - **首页模块** (`/api/home`) - 推荐内容、分类浏览
 - **列表模块** (`/api/list`) - 筛选标签、分类数据
@@ -140,7 +140,7 @@ POST /api/user/telegram-login
 Authorization: Bearer <your_jwt_token>
 
 # 3. Token过期时刷新
-POST /api/auth/refresh
+POST /api/user/refresh
 ```
 
 ### 📚 完整文档

@@ -24,9 +24,9 @@ export class CategoryListDto {
  */
 export interface CategoryItem {
   /**
-   * 分类ID
+   * 频道ID（对应categories表的id字段）
    */
-  catid: string;
+  channeid: number;
 
   /**
    * 分类名称

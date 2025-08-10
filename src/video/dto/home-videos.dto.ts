@@ -1,18 +1,20 @@
-import { IsOptional, IsString, IsNumber, Min } from 'class-validator';
+import { IsOptional, IsNumber, Min } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
-import { EnhancedStringLength } from '../../common/validators/enhanced-validation.decorator';
+import { IsValidChannelExists } from '../validators/channel-exists.validator';
 
 /**
  * 首页视频列表请求DTO
  */
 export class HomeVideosDto {
   /**
-   * 频道唯一标识
+   * 频道ID（对应categories表的id字段）
    */
   @IsOptional()
-  @IsString({ message: '频道ID必须是字符串' })
-  @EnhancedStringLength(1, 50, { message: '频道ID长度必须在1到50个字符之间' })
-  catid?: string;
+  @Type(() => Number)
+  @IsNumber({}, { message: '频道ID必须是数字' })
+  @Min(1, { message: '频道ID必须大于0' })
+  @IsValidChannelExists({ message: '频道ID不存在' })
+  channeid?: number;
 
   /**
    * 页数

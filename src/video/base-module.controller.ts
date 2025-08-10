@@ -1,8 +1,6 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import { Get, Query } from '@nestjs/common';
 import { VideoService } from './video.service';
 import { HomeVideosDto } from './dto/home-videos.dto';
-import { FilterTagsDto } from './dto/filter-tags.dto';
-import { FilterDataDto } from './dto/filter-data.dto';
 
 /**
  * 模块控制器基类
@@ -14,22 +12,31 @@ export abstract class BaseModuleController {
   /**
    * 获取模块的默认频道ID
    */
-  protected abstract getDefaultChannelId(): string;
+  protected abstract getDefaultChannelId(): number;
 
   /**
    * 获取模块视频列表的服务方法名
    */
-  protected abstract getModuleVideosMethod(): (channeid: string, page: number) => Promise<any>;
+  protected abstract getModuleVideosMethod(): (channeid: number, page: number) => Promise<any>;
 
   /**
    * 获取模块首页视频列表
    * @param dto 请求参数
    * @returns 模块首页视频列表数据
    */
-  @Get('getvideos')
-  async getVideos(@Query() dto: HomeVideosDto) {
+  @Get('gethomemodules')
+  async getHomeVideos(@Query() dto: HomeVideosDto): Promise<any> {
+    // 如果没有传入channeid参数，返回提示信息
+    if (dto.channeid === undefined || dto.channeid === null) {
+      return {
+        data: null,
+        code: 400,
+        msg: '请选择具体的频道分类，不支持显示全部分类'
+      };
+    }
+    
     const method = this.getModuleVideosMethod();
-    return method.call(this.videoService, dto.catid, dto.page || 1);
+    return await method.call(this.videoService, dto.channeid, dto.page || 1);
   }
 
   /**
@@ -39,7 +46,7 @@ export abstract class BaseModuleController {
    */
   @Get('getfilterstags')
   async getFiltersTags(@Query('channeid') channeid: string) {
-    return this.videoService.getFiltersTags(channeid || this.getDefaultChannelId());
+    return this.videoService.getFiltersTags(channeid || this.getDefaultChannelId().toString());
   }
 
   /**
@@ -56,7 +63,7 @@ export abstract class BaseModuleController {
     @Query('page') page: string
   ) {
     return this.videoService.getFiltersData(
-      channeid || this.getDefaultChannelId(),
+      channeid || this.getDefaultChannelId().toString(),
       ids || '0,0,0,0,0',
       page || '1'
     );
