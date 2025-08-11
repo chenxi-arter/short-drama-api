@@ -1,23 +1,23 @@
-import { IsOptional, IsString } from 'class-validator';
+import { IsOptional, IsString, IsNotEmpty } from 'class-validator';
 import { Transform } from 'class-transformer';
 
 /**
  * 筛选器数据请求DTO
  */
 export class FilterDataDto {
-  @IsOptional()
+  @IsNotEmpty({ message: 'channeid不能为空' })
   @IsString()
-  @Transform(({ value }) => value || '1')
-  channeid?: string; // 频道的唯一标识符，默认为1
+  @Transform(({ value }) => (value as string) || '1')
+  channeid: string; // 频道的唯一标识符，默认为1
 
   @IsOptional()
   @IsString()
-  @Transform(({ value }) => value || '0,0,0,0,0')
+  @Transform(({ value }) => (value as string) || '0,0,0,0,0')
   ids?: string; // 筛选标识，默认为0,0,0,0,0
 
   @IsOptional()
   @IsString()
-  @Transform(({ value }) => value || '1')
+  @Transform(({ value }) => (value as string) || '1')
   page?: string; // 页数，默认为1
 }
 
@@ -26,13 +26,18 @@ export class FilterDataDto {
  */
 export interface FilterDataItem {
   id: number;          // 视频ID
+  uuid: string;        // UUID标识符
   coverUrl: string;    // 封面图URL
   title: string;       // 视频标题
+  score: string;       // 视频评分
   playCount: number;   // 播放次数
+  url: string;         // 访问URL
+  type: string;        // 类型
+  isSerial: boolean;   // 是否是系列剧集
   upStatus: string;    // 更新状态
   upCount: number;     // 更新次数
-  score: string;       // 视频评分
-  isSerial: boolean;   // 是否是系列剧集
+  author: string;      // 作者/主演
+  description: string; // 描述
   cidMapper: string;   // 分类映射
   isRecommend: boolean; // 是否推荐
   createdAt: string;   // 创建时间

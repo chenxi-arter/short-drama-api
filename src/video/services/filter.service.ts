@@ -133,6 +133,15 @@ export class FilterService {
    * @param page 页码
    */
   async getFiltersData(channelId: string, ids: string, page: string): Promise<FilterDataResponse> {
+    // 验证 channelId 是否存在
+    if (!channelId || channelId.trim() === '') {
+      return {
+        data: { list: [] },
+        code: 400,
+        msg: 'channeid参数不能为空',
+      };
+    }
+
     const cacheKey = CacheKeys.filterData(channelId, ids, page);
     
     // 尝试从缓存获取
@@ -162,21 +171,39 @@ export class FilterService {
       this.applySorting(queryBuilder, filterIds.sortType);
 
       // 分页
-      const [series, total] = await queryBuilder
+      const [series] = await queryBuilder
         .skip(offset)
         .take(pageSize)
         .getManyAndCount();
 
+      // 如果没有查询到数据，返回空数据和提示信息
+      if (!series || series.length === 0) {
+        const response: FilterDataResponse = {
+          data: { list: [] },
+          code: 200,
+          msg: '暂无相关数据',
+        };
+        
+        // 缓存空结果（5分钟）
+        await this.cacheManager.set(cacheKey, response, 300000);
+        return response;
+      }
+
       // 转换为响应格式
       const items: FilterDataItem[] = series.map(s => ({
         id: s.id,
+        uuid: s.shortId || '', // 使用shortId作为UUID
         coverUrl: s.coverUrl || '',
         title: s.title,
         score: s.score?.toString() || '0.0',
         playCount: s.playCount || 0,
+        url: s.id.toString(), // 使用ID作为URL
+        type: s.category?.name || '未分类', // 使用分类名称作为类型
         isSerial: (s.episodes && s.episodes.length > 1) || false,
         upStatus: s.upStatus || '已完结',
         upCount: s.upCount || 0,
+        author: s.starring || s.actor || '', // 使用主演或演员作为作者
+        description: s.description || '', // 使用描述字段
         cidMapper: s.category?.id?.toString() || '0',
         isRecommend: false, // 默认不推荐，可根据实际业务逻辑调整
         createdAt: s.createdAt ? s.createdAt.toISOString() : new Date().toISOString(), // 创建时间
@@ -231,15 +258,26 @@ export class FilterService {
   /**
    * 应用筛选条件到查询构建器
    */
-  private async applyFilters(queryBuilder: any, filterIds: any, channelId: string): Promise<void> {
+  private async applyFilters(
+    queryBuilder: any, 
+    filterIds: {
+      sortType: number;
+      categoryId: number;
+      regionId: number;
+      languageId: number;
+      yearId: number;
+      statusId: number;
+    }, 
+    channelId: string
+  ): Promise<void> {
     // 频道筛选
     if (channelId && channelId !== '0') {
       // 如果channelId是字符串（如'drama'），需要根据category_id查找对应的数字ID
       const isNumeric = /^\d+$/.test(channelId);
       if (isNumeric) {
-        queryBuilder.andWhere('category.id = :channelId', { channelId: parseInt(channelId) });
+        (queryBuilder as any).andWhere('category.id = :channelId', { channelId: parseInt(channelId) });
       } else {
-        queryBuilder.andWhere('category.category_id = :categoryId', { categoryId: channelId });
+        (queryBuilder as any).andWhere('category.category_id = :categoryId', { categoryId: channelId });
       }
     }
 

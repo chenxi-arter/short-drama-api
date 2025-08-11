@@ -54,18 +54,21 @@ export interface FilterItem {
  */
 export interface VideoItem {
   id: number;       // 视频ID
-  uuid?: string;    // 视频UUID（推荐用于防枚举攻击）
+  uuid: string;     // 视频UUID（推荐用于防枚举攻击）
   coverUrl: string; // 封面图URL
   title: string;    // 视频标题
-  score: string;    // 视频评分
+  score: string;    // 视频评分（格式如"9.2"，范围0-10分）
   playCount: number;// 播放次数
   url: string;      // 视频详情path
-  type: string;     // 分类映射
+  type: string;     // 视频类型（如"短剧"、"电影"、"综艺"等）
   isSerial: boolean;// 是否是系列剧集
   upStatus: string; // 更新状态
   upCount: number;  // 更新次数
-  author?: string;  // 作者/主演信息
-  description?: string; // 简介
+  author: string;   // 作者/主演信息
+  description: string; // 视频描述
+  cidMapper: string;   // 分类映射
+  isRecommend: boolean;// 是否推荐
+  createdAt: string;   // 创建时间
 }
 
 /**

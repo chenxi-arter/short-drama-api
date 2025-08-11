@@ -318,6 +318,22 @@ async listSeriesFull(
       page, 
       pageSize
     );
+    
+    // 检查视频列表是否为空，如果为空则返回 data = null
+    if (!videoBlock.list || videoBlock.list.length === 0) {
+      const finalResult = {
+        data: null,
+        code: 200,
+        msg: null,
+      };
+      
+      // 将结果存入缓存（缓存5分钟）
+      await this.cacheManager.set(cacheKey, finalResult, 5 * 60 * 1000);
+      console.log(`首页数据已缓存（无数据）: ${cacheKey}`);
+      
+      return finalResult;
+    }
+    
     dataBlocks.push(videoBlock);
     
     // 第七步：构建最终返回结果
@@ -648,9 +664,9 @@ async listSeriesFull(
     const shorts = await shortQb.getMany();
     
     // 合并并转换为VideoItem格式
-    const seriesItems: VideoItem[] = series.map(s => ({
+    const seriesItems: VideoItem[] = series.map((s) => ({
       id: s.id,
-      uuid: s.shortId,
+      uuid: s.shortId || `series_${s.id}`,
       coverUrl: s.coverUrl,
       title: s.title,
       score: s.score?.toString() || "0.0",
@@ -662,11 +678,14 @@ async listSeriesFull(
       upCount: s.upCount || 0,
       author: s.starring || s.director || '未知',
       description: s.description || '暂无简介',
+      cidMapper: s.category?.id?.toString() || '1',
+      isRecommend: false,
+      createdAt: s.createdAt?.toISOString() || new Date().toISOString(),
     }));
     
-    const shortItems: VideoItem[] = shorts.map(sv => ({
+    const shortItems: VideoItem[] = shorts.map((sv) => ({
       id: sv.id,
-      uuid: sv.shortId,
+      uuid: sv.shortId || `short_${sv.id}`,
       coverUrl: sv.coverUrl,
       title: sv.title,
       score: "0.0",
@@ -678,6 +697,9 @@ async listSeriesFull(
       upCount: 0,
       author: sv.platformName || '官方平台',
       description: sv.description || '暂无简介',
+      cidMapper: sv.category?.id?.toString() || '1',
+      isRecommend: false,
+      createdAt: sv.createdAt?.toISOString() || new Date().toISOString(),
     }));
     
     // 合并结果并限制总数
@@ -756,7 +778,7 @@ async listSeriesFull(
         .getManyAndCount();
       
       // 转换为响应格式
-      const items = series.map(s => ({
+      const items = series.map((s) => ({
         id: s.id,
         uuid: s.shortId || '',
         coverUrl: s.coverUrl || '',
@@ -1125,7 +1147,7 @@ async listSeriesFull(
         .getManyAndCount();
       
       // 转换为响应格式
-      const episodeList: EpisodeBasicInfo[] = episodes.map(ep => ({
+      const episodeList: EpisodeBasicInfo[] = episodes.map((ep) => ({
         id: ep.id,
         shortId: ep.shortId,
         episodeNumber: ep.episodeNumber,

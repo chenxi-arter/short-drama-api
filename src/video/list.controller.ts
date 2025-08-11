@@ -16,7 +16,7 @@ export class ListController {
    * @param dto 请求参数
    * @returns 筛选器标签列表
    */
-  @Get('/getFiltersTags')
+  @Get('/getfilterstags')
   async getFiltersTags(@Query() dto: FilterTagsDto) {
     return this.videoService.getFiltersTags(dto.channeid || '1');
   }

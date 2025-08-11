@@ -268,8 +268,6 @@
 | 接口名称 | 方法 | 路径 | 描述 | 认证要求 |
 |---------|------|------|------|----------|
 | 获取首页视频 | GET | `/api/home/gethomemodules` | 获取首页推荐视频列表 | ✅ |
-| 获取筛选标签 | GET | `/api/home/getfilterstags` | 获取首页筛选器标签 | ✅ |
-| 获取筛选数据 | GET | `/api/home/getfiltersdata` | 根据条件筛选首页视频 | ✅ |
 
 #### 请求参数
 
@@ -306,17 +304,112 @@ curl "http://localhost:8080/api/home/gethomemodules"
 # 返回: {"code": 400, "msg": "请选择具体的频道分类，不支持显示全部分类"}
 ```
 
+#### 响应格式
+
+**成功响应：**
+```typescript
+{
+  "code": 200,
+  "msg": "success",
+  "data": {
+    "list": ContentBlock[]  // 内容块数组
+  }
+}
+```
+
+**ContentBlock 结构：**
+```typescript
+{
+  "type": string,     // 内容块类型："banner" | "search_filter" | "advertisement" | "video_list"
+  "title": string,    // 内容块标题
+  "list": any[]       // 内容列表，根据type不同而不同
+}
+```
+
+**VideoItem 结构（video_list 类型的 ContentBlock 中的 list 项）：**
+```typescript
+{
+  "id": number,           // 视频ID
+  "uuid": string,         // 视频唯一标识符
+  "coverUrl": string,     // 封面图片URL
+  "title": string,        // 视频标题
+  "score": string,        // 视频评分（格式如"9.2"，范围0-10分）
+  "playCount": number,    // 播放次数
+  "url": string,          // 视频访问URL
+  "type": string,         // 视频类型（如"电视剧"、"电影"等）
+  "isSerial": boolean,    // 是否为连续剧
+  "upStatus": string,     // 更新状态（如"全24集"、"更新至第10集"）
+  "upCount": number,      // 集数统计
+  "author": string,       // 作者/演员信息
+  "description": string,  // 视频描述
+  "cidMapper": string,    // 分类映射ID
+  "isRecommend": boolean, // 是否推荐
+  "createdAt": string     // 创建时间（ISO格式）
+}
+```
+
+**响应示例：**
+```json
+{
+  "code": 200,
+  "msg": "success",
+  "data": {
+    "list": [
+      {
+        "type": "banner",
+        "title": "轮播图",
+        "list": [...]
+      },
+      {
+        "type": "search_filter",
+        "title": "搜索过滤器",
+        "list": [...]
+      },
+      {
+        "type": "advertisement",
+        "title": "广告",
+        "list": [...]
+      },
+      {
+        "type": "video_list",
+        "title": "视频列表",
+        "list": [
+          {
+            "id": 2001,
+            "uuid": "fpcxnnFA6m9",
+            "coverUrl": "https://thinkingking.top/images/92c9e51924f825603f0d1d76ea9374a4.png",
+            "title": "霸道总裁爱上我",
+            "score": "9.2",
+            "playCount": 156800,
+            "url": "2001",
+            "type": "电视剧",
+            "isSerial": true,
+            "upStatus": "全24集",
+            "upCount": 24,
+            "author": "张三,李四",
+            "description": "一个普通女孩与霸道总裁的爱情故事，充满甜蜜与波折",
+            "cidMapper": "1",
+            "isRecommend": false,
+            "createdAt": "2025-08-05T23:55:00.000Z"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
 ---
 
-## 📋 列表筛选接口
+## 📋 视频列表列表筛选接口
 
 ### ListController (`/api/list`)
 
 | 接口名称 | 方法 | 路径 | 描述 | 认证要求 |
 |---------|------|------|------|----------|
-| 获取筛选标签 | GET | `/api/list/getFiltersTags` 🔐 | 获取筛选器标签配置 | ✅ |
-| 获取筛选数据 | GET | `/api/list/getfiltersdata` 🔐 | 根据筛选条件获取视频列表 | ✅ |
-| 条件筛选数据 | GET | `/api/list/getconditionfilterdata` 🔐 | 根据复杂条件筛选视频 | ✅ |
+| 获取筛选标签 | GET | `/api/list/getfilterstags` | 获取筛选器标签配置 | ✅ |
+| 获取筛选数据 | GET | `/api/list/getfiltersdata`  | 根据筛选条件获取视频列表 | ✅ |
+| 条件筛选数据 | GET | `/api/list/getconditionfilterdata`  | 根据复杂条件筛选视频 | ✅ |
 | 清除筛选缓存 | GET | `/api/list/clearfiltercache` 🔐 | 清除筛选器缓存（测试用） | ✅ |
 
 #### 请求参数
@@ -388,15 +481,21 @@ curl "http://localhost:8080/api/home/gethomemodules"
     "list": [
       {
         "id": number,          // 视频ID
+        "uuid": string,        // UUID标识符
         "coverUrl": string,    // 封面图URL
         "title": string,       // 视频标题
+        "score": string,       // 视频评分（格式如"9.2"，范围0-10分）
         "playCount": number,   // 播放次数
+        "url": string,         // 访问URL
+        "type": string,        // 视频类型（如"短剧"、"电影"、"综艺"等）
+        "isSerial": boolean,   // 是否是系列剧集
         "upStatus": string,    // 更新状态
         "upCount": number,     // 更新次数
-        "score": string,       // 视频评分
-        "isSerial": boolean,   // 是否是系列剧集
+        "author": string,      // 作者/主演信息
+        "description": string, // 视频描述
         "cidMapper": string,   // 分类映射
-        "isRecommend": boolean // 是否推荐
+        "isRecommend": boolean,// 是否推荐
+        "createdAt": string    // 创建时间
       }
     ]
   },
@@ -722,7 +821,7 @@ curl "http://localhost:8080/api/home/gethomemodules"
 
 ```bash
 # 1. Telegram登录
-curl -X POST "http://localhost:3000/user/telegram-login" \
+curl -X POST "http://localhost:8080/user/telegram-login" \
   -H "Content-Type: application/json" \
   -d '{
     "id": 123456789,
@@ -732,7 +831,7 @@ curl -X POST "http://localhost:3000/user/telegram-login" \
   }'
 
 # 2. 使用返回的token访问受保护接口
-curl -X GET "http://localhost:3000/user/me" \
+curl -X GET "http://localhost:8080/user/me" \
   -H "Authorization: Bearer <access_token>"
 ```
 
@@ -740,24 +839,24 @@ curl -X GET "http://localhost:3000/user/me" \
 
 ```bash
 # 获取首页视频
-curl -X GET "http://localhost:3000/api/home/getvideos?catid=1&page=1"
+curl -X GET "http://localhost:8080/api/home/getvideos?catid=1&page=1"
 
 # 获取筛选标签
-curl -X GET "http://localhost:3000/api/list/getFiltersTags?channeid=2"
+curl -X GET "http://localhost:8080/api/list/getFiltersTags?channeid=2"
 
 # 根据条件筛选视频
-curl -X GET "http://localhost:3000/api/list/getfiltersdata?channeid=1&ids=1,2,0,0,0&page=1"
+curl -X GET "http://localhost:8080/api/list/getfiltersdata?channeid=1&ids=1,2,0,0,0&page=1"
 ```
 
 ### 3. 视频播放相关
 
 ```bash
 # 获取视频详情
-curl -X GET "http://localhost:3000/api/video/details?uuid=550e8400-e29b-41d4-a716-446655440000" \
+curl -X GET "http://localhost:8080/api/video/details?uuid=550e8400-e29b-41d4-a716-446655440000" \
   -H "Authorization: Bearer <access_token>"
 
 # 保存观看进度（使用UUID）
-curl -X POST "http://localhost:3000/api/video/progress" \
+curl -X POST "http://localhost:8080/api/video/progress" \
   -H "Authorization: Bearer <access_token>" \
   -H "Content-Type: application/json" \
   -d '{
@@ -766,7 +865,7 @@ curl -X POST "http://localhost:3000/api/video/progress" \
   }'
 
 # 保存观看进度（使用ID）
-curl -X POST "http://localhost:3000/api/video/progress" \
+curl -X POST "http://localhost:8080/api/video/progress" \
   -H "Authorization: Bearer <access_token>" \
   -H "Content-Type: application/json" \
   -d '{
@@ -775,11 +874,11 @@ curl -X POST "http://localhost:3000/api/video/progress" \
   }'
 
 # 获取观看进度
-curl -X GET "http://localhost:3000/api/video/progress?episodeIdentifier=550e8400-e29b-41d4-a716-446655440001" \
+curl -X GET "http://localhost:8080/api/video/progress?episodeIdentifier=550e8400-e29b-41d4-a716-446655440001" \
   -H "Authorization: Bearer <access_token>"
 
 # 发表评论
-curl -X POST "http://localhost:3000/api/video/comment" \
+curl -X POST "http://localhost:8080/api/video/comment" \
   -H "Authorization: Bearer <access_token>" \
   -H "Content-Type: application/json" \
   -d '{
@@ -788,7 +887,7 @@ curl -X POST "http://localhost:3000/api/video/comment" \
   }'
 
 # 发表弹幕
-curl -X POST "http://localhost:3000/api/video/comment" \
+curl -X POST "http://localhost:8080/api/video/comment" \
   -H "Authorization: Bearer <access_token>" \
   -H "Content-Type: application/json" \
   -d '{
@@ -798,7 +897,7 @@ curl -X POST "http://localhost:3000/api/video/comment" \
   }'
 
 # 创建剧集播放URL
-curl -X POST "http://localhost:3000/api/video/episode-url" \
+curl -X POST "http://localhost:8080/api/video/episode-url" \
   -H "Authorization: Bearer <access_token>" \
   -H "Content-Type: application/json" \
   -d '{
@@ -810,11 +909,11 @@ curl -X POST "http://localhost:3000/api/video/episode-url" \
   }'
 
 # 获取剧集播放URL
-curl -X GET "http://localhost:3000/api/video/episode-url/abc123def456" \
+curl -X GET "http://localhost:8080/api/video/episode-url/abc123def456" \
   -H "Authorization: Bearer <access_token>"
 
 # 更新剧集续集状态
-curl -X POST "http://localhost:3000/api/video/episode-sequel" \
+curl -X POST "http://localhost:8080/api/video/episode-sequel" \
   -H "Authorization: Bearer <access_token>" \
   -H "Content-Type: application/json" \
   -d '{
@@ -823,7 +922,7 @@ curl -X POST "http://localhost:3000/api/video/episode-sequel" \
   }'
 
 # 生成访问密钥
-curl -X POST "http://localhost:3000/api/video/generate-access-keys" \
+curl -X POST "http://localhost:8080/api/video/generate-access-keys" \
   -H "Authorization: Bearer <access_token>"
 ```
 
@@ -831,7 +930,7 @@ curl -X POST "http://localhost:3000/api/video/generate-access-keys" \
 
 ```bash
 # 创建轮播图
-curl -X POST "http://localhost:3000/api/banners" \
+curl -X POST "http://localhost:8080/api/banners" \
   -H "Content-Type: application/json" \
   -d '{
     "title": "热门推荐",
@@ -843,20 +942,20 @@ curl -X POST "http://localhost:3000/api/banners" \
   }'
 
 # 获取轮播图列表
-curl -X GET "http://localhost:3000/api/banners?page=1&size=10&isActive=true"
+curl -X GET "http://localhost:8080/api/banners?page=1&size=10&isActive=true"
 
 # 获取活跃轮播图
-curl -X GET "http://localhost:3000/api/banners/active/list?categoryId=1&limit=5"
+curl -X GET "http://localhost:8080/api/banners/active/list?categoryId=1&limit=5"
 
 # 更新轮播图状态
-curl -X PUT "http://localhost:3000/api/banners/1/status" \
+curl -X PUT "http://localhost:8080/api/banners/1/status" \
   -H "Content-Type: application/json" \
   -d '{
     "isActive": false
   }'
 
 # 批量更新轮播图权重
-curl -X PUT "http://localhost:3000/api/banners/weights" \
+curl -X PUT "http://localhost:8080/api/banners/weights" \
   -H "Content-Type: application/json" \
   -d '{
     "updates": [
@@ -885,7 +984,7 @@ curl -X PUT "http://localhost:3000/api/banners/weights" \
 
 **文档版本**: v2.0  
 **最后更新**: 2024年12月  
-**API基础URL**: `http://localhost:3000` (开发环境)
+**API基础URL**: `http://localhost:8080` (开发环境)
 
 ## 📝 更新日志
 

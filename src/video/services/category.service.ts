@@ -9,15 +9,6 @@ import { CacheKeys } from '../utils/cache-keys.util';
 import { AppLoggerService } from '../../common/logger/app-logger.service';
 import { QueryOptimizer } from '../../common/utils/query-optimizer.util';
 
-// 定义类型接口
-interface CategoryWithStats {
-  id: number;
-  name: string;
-  categoryId: string;
-  routeName: string;
-  seriesCount: number;
-}
-
 @Injectable()
 export class CategoryService {
   private readonly logger: AppLoggerService;
@@ -65,7 +56,7 @@ export class CategoryService {
       
       return categories;
     } catch (error) {
-      this.logger.error('获取分类列表失败', error instanceof Error ? error.stack : String(error));
+      this.logger.error('获取分类列表失败', error.stack);
       throw new Error('获取分类列表失败');
     }
   }
@@ -102,7 +93,7 @@ export class CategoryService {
       
       return category;
     } catch (error) {
-      this.logger.error(`获取分类详情失败: ${id}`, error instanceof Error ? error.stack : String(error));
+      this.logger.error(`获取分类详情失败: ${id}`, error.stack);
       throw new Error('获取分类详情失败');
     }
   }
@@ -283,7 +274,7 @@ export class CategoryService {
     const categoriesWithStats = await this.getCategoriesWithStats();
 
     // 按剧集数量排序并限制数量
-    const popularCategories = (categoriesWithStats as CategoryWithStats[])
+    const popularCategories = (categoriesWithStats as any[])
       .sort((a, b) => b.seriesCount - a.seriesCount)
       .slice(0, limit);
 
@@ -341,7 +332,7 @@ export class CategoryService {
       
       return result;
     } catch (error) {
-      this.logger.error('获取分类列表失败', error instanceof Error ? error.stack : String(error));
+      this.logger.error('获取分类列表失败', error.stack);
       throw new Error('获取分类列表失败');
     }
   }
