@@ -7,6 +7,7 @@ import { Episode } from './entity/episode.entity';             // 单集视频�
 import { EpisodeUrl } from './entity/episode-url.entity';      // 视频播放地址实体
 import { Comment } from './entity/comment.entity';             // 用户评论实体
 import { WatchProgress } from './entity/watch-progress.entity';// 观看进度记录实体
+import { BrowseHistory } from './entity/browse-history.entity';// 浏览记录实体
 import { Category } from './entity/category.entity';           // 视频分类实体
 import { ShortVideo } from './entity/short-video.entity';      // 短视频实体
 import { Banner } from './entity/banner.entity';              // 轮播图实体
@@ -20,6 +21,7 @@ import { HomeController } from './home.controller';           // 首页相关API
 import { ListController } from './list.controller';           // 列表筛选相关API控制器
 import { CategoryController } from './category.controller';   // 分类相关API控制器
 import { BannerController } from './controllers/banner.controller'; // 轮播图API控制器
+import { BrowseHistoryController } from './browse-history.controller'; // 浏览记录API控制器
 import { WatchProgressService } from './services/watch-progress.service';
 import { CommentService } from './services/comment.service';
 import { EpisodeService } from './services/episode.service';
@@ -28,6 +30,7 @@ import { CategoryService } from './services/category.service';
 import { FilterService } from './services/filter.service';
 import { SeriesService } from './services/series.service';
 import { BannerService } from './services/banner.service';     // 轮播图服务
+import { BrowseHistoryService } from './services/browse-history.service'; // 浏览记录服务
 import { AppLoggerService } from '../common/logger/app-logger.service';
 import { AppConfigService } from '../common/config/app-config.service';
 import { IsValidChannelExistsConstraint } from './validators/channel-exists.validator';
@@ -46,7 +49,8 @@ import { IsValidChannelExistsConstraint } from './validators/channel-exists.vali
       Banner,         // 轮播图数据表
 
       FilterType,     // 筛选器类型数据表
-      FilterOption    // 筛选器选项数据表
+      FilterOption,   // 筛选器选项数据表
+      BrowseHistory   // 浏览记录数据表
     ])
   ],
   providers: [
@@ -59,6 +63,8 @@ import { IsValidChannelExistsConstraint } from './validators/channel-exists.vali
 
     FilterService,
     SeriesService,
+    BannerService,
+    BrowseHistoryService,
     AppLoggerService,
     AppConfigService,
     IsValidChannelExistsConstraint,
@@ -69,7 +75,8 @@ import { IsValidChannelExistsConstraint } from './validators/channel-exists.vali
     HomeController, 
     ListController,
     CategoryController,
-    BannerController
+    BannerController,
+    BrowseHistoryController
   ], // 一起注册
   // 注意：如果需要让其他模块使用这些实体或服务，应该在这里添加exports
 })

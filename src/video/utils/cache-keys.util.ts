@@ -49,6 +49,20 @@ export class CacheKeys {
   }
 
   /**
+   * 模糊搜索缓存键
+   * @param keyword 搜索关键词
+   * @param channeid 频道ID（可选）
+   * @param page 页码
+   * @param size 每页大小
+   */
+  static fuzzySearch(keyword: string, channeid?: string, page?: number, size?: number): string {
+    const channel = channeid || 'all';
+    const pageNum = page || 1;
+    const pageSize = size || 20;
+    return `${this.PREFIX.FILTER}_fuzzy_${keyword}_${channel}_${pageNum}_${pageSize}`;
+  }
+
+  /**
    * 视频详情缓存键
    * @param videoId 视频ID
    */

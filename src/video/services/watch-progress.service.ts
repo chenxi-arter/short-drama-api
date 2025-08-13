@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, In } from 'typeorm';
 import { WatchProgress } from '../entity/watch-progress.entity';
 import { Episode } from '../entity/episode.entity';
 
@@ -101,6 +101,7 @@ export class WatchProgressService {
     });
 
     return progressList.map(progress => ({
+      userId: progress.userId,
       episodeId: progress.episodeId,
       stopAtSecond: progress.stopAtSecond,
       updatedAt: progress.updatedAt,
@@ -115,6 +116,25 @@ export class WatchProgressService {
         },
       },
     }));
+  }
+
+  /**
+   * 批量获取用户多个剧集的观看进度
+   */
+  async getUserWatchProgressByEpisodeIds(userId: number, episodeIds: number[]) {
+    if (episodeIds.length === 0) {
+      return [];
+    }
+
+    const progressList = await this.watchProgressRepo.find({
+      where: {
+        userId,
+        episodeId: In(episodeIds), // TypeORM 的 In 操作符
+      },
+      order: { updatedAt: 'DESC' },
+    });
+
+    return progressList;
   }
 
   /**

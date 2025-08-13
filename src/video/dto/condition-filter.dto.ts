@@ -66,7 +66,7 @@ export class ConditionFilterDto {
  */
 export interface ConditionFilterItem {
   id: number;          // 视频ID
-  uuid?: string;       // UUID标识符
+  shortId?: string;    // ShortID标识符（11位Base64字符）
   coverUrl: string;    // 封面图URL
   title: string;       // 视频标题
   description?: string; // 视频描述

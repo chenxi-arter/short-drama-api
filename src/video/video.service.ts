@@ -13,7 +13,6 @@ import { ContentBlock, VideoItem } from './dto/home-videos.dto';
 import { FilterTagsResponse } from './dto/filter-tags.dto';
 import { FilterDataResponse } from './dto/filter-data.dto';
 import { ConditionFilterDto, ConditionFilterResponse } from './dto/condition-filter.dto';
-import { VideoDetailsResponse, VideoDetailInfo, EpisodeInfo } from './dto/video-details.dto';
 import { EpisodeListResponse, EpisodeBasicInfo } from './dto/episode-list.dto';
 import { WatchProgressService } from './services/watch-progress.service';
 import { CommentService } from './services/comment.service';
@@ -23,6 +22,7 @@ import { CategoryService } from './services/category.service';
 import { FilterService } from './services/filter.service';
 import { SeriesService } from './services/series.service';
 import { BannerService } from './services/banner.service';
+import { BrowseHistoryService } from './services/browse-history.service';
 import { CacheKeys } from './utils/cache-keys.util';
 
 @Injectable()
@@ -41,6 +41,7 @@ export class VideoService {
     private readonly filterService: FilterService,
     private readonly seriesService: SeriesService,
     private readonly bannerService: BannerService,
+    private readonly browseHistoryService: BrowseHistoryService,
   ) {}
    /* 列出所有分类 */
   async listCategories() {
@@ -68,10 +69,82 @@ export class VideoService {
     return result;
   }
 
+  /**
+   * 获取用户观看进度
+   */
   async getProgress(userId: number, episodeId: number) {
     const progressList = await this.watchProgressService.getUserWatchProgress(userId, episodeId);
     const progress = progressList.length > 0 ? progressList[0] : null;
     return { stopAtSecond: progress?.stopAtSecond || 0 };
+  }
+
+  /**
+   * 获取用户在某个系列下的总体播放进度
+   */
+  async getUserSeriesProgress(userId: number, seriesId: number) {
+    try {
+      // 获取该系列下的所有剧集
+      const episodes = await this.epRepo.find({
+        where: { series: { id: seriesId } },
+        order: { episodeNumber: 'ASC' },
+        relations: ['series']
+      });
+
+      if (episodes.length === 0) {
+        return null;
+      }
+
+      // 获取用户在该系列下的所有播放进度
+      const episodeIds = episodes.map(ep => ep.id);
+      const progressList = await this.watchProgressService.getUserWatchProgressByEpisodeIds(userId, episodeIds);
+      
+      // 计算总体播放进度
+      let totalWatchTime = 0;
+      let currentEpisode = 0;
+      let currentEpisodeShortId = '';
+      let watchProgress = 0;
+      let watchPercentage = 0;
+      let lastWatchTime = new Date(0);
+      let completedEpisodes = 0;
+
+      progressList.forEach(progress => {
+        const episode = episodes.find(ep => ep.id === progress.episodeId);
+        if (episode) {
+          totalWatchTime += progress.stopAtSecond;
+          
+          // 更新最后观看时间
+          if (progress.updatedAt > lastWatchTime) {
+            lastWatchTime = progress.updatedAt;
+            currentEpisode = episode.episodeNumber;
+            currentEpisodeShortId = episode.shortId;
+            watchProgress = progress.stopAtSecond;
+            
+            // 计算当前集的观看百分比
+            if (episode.duration > 0) {
+              watchPercentage = Math.round((progress.stopAtSecond / episode.duration) * 100);
+            }
+          }
+          
+          // 统计已完成的剧集（观看90%以上）
+          if (episode.duration > 0 && (progress.stopAtSecond / episode.duration) >= 0.9) {
+            completedEpisodes++;
+          }
+        }
+      });
+
+      return {
+        currentEpisode,
+        currentEpisodeShortId,
+        watchProgress,
+        watchPercentage,
+        totalWatchTime,
+        lastWatchTime: lastWatchTime.toISOString(),
+        isCompleted: completedEpisodes >= episodes.length
+      };
+    } catch (error) {
+      console.error('获取用户系列播放进度失败:', error);
+      return null;
+    }
   }
 
   /* 通过UUID获取剧集信息 */
@@ -523,7 +596,7 @@ async listSeriesFull(
         showURL: series.coverUrl || '',
         title: series.title,
         id: series.id,
-        uuid: series.shortId,
+        shortId: series.shortId,
         channeID: categoryId,
         url: `/video/details/${series.shortId || series.id}`,
       })),
@@ -666,7 +739,7 @@ async listSeriesFull(
     // 合并并转换为VideoItem格式
     const seriesItems: VideoItem[] = series.map((s) => ({
       id: s.id,
-      uuid: s.shortId || `series_${s.id}`,
+      shortId: s.shortId || `series_${s.id}`,
       coverUrl: s.coverUrl,
       title: s.title,
       score: s.score?.toString() || "0.0",
@@ -685,7 +758,7 @@ async listSeriesFull(
     
     const shortItems: VideoItem[] = shorts.map((sv) => ({
       id: sv.id,
-      uuid: sv.shortId || `short_${sv.id}`,
+      shortId: sv.shortId || `short_${sv.id}`,
       coverUrl: sv.coverUrl,
       title: sv.title,
       score: "0.0",
@@ -739,6 +812,23 @@ async listSeriesFull(
   }
 
   /**
+   * 模糊搜索
+   * @param keyword 搜索关键词
+   * @param channeid 可选，频道ID，不传则搜索全部
+   * @param page 页码
+   * @param size 每页大小
+   * @returns 模糊搜索结果
+   */
+  async fuzzySearch(
+    keyword: string,
+    channeid?: string,
+    page: number = 1,
+    size: number = 20
+  ): Promise<any> {
+    return this.filterService.fuzzySearch(keyword, channeid, page, size);
+  }
+
+  /**
    * 获取条件筛选数据
    * @param dto 筛选条件
    * @returns 筛选后的视频列表
@@ -780,7 +870,7 @@ async listSeriesFull(
       // 转换为响应格式
       const items = series.map((s) => ({
         id: s.id,
-        uuid: s.shortId || '',
+        shortId: s.shortId || '',
         coverUrl: s.coverUrl || '',
         title: s.title,
         description: s.description || '',
@@ -907,221 +997,23 @@ async listSeriesFull(
   }
 
   /**
-   * 获取视频详情
-   * @param identifier 视频ID或shortId
-   * @param isShortId 是否为shortId查询
-   * @returns 视频详情信息
-   */
-  async getVideoDetails(identifier: string, isShortId: boolean = false): Promise<VideoDetailsResponse> {
-    const cacheKey = `video_details_${isShortId ? 'shortId' : 'id'}_${identifier}`;
-    
-    // 尝试从缓存获取数据
-    const cachedData = await this.cacheManager.get(cacheKey);
-    if (cachedData) {
-      return cachedData as VideoDetailsResponse;
-    }
-    
-    let series;
-    let shortVideo;
-    
-    if (isShortId) {
-      // shortId查询
-      series = await this.seriesRepo.findOne({
-        where: { shortId: identifier },
-        relations: ['category', 'episodes', 'episodes.urls']
-      });
-      
-      if (!series) {
-        shortVideo = await this.shortRepo.findOne({
-          where: { shortId: identifier },
-          relations: ['category']
-        });
-      }
-    } else {
-      // ID查询（向后兼容）
-      const videoId = parseInt(identifier, 10);
-      series = await this.seriesRepo.findOne({
-        where: { id: videoId },
-        relations: ['category', 'episodes', 'episodes.urls']
-      });
-      
-      if (!series) {
-        shortVideo = await this.shortRepo.findOne({
-          where: { id: videoId },
-          relations: ['category']
-        });
-      }
-    }
-    
-    if (series) {
-      // 构建剧集信息
-      const episodes: EpisodeInfo[] = (series.episodes || []).map((ep) => ({
-        channeID: series.category?.id || 1,
-        episodeId: ep.shortId || ep.id.toString(), // 使用shortId而不是ID，防止枚举攻击
-        title: ep.title || `第${ep.episodeNumber}集`,
-        resolutionDes: "576P",
-        resolution: "576",
-        isVip: false,
-        isLast: ep.episodeNumber === series.totalEpisodes,
-        episodeTitle: ep.episodeNumber.toString().padStart(2, '0'),
-        opSecond: 37, // 默认开头广告时长
-        epSecond: ep.duration || 1086, // 默认时长
-        urls: (ep.urls || []).map((url) => ({
-          quality: url.quality,
-          accessKey: url.accessKey
-        }))
-      }));
-      
-      const detailInfo: VideoDetailInfo = {
-         starring: series.starring || "",
-         id: series.id,
-         channeName: series.category?.name || "电视剧",
-         channeID: series.category?.id || 1,
-         title: series.title,
-         coverUrl: series.coverUrl,
-         mediaUrl: "",
-         fileName: `series-${series.id}`,
-         mediaId: `${series.id}_0,1,4,146`,
-         postTime: series.createdAt.toISOString(),
-         contentType: series.category?.name || "剧情",
-         actor: series.actor || "",
-         shareCount: 0,
-         director: series.director || "",
-        description: series.description,
-        comments: 0, // TODO: 从评论表统计
-        updateStatus: series.upStatus || `更新到${series.totalEpisodes}集`,
-        watch_progress: 0, // TODO: 根据用户ID获取观看进度
-        playCount: series.playCount || 0,
-        isHot: series.playCount > 50000,
-        isVip: false,
-        episodes: episodes,
-        score: series.score?.toString() || "",
-        adGold: 20,
-        cidMapper: series.category?.name || "短剧·剧情",
-        regional: "大陆",
-        playRecordUrl: `https://w.anygate.vip/api/Counter/PlusOne?key=AddHitToMovie&id=${series.id}&cid=0,1,4,146&uid=0&title=${encodeURIComponent(series.title)}&imgpath=${encodeURIComponent(series.coverUrl)}`,
-        labels: [],
-        isShow: true,
-        charge: 0,
-        isLive: false,
-        serialCount: series.totalEpisodes || 0
-      };
-      
-      const result = {
-        code: 200,
-        data: {
-          detailInfo,
-          userInfo: {},
-          adsPlayer: {},
-          adsSuspension: {},
-          focusStatus: false,
-          isBlackList: false,
-          like: { count: 0, selected: false },
-          disLike: { count: 0, selected: false },
-          favorites: { count: 0, selected: false },
-          languageList: [{ name: "国语" }],
-          skipadshow: false
-        },
-        msg: "1"
-      };
-      
-      // 将结果存入缓存，缓存10分钟
-      await this.cacheManager.set(cacheKey, result, 600000);
-      
-      return result;
-    }
-    
-    // 如果不是系列且还没有找到短视频，处理短视频逻辑
-    
-    if (shortVideo) {
-      const detailInfo: VideoDetailInfo = {
-        starring: "",
-        id: shortVideo.id,
-        channeName: shortVideo.category?.name || "短视频",
-        channeID: shortVideo.category?.id || 1,
-        title: shortVideo.title,
-        coverUrl: shortVideo.coverUrl,
-        mediaUrl: shortVideo.videoUrl,
-        fileName: `short-${shortVideo.id}`,
-        mediaId: `${shortVideo.id}_0,1,4,146`,
-        postTime: shortVideo.createdAt.toISOString(),
-        contentType: shortVideo.category?.name || "短视频",
-        actor: "",
-        shareCount: 0,
-        director: "",
-        description: shortVideo.description,
-        comments: 0,
-        updateStatus: "全集",
-        watch_progress: 0,
-        playCount: shortVideo.playCount || 0,
-        isHot: shortVideo.playCount > 10000,
-        isVip: false,
-        episodes: [{
-          urls: [],
-          channeID: shortVideo.category?.id || 1,
-          episodeId: shortVideo.id.toString(),
-          title: shortVideo.title,
-          resolutionDes: "576P",
-          resolution: "576",
-          isVip: false,
-          isLast: true,
-          episodeTitle: "01",
-          opSecond: 0,
-          epSecond: shortVideo.duration || 300
-        }],
-        score: "",
-        adGold: 20,
-        cidMapper: shortVideo.category?.name || "短视频",
-        regional: "大陆",
-        playRecordUrl: `https://w.anygate.vip/api/Counter/PlusOne?key=AddHitToMovie&id=${shortVideo.id}&cid=0,1,4,146&uid=0&title=${encodeURIComponent(shortVideo.title)}&imgpath=${encodeURIComponent(shortVideo.coverUrl)}`,
-        labels: [],
-        isShow: true,
-        charge: 0,
-        isLive: false,
-        serialCount: 1
-      };
-      
-      const result = {
-        code: 200,
-        data: {
-          detailInfo,
-          userInfo: {},
-          adsPlayer: {},
-          adsSuspension: {},
-          focusStatus: false,
-          isBlackList: false,
-          like: { count: shortVideo.likeCount || 0, selected: false },
-          disLike: { count: 0, selected: false },
-          favorites: { count: 0, selected: false },
-          languageList: [{ name: "国语" }],
-          skipadshow: false
-        },
-        msg: "1"
-      };
-      
-      // 将结果存入缓存，缓存10分钟
-      await this.cacheManager.set(cacheKey, result, 600000);
-      
-      return result;
-    }
-    
-    // 如果都找不到，返回错误
-    throw new Error('视频不存在');
-  }
-
-  /**
-   * 获取剧集列表（不包含播放链接）
-   * @param seriesIdentifier 剧集标识符（UUID或ID）
-   * @param isUuid 是否为UUID
+   * 获取剧集列表
+   * 
+   * @param seriesIdentifier 剧集标识符（ShortID或ID）
+   * @param isShortId 是否为ShortID
    * @param page 页码
    * @param size 每页数量
+   * @param userId 用户ID（可选，用于记录浏览历史）
+   * @param req 请求对象（可选，用于获取用户代理和IP地址）
    * @returns 剧集列表
    */
   async getEpisodeList(
     seriesIdentifier?: string,
     isShortId: boolean = false,
     page: number = 1,
-    size: number = 20
+    size: number = 20,
+    userId?: number,
+    req?: any
   ): Promise<EpisodeListResponse> {
     try {
       const offset = (page - 1) * size;
@@ -1146,24 +1038,123 @@ async listSeriesFull(
         .take(size)
         .getManyAndCount();
       
+      // 获取系列信息（从第一集获取）
+      let seriesInfo: any = null;
+      if (episodes.length > 0 && episodes[0].series) {
+        const series = episodes[0].series;
+        seriesInfo = {
+          starring: series.starring || '',
+          id: series.id,
+          channeName: series.category?.name || '',
+          channeID: series.categoryId || 0,
+          title: series.title,
+          coverUrl: series.coverUrl || '',
+          mediaUrl: '', // 默认空字符串
+          fileName: `series-${series.id}`, // 根据ID生成文件名
+          mediaId: `${series.id}_0,1,4,146`, // 根据ID生成媒体ID
+          postTime: series.releaseDate?.toISOString() || series.createdAt?.toISOString() || new Date().toISOString(),
+          contentType: series.category?.name || '电视剧',
+          actor: series.actor || '',
+          shareCount: 0, // 默认值
+          director: series.director || '',
+          description: series.description || '',
+          comments: 0, // 默认值
+          updateStatus: series.upStatus || '',
+          watch_progress: 0, // 默认值
+          playCount: series.playCount || 0,
+          isHot: series.score > 8.5, // 根据评分判断是否热门
+          isVip: false // 默认值
+        };
+      }
+      
+      // 获取用户播放进度信息（如果有用户ID）
+      let userProgress: any = null;
+      let episodeProgressMap = new Map<number, any>();
+      
+      if (userId && episodes.length > 0) {
+        const seriesId = episodes[0].series?.id;
+        if (seriesId) {
+          try {
+            // 获取用户在该系列下的所有播放进度
+            const episodeIds = episodes.map(ep => ep.id);
+            const progressList = await this.watchProgressService.getUserWatchProgressByEpisodeIds(userId, episodeIds);
+            
+            // 构建剧集进度映射
+            progressList.forEach(progress => {
+              episodeProgressMap.set(progress.episodeId, progress);
+            });
+            
+            // 获取用户在该系列下的总体播放进度
+            const seriesProgress = await this.getUserSeriesProgress(userId, seriesId);
+            if (seriesProgress) {
+              userProgress = {
+                currentEpisode: seriesProgress.currentEpisode,
+                currentEpisodeShortId: seriesProgress.currentEpisodeShortId,
+                watchProgress: seriesProgress.watchProgress,
+                watchPercentage: seriesProgress.watchPercentage,
+                totalWatchTime: seriesProgress.totalWatchTime,
+                lastWatchTime: seriesProgress.lastWatchTime,
+                isCompleted: seriesProgress.isCompleted
+              };
+            }
+          } catch (error) {
+            console.error('获取用户播放进度失败:', error);
+          }
+        }
+      }
+      
       // 转换为响应格式
-      const episodeList: EpisodeBasicInfo[] = episodes.map((ep) => ({
-        id: ep.id,
-        shortId: ep.shortId,
-        episodeNumber: ep.episodeNumber,
-        title: ep.title || `第${ep.episodeNumber}集`,
-        duration: ep.duration || 0,
-        status: ep.status || 'active',
-        createdAt: ep.createdAt?.toISOString() || new Date().toISOString(),
-        updatedAt: ep.updatedAt?.toISOString() || new Date().toISOString(),
-        seriesId: ep.series?.id || 0,
-        seriesTitle: ep.series?.title || '',
-        seriesShortId: ep.series?.shortId || ''
-      }));
+      const episodeList: EpisodeBasicInfo[] = episodes.map((ep) => {
+        const progress = episodeProgressMap.get(ep.id);
+        const watchProgress = progress?.stopAtSecond || 0;
+        const duration = ep.duration || 0;
+        const watchPercentage = duration > 0 ? Math.round((watchProgress / duration) * 100) : 0;
+        
+        return {
+          id: ep.id,
+          shortId: ep.shortId,
+          episodeNumber: ep.episodeNumber,
+          title: ep.title || `第${ep.episodeNumber}集`,
+          duration: duration,
+          status: ep.status || 'active',
+          createdAt: ep.createdAt?.toISOString() || new Date().toISOString(),
+          updatedAt: ep.updatedAt?.toISOString() || new Date().toISOString(),
+          seriesId: ep.series?.id || 0,
+          seriesTitle: ep.series?.title || '',
+          seriesShortId: ep.series?.shortId || '',
+          // 播放进度相关字段（仅在有用户token时返回）
+          watchProgress: watchProgress,
+          watchPercentage: watchPercentage,
+          isWatched: watchPercentage >= 90, // 观看90%以上认为已观看
+          lastWatchTime: progress?.updatedAt?.toISOString() || null
+        };
+      });
+
+      // 记录用户浏览历史（如果有用户ID）
+      if (userId && episodes.length > 0) {
+        const seriesId = episodes[0].series?.id;
+        if (seriesId) {
+          // 获取最后访问的集数（取第一页的最后一集）
+          const lastEpisodeNumber = episodeList[episodeList.length - 1]?.episodeNumber;
+          
+          // 异步记录浏览历史，不阻塞主要业务逻辑
+          this.browseHistoryService.recordBrowseHistory(
+            userId,
+            seriesId,
+            'episode_list',
+            lastEpisodeNumber,
+            req
+          ).catch(error => {
+            console.error('记录浏览历史失败:', error);
+          });
+        }
+      }
       
       return {
         code: 200,
         data: {
+          seriesInfo,
+          userProgress,
           list: episodeList,
           total,
           page,
@@ -1177,6 +1168,8 @@ async listSeriesFull(
       return {
         code: 500,
         data: {
+          seriesInfo: null,
+          userProgress: null,
           list: [],
           total: 0,
           page,

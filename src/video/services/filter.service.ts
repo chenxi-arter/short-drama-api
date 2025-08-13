@@ -8,6 +8,7 @@ import { FilterOption } from '../entity/filter-option.entity';
 import { Series } from '../entity/series.entity';
 import { FilterTagsResponse, FilterTagGroup, FilterTagItem } from '../dto/filter-tags.dto';
 import { FilterDataResponse, FilterDataItem } from '../dto/filter-data.dto';
+import { FuzzySearchResponse, FuzzySearchItem } from '../dto/fuzzy-search.dto';
 import { CacheKeys } from '../utils/cache-keys.util';
 
 /**
@@ -389,6 +390,137 @@ export class FilterService {
       console.log('已清除所有筛选器标签缓存');
     } catch (error) {
       console.error('清除筛选器标签缓存失败:', error);
+    }
+  }
+
+  /**
+   * 模糊搜索
+   * 根据关键词在标题中进行模糊搜索
+   * @param keyword 搜索关键词
+   * @param channeid 可选，频道ID，不传则搜索全部
+   * @param page 页码
+   * @param size 每页大小
+   */
+  async fuzzySearch(
+    keyword: string,
+    channeid?: string,
+    page: number = 1,
+    size: number = 20
+  ): Promise<FuzzySearchResponse> {
+    if (!keyword || keyword.trim() === '') {
+      return {
+        code: 400,
+        data: {
+          list: [],
+          total: 0,
+          page: 1,
+          size: 20,
+          hasMore: false
+        },
+        msg: '搜索关键词不能为空'
+      };
+    }
+
+    const cacheKey = CacheKeys.fuzzySearch(keyword, channeid, page, size);
+    
+    // 尝试从缓存获取
+    const cached = await this.cacheManager.get<FuzzySearchResponse>(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
+    try {
+      const offset = (page - 1) * size;
+      
+      // 构建查询条件
+      const queryBuilder = this.seriesRepo.createQueryBuilder('series')
+        .leftJoinAndSelect('series.category', 'category')
+        .leftJoinAndSelect('series.episodes', 'episodes')
+        .where('series.title LIKE :keyword', { keyword: `%${keyword.trim()}%` });
+
+      // 如果指定了频道ID，则添加频道筛选条件
+      if (channeid && channeid.trim() !== '') {
+        queryBuilder.andWhere('series.category_id = :channeid', { channeid: parseInt(channeid) });
+      }
+
+      // 排序：按相关性（标题匹配度）和创建时间
+      queryBuilder.orderBy('series.createdAt', 'DESC');
+
+      // 分页
+      const [series, total] = await queryBuilder
+        .skip(offset)
+        .take(size)
+        .getManyAndCount();
+
+      // 如果没有查询到数据，返回空数据
+      if (!series || series.length === 0) {
+        const response: FuzzySearchResponse = {
+          code: 200,
+          data: {
+            list: [],
+            total: 0,
+            page,
+            size,
+            hasMore: false
+          },
+          msg: '未找到相关结果'
+        };
+        
+        // 缓存空结果（5分钟）
+        await this.cacheManager.set(cacheKey, response, 300000);
+        return response;
+      }
+
+      // 转换为响应格式
+      const items: FuzzySearchItem[] = series.map(s => ({
+        id: s.id,
+        uuid: s.shortId || '', // 使用shortId作为UUID
+        coverUrl: s.coverUrl || '',
+        title: s.title,
+        score: s.score?.toString() || '0.0',
+        playCount: s.playCount || 0,
+        url: s.id.toString(), // 使用ID作为URL
+        type: s.category?.name || '未分类', // 使用分类名称作为类型
+        isSerial: (s.episodes && s.episodes.length > 1) || false,
+        upStatus: s.upStatus || '已完结',
+        upCount: s.upCount || 0,
+        author: s.starring || s.actor || '', // 使用主演或演员作为作者
+        description: s.description || '', // 使用描述字段
+        cidMapper: s.category?.id?.toString() || '0',
+        isRecommend: false, // 默认不推荐，可根据实际业务逻辑调整
+        createdAt: s.createdAt ? s.createdAt.toISOString() : new Date().toISOString(),
+        channeid: s.categoryId || 0 // 添加频道ID标识
+      }));
+
+      const response: FuzzySearchResponse = {
+        code: 200,
+        data: {
+          list: items,
+          total,
+          page,
+          size,
+          hasMore: total > page * size
+        },
+        msg: null
+      };
+
+      // 缓存结果（10分钟）
+      await this.cacheManager.set(cacheKey, response, CacheKeys.TTL.MEDIUM);
+      
+      return response;
+    } catch (error) {
+      console.error('模糊搜索失败:', error);
+      return {
+        code: 500,
+        data: {
+          list: [],
+          total: 0,
+          page,
+          size,
+          hasMore: false
+        },
+        msg: '搜索失败，请稍后重试'
+      };
     }
   }
 }

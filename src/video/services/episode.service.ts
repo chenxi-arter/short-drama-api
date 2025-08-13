@@ -115,7 +115,7 @@ export class EpisodeService {
   }
 
   /**
-   * 获取剧集详情（通过UUID）
+   * 获取剧集详情（通过ShortID）
    */
   async getEpisodeByShortId(episodeShortId: string) {
     return this.episodeRepo.findOne({

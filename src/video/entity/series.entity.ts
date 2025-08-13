@@ -6,6 +6,7 @@
 import { Entity, PrimaryGeneratedColumn, Column, OneToMany, CreateDateColumn, ManyToOne, JoinColumn, BeforeInsert } from 'typeorm';
 import { Episode } from './episode.entity';
 import { Category } from './category.entity';
+// import { BrowseHistory } from './browse-history.entity';
 import { ShortIdUtil } from '../../shared/utils/short-id.util';
 
 @Entity('series')
@@ -65,6 +66,13 @@ export class Series {
    */
   @OneToMany(() => Episode, ep => ep.series)
   episodes: Episode[];
+  
+  /** 
+   * 一对多关系：浏览记录 
+   * 一个系列可以有多条浏览记录
+   */
+  // @OneToMany(() => BrowseHistory, bh => bh.series)
+  // browseHistories: BrowseHistory[];
 
   /** 
    * 多对一关系：所属分类

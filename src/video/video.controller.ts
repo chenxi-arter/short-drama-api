@@ -2,14 +2,13 @@ import { Controller, Post, Body, Get, Query, UseGuards, Req, Param, BadRequestEx
 import { VideoService } from './video.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { MediaQueryDto } from './dto/media-query.dto';
-import { VideoDetailsDto } from './dto/video-details.dto';
 import { EpisodeListDto } from './dto/episode-list.dto';
 
 @UseGuards(JwtAuthGuard)
 @Controller('/api/video')
 export class VideoController {
   constructor(private readonly videoService: VideoService) {}
-  /* 记录/更新断点（支持ID或UUID自动识别） */
+  /* 记录/更新断点（支持ID或ShortID自动识别） */
   @Post('progress')
   async saveProgress(
     @Req() req,
@@ -47,7 +46,7 @@ export class VideoController {
     }
   }
 
-  /* 发弹幕/评论（支持ID或UUID自动识别） */
+  /* 发弹幕/评论（支持ID或ShortID自动识别） */
   @Post('comment')
   async addComment(
     @Req() req,
@@ -75,19 +74,6 @@ async listMediaUser(
   @Query() dto: MediaQueryDto,
 ) {
   return this.videoService.listMedia(dto.categoryId, dto.type, req.user.userId);
-}
-
-/* 获取视频详情 */
-@Get('details')
-async getVideoDetails(@Query() dto: VideoDetailsDto) {
-  // 优先使用shortId，如果没有则使用ID（向后兼容）
-  if (dto.shortId) {
-    return this.videoService.getVideoDetails(dto.shortId, true);
-  } else if (dto.id) {
-    return this.videoService.getVideoDetails(dto.id, false);
-  } else {
-    throw new BadRequestException('必须提供shortId或id参数');
-  }
 }
 
 /* 创建剧集播放地址 */
@@ -125,18 +111,18 @@ async generateAccessKeysForExisting() {
 
 /* 获取剧集列表（不包含播放链接） */
 @Get('episodes')
-async getEpisodeList(@Query() dto: EpisodeListDto) {
+async getEpisodeList(@Query() dto: EpisodeListDto, @Req() req) {
   const page = parseInt(dto.page || '1', 10);
   const size = parseInt(dto.size || '20', 10);
   
   // 优先使用shortId，如果没有则使用ID
   if (dto.seriesShortId) {
-    return this.videoService.getEpisodeList(dto.seriesShortId, true, page, size);
+    return this.videoService.getEpisodeList(dto.seriesShortId, true, page, size, req.user?.userId, req);
   } else if (dto.seriesId) {
-    return this.videoService.getEpisodeList(dto.seriesId, false, page, size);
+    return this.videoService.getEpisodeList(dto.seriesId, false, page, size, req.user?.userId, req);
   } else {
     // 如果都没有提供，返回所有剧集
-    return this.videoService.getEpisodeList(undefined, false, page, size);
+    return this.videoService.getEpisodeList(undefined, false, page, size, req.user?.userId, req);
   }
 }
 }

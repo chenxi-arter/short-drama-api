@@ -232,6 +232,6 @@ export interface BannerResponseDto {
   series?: {
     id: number;
     title: string;
-    uuid?: string;
+    shortId?: string;
   };
 }

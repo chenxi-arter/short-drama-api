@@ -39,6 +39,51 @@ export interface EpisodeBasicInfo {
   seriesId: number;              // 所属剧集ID
   seriesTitle: string;           // 所属剧集标题
   seriesShortId: string;         // 所属剧集shortId
+  // 播放进度相关字段（仅在有用户token时返回）
+  watchProgress?: number;        // 观看进度（秒）
+  watchPercentage?: number;      // 观看百分比（0-100）
+  isWatched?: boolean;           // 是否已观看
+  lastWatchTime?: string;        // 最后观看时间
+}
+
+/**
+ * 用户播放进度信息
+ */
+export interface UserWatchProgress {
+  currentEpisode: number;        // 当前观看的集数
+  currentEpisodeShortId: string; // 当前观看剧集的ShortID
+  watchProgress: number;         // 当前集观看进度（秒）
+  watchPercentage: number;       // 当前集观看百分比（0-100）
+  totalWatchTime: number;        // 总观看时长（秒）
+  lastWatchTime: string;         // 最后观看时间
+  isCompleted: boolean;          // 是否已看完整个系列
+}
+
+/**
+ * 系列基本信息
+ */
+export interface SeriesBasicInfo {
+  starring: string;              // 主演
+  id: number;                    // 系列ID
+  channeName: string;            // 频道名称
+  channeID: number;              // 频道ID
+  title: string;                 // 系列标题
+  coverUrl: string;              // 封面图URL
+  mediaUrl: string;              // 媒体URL
+  fileName: string;              // 文件名
+  mediaId: string;               // 媒体ID
+  postTime: string;              // 发布时间
+  contentType: string;           // 内容类型
+  actor: string;                 // 演员
+  shareCount: number;            // 分享次数
+  director: string;              // 导演
+  description: string;           // 描述
+  comments: number;              // 评论数
+  updateStatus: string;          // 更新状态
+  watch_progress: number;        // 观看进度
+  playCount: number;             // 播放次数
+  isHot: boolean;                // 是否热门
+  isVip: boolean;                // 是否VIP
 }
 
 /**
@@ -47,11 +92,13 @@ export interface EpisodeBasicInfo {
 export interface EpisodeListResponse {
   code: number;
   data: {
-    list: EpisodeBasicInfo[];
-    total: number;
-    page: number;
-    size: number;
-    hasMore: boolean;
+    seriesInfo?: SeriesBasicInfo | null;  // 系列基本信息（可选）
+    userProgress?: UserWatchProgress | null; // 用户播放进度（仅在有token时返回）
+    list: EpisodeBasicInfo[];     // 剧集列表
+    total: number;                // 总数量
+    page: number;                 // 当前页码
+    size: number;                 // 每页数量
+    hasMore: boolean;             // 是否有更多数据
   };
   msg: string | null;
 }

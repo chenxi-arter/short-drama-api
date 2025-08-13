@@ -7,11 +7,6 @@ import { MediaQueryDto } from './dto/media-query.dto'
 export class PublicVideoController {
   constructor(private readonly videoService: VideoService) {}
 
-  @Get('categories')
-  async listCategories() {
-    return this.videoService.listCategories();
-  }
-  
 @Get('/series/list')
 async listSeriesFull(@Query() dto: MediaQueryDto) {
   return this.videoService.listSeriesFull(dto.categoryId, dto.page, dto.size);

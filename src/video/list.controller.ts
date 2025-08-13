@@ -3,6 +3,7 @@ import { VideoService } from './video.service';
 import { FilterTagsDto } from './dto/filter-tags.dto';
 import { FilterDataDto } from './dto/filter-data.dto';
 import { ConditionFilterDto } from './dto/condition-filter.dto';
+import { FuzzySearchDto } from './dto/fuzzy-search.dto';
 
 /**
  * 列表筛选相关控制器
@@ -43,6 +44,30 @@ export class ListController {
   @Get('getconditionfilterdata')
   async getConditionFilterData(@Query() dto: ConditionFilterDto) {
     return this.videoService.getConditionFilterData(dto);
+  }
+
+  /**
+   * 模糊搜索
+   * 根据关键词在标题中进行模糊搜索
+   * @param dto 请求参数
+   * @returns 模糊搜索结果
+   */
+  @Get('fuzzysearch')
+  async fuzzySearch(@Query() dto: FuzzySearchDto) {
+    if (!dto.keyword || dto.keyword.trim() === '') {
+      return {
+        code: 400,
+        msg: '搜索关键词不能为空',
+        data: null
+      };
+    }
+    
+    return this.videoService.fuzzySearch(
+      dto.keyword,
+      dto.channeid,
+      dto.page || 1,
+      dto.size || 20
+    );
   }
 
   /**

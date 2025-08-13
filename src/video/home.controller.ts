@@ -1,4 +1,4 @@
-import { Controller } from '@nestjs/common';
+import { Controller, Get } from '@nestjs/common';
 import { VideoService } from './video.service';
 import { BaseModuleController } from './base-module.controller';
 
@@ -23,5 +23,14 @@ export class HomeController extends BaseModuleController {
    */
   protected getModuleVideosMethod() {
     return (channeid: number, page: number) => this.videoService.getHomeVideos(channeid, page);
+  }
+
+  /**
+   * 获取所有分类列表
+   * @returns 所有可用的视频分类
+   */
+  @Get('categories')
+  async getCategories() {
+    return this.videoService.listCategories();
   }
 }

@@ -5,6 +5,7 @@
 import { Entity, PrimaryColumn, Column, CreateDateColumn, OneToMany, BeforeInsert } from 'typeorm';
 import { Comment } from '../../video/entity/comment.entity';
 import { WatchProgress } from '../../video/entity/watch-progress.entity';
+// import { BrowseHistory } from '../../video/entity/browse-history.entity';
 import { ShortIdUtil } from '../../shared/utils/short-id.util';
 
 @Entity('users')
@@ -71,6 +72,13 @@ export class User {
    */
   @OneToMany(() => WatchProgress, wp => wp.user) 
   watchProgresses: WatchProgress[];
+  
+  /** 
+   * 一对多关系：浏览记录 
+   * 一个用户可以有多条浏览记录
+   */
+  // @OneToMany(() => BrowseHistory, bh => bh.user) 
+  // browseHistories: BrowseHistory[];
   
   /**
    * 在插入前自动生成短ID
