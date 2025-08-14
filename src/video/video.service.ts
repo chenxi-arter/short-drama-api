@@ -1222,6 +1222,7 @@ async listSeriesFull(
           id: ep.id,
           shortId: ep.shortId,
           episodeNumber: ep.episodeNumber,
+          episodeTitle: ep.episodeNumber.toString().padStart(2, '0'), // 添加episodeTitle字段，不满两位用0补齐
           title: ep.title || `第${ep.episodeNumber}集`,
           duration: duration,
           status: ep.status || 'active',

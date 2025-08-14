@@ -31,6 +31,7 @@ export interface EpisodeBasicInfo {
   id: number;                    // 剧集ID
   shortId: string;               // 剧集shortId
   episodeNumber: number;         // 集数
+  episodeTitle: string;          // 集数标题（格式：01, 02, 03...）
   title: string;                 // 剧集标题
   duration: number;              // 时长（秒）
   status: string;                // 状态
