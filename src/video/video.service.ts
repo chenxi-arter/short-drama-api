@@ -1094,6 +1094,7 @@ async listSeriesFull(
       
       let queryBuilder = this.epRepo.createQueryBuilder('episode')
         .leftJoinAndSelect('episode.series', 'series')
+        .leftJoinAndSelect('series.category', 'category')
         .leftJoinAndSelect('episode.urls', 'urls')
         .orderBy('episode.episodeNumber', 'ASC');
       
@@ -1171,9 +1172,30 @@ async listSeriesFull(
                 lastWatchTime: seriesProgress.lastWatchTime,
                 isCompleted: seriesProgress.isCompleted
               };
+            } else {
+              // 没有找到观看进度数据时，设置默认值
+              userProgress = {
+                currentEpisode: 1,
+                currentEpisodeShortId: episodes.length > 0 ? episodes[0].shortId : '',
+                watchProgress: 0,
+                watchPercentage: 0,
+                totalWatchTime: 0,
+                lastWatchTime: new Date().toISOString(),
+                isCompleted: false
+              };
             }
           } catch (error) {
             console.error('获取用户播放进度失败:', error);
+            // 查询失败时设置默认值
+            userProgress = {
+              currentEpisode: 1,
+              currentEpisodeShortId: episodes.length > 0 ? episodes[0].shortId : '',
+              watchProgress: 0,
+              watchPercentage: 0,
+              totalWatchTime: 0,
+              lastWatchTime: new Date().toISOString(),
+              isCompleted: false
+            };
           }
         }
       } else {
