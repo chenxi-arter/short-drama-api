@@ -1,4 +1,4 @@
-import { Injectable, Inject } from '@nestjs/common';
+import { Injectable, Inject, BadRequestException, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
@@ -54,7 +54,7 @@ export class EpisodeService {
    */
   async getEpisodeUrlByAccessKey(accessKey: string) {
     if (!AccessKeyUtil.isValidAccessKey(accessKey)) {
-      throw new Error('无效的访问密钥格式');
+      throw new BadRequestException('无效的访问密钥格式');
     }
     
     const episodeUrl = await this.episodeUrlRepo.findOne({
@@ -63,7 +63,7 @@ export class EpisodeService {
     });
     
     if (!episodeUrl) {
-      throw new Error('播放地址不存在');
+      throw new NotFoundException('播放地址不存在或已过期');
     }
     
     return episodeUrl;

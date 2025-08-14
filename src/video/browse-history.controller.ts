@@ -62,7 +62,7 @@ export class BrowseHistoryController {
   /**
    * 同步浏览记录（用于客户端同步）
    * @param req 请求对象
-   * @param seriesId 剧集系列ID
+   * @param seriesShortId 剧集系列ShortID
    * @param browseType 浏览类型
    * @param lastEpisodeNumber 最后访问的集数
    */
@@ -70,11 +70,29 @@ export class BrowseHistoryController {
   @Get('sync')
   async syncBrowseHistory(
     @Req() req,
-    @Query('seriesId') seriesId: string,
+    @Query('seriesShortId') seriesShortId: string,
     @Query('browseType') browseType: string = 'episode_list',
     @Query('lastEpisodeNumber') lastEpisodeNumber?: string
   ) {
-    const seriesIdNum = parseInt(seriesId, 10);
+    if (!seriesShortId) {
+      return {
+        code: 400,
+        msg: '必须提供 seriesShortId',
+        data: null
+      };
+    }
+    
+    // 通过 shortId 查找对应的 seriesId
+    const series = await this.browseHistoryService.findSeriesByShortId(seriesShortId);
+    if (!series) {
+      return {
+        code: 400,
+        msg: '无效的系列ShortID',
+        data: null
+      };
+    }
+    
+    const seriesIdNum = series.id;
     const episodeNumber = lastEpisodeNumber ? parseInt(lastEpisodeNumber, 10) : undefined;
     
     await this.browseHistoryService.recordBrowseHistory(

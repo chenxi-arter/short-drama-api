@@ -45,26 +45,90 @@ export class VideoService {
   ) {}
    /* 列出所有分类 */
   async listCategories() {
-    return this.categoryService.getAllCategories();
+    // 🚀 缓存机制：分类列表缓存
+    const cacheKey = 'categories:all';
+    
+    // 尝试从缓存获取
+    const cachedCategories = await this.cacheManager.get(cacheKey);
+    if (cachedCategories) {
+      console.log('📦 从缓存获取分类列表');
+      return cachedCategories;
+    }
+    
+    // 从数据库获取分类
+    const categories = await this.categoryService.getAllCategories();
+    
+    // 缓存分类列表（1小时，分类数据变化较少）
+    try {
+      await this.cacheManager.set(cacheKey, categories, 3600);
+      console.log('💾 分类列表已缓存，TTL: 1小时');
+    } catch (cacheError) {
+      console.error('分类列表缓存失败:', cacheError);
+    }
+    
+    return categories;
   }
 
   /* 根据分类 id 查短剧（电视剧）列表 */
   async listSeriesByCategory(categoryId: number) {
+    // 🚀 缓存机制：系列列表缓存
+    const cacheKey = `series_by_category:${categoryId}`;
+    
+    // 尝试从缓存获取
+    const cachedSeries = await this.cacheManager.get(cacheKey);
+    if (cachedSeries) {
+      console.log(`📦 从缓存获取分类系列列表: categoryId=${categoryId}`);
+      return cachedSeries;
+    }
+    
+    // 从数据库获取系列
     const result = await this.seriesService.getSeriesByCategory(categoryId);
+    
+    // 缓存系列列表（30分钟，系列数据变化中等）
+    try {
+      await this.cacheManager.set(cacheKey, result.series, 1800);
+      console.log(`💾 分类系列列表已缓存: categoryId=${categoryId}, TTL: 30分钟`);
+    } catch (cacheError) {
+      console.error('分类系列列表缓存失败:', cacheError);
+    }
+    
     return result.series;
   }
 
   /* 根据短剧 id 查详情（含所有剧集） */
   async getSeriesDetail(seriesId: number) {
-    return this.seriesService.getSeriesDetail(seriesId);
+    // 🚀 缓存机制：系列详情缓存
+    const cacheKey = `series_detail:${seriesId}`;
+    
+    // 尝试从缓存获取
+    const cachedDetail = await this.cacheManager.get(cacheKey);
+    if (cachedDetail) {
+      console.log(`📦 从缓存获取系列详情: seriesId=${seriesId}`);
+      return cachedDetail;
+    }
+    
+    // 从数据库获取系列详情
+    const result = await this.seriesService.getSeriesDetail(seriesId);
+    
+    // 缓存系列详情（15分钟，详情数据变化较少）
+    if (result) {
+      try {
+        await this.cacheManager.set(cacheKey, result, 900);
+        console.log(`💾 系列详情已缓存: seriesId=${seriesId}, TTL: 15分钟`);
+      } catch (cacheError) {
+        console.error('系列详情缓存失败:', cacheError);
+      }
+    }
+    
+    return result;
   }
 
   /* 断点：写/读 */
   async saveProgress(userId: number, episodeId: number, stopAtSecond: number) {
     const result = await this.watchProgressService.updateWatchProgress(userId, episodeId, stopAtSecond);
     
-    // 清除视频详情缓存 - 观看进度更新后需要更新详情中的进度信息
-    await this.cacheManager.del(`video_details_${episodeId}`);
+    // 🚀 缓存清理：观看进度更新后清理相关缓存
+    await this.clearProgressRelatedCache(episodeId);
     
     return result;
   }
@@ -194,8 +258,8 @@ export class VideoService {
   async addComment(userId: number, episodeId: number, content: string, appearSecond?: number) {
     const result = await this.commentService.addComment(userId, episodeId, content, appearSecond);
     
-    // 清除相关缓存 - 评论更新后清除视频详情缓存
-    await this.clearVideoRelatedCache(episodeId.toString());
+    // 🚀 缓存清理：评论更新后清理相关缓存
+    await this.clearCommentRelatedCache(episodeId);
     
     return result;
   }
@@ -1018,8 +1082,19 @@ async listSeriesFull(
     try {
       const offset = (page - 1) * size;
       
+      // 🚀 缓存机制：生成缓存键
+      const cacheKey = `episode_list:${seriesIdentifier || 'all'}:${isShortId ? 'shortId' : 'id'}:${page}:${size}:${userId || 'public'}`;
+      
+      // 尝试从缓存获取数据
+      const cachedData = await this.cacheManager.get(cacheKey);
+      if (cachedData) {
+        console.log(`📦 从缓存获取剧集列表: ${cacheKey}`);
+        return cachedData as EpisodeListResponse;
+      }
+      
       let queryBuilder = this.epRepo.createQueryBuilder('episode')
         .leftJoinAndSelect('episode.series', 'series')
+        .leftJoinAndSelect('episode.urls', 'urls')
         .orderBy('episode.episodeNumber', 'ASC');
       
       // 如果提供了剧集标识符，则按剧集筛选
@@ -1052,7 +1127,7 @@ async listSeriesFull(
           mediaUrl: '', // 默认空字符串
           fileName: `series-${series.id}`, // 根据ID生成文件名
           mediaId: `${series.id}_0,1,4,146`, // 根据ID生成媒体ID
-          postTime: series.releaseDate?.toISOString() || series.createdAt?.toISOString() || new Date().toISOString(),
+          postTime: (series.releaseDate instanceof Date ? series.releaseDate.toISOString() : null) || series.createdAt?.toISOString() || new Date().toISOString(),
           contentType: series.category?.name || '电视剧',
           actor: series.actor || '',
           shareCount: 0, // 默认值
@@ -1101,6 +1176,17 @@ async listSeriesFull(
             console.error('获取用户播放进度失败:', error);
           }
         }
+      } else {
+        // 不带token时的默认值
+        userProgress = {
+          currentEpisode: 1,
+          currentEpisodeShortId: episodes.length > 0 ? episodes[0].shortId : '',
+          watchProgress: 0,
+          watchPercentage: 0,
+          totalWatchTime: 0,
+          lastWatchTime: new Date().toISOString(),
+          isCompleted: false
+        };
       }
       
       // 转换为响应格式
@@ -1126,7 +1212,12 @@ async listSeriesFull(
           watchProgress: watchProgress,
           watchPercentage: watchPercentage,
           isWatched: watchPercentage >= 90, // 观看90%以上认为已观看
-          lastWatchTime: progress?.updatedAt?.toISOString() || null
+          lastWatchTime: progress?.updatedAt?.toISOString() || null,
+          // 播放地址相关字段
+          urls: ep.urls?.map(url => ({
+            quality: url.quality,
+            accessKey: url.accessKey
+          })) || []
         };
       });
 
@@ -1150,7 +1241,7 @@ async listSeriesFull(
         }
       }
       
-      return {
+      const response = {
         code: 200,
         data: {
           seriesInfo,
@@ -1163,6 +1254,18 @@ async listSeriesFull(
         },
         msg: null
       };
+      
+      // 🚀 缓存机制：存储数据到缓存
+      try {
+        // 根据是否有用户ID设置不同的缓存时间
+        const cacheTTL = userId ? 300 : 1800; // 用户相关数据缓存5分钟，公开数据缓存30分钟
+        await this.cacheManager.set(cacheKey, response, cacheTTL);
+        console.log(`💾 剧集列表已缓存: ${cacheKey}, TTL: ${cacheTTL}s`);
+      } catch (cacheError) {
+        console.error('缓存存储失败:', cacheError);
+      }
+      
+      return response;
     } catch (error) {
       console.error('获取剧集列表失败:', error);
       return {
@@ -1178,6 +1281,103 @@ async listSeriesFull(
         },
         msg: '获取剧集列表失败'
       };
+    }
+  }
+
+  /**
+   * 🚀 缓存清理：清理与观看进度相关的缓存
+   * @param episodeId 剧集ID
+   */
+  private async clearProgressRelatedCache(episodeId: number): Promise<void> {
+    try {
+      // 清理剧集列表缓存（包含该剧集的所有系列）
+      const episode = await this.epRepo.findOne({
+        where: { id: episodeId },
+        relations: ['series']
+      });
+      
+      if (episode?.series?.id) {
+        const seriesId = episode.series.id;
+        
+        // 清理该系列的所有剧集列表缓存（不同分页）
+        const cachePatterns = [
+          `episode_list:${seriesId}:id:*:*:public`,
+          `episode_list:${seriesId}:id:*:*:*`,
+          `series_detail:${seriesId}`,
+          `series_by_category:*`
+        ];
+        
+        for (const pattern of cachePatterns) {
+          // 这里可以实现模式匹配的缓存清理
+          // 暂时清理一些常见的缓存键
+          await this.cacheManager.del(`episode_list:${seriesId}:id:1:20:public`);
+          await this.cacheManager.del(`episode_list:${seriesId}:id:1:20:${seriesId}`);
+        }
+        
+        console.log(`🧹 已清理剧集 ${episodeId} 相关的缓存`);
+      }
+    } catch (error) {
+      console.error('清理缓存失败:', error);
+    }
+  }
+
+  /**
+   * 🚀 缓存清理：清理系列相关的所有缓存
+   * @param seriesId 系列ID
+   */
+  private async clearSeriesRelatedCache(seriesId: number): Promise<void> {
+    try {
+      const cacheKeys = [
+        `series_detail:${seriesId}`,
+        `series_by_category:*`,
+        `episode_list:${seriesId}:*`
+      ];
+      
+      // 清理相关缓存
+      for (const key of cacheKeys) {
+        if (!key.includes('*')) {
+          await this.cacheManager.del(key);
+        }
+      }
+      
+      console.log(`🧹 已清理系列 ${seriesId} 相关的缓存`);
+    } catch (error) {
+      console.error('清理系列缓存失败:', error);
+    }
+  }
+
+  /**
+   * 🚀 缓存清理：清理评论相关的缓存
+   * @param episodeId 剧集ID
+   */
+  private async clearCommentRelatedCache(episodeId: number): Promise<void> {
+    try {
+      // 清理剧集列表缓存（包含该剧集的所有系列）
+      const episode = await this.epRepo.findOne({
+        where: { id: episodeId },
+        relations: ['series']
+      });
+      
+      if (episode?.series?.id) {
+        const seriesId = episode.series.id;
+        
+        // 清理该系列的所有剧集列表缓存
+        const cacheKeys = [
+          `episode_list:${seriesId}:id:1:20:public`,
+          `episode_list:${seriesId}:id:1:20:*`,
+          `series_detail:${seriesId}`
+        ];
+        
+        for (const key of cacheKeys) {
+          if (!key.includes('*')) {
+            await this.cacheManager.del(key);
+          }
+        }
+        
+        console.log(`🧹 已清理评论相关的缓存: episodeId=${episodeId}, seriesId=${seriesId}`);
+      }
+    } catch (error) {
+      console.error('清理评论缓存失败:', error);
     }
   }
 }

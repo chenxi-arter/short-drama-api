@@ -25,7 +25,7 @@ export class EpisodeListDto {
 }
 
 /**
- * 剧集基本信息（不包含播放链接）
+ * 剧集基本信息（包含播放链接）
  */
 export interface EpisodeBasicInfo {
   id: number;                    // 剧集ID
@@ -44,6 +44,16 @@ export interface EpisodeBasicInfo {
   watchPercentage?: number;      // 观看百分比（0-100）
   isWatched?: boolean;           // 是否已观看
   lastWatchTime?: string;        // 最后观看时间
+  // 播放地址相关字段
+  urls?: EpisodeUrlInfo[];       // 播放地址列表
+}
+
+/**
+ * 剧集播放地址信息
+ */
+export interface EpisodeUrlInfo {
+  quality: string;               // 清晰度（如：720p, 1080p）
+  accessKey: string;             // 访问密钥
 }
 
 /**

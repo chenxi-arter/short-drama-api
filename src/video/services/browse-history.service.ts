@@ -410,4 +410,18 @@ export class BrowseHistoryService {
       throw new Error(error.message || '删除浏览历史失败');
     }
   }
+
+  /**
+   * 通过 ShortID 查找系列
+   */
+  async findSeriesByShortId(shortId: string): Promise<Series | null> {
+    try {
+      return await this.seriesRepo.findOne({
+        where: { shortId }
+      });
+    } catch (error) {
+      console.error('通过ShortID查找系列失败:', error);
+      return null;
+    }
+  }
 }

@@ -1,0 +1,1835 @@
+# 🚀 前端API接口文档
+
+## 📋 文档说明
+
+本文档专为前端开发者设计，按照用户使用流程和业务逻辑组织，包含完整的接口说明、代码示例和集成建议。
+
+**技术栈**: NestJS + TypeORM + MySQL + Redis + JWT  
+**基础URL**: `http://localhost:8080` (开发环境)  
+**文档版本**: v1.0  
+**最后更新**: 2025年1月
+
+---
+
+## 🔐 认证说明
+
+### 接口分类
+- **❌ 公开接口**: 无需认证，可直接访问
+- **✅ 认证接口**: 需要在请求头中添加 `Authorization: Bearer <access_token>`
+
+### JWT Token 使用
+```typescript
+// 在请求头中添加认证信息
+const headers = {
+  'Authorization': `Bearer ${accessToken}`,
+  'Content-Type': 'application/json'
+};
+```
+
+---
+
+## 📱 用户使用流程
+
+### 1. 用户注册/登录流程
+
+#### **Telegram OAuth 登录**
+```typescript
+// 接口地址
+POST /user/telegram-login
+
+// 请求参数
+interface LoginRequest {
+  id: number;           // Telegram用户ID
+  first_name: string;   // 用户名
+  username?: string;    // 用户名（可选）
+  auth_date: number;    // 认证时间戳
+  hash: string;         // 验证哈希
+}
+
+// 响应格式
+interface LoginResponse {
+  access_token: string;   // 访问令牌（7天有效）
+  refresh_token: string;  // 刷新令牌
+  expires_in: number;     // 过期时间（秒）
+  token_type: "Bearer";   // 令牌类型
+}
+```
+
+#### **获取用户信息**
+```typescript
+// 接口地址
+GET /user/me
+Headers: Authorization: Bearer <access_token>
+
+// 响应格式
+interface UserInfo {
+  id: string;           // 用户ID
+  username: string;     // 用户名
+  firstName: string;    // 名字
+  lastName: string;     // 姓氏
+  isActive: number;     // 是否激活
+  createdAt: string;    // 创建时间
+}
+```
+
+#### **刷新访问令牌**
+```typescript
+// 接口地址
+POST /user/refresh
+Headers: Authorization: Bearer <access_token>
+
+// 请求参数
+interface RefreshRequest {
+  refresh_token: string;  // 刷新令牌
+}
+
+// 响应格式
+interface RefreshResponse {
+  access_token: string;   // 新的访问令牌
+  expires_in: number;     // 过期时间（秒）
+  token_type: "Bearer";   // 令牌类型
+}
+```
+
+#### **用户登出**
+```typescript
+// 登出当前设备
+POST /user/logout
+Headers: Authorization: Bearer <access_token>
+
+// 请求参数
+interface LogoutRequest {
+  refresh_token: string;  // 刷新令牌
+}
+
+// 登出所有设备
+POST /user/logout-all
+Headers: Authorization: Bearer <access_token>
+
+// 响应格式
+interface LogoutResponse {
+  message: string;        // 登出成功消息
+}
+```
+
+#### **设备管理**
+```typescript
+// 获取用户活跃设备列表
+GET /user/devices
+Headers: Authorization: Bearer <access_token>
+
+// 响应格式
+interface DeviceResponse {
+  code: number;
+  data: {
+    list: DeviceInfo[];
+    total: number;
+  };
+}
+
+interface DeviceInfo {
+  id: number;             // 设备ID
+  deviceInfo?: string;    // 设备信息
+  ipAddress?: string;     // IP地址
+  createdAt: string;      // 创建时间
+  lastUsedAt: string;     // 最后使用时间
+}
+
+// 撤销指定设备
+DELETE /user/devices/:tokenId
+Headers: Authorization: Bearer <access_token>
+
+// 响应格式
+interface RevokeDeviceResponse {
+  message: string;        // 撤销成功消息
+  success: boolean;       // 是否成功
+}
+```
+
+#### **刷新访问令牌**
+```typescript
+// 接口地址
+POST /user/refresh
+Headers: Authorization: Bearer <access_token>
+
+// 请求参数
+interface RefreshRequest {
+  refresh_token: string;  // 刷新令牌
+}
+
+// 响应格式
+interface RefreshResponse {
+  access_token: string;   // 新的访问令牌
+  expires_in: number;     // 过期时间（秒）
+  token_type: "Bearer";   // 令牌类型
+}
+```
+
+#### **用户登出**
+```typescript
+// 登出当前设备
+POST /user/logout
+Headers: Authorization: Bearer <access_token>
+
+// 请求参数
+interface LogoutRequest {
+  refresh_token: string;  // 刷新令牌
+}
+
+// 登出所有设备
+POST /user/logout-all
+Headers: Authorization: Bearer <access_token>
+
+// 响应格式
+interface LogoutResponse {
+  message: string;        // 登出成功消息
+}
+```
+
+#### **设备管理**
+```typescript
+// 获取用户活跃设备列表
+GET /user/devices
+Headers: Authorization: Bearer <access_token>
+
+// 响应格式
+interface DeviceResponse {
+  code: number;
+  data: {
+    list: DeviceInfo[];
+    total: number;
+  };
+}
+
+interface DeviceInfo {
+  id: number;             // 设备ID
+  deviceInfo?: string;    // 设备信息
+  ipAddress?: string;     // IP地址
+  createdAt: string;      // 创建时间
+  lastUsedAt: string;     // 最后使用时间
+}
+
+// 撤销指定设备
+DELETE /user/devices/:tokenId
+Headers: Authorization: Bearer <access_token>
+
+// 响应格式
+interface RevokeDeviceResponse {
+  message: string;        // 撤销成功消息
+  success: boolean;       // 是否成功
+}
+```
+
+---
+
+### 2. 首页浏览流程
+
+#### **获取分类列表**
+```typescript
+// 接口地址
+GET /api/home/categories
+
+// 响应格式
+interface Category[] {
+  id: number;
+  name: string;         // 分类名称
+  routeName: string;    // 路由名称
+  isEnabled: boolean;   // 是否启用
+}
+```
+
+#### **获取首页数据**
+```typescript
+// 接口地址
+GET /api/home/gethomemodules?channeid=1&page=1
+
+// 请求参数
+interface HomeRequest {
+  channeid: number;     // 分类ID（对应分类列表中的id）
+  page: number;         // 页码
+}
+
+// 响应格式
+interface HomeResponse {
+  code: number;
+  data: {
+    list: ContentBlock[];
+  };
+}
+
+interface ContentBlock {
+  type: number;         // 0=轮播图, 1001=搜索过滤器, -1=广告, 3=视频列表
+  name: string;         // 板块名称
+  banners?: Banner[];   // 轮播图数据
+  filters?: Filter[];   // 筛选器数据
+  list?: VideoItem[];   // 视频列表
+}
+```
+
+#### **获取筛选标签**
+```typescript
+// 接口地址
+GET /api/home/getfilterstags?channeid=1
+
+// 响应格式
+interface FilterTagsResponse {
+  code: number;
+  data: FilterTagGroup[];
+}
+
+interface FilterTagGroup {
+  name: string;         // 标签组名称
+  list: FilterTagItem[];
+}
+
+interface FilterTagItem {
+  index: number;        // 标签索引
+  classifyId: number;   // 分类ID
+  classifyName: string; // 分类名称
+  isDefaultSelect: boolean; // 是否默认选中
+}
+```
+
+#### **获取筛选数据**
+```typescript
+// 接口地址
+GET /api/home/getfiltersdata?channeid=1&ids=1,2,0,0,0&page=1
+
+// 响应格式
+interface FiltersDataResponse {
+  code: number;
+  data: {
+    list: VideoItem[];
+    total: number;
+    page: number;
+    size: number;
+    hasMore: boolean;
+  };
+}
+```
+
+---
+
+### 3. 轮播图管理流程
+
+#### **获取活跃轮播图**
+```typescript
+// 接口地址
+GET /api/banners/active/list?categoryId=1&limit=5
+
+// 请求参数
+interface BannerRequest {
+  categoryId?: number;        // 分类ID（可选）
+  limit?: number;             // 限制数量
+}
+
+// 响应格式
+interface BannerResponse {
+  code: number;
+  data: BannerItem[];
+}
+
+interface BannerItem {
+  id: number;
+  title: string;              // 标题
+  imageUrl: string;           // 图片URL
+  linkUrl?: string;           // 跳转链接
+  seriesId?: number;          // 关联系列ID
+  shortId?: string;           // 系列ShortID
+  weight: number;             // 权重
+  isActive: boolean;          // 是否启用
+  categoryId: number;         // 分类ID
+  description?: string;       // 描述
+}
+```
+
+---
+
+### 4. 视频搜索和筛选流程
+
+#### **获取筛选标签**
+```typescript
+// 接口地址
+GET /api/list/getfilterstags?channeid=1
+
+// 请求参数
+interface FilterTagsRequest {
+  channeid: number;     // 频道ID（对应分类ID）
+}
+
+// 响应格式
+interface FilterTagsResponse {
+  code: number;
+  data: FilterTagGroup[];
+}
+
+interface FilterTagGroup {
+  name: string;         // 标签组名称（如：类型、地区、年份等）
+  list: FilterTagItem[];
+}
+
+interface FilterTagItem {
+  index: number;        // 标签索引
+  classifyId: number;   // 分类ID
+  classifyName: string; // 分类名称
+  isDefaultSelect: boolean; // 是否默认选中
+}
+
+// 使用示例
+const filterTags = await fetch('/api/list/getfilterstags?channeid=1')
+  .then(res => res.json());
+
+// 构建筛选参数
+const buildFilterIds = (selectedTags: FilterTagItem[]): string => {
+  return selectedTags.map(tag => tag.classifyId).join(',');
+};
+```
+
+#### **条件筛选视频**
+```typescript
+// 接口地址
+GET /api/list/getfiltersdata?channeid=1&ids=1,2,0,0,0&page=1
+
+// 请求参数
+interface FilterRequest {
+  channeid: number;     // 频道ID
+  ids: string;          // 筛选条件ID，格式：1,2,0,0,0
+  page: number;         // 页码
+}
+
+// 响应格式
+interface FilterResponse {
+  code: number;
+  data: {
+    list: VideoItem[];
+  };
+}
+
+interface VideoItem {
+  id: number;
+  shortId: string;      // 系列ShortID
+  coverUrl: string;     // 封面图
+  title: string;        // 标题
+  score: string;        // 评分（如"9.2"）
+  playCount: number;    // 播放次数
+  type: string;         // 类型（如"短剧"）
+  isSerial: boolean;    // 是否系列剧
+  upStatus: string;     // 更新状态
+  upCount: number;      // 集数
+  author: string;       // 主演
+  description: string;  // 描述
+}
+```
+
+#### **模糊搜索**
+```typescript
+// 接口地址
+GET /api/list/fuzzysearch?keyword=霸道总裁&page=1&size=20
+
+// 响应格式（同筛选结果，但包含分页信息）
+interface SearchResponse {
+  code: number;
+  data: {
+    list: VideoItem[];
+    total: number;
+    page: number;
+    size: number;
+    hasMore: boolean;
+  };
+}
+```
+
+#### **高级筛选**
+```typescript
+// 接口地址
+GET /api/list/getconditionfilterdata?titleid=drama&ids=0,0,0,0,0&page=1&size=21
+
+// 响应格式（包含更详细的视频信息）
+interface AdvancedVideoItem extends VideoItem {
+  starring: string;     // 主演
+  actor: string;        // 演员
+  director: string;     // 导演
+  region: string;       // 地区
+  language: string;     // 语言
+  releaseDate: string;  // 发布日期
+  isCompleted: boolean; // 是否完结
+  episodeCount: number; // 当前集数
+  tags: any[];          // 标签
+}
+```
+
+---
+
+### 5. 剧集观看流程
+
+#### **获取剧集列表**
+```typescript
+// 需要认证 - 获取用户观看进度
+GET /api/video/episodes?seriesShortId=fpcxnnFA6m9&page=1&size=20
+Headers: Authorization: Bearer <access_token>
+
+// 无需认证 - 获取公开剧集列表
+GET /api/public/video/episodes?seriesShortId=fpcxnnFA6m9&page=1&size=20
+
+// 响应格式
+interface EpisodeResponse {
+  code: number;
+  data: {
+    seriesInfo: SeriesInfo;
+    userProgress?: UserProgress;  // 认证时返回
+    list: EpisodeItem[];
+    total: number;
+    page: number;
+    size: number;
+    hasMore: boolean;
+  };
+}
+
+interface SeriesInfo {
+  title: string;           // 系列标题
+  coverUrl: string;        // 封面
+  starring: string;        // 主演
+  director: string;        // 导演
+  description: string;     // 描述
+  playCount: number;       // 播放次数
+  isHot: boolean;          // 是否热门
+  isVip: boolean;          // 是否VIP
+}
+
+interface UserProgress {
+  currentEpisode: number;  // 当前观看集数
+  watchProgress: number;   // 观看进度（秒）
+  watchPercentage: number; // 观看百分比
+  isCompleted: boolean;    // 是否完成
+}
+
+interface EpisodeItem {
+  id: number;
+  shortId: string;         // 剧集ShortID
+  episodeNumber: number;   // 集数
+  title: string;           // 标题
+  duration: number;        // 时长（秒）
+  watchProgress?: number;  // 观看进度（秒）
+  watchPercentage?: number; // 观看百分比
+  isWatched?: boolean;     // 是否已观看
+  urls: EpisodeUrl[];      // 播放地址
+}
+
+interface EpisodeUrl {
+  quality: string;         // 清晰度
+  accessKey: string;       // 访问密钥
+}
+```
+
+#### **获取播放地址**
+```typescript
+// 接口地址
+GET /api/video/episode-url/:accessKey
+
+// 响应格式
+interface EpisodeUrlResponse {
+  id: number;
+  episodeId: number;
+  quality: string;         // 清晰度
+  cdnUrl: string;         // CDN播放地址
+  subtitleUrl: string;    // 字幕地址
+  accessKey: string;      // 访问密钥
+  expiresAt: string;      // 过期时间
+}
+```
+
+#### **记录观看进度**
+```typescript
+// 保存观看进度
+POST /api/video/progress
+Headers: Authorization: Bearer <access_token>
+
+// 请求参数
+interface ProgressRequest {
+  episodeIdentifier: string;  // 剧集ShortID或ID
+  stopAtSecond: number;       // 停止时间（秒）
+}
+
+// 获取观看进度
+GET /api/video/progress?episodeIdentifier=fpcxnnFA6m9
+Headers: Authorization: Bearer <access_token>
+
+// 响应格式
+interface ProgressResponse {
+  stopAtSecond: number;       // 观看进度（秒）
+}
+```
+
+---
+
+### 6. 评论互动流程
+
+#### **发表评论**
+```typescript
+// 接口地址
+POST /api/video/comment
+Headers: Authorization: Bearer <access_token>
+
+// 请求参数
+interface CommentRequest {
+  episodeIdentifier: string;  // 剧集ShortID或ID
+  content: string;            // 评论内容
+  appearSecond?: number;      // 弹幕出现时间（秒）
+}
+```
+
+---
+
+### 7. 个人中心流程
+
+#### **获取浏览历史**
+```typescript
+// 接口地址
+GET /api/video/browse-history?page=1&size=20
+Headers: Authorization: Bearer <access_token>
+
+// 响应格式
+interface BrowseHistoryResponse {
+  code: number;
+  data: {
+    list: BrowseHistoryItem[];
+    total: number;
+    page: number;
+    size: number;
+    hasMore: boolean;
+  };
+}
+
+interface BrowseHistoryItem {
+  seriesId: number;
+  seriesTitle: string;       // 系列标题
+  seriesShortId: string;     // 系列ShortID
+  seriesCoverUrl: string;    // 系列封面
+  lastEpisodeNumber: number; // 最后访问集数
+  visitCount: number;        // 访问次数
+  lastVisitTime: string;     // 最后访问时间
+  durationSeconds: number;   // 浏览时长
+}
+```
+
+#### **获取最近浏览**
+```typescript
+// 接口地址
+GET /api/video/browse-history/recent
+Headers: Authorization: Bearer <access_token>
+
+// 响应格式
+interface RecentBrowseItem {
+  seriesId: number;
+  seriesTitle: string;
+  seriesShortId: string;
+  seriesCoverUrl: string;
+  lastEpisodeNumber: number;
+  lastVisitTime: string;
+  visitCount: number;
+}
+```
+
+#### **同步浏览记录**
+```typescript
+// 接口地址
+GET /api/video/browse-history/sync?seriesShortId=fpcxnnFA6m9&browseType=episode_list&lastEpisodeNumber=5
+Headers: Authorization: Bearer <access_token>
+
+// 请求参数
+interface SyncRequest {
+  seriesShortId: string;      // 系列ShortID（推荐使用）
+  seriesId?: string;          // 系列ID（向后兼容）
+  browseType?: string;        // 浏览类型
+  lastEpisodeNumber?: string; // 最后访问集数
+}
+
+// browseType 可选值说明
+type BrowseType = 
+  | 'episode_list'      // 浏览剧集列表页面
+  | 'series_detail'     // 浏览系列详情页面
+  | 'episode_play'      // 播放剧集页面
+  | 'search_result'     // 搜索结果页面
+  | 'category_list'     // 分类列表页面
+  | 'home_page'         // 首页浏览
+  | 'favorite_list'     // 收藏列表页面
+  | 'watch_history'     // 观看历史页面
+
+// 使用示例
+// 1. 用户浏览剧集列表
+await fetch('/api/video/browse-history/sync?seriesShortId=fpcxnnFA6m9&browseType=episode_list&lastEpisodeNumber=3');
+
+// 2. 用户播放剧集
+await fetch('/api/video/browse-history/sync?seriesShortId=fpcxnnFA6m9&browseType=episode_play&lastEpisodeNumber=5');
+
+// 3. 用户查看系列详情
+await fetch('/api/video/browse-history/sync?seriesShortId=fpcxnnFA6m9&browseType=series_detail');
+```
+
+#### **获取系统统计**
+```typescript
+// 接口地址
+GET /api/video/browse-history/stats
+Headers: Authorization: Bearer <access_token>
+
+// 响应格式
+interface SystemStatsResponse {
+  code: number;
+  data: {
+    totalUsers: number;       // 总用户数
+    totalRecords: number;     // 总记录数
+    activeUsers: number;      // 活跃用户数
+    totalStorage: number;     // 总存储量
+    averageSessionTime: number; // 平均会话时间
+  };
+}
+```
+
+---
+
+### 8. 缓存管理流程
+
+#### **获取缓存统计**
+```typescript
+// 接口地址
+GET /api/cache/stats
+
+// 响应格式
+interface CacheStatsResponse {
+  code: number;
+  data: {
+    totalKeys: number;        // 总缓存键数
+    memoryUsage: number;      // 内存使用量
+    hitRate: number;          // 缓存命中率
+    missRate: number;         // 缓存未命中率
+    evictions: number;        // 驱逐次数
+    expiredKeys: number;      // 过期键数
+  };
+}
+```
+
+#### **清理指定缓存**
+```typescript
+// 接口地址
+DELETE /api/cache/clear/:pattern
+
+// 请求参数
+interface ClearCacheRequest {
+  pattern: string;            // 缓存键模式（如：episode_list:*）
+}
+
+// 响应格式
+interface ClearCacheResponse {
+  code: number;
+  message: string;            // 清理结果消息
+  clearedKeys: number;        // 清理的键数量
+}
+```
+
+#### **清理所有缓存**
+```typescript
+// 接口地址
+DELETE /api/cache/clear-all
+
+// 响应格式
+interface ClearAllCacheResponse {
+  code: number;
+  message: string;            // 清理结果消息
+  clearedKeys: number;        // 清理的键数量
+}
+```
+
+#### **获取缓存键列表**
+```typescript
+// 接口地址
+GET /api/cache/keys
+
+// 响应格式
+interface CacheKeysResponse {
+  code: number;
+  data: {
+    keys: string[];           // 缓存键列表
+    total: number;            // 总键数
+    patterns: string[];       // 可用模式列表
+  };
+}
+```
+
+#### **预热缓存**
+```typescript
+// 接口地址
+GET /api/cache/warmup
+
+// 响应格式
+interface WarmupResponse {
+  code: number;
+  message: string;            // 预热结果消息
+  warmedKeys: number;         // 预热的键数量
+  duration: number;           // 预热耗时（毫秒）
+}
+```
+
+---
+
+### 9. 健康检查流程
+
+#### **基础健康检查**
+```typescript
+// 接口地址
+GET /health
+
+// 响应格式
+interface HealthResponse {
+  status: string;             // 服务状态
+  timestamp: string;          // 检查时间
+  uptime: number;             // 运行时间
+}
+```
+
+#### **详细健康检查**
+```typescript
+// 接口地址
+GET /health/detailed
+
+// 响应格式
+interface DetailedHealthResponse {
+  status: string;             // 服务状态
+  timestamp: string;          // 检查时间
+  uptime: number;             // 运行时间
+  database: {
+    status: string;           // 数据库状态
+    responseTime: number;     // 响应时间
+  };
+  cache: {
+    status: string;           // 缓存状态
+    hitRate: number;          // 命中率
+  };
+  memory: {
+    used: number;             // 已用内存
+    total: number;            // 总内存
+    percentage: number;       // 使用百分比
+  };
+}
+```
+
+#### **系统信息**
+```typescript
+// 接口地址
+GET /health/system
+
+// 响应格式
+interface SystemInfoResponse {
+  status: string;             // 服务状态
+  timestamp: string;          // 检查时间
+  system: {
+    platform: string;         // 平台信息
+    nodeVersion: string;      // Node.js版本
+    memory: {
+      used: number;           // 已用内存
+      total: number;          // 总内存
+      percentage: number;     // 使用百分比
+    };
+    cpu: {
+      loadAverage: number[];  // CPU负载
+      cores: number;          // CPU核心数
+    };
+    uptime: number;           // 系统运行时间
+  };
+}
+```
+
+#### **获取系统统计**
+```typescript
+// 接口地址
+GET /api/video/browse-history/stats
+Headers: Authorization: Bearer <access_token>
+
+// 响应格式
+interface SystemStatsResponse {
+  code: number;
+  data: {
+    totalUsers: number;       // 总用户数
+    totalRecords: number;     // 总记录数
+    activeUsers: number;      // 活跃用户数
+    totalStorage: number;     // 总存储量
+    averageSessionTime: number; // 平均会话时间
+  };
+}
+```
+
+---
+
+### 8. 缓存管理流程
+
+#### **获取缓存统计**
+```typescript
+// 接口地址
+GET /api/cache/stats
+
+// 响应格式
+interface CacheStatsResponse {
+  code: number;
+  data: {
+    totalKeys: number;        // 总缓存键数
+    memoryUsage: number;      // 内存使用量
+    hitRate: number;          // 缓存命中率
+    missRate: number;         // 缓存未命中率
+    evictions: number;        // 驱逐次数
+    expiredKeys: number;      // 过期键数
+  };
+}
+```
+
+#### **清理指定缓存**
+```typescript
+// 接口地址
+DELETE /api/cache/clear/:pattern
+
+// 请求参数
+interface ClearCacheRequest {
+  pattern: string;            // 缓存键模式（如：episode_list:*）
+}
+
+// 响应格式
+interface ClearCacheResponse {
+  code: number;
+  message: string;            // 清理结果消息
+  clearedKeys: number;        // 清理的键数量
+}
+```
+
+#### **清理所有缓存**
+```typescript
+// 接口地址
+DELETE /api/cache/clear-all
+
+// 响应格式
+interface ClearAllCacheResponse {
+  code: number;
+  message: string;            // 清理结果消息
+  clearedKeys: number;        // 清理的键数量
+}
+```
+
+#### **获取缓存键列表**
+```typescript
+// 接口地址
+GET /api/cache/keys
+
+// 响应格式
+interface CacheKeysResponse {
+  code: number;
+  data: {
+    keys: string[];           // 缓存键列表
+    total: number;            // 总键数
+    patterns: string[];       // 可用模式列表
+  };
+}
+```
+
+#### **预热缓存**
+```typescript
+// 接口地址
+GET /api/cache/warmup
+
+// 响应格式
+interface WarmupResponse {
+  code: number;
+  message: string;            // 预热结果消息
+  warmedKeys: number;         // 预热的键数量
+  duration: number;           // 预热耗时（毫秒）
+}
+```
+
+---
+
+### 9. 健康检查流程
+
+#### **基础健康检查**
+```typescript
+// 接口地址
+GET /health
+
+// 响应格式
+interface HealthResponse {
+  status: string;             // 服务状态
+  timestamp: string;          // 检查时间
+  uptime: number;             // 运行时间
+}
+```
+
+#### **详细健康检查**
+```typescript
+// 接口地址
+GET /health/detailed
+
+// 响应格式
+interface DetailedHealthResponse {
+  status: string;             // 服务状态
+  timestamp: string;          // 检查时间
+  uptime: number;             // 运行时间
+  database: {
+    status: string;           // 数据库状态
+    responseTime: number;     // 响应时间
+  };
+  cache: {
+    status: string;           // 缓存状态
+    hitRate: number;          // 命中率
+  };
+  memory: {
+    used: number;             // 已用内存
+    total: number;            // 总内存
+    percentage: number;       // 使用百分比
+  };
+}
+```
+
+#### **系统信息**
+```typescript
+// 接口地址
+GET /health/system
+
+// 响应格式
+interface SystemInfoResponse {
+  status: string;             // 服务状态
+  timestamp: string;          // 检查时间
+  system: {
+    platform: string;         // 平台信息
+    nodeVersion: string;      // Node.js版本
+    memory: {
+      used: number;           // 已用内存
+      total: number;          // 总内存
+      percentage: number;     // 使用百分比
+    };
+    cpu: {
+      loadAverage: number[];  // CPU负载
+      cores: number;          // CPU核心数
+    };
+    uptime: number;           // 系统运行时间
+  };
+}
+```
+
+---
+
+## 📊 通用响应格式
+
+### 成功响应
+```typescript
+interface SuccessResponse<T> {
+  code: number;          // 状态码，200表示成功
+  data: T;               // 响应数据
+  message?: string;      // 响应消息
+  timestamp?: string;    // 时间戳
+  path?: string;         // 请求路径
+}
+```
+
+### 分页响应
+```typescript
+interface PaginatedResponse<T> {
+  code: number;
+  data: T[];             // 数据列表
+  pagination: {
+    total: number;        // 总数量
+    page: number;         // 当前页码
+    size: number;         // 每页大小
+    totalPages: number;   // 总页数
+    hasNext: boolean;     // 是否有下一页
+    hasPrev: boolean;     // 是否有上一页
+  };
+  message?: string;
+  timestamp?: string;
+}
+```
+
+### 错误响应
+```typescript
+interface ErrorResponse {
+  code: number;          // 错误状态码
+  message: string;       // 错误消息
+  error?: string;        // 错误类型
+  details?: any;         // 错误详情
+  timestamp: string;     // 时间戳
+  path?: string;         // 请求路径
+  requestId?: string;    // 请求ID
+}
+```
+
+---
+
+## 📱 前端集成建议
+
+### 1. 状态管理
+
+#### **用户状态**
+```typescript
+interface UserState {
+  isAuthenticated: boolean;
+  accessToken: string | null;
+  refreshToken: string | null;
+  userInfo: UserInfo | null;
+  tokenExpiry: number | null;
+}
+```
+
+### 2. 请求封装
+
+#### **API客户端**
+```typescript
+class ApiClient {
+  private baseURL: string;
+  
+  constructor(baseURL: string) {
+    this.baseURL = baseURL;
+  }
+  
+  async request<T>(
+    endpoint: string, 
+    options?: RequestInit & { skipAuth?: boolean }
+  ): Promise<T> {
+    const { skipAuth = false, ...fetchOptions } = options || {};
+    
+    // 构建请求头
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      ...fetchOptions.headers
+    };
+    
+    // 添加认证头
+    if (!skipAuth) {
+      const token = useUserStore.getState().accessToken;
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+    }
+    
+    // 发送请求
+    const response = await fetch(`${this.baseURL}${endpoint}`, {
+      ...fetchOptions,
+      headers
+    });
+    
+    if (!response.ok) {
+      throw new Error(`API Error: ${response.status} - ${response.statusText}`);
+    }
+    
+    return response.json();
+  }
+  
+  // 便捷方法
+  async get<T>(endpoint: string, options?: any) {
+    return this.request<T>(endpoint, { method: 'GET', ...options });
+  }
+  
+  async post<T>(endpoint: string, data?: any, options?: any) {
+    return this.request<T>(endpoint, {
+      method: 'POST',
+      body: JSON.stringify(data),
+      ...options
+    });
+  }
+}
+```
+
+#### **首页数据获取流程**
+```typescript
+// 完整的首页数据获取流程
+class HomeDataService {
+  private api: ApiClient;
+  
+  constructor(api: ApiClient) {
+    this.api = api;
+  }
+  
+  // 1. 首先获取分类列表
+  async getCategories(): Promise<Category[]> {
+    try {
+      const categories = await this.api.get<Category[]>('/api/home/categories');
+      return categories;
+    } catch (error) {
+      console.error('获取分类列表失败:', error);
+      return [];
+    }
+  }
+  
+  // 2. 根据分类获取首页数据
+  async getHomeData(categoryId: number, page: number = 1): Promise<HomeResponse> {
+    try {
+      const homeData = await this.api.get<HomeResponse>(
+        `/api/home/gethomemodules?channeid=${categoryId}&page=${page}`
+      );
+      return homeData;
+    } catch (error) {
+      console.error('获取首页数据失败:', error);
+      throw error;
+    }
+  }
+  
+  // 3. 获取筛选标签
+  async getFilterTags(categoryId: number): Promise<FilterTagsResponse> {
+    try {
+      const filterTags = await this.api.get<FilterTagsResponse>(
+        `/api/home/getfilterstags?channeid=${categoryId}`
+      );
+      return filterTags;
+    } catch (error) {
+      console.error('获取筛选标签失败:', error);
+      throw error;
+    }
+  }
+  
+  // 4. 完整的首页初始化流程
+  async initializeHome(categoryId: number = 1): Promise<{
+    categories: Category[];
+    homeData: HomeResponse;
+    filterTags: FilterTagsResponse;
+  }> {
+    try {
+      // 并行获取数据，提升性能
+      const [categories, homeData, filterTags] = await Promise.all([
+        this.getCategories(),
+        this.getHomeData(categoryId, 1),
+        this.getFilterTags(categoryId)
+      ]);
+      
+      return {
+        categories,
+        homeData,
+        filterTags
+      };
+    } catch (error) {
+      console.error('首页初始化失败:', error);
+      throw error;
+    }
+  }
+}
+
+  // 使用示例
+  const homeService = new HomeDataService(api);
+```
+
+#### **浏览记录同步服务**
+```typescript
+// 浏览记录同步服务
+class BrowseHistoryService {
+  private api: ApiClient;
+  
+  constructor(api: ApiClient) {
+    this.api = api;
+  }
+  
+  // 同步浏览记录
+  async syncBrowseHistory(
+    seriesShortId: string,
+    browseType: BrowseType,
+    lastEpisodeNumber?: number
+  ): Promise<void> {
+    try {
+      const params = new URLSearchParams({
+        seriesShortId,
+        browseType
+      });
+      
+      if (lastEpisodeNumber !== undefined) {
+        params.append('lastEpisodeNumber', lastEpisodeNumber.toString());
+      }
+      
+      await this.api.get(`/api/video/browse-history/sync?${params}`);
+      console.log('浏览记录同步成功');
+    } catch (error) {
+      console.error('浏览记录同步失败:', error);
+      // 不抛出错误，避免影响主要业务逻辑
+    }
+  }
+  
+  // 自动记录页面浏览
+  recordPageView(seriesShortId: string, browseType: BrowseType): void {
+    // 使用 sendBeacon 在页面卸载时发送数据
+    const data = new URLSearchParams({
+      seriesShortId,
+      browseType
+    });
+    
+    if ('sendBeacon' in navigator) {
+      navigator.sendBeacon(
+        `/api/video/browse-history/sync?${data.toString()}`,
+        ''
+      );
+    } else {
+      // 降级方案：使用 fetch
+      this.syncBrowseHistory(seriesShortId, browseType);
+    }
+  }
+  
+  // 记录剧集播放进度
+  recordEpisodePlay(seriesShortId: string, episodeNumber: number): void {
+    this.syncBrowseHistory(seriesShortId, 'episode_play', episodeNumber);
+  }
+  
+  // 记录剧集列表浏览
+  recordEpisodeList(seriesShortId: string, lastEpisodeNumber?: number): void {
+    this.syncBrowseHistory(seriesShortId, 'episode_list', lastEpisodeNumber);
+  }
+  
+  // 记录系列详情浏览
+  recordSeriesDetail(seriesShortId: string): void {
+    this.syncBrowseHistory(seriesShortId, 'series_detail');
+  }
+}
+
+// 使用示例
+const browseHistoryService = new BrowseHistoryService(api);
+
+// 在React组件中使用
+const SeriesDetailPage = ({ seriesShortId }: { seriesShortId: string }) => {
+  useEffect(() => {
+    // 记录用户浏览系列详情页面
+    browseHistoryService.recordSeriesDetail(seriesShortId);
+  }, [seriesShortId]);
+  
+  // ... 其他逻辑
+};
+
+const EpisodeListPage = ({ seriesShortId }: { seriesShortId: string }) => {
+  useEffect(() => {
+    // 记录用户浏览剧集列表页面
+    browseHistoryService.recordEpisodeList(seriesShortId);
+  }, [seriesShortId]);
+  
+  // ... 其他逻辑
+};
+
+const VideoPlayer = ({ 
+  seriesShortId, 
+  episodeNumber 
+}: { 
+  seriesShortId: string; 
+  episodeNumber: number; 
+}) => {
+  useEffect(() => {
+    // 记录用户播放剧集
+    browseHistoryService.recordEpisodePlay(seriesShortId, episodeNumber);
+  }, [seriesShortId, episodeNumber]);
+  
+  // ... 其他逻辑
+};
+```
+
+  // 在组件中使用
+  const HomePage = () => {
+    const [homeData, setHomeData] = useState(null);
+    const [categories, setCategories] = useState([]);
+    const [filterTags, setFilterTags] = useState(null);
+    const [loading, setLoading] = useState(true);
+    
+    useEffect(() => {
+      const loadHomeData = async () => {
+        try {
+          setLoading(true);
+          const data = await homeService.initializeHome(1); // 默认加载分类ID为1的数据
+          
+          setCategories(data.categories);
+          setHomeData(data.homeData);
+          setFilterTags(data.filterTags);
+        } catch (error) {
+          console.error('加载首页数据失败:', error);
+        } finally {
+          setLoading(false);
+        }
+      };
+      
+      loadHomeData();
+    }, []);
+    
+    // 切换分类
+    const handleCategoryChange = async (categoryId: number) => {
+      try {
+        const [newHomeData, newFilterTags] = await Promise.all([
+          homeService.getHomeData(categoryId, 1),
+          homeService.getFilterTags(categoryId)
+        ]);
+        
+        setHomeData(newHomeData);
+        setFilterTags(newFilterTags);
+      } catch (error) {
+        console.error('切换分类失败:', error);
+      }
+    };
+    
+    if (loading) {
+      return <LoadingSpinner />;
+    }
+    
+    return (
+      <div>
+        {/* 分类选择器 */}
+        <CategorySelector 
+          categories={categories}
+          onCategoryChange={handleCategoryChange}
+        />
+        
+        {/* 首页内容 */}
+        <HomeContent 
+          homeData={homeData}
+          filterTags={filterTags}
+        />
+      </div>
+    );
+  };
+```
+
+#### **筛选器使用示例**
+```typescript
+// 筛选器组件示例
+const FilterSelector = ({ 
+  filterTags, 
+  onFilterChange, 
+  selectedFilters 
+}: FilterSelectorProps) => {
+  const handleFilterSelect = (groupId: string, tagId: number) => {
+    const newFilters = { ...selectedFilters };
+    
+    if (!newFilters[groupId]) {
+      newFilters[groupId] = [];
+    }
+    
+    const existingIndex = newFilters[groupId].findIndex(id => id === tagId);
+    
+    if (existingIndex >= 0) {
+      // 移除已选择的标签
+      newFilters[groupId].splice(existingIndex, 1);
+    } else {
+      // 添加新选择的标签
+      newFilters[groupId].push(tagId);
+    }
+    
+    onFilterChange(newFilters);
+  };
+  
+  const buildFilterIds = (filters: Record<string, number[]>): string => {
+    // 构建筛选参数字符串，格式：1,2,0,0,0
+    const filterGroups = ['type', 'region', 'year', 'status', 'quality'];
+    return filterGroups.map(group => {
+      const groupFilters = filters[group] || [];
+      return groupFilters.length > 0 ? groupFilters.join(',') : '0';
+    }).join(',');
+  };
+  
+  return (
+    <div className="filter-selector">
+      {filterTags?.data?.map((group, groupIndex) => (
+        <div key={groupIndex} className="filter-group">
+          <h4>{group.name}</h4>
+          <div className="filter-tags">
+            {group.list.map((tag) => (
+              <button
+                key={tag.index}
+                className={`filter-tag ${
+                  selectedFilters[group.name]?.includes(tag.classifyId) 
+                    ? 'selected' 
+                    : ''
+                }`}
+                onClick={() => handleFilterSelect(group.name, tag.classifyId)}
+              >
+                {tag.classifyName}
+              </button>
+            ))}
+          </div>
+        </div>
+      ))}
+      
+      {/* 应用筛选按钮 */}
+      <button 
+        className="apply-filters"
+        onClick={() => {
+          const filterIds = buildFilterIds(selectedFilters);
+          // 调用筛选接口
+          onFilterChange(selectedFilters, filterIds);
+        }}
+      >
+        应用筛选
+      </button>
+    </div>
+  );
+};
+
+// 在视频列表组件中使用筛选器
+const VideoList = ({ categoryId }: { categoryId: number }) => {
+  const [filterTags, setFilterTags] = useState(null);
+  const [selectedFilters, setSelectedFilters] = useState({});
+  const [videos, setVideos] = useState([]);
+  const [loading, setLoading] = useState(false);
+  
+  // 获取筛选标签
+  useEffect(() => {
+    const loadFilterTags = async () => {
+      try {
+        const tags = await fetch(`/api/list/getfilterstags?channeid=${categoryId}`)
+          .then(res => res.json());
+        setFilterTags(tags);
+      } catch (error) {
+        console.error('获取筛选标签失败:', error);
+      }
+    };
+    
+    loadFilterTags();
+  }, [categoryId]);
+  
+  // 应用筛选
+  const handleFilterChange = async (filters: any, filterIds?: string) => {
+    setSelectedFilters(filters);
+    
+    if (filterIds) {
+      setLoading(true);
+      try {
+        const response = await fetch(
+          `/api/list/getfiltersdata?channeid=${categoryId}&ids=${filterIds}&page=1`
+        );
+        const data = await response.json();
+        setVideos(data.data.list || []);
+      } catch (error) {
+        console.error('筛选失败:', error);
+      } finally {
+        setLoading(false);
+      }
+    }
+  };
+  
+  return (
+    <div className="video-list-page">
+      {/* 筛选器 */}
+      <FilterSelector
+        filterTags={filterTags}
+        selectedFilters={selectedFilters}
+        onFilterChange={handleFilterChange}
+      />
+      
+      {/* 视频列表 */}
+      {loading ? (
+        <LoadingSpinner />
+      ) : (
+        <div className="video-grid">
+          {videos.map((video) => (
+            <VideoCard key={video.id} video={video} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+```
+```
+
+### 3. 错误处理
+
+#### **统一错误处理**
+```typescript
+class ErrorHandler {
+  static handle(error: any) {
+    console.error('API Error:', error);
+    
+    if (error.code === 401) {
+      // Token过期，跳转登录
+      useUserStore.getState().logout();
+      router.push('/login');
+      showToast('登录已过期，请重新登录');
+    } else if (error.code === 429) {
+      // 请求频率限制
+      showToast('请求过于频繁，请稍后再试');
+    } else {
+      // 其他错误
+      showToast(error.message || '请求失败');
+    }
+  }
+}
+```
+
+### 4. Token自动刷新
+
+#### **Token管理器**
+```typescript
+class TokenManager {
+  private accessToken: string | null = null;
+  private refreshToken: string | null = null;
+  private refreshPromise: Promise<string> | null = null;
+  
+  constructor() {
+    this.accessToken = localStorage.getItem('access_token');
+    this.refreshToken = localStorage.getItem('refresh_token');
+    this.setupInterceptors();
+  }
+  
+  private setupInterceptors() {
+    // 请求拦截器：添加token
+    axios.interceptors.request.use((config) => {
+      if (this.accessToken) {
+        config.headers.Authorization = `Bearer ${this.accessToken}`;
+      }
+      return config;
+    });
+    
+    // 响应拦截器：处理token过期
+    axios.interceptors.response.use(
+      (response) => response,
+      async (error) => {
+        const originalRequest = error.config;
+        
+        if (error.response?.status === 401 && !originalRequest._retry) {
+          originalRequest._retry = true;
+          
+          try {
+            // 尝试刷新token
+            const newToken = await this.refreshAccessToken();
+            
+            // 重新发送原始请求
+            originalRequest.headers.Authorization = `Bearer ${newToken}`;
+            return axios(originalRequest);
+          } catch (refreshError) {
+            // 刷新失败，重新登录
+            this.logout();
+            window.location.href = '/login';
+          }
+        }
+        
+        return Promise.reject(error);
+      }
+    );
+  }
+  
+  async refreshAccessToken(): Promise<string> {
+    // 防止重复刷新
+    if (this.refreshPromise) {
+      return this.refreshPromise;
+    }
+    
+    this.refreshPromise = this.doRefreshToken();
+    try {
+      const result = await this.refreshPromise;
+      return result;
+    } finally {
+      this.refreshPromise = null;
+    }
+  }
+  
+  private async doRefreshToken(): Promise<string> {
+    if (!this.refreshToken) {
+      throw new Error('No refresh token available');
+    }
+    
+    try {
+      const response = await axios.post('/user/refresh', {
+        refresh_token: this.refreshToken
+      });
+      
+      this.accessToken = response.data.access_token;
+      localStorage.setItem('access_token', this.accessToken);
+      
+      return this.accessToken;
+    } catch (error) {
+      // 刷新失败，清除所有token
+      this.logout();
+      throw error;
+    }
+  }
+  
+  setTokens(accessToken: string, refreshToken: string) {
+    this.accessToken = accessToken;
+    this.refreshToken = refreshToken;
+    localStorage.setItem('access_token', accessToken);
+    localStorage.setItem('refresh_token', refreshToken);
+  }
+  
+  logout() {
+    this.accessToken = null;
+    this.refreshToken = null;
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
+  }
+  
+  getAccessToken(): string | null {
+    return this.accessToken;
+  }
+  
+  isAuthenticated(): boolean {
+    return !!this.accessToken;
+  }
+}
+
+// 使用示例
+const tokenManager = new TokenManager();
+
+// 登录后设置tokens
+function handleLoginSuccess(response: LoginResponse) {
+  tokenManager.setTokens(
+    response.access_token,
+    response.refresh_token
+  );
+}
+```
+
+---
+
+## 🚀 最佳实践
+
+### 1. 缓存策略
+- **分类数据**: 缓存1小时（变化很少）
+- **首页数据**: 缓存5分钟（变化中等）
+- **剧集列表**: 用户数据缓存5分钟，公开数据缓存30分钟
+- **系列详情**: 缓存15分钟
+
+### 2. 请求优化
+- 使用分页加载，避免一次性加载大量数据
+- 实现虚拟滚动，提升长列表性能
+- 预加载下一页数据，提升用户体验
+- 合理使用缓存，减少重复请求
+
+### 3. 错误处理
+- 网络错误自动重试3次
+- 使用指数退避策略
+- 区分可重试和不可重试的错误
+- 提供友好的错误提示
+
+### 4. Token管理
+- 实现自动刷新机制，避免用户频繁登录
+- 在多个标签页间同步token状态
+- 定期检查token有效性
+- 支持多设备登录管理
+
+### 5. Token自动刷新
+
+#### **Token管理器**
+```typescript
+class TokenManager {
+  private accessToken: string | null = null;
+  private refreshToken: string | null = null;
+  private refreshPromise: Promise<string> | null = null;
+  
+  constructor() {
+    this.accessToken = localStorage.getItem('access_token');
+    this.refreshToken = localStorage.getItem('refresh_token');
+    this.setupInterceptors();
+  }
+  
+  private setupInterceptors() {
+    // 请求拦截器：添加token
+    axios.interceptors.request.use((config) => {
+      if (this.accessToken) {
+        config.headers.Authorization = `Bearer ${this.accessToken}`;
+      }
+      return config;
+    });
+    
+    // 响应拦截器：处理token过期
+    axios.interceptors.response.use(
+      (response) => response,
+      async (error) => {
+        const originalRequest = error.config;
+        
+        if (error.response?.status === 401 && !originalRequest._retry) {
+          originalRequest._retry = true;
+          
+          try {
+            // 尝试刷新token
+            const newToken = await this.refreshAccessToken();
+            
+            // 重新发送原始请求
+            originalRequest.headers.Authorization = `Bearer ${newToken}`;
+            return axios(originalRequest);
+          } catch (refreshError) {
+            // 刷新失败，重新登录
+            this.logout();
+            window.location.href = '/login';
+          }
+        }
+        
+        return Promise.reject(error);
+      }
+    );
+  }
+  
+  async refreshAccessToken(): Promise<string> {
+    // 防止重复刷新
+    if (this.refreshPromise) {
+      return this.refreshPromise;
+    }
+    
+    this.refreshPromise = this.doRefreshToken();
+    try {
+      const result = await this.refreshPromise;
+      return result;
+    } finally {
+      this.refreshPromise = null;
+    }
+  }
+  
+  private async doRefreshToken(): Promise<string> {
+    if (!this.refreshToken) {
+      throw new Error('No refresh token available');
+    }
+    
+    try {
+      const response = await axios.post('/user/refresh', {
+        refresh_token: this.refreshToken
+      });
+      
+      this.accessToken = response.data.access_token;
+      localStorage.setItem('access_token', this.accessToken);
+      
+      return this.accessToken;
+    } catch (error) {
+      // 刷新失败，清除所有token
+      this.logout();
+      throw error;
+    }
+  }
+  
+  setTokens(accessToken: string, refreshToken: string) {
+    this.accessToken = accessToken;
+    this.refreshToken = refreshToken;
+    localStorage.setItem('access_token', accessToken);
+    localStorage.setItem('refresh_token', refreshToken);
+  }
+  
+  logout() {
+    this.accessToken = null;
+    this.refreshToken = null;
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
+  }
+  
+  getAccessToken(): string | null {
+    return this.accessToken;
+  }
+  
+  isAuthenticated(): boolean {
+    return !!this.accessToken;
+  }
+}
+
+// 使用示例
+const tokenManager = new TokenManager();
+
+// 登录后设置tokens
+function handleLoginSuccess(response: LoginResponse) {
+  tokenManager.setTokens(
+    response.access_token,
+    response.refresh_token
+  );
+}
+```
+
+---
+
+## 📞 技术支持
+
+如有接口使用问题，请联系开发团队或查看项目文档。
+
+**相关文档**:
+- [API汇总文档](./api-summary-documentation.md)
+- [详细请求示例](./api-request-examples-detailed.md)
+- [测试指南](./api-testing-guide.md)
+
+**文档版本**: v1.0  
+**最后更新**: 2025年1月  
+**维护团队**: 后端开发团队
