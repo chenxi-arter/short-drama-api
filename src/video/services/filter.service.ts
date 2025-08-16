@@ -163,7 +163,7 @@ export class FilterService {
       const queryBuilder = this.seriesRepo.createQueryBuilder('series')
         .leftJoinAndSelect('series.category', 'category')
         .leftJoinAndSelect('series.episodes', 'episodes')
-        .where('1=1'); // 基础条件
+        .where('series.isActive = :isActive', { isActive: 1 }); // 只查询未删除的剧集
 
       // 应用筛选条件
       await this.applyFilters(queryBuilder, filterIds, channelId);
@@ -234,7 +234,10 @@ export class FilterService {
 
   /**
    * 解析筛选条件ID字符串
-   * @param ids 筛选条件ID组合字符串，格式："sortType,categoryId,regionId,languageId,yearId,statusId"
+   * @param ids 筛选条件sort_order组合字符串，格式："sortType,categoryId,regionId,languageId,yearId,statusId"
+   * ids对应关系：[排序, 类型, 地区, 语言, 年份, 状态]
+   * 对应filter_type（按sort_order排序）：[1, 2, 3, 4, 5, 6]
+   * 注意：ids中的值是sort_order，不是filter_option.id
    */
   private parseFilterIds(ids: string): {
     sortType: number;
@@ -247,17 +250,36 @@ export class FilterService {
     const parts = ids.split(',').map(id => parseInt(id) || 0);
     
     return {
-      sortType: parts[0] || 0,
-      categoryId: parts[1] || 0,
-      regionId: parts[2] || 0,
-      languageId: parts[3] || 0,
-      yearId: parts[4] || 0,
-      statusId: parts[5] || 0,
+      sortType: parts[0] || 0,     // filter_type_id = 1 (排序)
+      categoryId: parts[1] || 0,   // filter_type_id = 2 (类型)
+      regionId: parts[2] || 0,     // filter_type_id = 3 (地区)
+      languageId: parts[3] || 0,   // filter_type_id = 4 (语言)
+      yearId: parts[4] || 0,       // filter_type_id = 5 (年份)
+      statusId: parts[5] || 0,     // filter_type_id = 6 (状态)
     };
   }
 
   /**
+   * 公共方法：应用筛选条件到查询构建器
+   */
+  async applyFiltersToQueryBuilder(
+    queryBuilder: any,
+    filterIds: {
+      sortType: number;
+      categoryId: number;
+      regionId: number;
+      languageId: number;
+      yearId: number;
+      statusId: number;
+    },
+    channelId: string
+  ): Promise<void> {
+    await this.applyFilters(queryBuilder, filterIds, channelId);
+  }
+
+  /**
    * 应用筛选条件到查询构建器
+   * 使用 sort_order 动态构建筛选映射
    */
   private async applyFilters(
     queryBuilder: any, 
@@ -282,50 +304,82 @@ export class FilterService {
       }
     }
 
-    // 分类筛选
-    if (filterIds.categoryId > 0) {
-      queryBuilder.andWhere('category.id = :categoryId', { categoryId: filterIds.categoryId });
-    }
+    // 动态获取filter_types按sort_order排序的映射
+    const filterTypes = await this.filterTypeRepo.find({
+      order: { sortOrder: 'ASC' },
+      where: { isActive: true }
+    });
 
-    // 地区筛选 - 根据筛选器选项名称匹配
-    if (filterIds.regionId > 0) {
-      // 先获取筛选器选项的名称
-      const regionOption = await this.filterOptionRepo.findOne({ where: { id: filterIds.regionId } });
-      if (regionOption) {
-        queryBuilder.andWhere('series.region = :region', { region: regionOption.name });
-      }
-    }
+    // ids参数数组
+    const idsArray = [
+      filterIds.sortType,
+      filterIds.categoryId, 
+      filterIds.regionId,
+      filterIds.languageId,
+      filterIds.yearId,
+      filterIds.statusId
+    ];
 
-    // 语言筛选 - 根据筛选器选项名称匹配
-    if (filterIds.languageId > 0) {
-      const languageOption = await this.filterOptionRepo.findOne({ where: { id: filterIds.languageId } });
-      if (languageOption) {
-        queryBuilder.andWhere('series.language = :language', { language: languageOption.name });
-      }
-    }
+    // 根据sort_order动态应用筛选条件
+    for (let i = 0; i < Math.min(filterTypes.length, idsArray.length); i++) {
+      const filterType = filterTypes[i];
+      const optionId = idsArray[i];
 
-    // 年份筛选 - 根据发布日期年份匹配
-    if (filterIds.yearId > 0) {
-      const yearOption = await this.filterOptionRepo.findOne({ where: { id: filterIds.yearId } });
-      if (yearOption) {
-        const year = parseInt(yearOption.name.replace('年', ''));
-        if (!isNaN(year)) {
-          queryBuilder.andWhere('YEAR(series.release_date) = :year', { year });
+      if (optionId > 0) {
+        // 根据filter_type和sort_order查找对应的选项
+        const option = await this.filterOptionRepo.findOne({
+          where: { 
+            filterTypeId: filterType.id,
+            sortOrder: optionId,
+            isActive: true
+          }
+        });
+
+        if (option) {
+          console.log(`[DEBUG] 应用筛选: ${filterType.code}, sort_order: ${optionId}, option_id: ${option.id}, option_name: ${option.name}`);
+          // 根据filter_type的code来应用不同的筛选逻辑，传递实际的option.id
+          await this.applyFilterByType(queryBuilder, filterType.code, option.id);
+        } else {
+          console.log(`[DEBUG] 未找到筛选选项: filter_type_id=${filterType.id}, sort_order=${optionId}`);
         }
       }
     }
+  }
 
-    // 状态筛选 - 根据筛选器选项名称匹配
-    if (filterIds.statusId > 0) {
-      const statusOption = await this.filterOptionRepo.findOne({ where: { id: filterIds.statusId } });
-      if (statusOption) {
-        // 根据状态名称匹配
-        if (statusOption.name === '连载中') {
-          queryBuilder.andWhere('series.is_completed = :isCompleted', { isCompleted: false });
-        } else if (statusOption.name === '已完结') {
-          queryBuilder.andWhere('series.is_completed = :isCompleted', { isCompleted: true });
-        }
-      }
+  /**
+   * 根据筛选类型应用具体的筛选条件
+   */
+  private async applyFilterByType(queryBuilder: any, filterTypeCode: string, optionId: number): Promise<void> {
+    // 使用唯一的参数名避免冲突
+    const paramName = `${filterTypeCode}_${optionId}_${Date.now()}`;
+    
+    switch (filterTypeCode) {
+      case 'sort':
+        // 排序在applySorting方法中处理，这里不需要处理
+        break;
+      case 'type':
+        // 类型筛选 - 特殊处理，需要映射到category
+        queryBuilder.andWhere(`category.id = :${paramName}`, { [paramName]: optionId });
+        break;
+      case 'region':
+        // 地区筛选
+        queryBuilder.andWhere(`series.region_option_id = :${paramName}`, { [paramName]: optionId });
+        break;
+      case 'language':
+        // 语言筛选
+        queryBuilder.andWhere(`series.language_option_id = :${paramName}`, { [paramName]: optionId });
+        break;
+      case 'year':
+        // 年份筛选
+        queryBuilder.andWhere(`series.year_option_id = :${paramName}`, { [paramName]: optionId });
+        break;
+      case 'status':
+        // 状态筛选
+        queryBuilder.andWhere(`series.status_option_id = :${paramName}`, { [paramName]: optionId });
+        break;
+      default:
+        // 未知类型，忽略
+        break;
     }
   }
 
@@ -407,7 +461,10 @@ export class FilterService {
     page: number = 1,
     size: number = 20
   ): Promise<FuzzySearchResponse> {
+    console.log('模糊搜索开始:', { keyword, channeid, page, size });
+    
     if (!keyword || keyword.trim() === '') {
+      console.log('搜索关键词为空');
       return {
         code: 400,
         data: {
@@ -422,21 +479,25 @@ export class FilterService {
     }
 
     const cacheKey = CacheKeys.fuzzySearch(keyword, channeid, page, size);
+    console.log('缓存键:', cacheKey);
     
     // 尝试从缓存获取
     const cached = await this.cacheManager.get<FuzzySearchResponse>(cacheKey);
     if (cached) {
+      console.log('从缓存返回结果');
       return cached;
     }
 
     try {
       const offset = (page - 1) * size;
+      console.log('查询参数:', { offset, size });
       
       // 构建查询条件
       const queryBuilder = this.seriesRepo.createQueryBuilder('series')
         .leftJoinAndSelect('series.category', 'category')
         .leftJoinAndSelect('series.episodes', 'episodes')
-        .where('series.title LIKE :keyword', { keyword: `%${keyword.trim()}%` });
+        .where('series.title LIKE :keyword', { keyword: `%${keyword.trim()}%` })
+        .andWhere('series.isActive = :isActive', { isActive: 1 }); // 只查询未删除的剧集
 
       // 如果指定了频道ID，则添加频道筛选条件
       if (channeid && channeid.trim() !== '') {
@@ -446,14 +507,20 @@ export class FilterService {
       // 排序：按相关性（标题匹配度）和创建时间
       queryBuilder.orderBy('series.createdAt', 'DESC');
 
+      console.log('SQL查询:', queryBuilder.getSql());
+      console.log('查询参数:', queryBuilder.getParameters());
+
       // 分页
       const [series, total] = await queryBuilder
         .skip(offset)
         .take(size)
         .getManyAndCount();
 
+      console.log('查询结果:', { count: series?.length || 0, total });
+
       // 如果没有查询到数据，返回空数据
       if (!series || series.length === 0) {
+        console.log('未找到相关结果');
         const response: FuzzySearchResponse = {
           code: 200,
           data: {
@@ -503,6 +570,8 @@ export class FilterService {
         },
         msg: null
       };
+
+      console.log('返回结果:', { itemCount: items.length, total, hasMore: response.data.hasMore });
 
       // 缓存结果（10分钟）
       await this.cacheManager.set(cacheKey, response, CacheKeys.TTL.MEDIUM);

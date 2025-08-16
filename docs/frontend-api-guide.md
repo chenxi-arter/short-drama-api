@@ -269,7 +269,7 @@ interface ContentBlock {
 #### **获取筛选标签**
 ```typescript
 // 接口地址
-GET /api/home/getfilterstags?channeid=1
+GET /api/list/getfilterstags?channeid=1
 
 // 响应格式
 interface FilterTagsResponse {
@@ -293,7 +293,7 @@ interface FilterTagItem {
 #### **获取筛选数据**
 ```typescript
 // 接口地址
-GET /api/home/getfiltersdata?channeid=1&ids=1,2,0,0,0&page=1
+GET /api/list/getfiltersdata?channeid=1&ids=1,2,0,0,0&page=1
 
 // 响应格式
 interface FiltersDataResponse {
@@ -482,6 +482,8 @@ interface EpisodeResponse {
     page: number;
     size: number;
     hasMore: boolean;
+    tags: string[];          // 系列标签（类型/地区/语言/年份/状态）
+    currentEpisode: string;  // 当前观看到的集数（与 episodeTitle 一致，如 "01"；无记录则为 "01"）
   };
 }
 
@@ -494,6 +496,7 @@ interface SeriesInfo {
   playCount: number;       // 播放次数
   isHot: boolean;          // 是否热门
   isVip: boolean;          // 是否VIP
+  tags?: string[];         // 系列标签
 }
 
 interface UserProgress {
@@ -507,6 +510,7 @@ interface EpisodeItem {
   id: number;
   shortId: string;         // 剧集ShortID
   episodeNumber: number;   // 集数
+  episodeTitle: string;    // 集数标题（如 01, 02...）
   title: string;           // 标题
   duration: number;        // 时长（秒）
   watchProgress?: number;  // 观看进度（秒）
@@ -531,10 +535,11 @@ interface EpisodeUrlResponse {
   id: number;
   episodeId: number;
   quality: string;         // 清晰度
-  cdnUrl: string;         // CDN播放地址
-  subtitleUrl: string;    // 字幕地址
+  cdnUrl: string;          // CDN播放地址
+  ossUrl: string;          // OSS源地址
+  subtitleUrl: string | null; // 字幕地址
   accessKey: string;      // 访问密钥
-  expiresAt: string;      // 过期时间
+  // expiresAt?: string;   // 过期时间（如实现）
 }
 ```
 

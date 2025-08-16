@@ -47,6 +47,7 @@ export interface EpisodeBasicInfo {
   lastWatchTime?: string;        // 最后观看时间
   // 播放地址相关字段
   urls?: EpisodeUrlInfo[];       // 播放地址列表
+  tags?: string[];               // 系列筛选标签（如["偶像","大陆","国语","2025年","连载中"]）
 }
 
 /**
@@ -95,6 +96,7 @@ export interface SeriesBasicInfo {
   playCount: number;             // 播放次数
   isHot: boolean;                // 是否热门
   isVip: boolean;                // 是否VIP
+  tags?: string[];               // 系列标签（类型/地区/语言/年份/状态）
 }
 
 /**
@@ -110,6 +112,8 @@ export interface EpisodeListResponse {
     page: number;                 // 当前页码
     size: number;                 // 每页数量
     hasMore: boolean;             // 是否有更多数据
+    tags?: string[];              // 系列标签（类型/地区/语言/年份/状态）
+    currentEpisode?: string;      // 当前观看到的集数字符串（与episodeTitle一致，如"01"；无记录则为"01"）
   };
   msg: string | null;
 }

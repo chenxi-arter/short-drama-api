@@ -7,8 +7,8 @@ import { Category } from './entity/category.entity';
 import { Series } from './entity/series.entity';
 import { Episode } from './entity/episode.entity';
 import { ShortVideo } from "./entity/short-video.entity";
-// import { FilterType } from './entity/filter-type.entity';
-// import { FilterOption } from './entity/filter-option.entity';
+import { FilterType } from './entity/filter-type.entity';
+import { FilterOption } from './entity/filter-option.entity';
 import { ContentBlock, VideoItem } from './dto/home-videos.dto';
 import { FilterTagsResponse } from './dto/filter-tags.dto';
 import { FilterDataResponse } from './dto/filter-data.dto';
@@ -32,6 +32,7 @@ export class VideoService {
     @InjectRepository(Series)  private readonly seriesRepo: Repository<Series>,
     @InjectRepository(ShortVideo) private readonly shortRepo: Repository<ShortVideo>,
     @InjectRepository(Episode) private readonly epRepo: Repository<Episode>,
+    @InjectRepository(FilterOption) private readonly filterOptionRepo: Repository<FilterOption>,
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
     private readonly watchProgressService: WatchProgressService,
     private readonly commentService: CommentService,
@@ -920,7 +921,11 @@ async listSeriesFull(
       const queryBuilder = this.seriesRepo.createQueryBuilder('series')
         .leftJoinAndSelect('series.category', 'category')
         .leftJoinAndSelect('series.episodes', 'episodes')
-        .where('category.category_id = :categoryId', { categoryId });
+        .where('category.category_id = :categoryId', { categoryId })
+        .andWhere('series.isActive = :isActive', { isActive: 1 }); // 只查询未删除的剧集
+      
+      // 应用筛选条件
+      await this.applyConditionFilters(queryBuilder, filterIds);
       
       // 应用排序
       this.applySorting(queryBuilder, filterIds.sortType);
@@ -944,12 +949,12 @@ async listSeriesFull(
         isSerial: (s.episodes && s.episodes.length > 1) || false,
         upStatus: s.upStatus || '已完结',
         upCount: s.upCount || 0,
-        status: s.status || 'on-going',
+        status: s.upStatus || 'on-going',
         starring: s.starring || '',
         actor: s.actor || '',
         director: s.director || '',
-        region: s.region || '',
-        language: s.language || '',
+        region: '', // 使用外键字段，此处留空
+        language: '', // 使用外键字段，此处留空
         releaseDate: s.releaseDate ? (s.releaseDate instanceof Date ? s.releaseDate.toISOString() : new Date(s.releaseDate).toISOString()) : undefined,
         isCompleted: s.isCompleted || false,
         cidMapper: s.category?.id?.toString() || '0',
@@ -991,6 +996,25 @@ async listSeriesFull(
     }
   }
   
+  /**
+   * 应用条件筛选
+   * 使用 sort_order 动态构建筛选映射
+   */
+  private async applyConditionFilters(
+    queryBuilder: any, 
+    filterIds: {
+      sortType: number;
+      categoryId: number;
+      regionId: number;
+      languageId: number;
+      yearId: number;
+      statusId: number;
+    }
+  ): Promise<void> {
+    // 调用FilterService的筛选逻辑，保持一致性
+    await this.filterService.applyFiltersToQueryBuilder(queryBuilder, filterIds, '1');
+  }
+
   /**
    * 解析筛选条件ID字符串
    */
@@ -1095,6 +1119,10 @@ async listSeriesFull(
       let queryBuilder = this.epRepo.createQueryBuilder('episode')
         .leftJoinAndSelect('episode.series', 'series')
         .leftJoinAndSelect('series.category', 'category')
+        .leftJoinAndSelect('series.regionOption', 'regionOption')
+        .leftJoinAndSelect('series.languageOption', 'languageOption')
+        .leftJoinAndSelect('series.statusOption', 'statusOption')
+        .leftJoinAndSelect('series.yearOption', 'yearOption')
         .leftJoinAndSelect('episode.urls', 'urls')
         .orderBy('episode.episodeNumber', 'ASC');
       
@@ -1116,8 +1144,37 @@ async listSeriesFull(
       
       // 获取系列信息（从第一集获取）
       let seriesInfo: any = null;
+      let tags: string[] = [];
       if (episodes.length > 0 && episodes[0].series) {
         const series = episodes[0].series;
+        // 1. 类型（category）
+        let typeName = series.category?.name || '';
+        // 2. 地区
+        let regionName = '';
+        if (series.regionOption) {
+          regionName = series.regionOption.name;
+        }
+        // 3. 语言
+        let languageName = '';
+        if (series.languageOption) {
+          languageName = series.languageOption.name;
+        }
+        // 4. 年份
+        let yearName = '';
+        if (series.releaseDate) {
+          const year = new Date(series.releaseDate).getFullYear().toString();
+          let yearOption = await this.filterService['filterOptionRepo'].findOne({ where: { value: year } });
+          if (!yearOption) {
+            yearOption = await this.filterService['filterOptionRepo'].findOne({ where: { name: year + '年' } });
+          }
+          yearName = yearOption?.name || year;
+        }
+        // 5. 状态
+        let statusName = '';
+        if (series.statusOption) {
+          statusName = series.statusOption.name;
+        }
+        tags = [typeName, regionName, languageName, yearName, statusName].filter(Boolean);
         seriesInfo = {
           starring: series.starring || '',
           id: series.id,
@@ -1125,21 +1182,22 @@ async listSeriesFull(
           channeID: series.categoryId || 0,
           title: series.title,
           coverUrl: series.coverUrl || '',
-          mediaUrl: '', // 默认空字符串
-          fileName: `series-${series.id}`, // 根据ID生成文件名
-          mediaId: `${series.id}_0,1,4,146`, // 根据ID生成媒体ID
+          mediaUrl: '',
+          fileName: `series-${series.id}`,
+          mediaId: `${series.id}_0,1,4,146`,
           postTime: (series.releaseDate instanceof Date ? series.releaseDate.toISOString() : null) || series.createdAt?.toISOString() || new Date().toISOString(),
           contentType: series.category?.name || '电视剧',
           actor: series.actor || '',
-          shareCount: 0, // 默认值
+          shareCount: 0,
           director: series.director || '',
           description: series.description || '',
-          comments: 0, // 默认值
+          comments: 0,
           updateStatus: series.upStatus || '',
-          watch_progress: 0, // 默认值
+          watch_progress: 0,
           playCount: series.playCount || 0,
-          isHot: series.score > 8.5, // 根据评分判断是否热门
-          isVip: false // 默认值
+          isHot: series.score > 8.5,
+          isVip: false,
+          tags,
         };
       }
       
@@ -1217,12 +1275,11 @@ async listSeriesFull(
         const watchProgress = progress?.stopAtSecond || 0;
         const duration = ep.duration || 0;
         const watchPercentage = duration > 0 ? Math.round((watchProgress / duration) * 100) : 0;
-        
         return {
           id: ep.id,
           shortId: ep.shortId,
           episodeNumber: ep.episodeNumber,
-          episodeTitle: ep.episodeNumber.toString().padStart(2, '0'), // 添加episodeTitle字段，不满两位用0补齐
+          episodeTitle: ep.episodeNumber.toString().padStart(2, '0'),
           title: ep.title || `第${ep.episodeNumber}集`,
           duration: duration,
           status: ep.status || 'active',
@@ -1231,16 +1288,14 @@ async listSeriesFull(
           seriesId: ep.series?.id || 0,
           seriesTitle: ep.series?.title || '',
           seriesShortId: ep.series?.shortId || '',
-          // 播放进度相关字段（仅在有用户token时返回）
           watchProgress: watchProgress,
           watchPercentage: watchPercentage,
-          isWatched: watchPercentage >= 90, // 观看90%以上认为已观看
+          isWatched: watchPercentage >= 90,
           lastWatchTime: progress?.updatedAt?.toISOString() || null,
-          // 播放地址相关字段
           urls: ep.urls?.map(url => ({
             quality: url.quality,
             accessKey: url.accessKey
-          })) || []
+          })) || [],
         };
       });
 
@@ -1273,7 +1328,14 @@ async listSeriesFull(
           total,
           page,
           size,
-          hasMore: total > page * size
+          hasMore: total > page * size,
+          tags: tags || [],
+          currentEpisode: (() => {
+            const num = (userProgress?.currentEpisode && userProgress.currentEpisode > 0)
+              ? userProgress.currentEpisode
+              : 1;
+            return String(num).padStart(2, '0');
+          })()
         },
         msg: null
       };
@@ -1401,6 +1463,96 @@ async listSeriesFull(
       }
     } catch (error) {
       console.error('清理评论缓存失败:', error);
+    }
+  }
+
+  /**
+   * 软删除剧集系列
+   * @param seriesId 系列ID
+   * @param deletedBy 删除者用户ID（可选）
+   * @returns 删除结果
+   */
+  async softDeleteSeries(seriesId: number, deletedBy?: number): Promise<{ success: boolean; message: string }> {
+    try {
+      const series = await this.seriesRepo.findOne({ where: { id: seriesId, isActive: 1 } });
+      
+      if (!series) {
+        return { success: false, message: '剧集不存在或已被删除' };
+      }
+
+      // 执行软删除
+      const updateData: any = {
+        isActive: 0,
+        deletedAt: new Date(),
+      };
+      if (deletedBy) {
+        updateData.deletedBy = deletedBy;
+      }
+      await this.seriesRepo.update(seriesId, updateData);
+
+      return { success: true, message: '剧集删除成功' };
+    } catch (error) {
+      console.error('软删除剧集失败:', error);
+      return { success: false, message: '删除失败，请稍后重试' };
+    }
+  }
+
+  /**
+   * 恢复已删除的剧集系列
+   * @param seriesId 系列ID
+   * @returns 恢复结果
+   */
+  async restoreSeries(seriesId: number): Promise<{ success: boolean; message: string }> {
+    try {
+      const series = await this.seriesRepo.findOne({ where: { id: seriesId, isActive: 0 } });
+      
+      if (!series) {
+        return { success: false, message: '剧集不存在或未被删除' };
+      }
+
+      // 恢复剧集
+      await this.seriesRepo.update(seriesId, {
+        isActive: 1,
+        deletedAt: undefined,
+        deletedBy: undefined
+      });
+
+      return { success: true, message: '剧集恢复成功' };
+    } catch (error) {
+      console.error('恢复剧集失败:', error);
+      return { success: false, message: '恢复失败，请稍后重试' };
+    }
+  }
+
+  /**
+   * 获取已删除的剧集列表
+   * @param page 页码
+   * @param size 每页数量
+   * @returns 已删除的剧集列表
+   */
+  async getDeletedSeries(page: number = 1, size: number = 10) {
+    try {
+      const [series, total] = await this.seriesRepo.findAndCount({
+        where: { isActive: 0 },
+        relations: ['category'],
+        order: { deletedAt: 'DESC' },
+        skip: (page - 1) * size,
+        take: size
+      });
+
+      return {
+        success: true,
+        data: {
+          list: series,
+          total,
+          page,
+          size,
+          hasMore: total > page * size
+        }
+      };
+    } catch (error) {
+      console.error('获取已删除剧集失败:', error);
+      return { success: false, message: '获取失败，请稍后重试' };
     }
   }
 }

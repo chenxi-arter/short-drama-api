@@ -1,4 +1,4 @@
-import { IsOptional, IsString, IsNumber } from 'class-validator';
+import { IsOptional, IsString, IsNotEmpty } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
 
 /**
@@ -6,24 +6,27 @@ import { Transform, Type } from 'class-transformer';
  * 用于根据标题进行模糊搜索
  */
 export class FuzzySearchDto {
-  @IsOptional()
-  @IsString()
-  keyword?: string; // 搜索关键词，必填
+  @IsNotEmpty({ message: '搜索关键词不能为空' })
+  @IsString({ message: '搜索关键词必须是字符串' })
+  keyword: string; // 搜索关键词，必填
 
   @IsOptional()
-  @IsString()
   channeid?: string; // 可选，频道ID，不传则搜索全部
 
   @IsOptional()
   @Type(() => Number)
-  @IsNumber()
-  @Transform(({ value }) => parseInt(value) || 1)
+  @Transform(({ value }) => {
+    const parsed = parseInt(value);
+    return isNaN(parsed) ? 1 : parsed;
+  })
   page?: number; // 页码，默认1
 
   @IsOptional()
   @Type(() => Number)
-  @IsNumber()
-  @Transform(({ value }) => parseInt(value) || 20)
+  @Transform(({ value }) => {
+    const parsed = parseInt(value);
+    return isNaN(parsed) ? 20 : parsed;
+  })
   size?: number; // 每页大小，默认20
 }
 

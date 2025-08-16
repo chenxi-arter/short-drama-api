@@ -8,6 +8,7 @@ import { Episode } from './episode.entity';
 import { Category } from './category.entity';
 // import { BrowseHistory } from './browse-history.entity';
 import { ShortIdUtil } from '../../shared/utils/short-id.util';
+import { FilterOption } from './filter-option.entity';
 
 @Entity('series')
 export class Series {
@@ -104,25 +105,25 @@ export class Series {
   playCount: number;
 
   /** 
-   * 状态
-   * 系列的当前状态，如：on-going（连载中）、completed（已完结）等
-   */
-  @Column({ default: 'on-going' })
-  status: string;
-  
-  /**
    * 更新状态
-   * 显示给用户的更新状态，如：更新到第10集、全集
+   * 系列的更新状态信息，如"已完结"、"更新中"等
    */
-  @Column({ length: 50, nullable: true, name: 'up_status' })
+  @Column({ length: 255, nullable: true, name: 'up_status' })
   upStatus: string;
-  
+
   /** 
    * 更新次数
    * 记录系列更新的次数
    */
   @Column({ type: 'int', default: 0, name: 'up_count' })
   upCount: number;
+
+  /** 
+   * 状态
+   * 系列的状态，如"on-going"、"completed"等
+   */
+  @Column({ length: 255, default: 'on-going', name: 'status' })
+  status: string;
 
   /** 
    * 主演名单
@@ -146,18 +147,44 @@ export class Series {
   director: string;
 
   /** 
-   * 地区
-   * 系列的制作地区，如：中国大陆、香港、台湾等
+   * 地区（外键关联 filter_options）
    */
-  @Column({ length: 50, nullable: true, name: 'region' })
-  region: string;
+  @ManyToOne(() => FilterOption, { nullable: true })
+  @JoinColumn({ name: 'region_option_id' })
+  regionOption: FilterOption;
+
+  @Column({ type: 'int', nullable: true, name: 'region_option_id' })
+  regionOptionId: number;
 
   /** 
-   * 语言
-   * 系列的主要语言，如：中文、英文等
+   * 语言（外键关联 filter_options）
    */
-  @Column({ length: 50, nullable: true, name: 'language' })
-  language: string;
+  @ManyToOne(() => FilterOption, { nullable: true })
+  @JoinColumn({ name: 'language_option_id' })
+  languageOption: FilterOption;
+
+  @Column({ type: 'int', nullable: true, name: 'language_option_id' })
+  languageOptionId: number;
+
+  /** 
+   * 状态选项（外键关联 filter_options）
+   */
+  @ManyToOne(() => FilterOption, { nullable: true })
+  @JoinColumn({ name: 'status_option_id' })
+  statusOption: FilterOption;
+
+  @Column({ type: 'int', nullable: true, name: 'status_option_id' })
+  statusOptionId: number;
+
+  /** 
+   * 年份（外键关联 filter_options）
+   */
+  @ManyToOne(() => FilterOption, { nullable: true })
+  @JoinColumn({ name: 'year_option_id' })
+  yearOption: FilterOption;
+
+  @Column({ type: 'int', nullable: true, name: 'year_option_id' })
+  yearOptionId: number;
 
   /** 
    * 发布日期
@@ -179,6 +206,27 @@ export class Series {
    */
   @Column({ type: 'timestamp', nullable: true, name: 'updated_at' })
   updatedAt: Date;
+
+  /**
+   * 是否活跃（软删除标记）
+   * 1=正常（默认），0=已删除
+   */
+  @Column({ type: 'tinyint', width: 1, default: 1, name: 'is_active' })
+  isActive: number;
+
+  /**
+   * 删除时间（软删除）
+   * NULL=未删除，有值=删除时间
+   */
+  @Column({ type: 'timestamp', nullable: true, name: 'deleted_at' })
+  deletedAt: Date;
+
+  /**
+   * 删除者用户ID（可选）
+   * 记录是谁删除了这个系列
+   */
+  @Column({ type: 'int', nullable: true, name: 'deleted_by' })
+  deletedBy: number;
   
   /**
    * 在插入前自动生成短ID

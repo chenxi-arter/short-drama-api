@@ -54,7 +54,10 @@ export class ListController {
    */
   @Get('fuzzysearch')
   async fuzzySearch(@Query() dto: FuzzySearchDto) {
+    console.log('收到模糊搜索请求:', dto);
+    
     if (!dto.keyword || dto.keyword.trim() === '') {
+      console.log('搜索关键词为空');
       return {
         code: 400,
         msg: '搜索关键词不能为空',
@@ -62,12 +65,24 @@ export class ListController {
       };
     }
     
-    return this.videoService.fuzzySearch(
-      dto.keyword,
-      dto.channeid,
-      dto.page || 1,
-      dto.size || 20
-    );
+    try {
+      const result = await this.videoService.fuzzySearch(
+        dto.keyword,
+        dto.channeid,
+        dto.page || 1,
+        dto.size || 20
+      );
+      
+      console.log('模糊搜索成功:', { keyword: dto.keyword, resultCount: result.data?.list?.length || 0 });
+      return result;
+    } catch (error) {
+      console.error('模糊搜索失败:', error);
+      return {
+        code: 500,
+        msg: '搜索失败，请稍后重试',
+        data: null
+      };
+    }
   }
 
   /**

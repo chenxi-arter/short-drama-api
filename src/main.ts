@@ -8,17 +8,16 @@ import { ValidationPipe } from '@nestjs/common';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  // ✅ 设置字符编码
-  app.use((req, res, next) => {
-    res.setHeader('Content-Type', 'application/json; charset=utf-8');
-    next();
-  });
-
   // ✅ 启用全局验证管道
   app.useGlobalPipes(new ValidationPipe({
     transform: true,
-    whitelist: true,
-    forbidNonWhitelisted: true,
+    whitelist: false, // 允许额外的参数
+    forbidNonWhitelisted: false, // 不禁止额外的参数
+    // 添加错误处理
+    exceptionFactory: (errors) => {
+      console.log('验证错误详情:', JSON.stringify(errors, null, 2));
+      return new Error('参数验证失败');
+    }
   }));
 
   // ✅ 开启跨域

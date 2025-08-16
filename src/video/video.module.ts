@@ -23,6 +23,7 @@ import { CategoryController } from './category.controller';   // 分类相关API
 import { BannerController } from './controllers/banner.controller'; // 轮播图API控制器
 import { BrowseHistoryController } from './browse-history.controller'; // 浏览记录API控制器
 import { CacheMonitorController } from './cache-monitor.controller'; // 缓存监控API控制器
+import { AdminController } from './admin.controller'; // 管理员API控制器
 import { WatchProgressService } from './services/watch-progress.service';
 import { CommentService } from './services/comment.service';
 import { EpisodeService } from './services/episode.service';
@@ -78,7 +79,8 @@ import { IsValidChannelExistsConstraint } from './validators/channel-exists.vali
     CategoryController,
     BannerController,
     BrowseHistoryController,
-    CacheMonitorController
+    CacheMonitorController,
+    AdminController
   ], // 一起注册
   // 注意：如果需要让其他模块使用这些实体或服务，应该在这里添加exports
 })
