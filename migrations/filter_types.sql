@@ -1,6 +1,0 @@
-INSERT INTO `filter_types` (`id`, `name`, `code`, `index_position`, `is_active`, `sort_order`, `created_at`, `updated_at`) VALUES (1, '排序', 'sort', 1, 1, 1, '2025-08-05 15:11:27.369700', '2025-08-05 15:11:27.369700');
-INSERT INTO `filter_types` (`id`, `name`, `code`, `index_position`, `is_active`, `sort_order`, `created_at`, `updated_at`) VALUES (2, '类型', 'type', 2, 1, 2, '2025-08-05 15:11:27.369700', '2025-08-05 15:11:27.369700');
-INSERT INTO `filter_types` (`id`, `name`, `code`, `index_position`, `is_active`, `sort_order`, `created_at`, `updated_at`) VALUES (3, '地区', 'region', 3, 1, 3, '2025-08-05 15:11:27.369700', '2025-08-05 15:11:27.369700');
-INSERT INTO `filter_types` (`id`, `name`, `code`, `index_position`, `is_active`, `sort_order`, `created_at`, `updated_at`) VALUES (4, '语言', 'language', 4, 1, 4, '2025-08-05 15:11:27.369700', '2025-08-05 15:11:27.369700');
-INSERT INTO `filter_types` (`id`, `name`, `code`, `index_position`, `is_active`, `sort_order`, `created_at`, `updated_at`) VALUES (5, '年份', 'year', 5, 1, 5, '2025-08-05 15:11:27.369700', '2025-08-05 15:11:27.369700');
-INSERT INTO `filter_types` (`id`, `name`, `code`, `index_position`, `is_active`, `sort_order`, `created_at`, `updated_at`) VALUES (6, '状态', 'status', 6, 1, 6, '2025-08-05 15:11:27.369700', '2025-08-05 15:11:27.369700');

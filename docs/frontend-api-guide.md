@@ -402,6 +402,10 @@ interface FilterResponse {
   code: number;
   data: {
     list: VideoItem[];
+    total: number;
+    page: number;
+    size: number;
+    hasMore: boolean;
   };
 }
 

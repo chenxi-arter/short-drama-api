@@ -11,7 +11,7 @@
  Target Server Version : 80043 (8.0.43)
  File Encoding         : 65001
 
- Date: 09/08/2025 15:51:41
+ Date: 16/08/2025 11:29:06
 */
 
 SET NAMES utf8mb4;
@@ -24,10 +24,10 @@ DROP TABLE IF EXISTS `banners`;
 CREATE TABLE `banners` (
   `id` int NOT NULL AUTO_INCREMENT,
   `title` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `image_url` varchar(500) COLLATE utf8mb4_general_ci NOT NULL,
+  `image_url` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
   `series_id` int DEFAULT NULL,
   `category_id` int NOT NULL,
-  `link_url` varchar(500) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `link_url` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
   `weight` int NOT NULL DEFAULT '0',
   `is_active` tinyint NOT NULL DEFAULT '1',
   `start_time` datetime DEFAULT NULL,
@@ -60,29 +60,70 @@ INSERT INTO `banners` (`id`, `title`, `image_url`, `series_id`, `category_id`, `
 COMMIT;
 
 -- ----------------------------
+-- Table structure for browse_history
+-- ----------------------------
+DROP TABLE IF EXISTS `browse_history`;
+CREATE TABLE `browse_history` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `user_id` bigint NOT NULL,
+  `series_id` int NOT NULL,
+  `browse_type` varchar(50) COLLATE utf8mb4_general_ci NOT NULL DEFAULT 'episode_list',
+  `duration_seconds` int NOT NULL DEFAULT '0',
+  `last_episode_number` int DEFAULT NULL,
+  `visit_count` int NOT NULL DEFAULT '1',
+  `user_agent` varchar(500) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `ip_address` varchar(45) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`id`),
+  KEY `FK_2772b4e4dcd762bfffb7d7ea17d` (`user_id`),
+  KEY `FK_819bb524d195464598595e21315` (`series_id`),
+  CONSTRAINT `FK_2772b4e4dcd762bfffb7d7ea17d` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`),
+  CONSTRAINT `FK_819bb524d195464598595e21315` FOREIGN KEY (`series_id`) REFERENCES `series` (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=23 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- ----------------------------
+-- Records of browse_history
+-- ----------------------------
+BEGIN;
+INSERT INTO `browse_history` (`id`, `user_id`, `series_id`, `browse_type`, `duration_seconds`, `last_episode_number`, `visit_count`, `user_agent`, `ip_address`, `created_at`, `updated_at`) VALUES (5, 7845078844, 1002, 'episode_list', 0, 10, 1, 'curl/8.7.1', '::1', '2025-08-13 02:42:07.366279', '2025-08-13 02:42:07.366279');
+INSERT INTO `browse_history` (`id`, `user_id`, `series_id`, `browse_type`, `duration_seconds`, `last_episode_number`, `visit_count`, `user_agent`, `ip_address`, `created_at`, `updated_at`) VALUES (6, 7845078844, 1003, 'series_detail', 0, 15, 1, 'curl/8.7.1', '::1', '2025-08-13 02:42:15.236080', '2025-08-13 02:42:15.236080');
+INSERT INTO `browse_history` (`id`, `user_id`, `series_id`, `browse_type`, `duration_seconds`, `last_episode_number`, `visit_count`, `user_agent`, `ip_address`, `created_at`, `updated_at`) VALUES (7, 7845078844, 1004, 'episode_list', 0, 1, 2, 'curl/8.7.1', '::1', '2025-08-13 02:50:22.176088', '2025-08-13 10:50:22.217000');
+INSERT INTO `browse_history` (`id`, `user_id`, `series_id`, `browse_type`, `duration_seconds`, `last_episode_number`, `visit_count`, `user_agent`, `ip_address`, `created_at`, `updated_at`) VALUES (8, 7845078844, 1004, 'episode_list', 0, 1, 1, 'curl/8.7.1', '::1', '2025-08-13 02:50:22.191876', '2025-08-13 02:50:22.191876');
+INSERT INTO `browse_history` (`id`, `user_id`, `series_id`, `browse_type`, `duration_seconds`, `last_episode_number`, `visit_count`, `user_agent`, `ip_address`, `created_at`, `updated_at`) VALUES (9, 7845078844, 1004, 'episode_list', 0, 1, 1, 'curl/8.7.1', '::1', '2025-08-13 02:50:22.195594', '2025-08-13 02:50:22.195594');
+INSERT INTO `browse_history` (`id`, `user_id`, `series_id`, `browse_type`, `duration_seconds`, `last_episode_number`, `visit_count`, `user_agent`, `ip_address`, `created_at`, `updated_at`) VALUES (10, 7845078844, 2001, 'episode_list', 0, 5, 25, 'curl/8.7.1', '::1', '2025-08-13 15:23:57.214984', '2025-08-16 11:13:44.199000');
+INSERT INTO `browse_history` (`id`, `user_id`, `series_id`, `browse_type`, `duration_seconds`, `last_episode_number`, `visit_count`, `user_agent`, `ip_address`, `created_at`, `updated_at`) VALUES (17, 6702079700, 1001, 'episode_list', 0, 3, 1, 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)', '192.168.1.100', '2025-08-13 16:51:59.246055', '2025-08-13 16:51:59.246055');
+INSERT INTO `browse_history` (`id`, `user_id`, `series_id`, `browse_type`, `duration_seconds`, `last_episode_number`, `visit_count`, `user_agent`, `ip_address`, `created_at`, `updated_at`) VALUES (18, 6702079700, 2001, 'episode_list', 0, 3, 66, 'curl/8.7.1', '::1', '2025-08-13 16:51:59.248059', '2025-08-15 23:42:59.321000');
+INSERT INTO `browse_history` (`id`, `user_id`, `series_id`, `browse_type`, `duration_seconds`, `last_episode_number`, `visit_count`, `user_agent`, `ip_address`, `created_at`, `updated_at`) VALUES (19, 6702079700, 2001, 'episode_play', 0, 5, 3, 'curl/8.7.1', '::1', '2025-08-14 04:33:03.787088', '2025-08-14 12:38:11.487000');
+INSERT INTO `browse_history` (`id`, `user_id`, `series_id`, `browse_type`, `duration_seconds`, `last_episode_number`, `visit_count`, `user_agent`, `ip_address`, `created_at`, `updated_at`) VALUES (20, 6702079700, 2001, 'series_detail', 0, NULL, 1, 'curl/8.7.1', '::1', '2025-08-14 04:33:11.002142', '2025-08-14 04:33:11.002142');
+INSERT INTO `browse_history` (`id`, `user_id`, `series_id`, `browse_type`, `duration_seconds`, `last_episode_number`, `visit_count`, `user_agent`, `ip_address`, `created_at`, `updated_at`) VALUES (21, 6702079700, 2002, 'episode_list', 0, 2, 3, 'curl/8.7.1', '::1', '2025-08-15 06:41:16.210619', '2025-08-15 14:48:35.107000');
+INSERT INTO `browse_history` (`id`, `user_id`, `series_id`, `browse_type`, `duration_seconds`, `last_episode_number`, `visit_count`, `user_agent`, `ip_address`, `created_at`, `updated_at`) VALUES (22, 7845078844, 1001, 'episode_list', 0, 1, 8, 'curl/8.7.1', '::1', '2025-08-16 02:44:52.752340', '2025-08-16 11:22:37.265000');
+COMMIT;
+
+-- ----------------------------
 -- Table structure for categories
 -- ----------------------------
 DROP TABLE IF EXISTS `categories`;
 CREATE TABLE `categories` (
   `id` int NOT NULL AUTO_INCREMENT,
-  `category_id` varchar(50) COLLATE utf8mb4_general_ci NOT NULL,
-  `name` varchar(50) COLLATE utf8mb4_general_ci NOT NULL,
-  `route_name` varchar(50) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `category_id` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
+  `name` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
+  `route_name` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
   `is_enabled` tinyint NOT NULL DEFAULT '1',
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `IDX_51615bef2cea22812d0dcab6e1` (`category_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=67 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=68 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- ----------------------------
 -- Records of categories
 -- ----------------------------
 BEGIN;
-INSERT INTO `categories` (`id`, `category_id`, `name`, `route_name`, `is_enabled`, `created_at`, `updated_at`) VALUES (0, 'home', '首页', 'home', 1, '2025-08-06 07:26:12', '2025-08-06 07:26:34');
 INSERT INTO `categories` (`id`, `category_id`, `name`, `route_name`, `is_enabled`, `created_at`, `updated_at`) VALUES (1, 'drama', '电视剧', 'drama', 1, '2025-08-06 07:09:03', '2025-08-06 07:09:03');
 INSERT INTO `categories` (`id`, `category_id`, `name`, `route_name`, `is_enabled`, `created_at`, `updated_at`) VALUES (2, 'movie', '电影', 'movie', 1, '2025-08-06 07:09:03', '2025-08-06 07:09:03');
 INSERT INTO `categories` (`id`, `category_id`, `name`, `route_name`, `is_enabled`, `created_at`, `updated_at`) VALUES (3, 'variety', '综艺', 'variety', 1, '2025-08-06 07:09:03', '2025-08-06 07:09:03');
+INSERT INTO `categories` (`id`, `category_id`, `name`, `route_name`, `is_enabled`, `created_at`, `updated_at`) VALUES (67, 'home', '首页', 'home', 1, '2025-08-06 07:26:12', '2025-08-06 07:26:34');
 COMMIT;
 
 -- ----------------------------
@@ -93,7 +134,7 @@ CREATE TABLE `comments` (
   `id` int NOT NULL AUTO_INCREMENT,
   `user_id` bigint NOT NULL,
   `episode_id` int NOT NULL,
-  `content` text COLLATE utf8mb4_general_ci NOT NULL,
+  `content` text CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
   `appear_second` int NOT NULL DEFAULT '0',
   `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   PRIMARY KEY (`id`),
@@ -101,7 +142,7 @@ CREATE TABLE `comments` (
   KEY `FK_d29eba8d8df26970a28b0e336cf` (`episode_id`),
   CONSTRAINT `FK_4c675567d2a58f0b07cef09c13d` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`),
   CONSTRAINT `FK_d29eba8d8df26970a28b0e336cf` FOREIGN KEY (`episode_id`) REFERENCES `episodes` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=3004 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=3027 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- ----------------------------
 -- Records of comments
@@ -110,6 +151,14 @@ BEGIN;
 INSERT INTO `comments` (`id`, `user_id`, `episode_id`, `content`, `appear_second`, `created_at`) VALUES (3001, 7845078844, 2001, '这一集太精彩了！', 0, '2024-01-20 15:30:00.000000');
 INSERT INTO `comments` (`id`, `user_id`, `episode_id`, `content`, `appear_second`, `created_at`) VALUES (3002, 7845078844, 2001, '男主角演技真好', 1200, '2024-01-20 15:45:00.000000');
 INSERT INTO `comments` (`id`, `user_id`, `episode_id`, `content`, `appear_second`, `created_at`) VALUES (3003, 7845078844, 2002, '剧情发展很有意思', 0, '2024-01-21 16:20:00.000000');
+INSERT INTO `comments` (`id`, `user_id`, `episode_id`, `content`, `appear_second`, `created_at`) VALUES (3019, 6702079700, 2001, '这部剧太精彩了！演员演技很棒！', 0, '2025-08-13 16:51:59.232748');
+INSERT INTO `comments` (`id`, `user_id`, `episode_id`, `content`, `appear_second`, `created_at`) VALUES (3020, 6702079700, 2002, '第二集比第一集更好看！', 0, '2025-08-13 16:51:59.234560');
+INSERT INTO `comments` (`id`, `user_id`, `episode_id`, `content`, `appear_second`, `created_at`) VALUES (3021, 6702079700, 2003, '剧情发展很吸引人，期待下一集！', 0, '2025-08-13 16:51:59.236398');
+INSERT INTO `comments` (`id`, `user_id`, `episode_id`, `content`, `appear_second`, `created_at`) VALUES (3022, 6702079700, 2136, '新剧开始追了，希望不会失望！', 0, '2025-08-13 16:51:59.240978');
+INSERT INTO `comments` (`id`, `user_id`, `episode_id`, `content`, `appear_second`, `created_at`) VALUES (3023, 6702079700, 2137, '第二集节奏很好，继续追！', 0, '2025-08-13 16:51:59.244099');
+INSERT INTO `comments` (`id`, `user_id`, `episode_id`, `content`, `appear_second`, `created_at`) VALUES (3024, 6702079700, 2136, '测试评论：这部剧真的很精彩！', 0, '2025-08-13 16:58:35.852573');
+INSERT INTO `comments` (`id`, `user_id`, `episode_id`, `content`, `appear_second`, `created_at`) VALUES (3025, 6702079700, 2136, '测试评论：这部剧真的很精彩！', 0, '2025-08-15 15:43:49.261823');
+INSERT INTO `comments` (`id`, `user_id`, `episode_id`, `content`, `appear_second`, `created_at`) VALUES (3026, 7845078844, 2001, '测试评论', 0, '2025-08-16 03:13:44.052174');
 COMMIT;
 
 -- ----------------------------
@@ -119,18 +168,18 @@ DROP TABLE IF EXISTS `episode_urls`;
 CREATE TABLE `episode_urls` (
   `id` int NOT NULL AUTO_INCREMENT,
   `episode_id` int NOT NULL,
-  `quality` varchar(50) COLLATE utf8mb4_general_ci NOT NULL,
-  `oss_url` varchar(255) COLLATE utf8mb4_general_ci NOT NULL,
-  `cdn_url` varchar(255) COLLATE utf8mb4_general_ci NOT NULL,
-  `subtitle_url` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL,
-  `access_key` varchar(64) COLLATE utf8mb4_general_ci NOT NULL,
+  `quality` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
+  `oss_url` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
+  `cdn_url` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
+  `subtitle_url` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `access_key` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
   `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
   PRIMARY KEY (`id`),
   UNIQUE KEY `IDX_9f4c04c83bfc482e413a9f496d` (`access_key`),
   KEY `FK_cd7538592624868a77732a822d2` (`episode_id`),
   CONSTRAINT `FK_cd7538592624868a77732a822d2` FOREIGN KEY (`episode_id`) REFERENCES `episodes` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=595 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=596 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- ----------------------------
 -- Records of episode_urls
@@ -334,6 +383,7 @@ INSERT INTO `episode_urls` (`id`, `episode_id`, `quality`, `oss_url`, `cdn_url`,
 INSERT INTO `episode_urls` (`id`, `episode_id`, `quality`, `oss_url`, `cdn_url`, `subtitle_url`, `access_key`, `created_at`, `updated_at`) VALUES (592, 2201, '720p', 'https://sf1-cdn-tos.huoshanstatic.com/obj/media-fe/xgplayer_doc_video/hls/xgplayer-demo.m3u8', 'https://cdn.example.com/videos/720p/series_2003_ep_12_720p.mp4', NULL, 'XFekoEK6MThfpVyw3jPnIbFgyOnqEuW0', '2025-08-06 07:59:20.000000', '2025-08-06 07:59:20.434391');
 INSERT INTO `episode_urls` (`id`, `episode_id`, `quality`, `oss_url`, `cdn_url`, `subtitle_url`, `access_key`, `created_at`, `updated_at`) VALUES (593, 2201, '1080p', 'https://sf1-cdn-tos.huoshanstatic.com/obj/media-fe/xgplayer_doc_video/hls/xgplayer-demo.m3u8', 'https://cdn.example.com/videos/1080p/series_2003_ep_12_1080p.mp4', 'https://cdn.example.com/subtitles/series_2003_ep_12.srt', '61GyoDpxy8mlTGrLYgYtXbTVHF0SFPLQ', '2025-08-06 07:59:20.000000', '2025-08-06 07:59:20.435933');
 INSERT INTO `episode_urls` (`id`, `episode_id`, `quality`, `oss_url`, `cdn_url`, `subtitle_url`, `access_key`, `created_at`, `updated_at`) VALUES (594, 2201, '4K', 'https://sf1-cdn-tos.huoshanstatic.com/obj/media-fe/xgplayer_doc_video/hls/xgplayer-demo.m3u8', 'https://cdn.example.com/videos/4k/series_2003_ep_12_4K.mp4', NULL, 'BewV6a4aB1LncNY0HyA0sOhxDDxuVKIF', '2025-08-06 07:59:20.000000', '2025-08-06 07:59:20.437672');
+INSERT INTO `episode_urls` (`id`, `episode_id`, `quality`, `oss_url`, `cdn_url`, `subtitle_url`, `access_key`, `created_at`, `updated_at`) VALUES (595, 2136, '720P', 'https://oss.example.com/videos/episode_2136_720p.mp4', 'https://cdn.example.com/videos/episode_2136_720p.mp4', 'https://cdn.example.com/subtitles/episode_2136.srt', '02a66c51a292abec384755708e1ca4a5', '2025-08-14 02:06:45.357789', '2025-08-14 02:06:45.357789');
 COMMIT;
 
 -- ----------------------------
@@ -344,14 +394,14 @@ CREATE TABLE `episodes` (
   `id` int NOT NULL AUTO_INCREMENT,
   `series_id` int NOT NULL,
   `episode_number` int NOT NULL,
-  `title` varchar(255) COLLATE utf8mb4_general_ci NOT NULL,
+  `title` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
   `duration` int NOT NULL,
-  `status` varchar(255) COLLATE utf8mb4_general_ci NOT NULL DEFAULT 'published',
+  `status` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL DEFAULT 'published',
   `play_count` int NOT NULL DEFAULT '0',
   `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
   `has_sequel` tinyint NOT NULL DEFAULT '0',
-  `short_id` varchar(11) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `short_id` varchar(11) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `IDX_b5b99ab41929380d63a0a58c5c` (`short_id`),
   KEY `FK_624166580dfcd4e2d88a978ce71` (`series_id`),
@@ -365,7 +415,7 @@ BEGIN;
 INSERT INTO `episodes` (`id`, `series_id`, `episode_number`, `title`, `duration`, `status`, `play_count`, `created_at`, `updated_at`, `has_sequel`, `short_id`) VALUES (2001, 1001, 1, '第一集：开端', 2400, 'published', 5680, '2024-01-15 10:30:00.000000', '2025-08-09 06:33:37.000000', 1, 'J7YUMwhxXsA');
 INSERT INTO `episodes` (`id`, `series_id`, `episode_number`, `title`, `duration`, `status`, `play_count`, `created_at`, `updated_at`, `has_sequel`, `short_id`) VALUES (2002, 1001, 2, '第二集：发展', 2350, 'published', 4920, '2024-01-16 10:30:00.000000', '2025-08-09 06:33:37.000000', 1, 'AjSEuEQrKBQ');
 INSERT INTO `episodes` (`id`, `series_id`, `episode_number`, `title`, `duration`, `status`, `play_count`, `created_at`, `updated_at`, `has_sequel`, `short_id`) VALUES (2003, 1001, 3, '第三集：高潮', 2480, 'published', 4150, '2024-01-17 10:30:00.000000', '2025-08-09 06:33:37.000000', 0, '9mGrm9fWWSt');
-INSERT INTO `episodes` (`id`, `series_id`, `episode_number`, `title`, `duration`, `status`, `play_count`, `created_at`, `updated_at`, `has_sequel`, `short_id`) VALUES (2136, 2001, 1, '第1集：初次相遇', 2118, 'published', 36359, '2025-08-06 07:59:19.000000', '2025-08-09 06:33:37.000000', 0, 'CcPcMmtTAHa');
+INSERT INTO `episodes` (`id`, `series_id`, `episode_number`, `title`, `duration`, `status`, `play_count`, `created_at`, `updated_at`, `has_sequel`, `short_id`) VALUES (2136, 2001, 1, '第1集：初次相遇', 2118, 'published', 36359, '2025-08-06 07:59:19.000000', '2025-08-14 02:07:12.000000', 1, 'CcPcMmtTAHa');
 INSERT INTO `episodes` (`id`, `series_id`, `episode_number`, `title`, `duration`, `status`, `play_count`, `created_at`, `updated_at`, `has_sequel`, `short_id`) VALUES (2137, 2001, 2, '第2集：误会重重', 2211, 'published', 49364, '2025-08-06 07:59:19.000000', '2025-08-09 06:33:37.000000', 0, 'bgkw8EVstSN');
 INSERT INTO `episodes` (`id`, `series_id`, `episode_number`, `title`, `duration`, `status`, `play_count`, `created_at`, `updated_at`, `has_sequel`, `short_id`) VALUES (2138, 2001, 3, '第3集：渐生情愫', 2333, 'published', 54001, '2025-08-06 07:59:19.000000', '2025-08-09 06:33:37.000000', 0, 'nHxpkr73dRs');
 INSERT INTO `episodes` (`id`, `series_id`, `episode_number`, `title`, `duration`, `status`, `play_count`, `created_at`, `updated_at`, `has_sequel`, `short_id`) VALUES (2139, 2001, 4, '第4集：甜蜜约会', 2334, 'published', 53781, '2025-08-06 07:59:19.000000', '2025-08-09 06:33:37.000000', 0, 'KBbeWq33dwk');
@@ -492,8 +542,8 @@ COMMIT;
 DROP TABLE IF EXISTS `filter_types`;
 CREATE TABLE `filter_types` (
   `id` int NOT NULL AUTO_INCREMENT,
-  `name` varchar(50) COLLATE utf8mb4_general_ci NOT NULL COMMENT '筛选器类型名称',
-  `code` varchar(50) COLLATE utf8mb4_general_ci NOT NULL COMMENT '筛选器类型代码',
+  `name` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL COMMENT '筛选器类型名称',
+  `code` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL COMMENT '筛选器类型代码',
   `index_position` int NOT NULL DEFAULT '0' COMMENT '在筛选器中的位置索引',
   `is_active` tinyint(1) NOT NULL DEFAULT '1' COMMENT '是否启用',
   `sort_order` int NOT NULL DEFAULT '0' COMMENT '排序顺序',
@@ -522,17 +572,17 @@ DROP TABLE IF EXISTS `refresh_tokens`;
 CREATE TABLE `refresh_tokens` (
   `id` int NOT NULL AUTO_INCREMENT,
   `user_id` bigint NOT NULL,
-  `token` varchar(255) COLLATE utf8mb4_general_ci NOT NULL,
+  `token` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
   `expires_at` timestamp NOT NULL,
   `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   `is_revoked` tinyint NOT NULL DEFAULT '0',
-  `device_info` varchar(500) COLLATE utf8mb4_general_ci DEFAULT NULL,
-  `ip_address` varchar(45) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `device_info` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `ip_address` varchar(45) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `IDX_4542dd2f38a61354a040ba9fd5` (`token`),
   KEY `FK_3ddc983c5f7bcf132fd8732c3f4` (`user_id`),
   CONSTRAINT `FK_3ddc983c5f7bcf132fd8732c3f4` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=35 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- ----------------------------
 -- Records of refresh_tokens
@@ -542,10 +592,22 @@ INSERT INTO `refresh_tokens` (`id`, `user_id`, `token`, `expires_at`, `created_a
 INSERT INTO `refresh_tokens` (`id`, `user_id`, `token`, `expires_at`, `created_at`, `is_revoked`, `device_info`, `ip_address`) VALUES (2, 7845078844, '377017b1cd4a13a56940da79e527e0b70e035e958e09db44c4fc62ce04c86248', '2025-08-15 16:55:11', '2025-08-08 08:55:11.038222', 0, 'dinghe987', NULL);
 INSERT INTO `refresh_tokens` (`id`, `user_id`, `token`, `expires_at`, `created_at`, `is_revoked`, `device_info`, `ip_address`) VALUES (3, 7845078844, 'b2fd6d5f57ab2bbf78f0104054bc7c505aa1bf3dc53bb93e2e84b64e68f486d1', '2025-08-15 16:55:41', '2025-08-08 08:55:40.725265', 0, 'dinghe987', NULL);
 INSERT INTO `refresh_tokens` (`id`, `user_id`, `token`, `expires_at`, `created_at`, `is_revoked`, `device_info`, `ip_address`) VALUES (4, 7845078844, 'c39c4175cf5044147e4281b52b13609d29882e306181714942f5499b8cc79d20', '2025-08-15 16:55:51', '2025-08-08 08:55:50.593406', 0, 'dinghe987', NULL);
-INSERT INTO `refresh_tokens` (`id`, `user_id`, `token`, `expires_at`, `created_at`, `is_revoked`, `device_info`, `ip_address`) VALUES (5, 6702079700, 'ebebfacb7f18905afad1c564fb013836682525be9c46853a1d792e2c9407e3c0', '2025-08-15 17:00:56', '2025-08-08 09:00:56.266624', 0, 'seo99991', NULL);
 INSERT INTO `refresh_tokens` (`id`, `user_id`, `token`, `expires_at`, `created_at`, `is_revoked`, `device_info`, `ip_address`) VALUES (6, 7845078844, '63bee3e8d48ac9906ac8766392be19e1ff82474fc688416b91ea0525c6e003d9', '2025-08-15 17:01:56', '2025-08-08 09:01:55.669598', 0, 'dinghe987', NULL);
 INSERT INTO `refresh_tokens` (`id`, `user_id`, `token`, `expires_at`, `created_at`, `is_revoked`, `device_info`, `ip_address`) VALUES (7, 7845078844, '34e45c0a53cc17aadfc1f32500b92c1dbff7c6b4d429d716669e4dd0afe07ff1', '2025-08-15 17:02:17', '2025-08-08 09:02:17.507607', 0, 'dinghe987', NULL);
-INSERT INTO `refresh_tokens` (`id`, `user_id`, `token`, `expires_at`, `created_at`, `is_revoked`, `device_info`, `ip_address`) VALUES (8, 6702079700, '394e7c00b10b95617f71d386b316cf6e8913abd51bf230f3ecf80a8880393923', '2025-08-15 17:02:38', '2025-08-08 09:02:37.665086', 0, 'seo99991', NULL);
+INSERT INTO `refresh_tokens` (`id`, `user_id`, `token`, `expires_at`, `created_at`, `is_revoked`, `device_info`, `ip_address`) VALUES (20, 7845078844, 'daabe68d806a3ca6f0daac5b5cbd589ae327b2c27aa97a369b23578a173591fe', '2025-08-20 10:39:46', '2025-08-13 02:39:46.460457', 0, 'dinghe987', NULL);
+INSERT INTO `refresh_tokens` (`id`, `user_id`, `token`, `expires_at`, `created_at`, `is_revoked`, `device_info`, `ip_address`) VALUES (21, 7845078844, '113f7ba740210f2387fbcdc42b8d6e9be917c5dd41f5973fc27f9b80715f157d', '2025-08-20 10:40:34', '2025-08-13 02:40:33.951590', 0, 'dinghe987', NULL);
+INSERT INTO `refresh_tokens` (`id`, `user_id`, `token`, `expires_at`, `created_at`, `is_revoked`, `device_info`, `ip_address`) VALUES (22, 7845078844, '6f5449ddd274180842bfa01dc6ef1c89028387d39080bc72b375823d2fe6be51', '2025-08-20 22:52:49', '2025-08-13 14:52:49.055807', 0, 'dinghe987', NULL);
+INSERT INTO `refresh_tokens` (`id`, `user_id`, `token`, `expires_at`, `created_at`, `is_revoked`, `device_info`, `ip_address`) VALUES (24, 6702079700, '49f73ab35b62723d39286daff9421ebe29fef29ab7a3dab4a1761f9359cd87f6', '2025-08-21 00:56:26', '2025-08-13 16:56:25.894683', 0, 'seo99991', NULL);
+INSERT INTO `refresh_tokens` (`id`, `user_id`, `token`, `expires_at`, `created_at`, `is_revoked`, `device_info`, `ip_address`) VALUES (25, 6702079700, '4e80a080be3d632c86e88a85860c87cf675d03678db939deae38d4180e3971c4', '2025-08-21 00:57:12', '2025-08-13 16:57:12.183142', 0, 'seo99991', NULL);
+INSERT INTO `refresh_tokens` (`id`, `user_id`, `token`, `expires_at`, `created_at`, `is_revoked`, `device_info`, `ip_address`) VALUES (26, 6702079700, 'a9cae5f587ddda420d6dfa39f9c9af6b3793dd6f754153458512a0f04676495b', '2025-08-21 10:07:00', '2025-08-14 02:06:59.700742', 0, 'seo99991', NULL);
+INSERT INTO `refresh_tokens` (`id`, `user_id`, `token`, `expires_at`, `created_at`, `is_revoked`, `device_info`, `ip_address`) VALUES (27, 6702079700, 'ea348952ba307e35e09a535ed4c9e069024ac2006f806ce6ec7ea38438d7b4b8', '2025-08-21 10:07:21', '2025-08-14 02:07:20.798053', 0, 'seo99991', NULL);
+INSERT INTO `refresh_tokens` (`id`, `user_id`, `token`, `expires_at`, `created_at`, `is_revoked`, `device_info`, `ip_address`) VALUES (28, 6702079700, '4107cec4c529a4981e5cd46be49d57ed29a66e14c8d765cc2333d1599e067ba0', '2025-08-21 10:57:54', '2025-08-14 02:57:53.546014', 0, 'seo99991', NULL);
+INSERT INTO `refresh_tokens` (`id`, `user_id`, `token`, `expires_at`, `created_at`, `is_revoked`, `device_info`, `ip_address`) VALUES (29, 6702079700, '3c73d51c4bc57472958c45cde34b5f1dbac05d2b6b5fa508ea6afb45aed70777', '2025-08-21 11:00:39', '2025-08-14 03:00:38.658662', 0, 'seo99991', NULL);
+INSERT INTO `refresh_tokens` (`id`, `user_id`, `token`, `expires_at`, `created_at`, `is_revoked`, `device_info`, `ip_address`) VALUES (30, 6702079700, 'b9d75aec96bd278ced011d428d71e1aff35855c499975752700d99b9d2c08198', '2025-08-21 12:26:28', '2025-08-14 04:26:27.872316', 0, 'seo99991', NULL);
+INSERT INTO `refresh_tokens` (`id`, `user_id`, `token`, `expires_at`, `created_at`, `is_revoked`, `device_info`, `ip_address`) VALUES (31, 6702079700, '5e4c8ffdf03fc207ce55bd2f20ad711713aee96345b406bd2db8932405807809', '2025-08-21 12:35:52', '2025-08-14 04:35:51.815063', 0, 'seo99991', NULL);
+INSERT INTO `refresh_tokens` (`id`, `user_id`, `token`, `expires_at`, `created_at`, `is_revoked`, `device_info`, `ip_address`) VALUES (32, 6702079700, 'e001a7a3c74811f0a8fa16e7935ca91153119139bc027cb9096d08c70bcf82e5', '2025-08-21 14:24:41', '2025-08-14 06:24:41.466832', 0, 'seo99991', NULL);
+INSERT INTO `refresh_tokens` (`id`, `user_id`, `token`, `expires_at`, `created_at`, `is_revoked`, `device_info`, `ip_address`) VALUES (33, 6702079700, '92b048db3089fa2e080a0fbdfbd996d2255a154ed9b451c830ba42c913ff6d1c', '2025-08-22 23:42:36', '2025-08-15 15:42:36.209178', 0, 'seo99991', NULL);
+INSERT INTO `refresh_tokens` (`id`, `user_id`, `token`, `expires_at`, `created_at`, `is_revoked`, `device_info`, `ip_address`) VALUES (34, 7845078844, '3e00ac854cdecdfcf7e2d4c4205eece0535a55a2d66e3279857268fa38ddb844', '2025-08-23 10:41:25', '2025-08-16 02:41:24.684247', 0, 'dinghe987', NULL);
 COMMIT;
 
 -- ----------------------------
@@ -554,44 +616,57 @@ COMMIT;
 DROP TABLE IF EXISTS `series`;
 CREATE TABLE `series` (
   `id` int NOT NULL AUTO_INCREMENT,
-  `title` varchar(255) COLLATE utf8mb4_general_ci NOT NULL,
-  `description` text COLLATE utf8mb4_general_ci,
-  `cover_url` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `title` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
+  `description` text CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci,
+  `cover_url` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
   `total_episodes` int NOT NULL DEFAULT '0',
   `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   `score` float NOT NULL DEFAULT '0',
   `play_count` int NOT NULL DEFAULT '0',
-  `status` varchar(255) COLLATE utf8mb4_general_ci NOT NULL DEFAULT 'on-going',
-  `up_status` varchar(50) COLLATE utf8mb4_general_ci DEFAULT NULL,
   `up_count` int NOT NULL DEFAULT '0',
-  `starring` text COLLATE utf8mb4_general_ci,
-  `actor` text COLLATE utf8mb4_general_ci,
-  `director` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL,
-  `region` varchar(50) COLLATE utf8mb4_general_ci DEFAULT NULL,
-  `language` varchar(50) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `starring` text CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci,
+  `actor` text CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci,
+  `director` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
   `release_date` date DEFAULT NULL,
   `is_completed` tinyint NOT NULL DEFAULT '0',
   `updated_at` timestamp NULL DEFAULT NULL,
   `category_id` int DEFAULT NULL,
-  `short_id` varchar(11) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `short_id` varchar(11) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `region_option_id` int DEFAULT NULL,
+  `language_option_id` int DEFAULT NULL,
+  `status_option_id` int DEFAULT NULL,
+  `year_option_id` int DEFAULT NULL,
+  `is_active` tinyint(1) NOT NULL DEFAULT '1',
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  `deleted_by` int DEFAULT NULL,
+  `status` varchar(255) COLLATE utf8mb4_general_ci NOT NULL DEFAULT 'on-going',
+  `up_status` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `IDX_03e66b69fd3b9c248a132cca44` (`short_id`),
   KEY `FK_4728b16bad86fda71f7113b621a` (`category_id`),
-  CONSTRAINT `FK_4728b16bad86fda71f7113b621a` FOREIGN KEY (`category_id`) REFERENCES `categories` (`id`)
+  KEY `FK_ddf675b3e90a375c943b206b2ac` (`status_option_id`),
+  KEY `FK_258ffb6e30c1177bb3aa1a38b92` (`region_option_id`),
+  KEY `FK_eb8f19671235980ae855edb6e93` (`language_option_id`),
+  KEY `FK_97d3e2dd92ad4f23b657920a6f0` (`year_option_id`),
+  CONSTRAINT `FK_258ffb6e30c1177bb3aa1a38b92` FOREIGN KEY (`region_option_id`) REFERENCES `filter_options` (`id`),
+  CONSTRAINT `FK_4728b16bad86fda71f7113b621a` FOREIGN KEY (`category_id`) REFERENCES `categories` (`id`),
+  CONSTRAINT `FK_97d3e2dd92ad4f23b657920a6f0` FOREIGN KEY (`year_option_id`) REFERENCES `filter_options` (`id`),
+  CONSTRAINT `FK_ddf675b3e90a375c943b206b2ac` FOREIGN KEY (`status_option_id`) REFERENCES `filter_options` (`id`),
+  CONSTRAINT `FK_eb8f19671235980ae855edb6e93` FOREIGN KEY (`language_option_id`) REFERENCES `filter_options` (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=2004 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- ----------------------------
 -- Records of series
 -- ----------------------------
 BEGIN;
-INSERT INTO `series` (`id`, `title`, `description`, `cover_url`, `total_episodes`, `created_at`, `score`, `play_count`, `status`, `up_status`, `up_count`, `starring`, `actor`, `director`, `region`, `language`, `release_date`, `is_completed`, `updated_at`, `category_id`, `short_id`) VALUES (1001, '测试剧集系列', '这是一个用于测试的剧集系列，包含多个精彩剧集', 'https://thinkingking.top/images/094e33ba88190db66de4b173150fd97e.png', 10, '2024-01-15 10:00:00.000000', 8.5, 12580, 'completed', 'hot', 1250, '张三,李四,王五', '张三,李四,王五,赵六', '知名导演', '中国大陆', '中文', '2024-01-15', 1, '2025-08-06 07:09:03', 1, 'jTX5ctteb9h');
-INSERT INTO `series` (`id`, `title`, `description`, `cover_url`, `total_episodes`, `created_at`, `score`, `play_count`, `status`, `up_status`, `up_count`, `starring`, `actor`, `director`, `region`, `language`, `release_date`, `is_completed`, `updated_at`, `category_id`, `short_id`) VALUES (1002, '都市爱情剧', '现代都市背景的爱情故事', 'https://thinkingking.top/images/6a67290e1bcab67cae9b53493ca36473.png', 20, '2025-08-06 07:39:01.615378', 9.2, 25600, 'ongoing', 'new', 2560, '赵丽颖,杨洋', '赵丽颖,杨洋,王子文,李现', '著名导演A', '中国大陆', '中文', '2024-02-01', 0, NULL, 1, 'p8aUvzGtbvE');
-INSERT INTO `series` (`id`, `title`, `description`, `cover_url`, `total_episodes`, `created_at`, `score`, `play_count`, `status`, `up_status`, `up_count`, `starring`, `actor`, `director`, `region`, `language`, `release_date`, `is_completed`, `updated_at`, `category_id`, `short_id`) VALUES (1003, '悬疑电影', '扣人心弦的悬疑推理电影', 'https://thinkingking.top/images/627aa5e927d9ab8c939a5120f1bf37b2.png', 1, '2025-08-06 07:39:01.618262', 8.8, 18900, 'completed', 'hot', 1890, '易烊千玺,周冬雨', '易烊千玺,周冬雨,王千源,张译', '知名导演B', '中国大陆', '中文', '2024-01-20', 1, NULL, 2, 'KTQ6EGtPzVF');
-INSERT INTO `series` (`id`, `title`, `description`, `cover_url`, `total_episodes`, `created_at`, `score`, `play_count`, `status`, `up_status`, `up_count`, `starring`, `actor`, `director`, `region`, `language`, `release_date`, `is_completed`, `updated_at`, `category_id`, `short_id`) VALUES (1004, '搞笑综艺', '轻松幽默的娱乐综艺节目', 'https://thinkingking.top/images/7609a424f174e819dba493b88ca177d2.png', 12, '2025-08-06 07:39:01.620979', 8, 32100, 'completed', 'popular', 3210, '沈腾,贾玲,岳云鹏', '沈腾,贾玲,岳云鹏,张小斐', '综艺导演C', '中国大陆', '中文', '2024-01-10', 1, NULL, 3, 'wsuYyNpq59X');
-INSERT INTO `series` (`id`, `title`, `description`, `cover_url`, `total_episodes`, `created_at`, `score`, `play_count`, `status`, `up_status`, `up_count`, `starring`, `actor`, `director`, `region`, `language`, `release_date`, `is_completed`, `updated_at`, `category_id`, `short_id`) VALUES (1005, '古装电视剧', '古代宫廷题材电视剧', 'https://thinkingking.top/images/dc64c6a47fbb78643b9b7353ab673ff1.png', 45, '2025-08-06 07:39:01.639425', 9.5, 45600, 'completed', 'hot', 4560, '刘诗诗,胡歌', '刘诗诗,胡歌,袁弘,林更新', '古装剧导演D', '中国大陆', '中文', '2023-12-15', 1, NULL, 1, '68jDaAEyHp4');
-INSERT INTO `series` (`id`, `title`, `description`, `cover_url`, `total_episodes`, `created_at`, `score`, `play_count`, `status`, `up_status`, `up_count`, `starring`, `actor`, `director`, `region`, `language`, `release_date`, `is_completed`, `updated_at`, `category_id`, `short_id`) VALUES (2001, '霸道总裁爱上我', '一个普通女孩与霸道总裁的爱情故事，充满甜蜜与波折', 'https://thinkingking.top/images/92c9e51924f825603f0d1d76ea9374a4.png', 24, '2025-08-06 07:55:00.000000', 9.2, 156800, 'completed', '全24集', 24, '张三,李四', '张三,李四,王五,赵六', '导演A', NULL, NULL, NULL, 0, NULL, 1, 'fpcxnnFA6m9');
-INSERT INTO `series` (`id`, `title`, `description`, `cover_url`, `total_episodes`, `created_at`, `score`, `play_count`, `status`, `up_status`, `up_count`, `starring`, `actor`, `director`, `region`, `language`, `release_date`, `is_completed`, `updated_at`, `category_id`, `short_id`) VALUES (2002, '古装仙侠传', '修仙世界的爱恨情仇，仙侠传奇故事', 'https://thinkingking.top/images/c0610c196b9a4c46170164fb692e220d.png', 36, '2025-08-06 07:55:00.000000', 8.8, 234500, 'on-going', '更新至第30集', 30, '仙女A,仙男B', '仙女A,仙男B,配角C,配角D', '导演B', NULL, NULL, NULL, 0, NULL, 1, 'kaNqkt7QENy');
-INSERT INTO `series` (`id`, `title`, `description`, `cover_url`, `total_episodes`, `created_at`, `score`, `play_count`, `status`, `up_status`, `up_count`, `starring`, `actor`, `director`, `region`, `language`, `release_date`, `is_completed`, `updated_at`, `category_id`, `short_id`) VALUES (2003, '都市悬疑案', '现代都市背景的悬疑推理剧，扣人心弦', 'https://thinkingking.top/images/2608620cb27c75274cfa73bde5f80ffe.png', 12, '2025-08-06 07:55:00.000000', 9.5, 89600, 'completed', '全12集', 12, '侦探A,助手B', '侦探A,助手B,嫌疑人C,警察D', '导演C', NULL, NULL, NULL, 0, NULL, 2, 'GyPHPsWxknr');
+INSERT INTO `series` (`id`, `title`, `description`, `cover_url`, `total_episodes`, `created_at`, `score`, `play_count`, `up_count`, `starring`, `actor`, `director`, `release_date`, `is_completed`, `updated_at`, `category_id`, `short_id`, `region_option_id`, `language_option_id`, `status_option_id`, `year_option_id`, `is_active`, `deleted_at`, `deleted_by`, `status`, `up_status`) VALUES (1001, '测试剧集系列', '这是一个用于测试的剧集系列，包含多个精彩剧集', 'https://thinkingking.top/images/094e33ba88190db66de4b173150fd97e.png', 10, '2024-01-15 10:00:00.000000', 8.5, 12580, 1250, '张三,李四,王五', '张三,李四,王五,赵六', '知名导演', '2024-01-15', 1, '2025-08-06 07:09:03', 1, 'jTX5ctteb9h', 11, 16, 27, 23, 1, NULL, NULL, 'on-going', NULL);
+INSERT INTO `series` (`id`, `title`, `description`, `cover_url`, `total_episodes`, `created_at`, `score`, `play_count`, `up_count`, `starring`, `actor`, `director`, `release_date`, `is_completed`, `updated_at`, `category_id`, `short_id`, `region_option_id`, `language_option_id`, `status_option_id`, `year_option_id`, `is_active`, `deleted_at`, `deleted_by`, `status`, `up_status`) VALUES (1002, '都市爱情剧', '现代都市背景的爱情故事', 'https://thinkingking.top/images/6a67290e1bcab67cae9b53493ca36473.png', 20, '2025-08-06 07:39:01.615378', 9.2, 25600, 2560, '赵丽颖,杨洋', '赵丽颖,杨洋,王子文,李现', '著名导演A', '2024-02-01', 0, NULL, 1, 'p8aUvzGtbvE', 11, 16, 28, 21, 1, NULL, NULL, 'on-going', NULL);
+INSERT INTO `series` (`id`, `title`, `description`, `cover_url`, `total_episodes`, `created_at`, `score`, `play_count`, `up_count`, `starring`, `actor`, `director`, `release_date`, `is_completed`, `updated_at`, `category_id`, `short_id`, `region_option_id`, `language_option_id`, `status_option_id`, `year_option_id`, `is_active`, `deleted_at`, `deleted_by`, `status`, `up_status`) VALUES (1003, '悬疑电影', '扣人心弦的悬疑推理电影', 'https://thinkingking.top/images/627aa5e927d9ab8c939a5120f1bf37b2.png', 1, '2025-08-06 07:39:01.618262', 8.8, 18900, 1890, '易烊千玺,周冬雨', '易烊千玺,周冬雨,王千源,张译', '知名导演B', '2024-01-20', 1, NULL, 2, 'KTQ6EGtPzVF', 11, 16, 27, 23, 1, NULL, NULL, 'on-going', NULL);
+INSERT INTO `series` (`id`, `title`, `description`, `cover_url`, `total_episodes`, `created_at`, `score`, `play_count`, `up_count`, `starring`, `actor`, `director`, `release_date`, `is_completed`, `updated_at`, `category_id`, `short_id`, `region_option_id`, `language_option_id`, `status_option_id`, `year_option_id`, `is_active`, `deleted_at`, `deleted_by`, `status`, `up_status`) VALUES (1004, '搞笑综艺', '轻松幽默的娱乐综艺节目', 'https://thinkingking.top/images/7609a424f174e819dba493b88ca177d2.png', 12, '2025-08-06 07:39:01.620979', 8, 32100, 3210, '沈腾,贾玲,岳云鹏', '沈腾,贾玲,岳云鹏,张小斐', '综艺导演C', '2024-01-10', 1, NULL, 3, 'wsuYyNpq59X', 11, 16, 27, 23, 1, NULL, NULL, 'on-going', NULL);
+INSERT INTO `series` (`id`, `title`, `description`, `cover_url`, `total_episodes`, `created_at`, `score`, `play_count`, `up_count`, `starring`, `actor`, `director`, `release_date`, `is_completed`, `updated_at`, `category_id`, `short_id`, `region_option_id`, `language_option_id`, `status_option_id`, `year_option_id`, `is_active`, `deleted_at`, `deleted_by`, `status`, `up_status`) VALUES (1005, '古装电视剧', '古代宫廷题材电视剧', 'https://thinkingking.top/images/dc64c6a47fbb78643b9b7353ab673ff1.png', 45, '2025-08-06 07:39:01.639425', 9.5, 45600, 4560, '刘诗诗,胡歌', '刘诗诗,胡歌,袁弘,林更新', '古装剧导演D', '2023-12-15', 1, NULL, 1, '68jDaAEyHp4', 11, 16, 27, 22, 1, NULL, NULL, 'on-going', NULL);
+INSERT INTO `series` (`id`, `title`, `description`, `cover_url`, `total_episodes`, `created_at`, `score`, `play_count`, `up_count`, `starring`, `actor`, `director`, `release_date`, `is_completed`, `updated_at`, `category_id`, `short_id`, `region_option_id`, `language_option_id`, `status_option_id`, `year_option_id`, `is_active`, `deleted_at`, `deleted_by`, `status`, `up_status`) VALUES (2001, '霸道总裁爱上我', '一个普通女孩与霸道总裁的爱情故事，充满甜蜜与波折', 'https://thinkingking.top/images/92c9e51924f825603f0d1d76ea9374a4.png', 24, '2025-08-06 07:55:00.000000', 9.2, 156800, 24, '张三,李四', '张三,李四,王五,赵六', '导演A', NULL, 0, NULL, 1, 'fpcxnnFA6m9', 11, 16, 27, NULL, 1, NULL, NULL, 'on-going', NULL);
+INSERT INTO `series` (`id`, `title`, `description`, `cover_url`, `total_episodes`, `created_at`, `score`, `play_count`, `up_count`, `starring`, `actor`, `director`, `release_date`, `is_completed`, `updated_at`, `category_id`, `short_id`, `region_option_id`, `language_option_id`, `status_option_id`, `year_option_id`, `is_active`, `deleted_at`, `deleted_by`, `status`, `up_status`) VALUES (2002, '古装仙侠传', '修仙世界的爱恨情仇，仙侠传奇故事', 'https://thinkingking.top/images/c0610c196b9a4c46170164fb692e220d.png', 36, '2025-08-06 07:55:00.000000', 8.8, 234500, 30, '仙女A,仙男B', '仙女A,仙男B,配角C,配角D', '导演B', NULL, 0, NULL, 1, 'kaNqkt7QENy', 11, 16, 28, NULL, 1, NULL, NULL, 'on-going', NULL);
+INSERT INTO `series` (`id`, `title`, `description`, `cover_url`, `total_episodes`, `created_at`, `score`, `play_count`, `up_count`, `starring`, `actor`, `director`, `release_date`, `is_completed`, `updated_at`, `category_id`, `short_id`, `region_option_id`, `language_option_id`, `status_option_id`, `year_option_id`, `is_active`, `deleted_at`, `deleted_by`, `status`, `up_status`) VALUES (2003, '都市悬疑案', '现代都市背景的悬疑推理剧，扣人心弦', 'https://thinkingking.top/images/2608620cb27c75274cfa73bde5f80ffe.png', 12, '2025-08-06 07:55:00.000000', 9.5, 89600, 12, '侦探A,助手B', '侦探A,助手B,嫌疑人C,警察D', '导演C', NULL, 0, NULL, 2, 'GyPHPsWxknr', 11, 16, 27, NULL, 1, NULL, NULL, 'on-going', NULL);
 COMMIT;
 
 -- ----------------------------
@@ -600,17 +675,17 @@ COMMIT;
 DROP TABLE IF EXISTS `short_videos`;
 CREATE TABLE `short_videos` (
   `id` int NOT NULL AUTO_INCREMENT,
-  `title` varchar(255) COLLATE utf8mb4_general_ci NOT NULL,
-  `description` text COLLATE utf8mb4_general_ci,
-  `cover_url` varchar(255) COLLATE utf8mb4_general_ci NOT NULL,
-  `video_url` varchar(255) COLLATE utf8mb4_general_ci NOT NULL,
+  `title` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
+  `description` text CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci,
+  `cover_url` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
+  `video_url` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
   `duration` int NOT NULL DEFAULT '0',
   `play_count` int NOT NULL DEFAULT '0',
   `like_count` int NOT NULL DEFAULT '0',
-  `platform_name` varchar(50) COLLATE utf8mb4_general_ci NOT NULL DEFAULT '官方平台',
+  `platform_name` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL DEFAULT '官方平台',
   `category_id` int NOT NULL,
   `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
-  `short_id` varchar(11) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `short_id` varchar(11) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `IDX_97ef60d09809dc563284719915` (`short_id`),
   KEY `FK_8d7c856022d77e13fdedcd266a9` (`category_id`),
@@ -629,12 +704,12 @@ COMMIT;
 DROP TABLE IF EXISTS `users`;
 CREATE TABLE `users` (
   `id` bigint NOT NULL,
-  `first_name` varchar(255) COLLATE utf8mb4_general_ci NOT NULL,
-  `last_name` varchar(255) COLLATE utf8mb4_general_ci NOT NULL,
-  `username` varchar(255) COLLATE utf8mb4_general_ci NOT NULL,
+  `first_name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
+  `last_name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
+  `username` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
   `is_active` tinyint NOT NULL DEFAULT '1',
   `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
-  `short_id` varchar(11) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `short_id` varchar(11) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `IDX_fe0bb3f6520ee0469504521e71` (`username`),
   UNIQUE KEY `IDX_d018e69f21d219aafe38e8f111` (`short_id`)
@@ -644,7 +719,7 @@ CREATE TABLE `users` (
 -- Records of users
 -- ----------------------------
 BEGIN;
-INSERT INTO `users` (`id`, `first_name`, `last_name`, `username`, `is_active`, `created_at`, `short_id`) VALUES (6702079700, '随风', '', 'seo99991', 1, '2025-08-08 09:00:56.240178', 'WUr42Tvf2ug');
+INSERT INTO `users` (`id`, `first_name`, `last_name`, `username`, `is_active`, `created_at`, `short_id`) VALUES (6702079700, '随风', '用户', 'seo99991', 1, '2025-08-13 16:51:59.216355', 'Gh2dCY27h4G');
 INSERT INTO `users` (`id`, `first_name`, `last_name`, `username`, `is_active`, `created_at`, `short_id`) VALUES (7845078844, '西', '陈', 'dinghe987', 1, '2025-07-30 14:32:42.000000', 'HhyWPbWbxSK');
 COMMIT;
 
@@ -667,9 +742,19 @@ CREATE TABLE `watch_progress` (
 -- Records of watch_progress
 -- ----------------------------
 BEGIN;
+INSERT INTO `watch_progress` (`user_id`, `episode_id`, `stop_at_second`, `updated_at`) VALUES (6702079700, 2001, 1800, '2025-08-13 16:51:59');
+INSERT INTO `watch_progress` (`user_id`, `episode_id`, `stop_at_second`, `updated_at`) VALUES (6702079700, 2002, 2400, '2025-08-13 16:51:59');
+INSERT INTO `watch_progress` (`user_id`, `episode_id`, `stop_at_second`, `updated_at`) VALUES (6702079700, 2003, 1200, '2025-08-13 16:51:59');
+INSERT INTO `watch_progress` (`user_id`, `episode_id`, `stop_at_second`, `updated_at`) VALUES (6702079700, 2136, 900, '2025-08-13 16:51:59');
+INSERT INTO `watch_progress` (`user_id`, `episode_id`, `stop_at_second`, `updated_at`) VALUES (6702079700, 2137, 1500, '2025-08-13 16:51:59');
 INSERT INTO `watch_progress` (`user_id`, `episode_id`, `stop_at_second`, `updated_at`) VALUES (7845078844, 2001, 2400, '2024-01-20 16:00:00');
 INSERT INTO `watch_progress` (`user_id`, `episode_id`, `stop_at_second`, `updated_at`) VALUES (7845078844, 2002, 1800, '2024-01-21 17:30:00');
 INSERT INTO `watch_progress` (`user_id`, `episode_id`, `stop_at_second`, `updated_at`) VALUES (7845078844, 2003, 600, '2024-01-22 14:15:00');
+INSERT INTO `watch_progress` (`user_id`, `episode_id`, `stop_at_second`, `updated_at`) VALUES (7845078844, 2136, 1500, '2025-08-13 15:51:29');
+INSERT INTO `watch_progress` (`user_id`, `episode_id`, `stop_at_second`, `updated_at`) VALUES (7845078844, 2137, 2000, '2025-08-13 15:51:29');
+INSERT INTO `watch_progress` (`user_id`, `episode_id`, `stop_at_second`, `updated_at`) VALUES (7845078844, 2138, 1800, '2025-08-13 15:51:29');
+INSERT INTO `watch_progress` (`user_id`, `episode_id`, `stop_at_second`, `updated_at`) VALUES (7845078844, 2139, 500, '2025-08-13 15:51:29');
+INSERT INTO `watch_progress` (`user_id`, `episode_id`, `stop_at_second`, `updated_at`) VALUES (7845078844, 2140, 0, '2025-08-13 15:51:29');
 COMMIT;
 
 SET FOREIGN_KEY_CHECKS = 1;

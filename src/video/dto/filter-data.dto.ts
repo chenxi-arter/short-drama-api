@@ -26,7 +26,7 @@ export class FilterDataDto {
  */
 export interface FilterDataItem {
   id: number;          // 视频ID
-  uuid: string;        // UUID标识符
+  shortId: string;     // 系列shortId
   coverUrl: string;    // 封面图URL
   title: string;       // 视频标题
   score: string;       // 视频评分
@@ -50,6 +50,10 @@ export interface FilterDataResponse {
   code: number;
   data: {
     list: FilterDataItem[];
+    total: number;
+    page: number;
+    size: number;
+    hasMore: boolean;
   };
   msg: string | null;
 }

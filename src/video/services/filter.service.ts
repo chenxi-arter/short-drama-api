@@ -137,7 +137,7 @@ export class FilterService {
     // 验证 channelId 是否存在
     if (!channelId || channelId.trim() === '') {
       return {
-        data: { list: [] },
+        data: { list: [], total: 0, page: 1, size: 20, hasMore: false },
         code: 400,
         msg: 'channeid参数不能为空',
       };
@@ -172,7 +172,7 @@ export class FilterService {
       this.applySorting(queryBuilder, filterIds.sortType);
 
       // 分页
-      const [series] = await queryBuilder
+      const [series, total] = await queryBuilder
         .skip(offset)
         .take(pageSize)
         .getManyAndCount();
@@ -180,7 +180,7 @@ export class FilterService {
       // 如果没有查询到数据，返回空数据和提示信息
       if (!series || series.length === 0) {
         const response: FilterDataResponse = {
-          data: { list: [] },
+          data: { list: [], total: 0, page: pageNum, size: pageSize, hasMore: false },
           code: 200,
           msg: '暂无相关数据',
         };
@@ -193,7 +193,7 @@ export class FilterService {
       // 转换为响应格式
       const items: FilterDataItem[] = series.map(s => ({
         id: s.id,
-        uuid: s.shortId || '', // 使用shortId作为UUID
+        shortId: s.shortId || '',
         coverUrl: s.coverUrl || '',
         title: s.title,
         score: s.score?.toString() || '0.0',
@@ -213,6 +213,10 @@ export class FilterService {
       const response: FilterDataResponse = {
         data: {
           list: items,
+          total,
+          page: pageNum,
+          size: pageSize,
+          hasMore: total > pageNum * pageSize,
         },
         code: 200,
         msg: null,
@@ -234,10 +238,12 @@ export class FilterService {
 
   /**
    * 解析筛选条件ID字符串
-   * @param ids 筛选条件sort_order组合字符串，格式："sortType,categoryId,regionId,languageId,yearId,statusId"
-   * ids对应关系：[排序, 类型, 地区, 语言, 年份, 状态]
-   * 对应filter_type（按sort_order排序）：[1, 2, 3, 4, 5, 6]
-   * 注意：ids中的值是sort_order，不是filter_option.id
+   * @param ids 筛选条件的“序号”组合（sort_order），格式："sortType,categoryId,regionId,languageId,yearId,statusId"
+   * - 位置含义：[排序, 类型, 地区, 语言, 年份, 状态]
+   * - 映射原则：先用每一位的 sort_order 去 filter_options 中定位对应选项，再取该选项的 option.id 参与查询
+   * - 重要：ids 中的值是 sort_order（序号），不是 filter_options.id
+   * - 特殊规则：当 channelId 为数值且 > 0 时，会忽略 ids 中的“类型(type)”位，避免与频道分类冲突；channelId=0 表示全库筛选
+   * 示例："1,2,0,0,0,0" → 排序=1，类型=2，其他不筛选
    */
   private parseFilterIds(ids: string): {
     sortType: number;
@@ -279,7 +285,9 @@ export class FilterService {
 
   /**
    * 应用筛选条件到查询构建器
-   * 使用 sort_order 动态构建筛选映射
+   * 使用 ids 的 sort_order 动态定位 filter_options，再将 option.id 应用到 SQL 条件。
+   * 业务规则：当 channelId 为数值且 > 0 时，忽略 ids 中的类型(type)筛选，避免与频道分类重复/冲突；
+   * channelId=0 时不忽略任何 ids 位，在“全部分类”下按 ids 完整筛选。
    */
   private async applyFilters(
     queryBuilder: any, 
@@ -337,6 +345,12 @@ export class FilterService {
 
         if (option) {
           console.log(`[DEBUG] 应用筛选: ${filterType.code}, sort_order: ${optionId}, option_id: ${option.id}, option_name: ${option.name}`);
+          // 当 channeid 为数值且 > 0 时，忽略 ids 中的类型(type)筛选，避免与频道分类冲突
+          const isNumericChannel = /^\d+$/.test(channelId);
+          const hasChannelCategory = isNumericChannel && parseInt(channelId, 10) > 0;
+          if (filterType.code === 'type' && hasChannelCategory) {
+            continue;
+          }
           // 根据filter_type的code来应用不同的筛选逻辑，传递实际的option.id
           await this.applyFilterByType(queryBuilder, filterType.code, option.id);
         } else {

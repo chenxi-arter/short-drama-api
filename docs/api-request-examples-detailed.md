@@ -210,7 +210,7 @@ curl -X GET \
         "list": [
           {
             "id": 2001,
-            "uuid": "fpcxnnFA6m9",
+            "shortId": "fpcxnnFA6m9",
             "coverUrl": "https://example.com/covers/series2001.jpg",
             "title": "霸道总裁爱上我",
             "score": "9.2",
@@ -225,7 +225,7 @@ curl -X GET \
           },
           {
             "id": 2002,
-            "uuid": "kaNqkt7QENy",
+            "shortId": "kaNqkt7QENy",
             "coverUrl": "https://example.com/covers/series2002.jpg",
             "title": "古装仙侠传",
             "score": "8.8",
@@ -240,7 +240,7 @@ curl -X GET \
           },
           {
             "id": 1005,
-            "uuid": "68jDaAEyHp4",
+            "shortId": "68jDaAEyHp4",
             "coverUrl": "https://example.com/cover5.jpg",
             "title": "古装电视剧",
             "score": "9.5",
@@ -255,7 +255,7 @@ curl -X GET \
           },
           {
             "id": 1002,
-            "uuid": "p8aUvzGtbvE",
+            "shortId": "p8aUvzGtbvE",
             "coverUrl": "https://example.com/cover2.jpg",
             "title": "都市爱情剧",
             "score": "9.2",
@@ -270,7 +270,7 @@ curl -X GET \
           },
           {
             "id": 1001,
-            "uuid": "jTX5ctteb9h",
+            "shortId": "jTX5ctteb9h",
             "coverUrl": "https://example.com/cover1.jpg",
             "title": "测试剧集系列",
             "score": "8.5",
@@ -598,7 +598,7 @@ curl -X GET \
     "list": [
       {
         "id": 2001,
-        "uuid": "fpcxnnFA6m9",
+        "shortId": "fpcxnnFA6m9",
         "coverUrl": "https://example.com/covers/series2001.jpg",
         "title": "霸道总裁爱上我",
         "description": "一个普通女孩与霸道总裁的爱情故事，充满甜蜜与波折",
@@ -626,7 +626,7 @@ curl -X GET \
       },
       {
         "id": 2002,
-        "uuid": "kaNqkt7QENy",
+        "shortId": "kaNqkt7QENy",
         "coverUrl": "https://example.com/covers/series2002.jpg",
         "title": "古装仙侠传",
         "description": "修仙世界的爱恨情仇，仙侠传奇故事",
@@ -654,7 +654,7 @@ curl -X GET \
       },
       {
         "id": 1005,
-        "uuid": "68jDaAEyHp4",
+        "shortId": "68jDaAEyHp4",
         "coverUrl": "https://example.com/cover5.jpg",
         "title": "古装电视剧",
         "description": "古代宫廷题材电视剧",
@@ -683,7 +683,7 @@ curl -X GET \
       },
       {
         "id": 1002,
-        "uuid": "p8aUvzGtbvE",
+        "shortId": "p8aUvzGtbvE",
         "coverUrl": "https://example.com/cover2.jpg",
         "title": "都市爱情剧",
         "description": "现代都市背景的爱情故事",
@@ -712,7 +712,7 @@ curl -X GET \
       },
       {
         "id": 1001,
-        "uuid": "jTX5ctteb9h",
+        "shortId": "jTX5ctteb9h",
         "coverUrl": "https://example.com/cover1.jpg",
         "title": "测试剧集系列",
         "description": "这是一个用于测试的剧集系列，包含多个精彩剧集",
@@ -1743,7 +1743,7 @@ curl -X GET \
   "updatedAt": "2025-08-05T23:59:19.972Z",
   "episode": {
     "id": 2136,
-    "uuid": "a3e862c5-96f4-4200-9597-2f1c5b38ac80",
+    "shortId": "a3e862c5-96f4-4200-9597-2f1c5b38ac80",
     "seriesId": 2001,
     "episodeNumber": 1,
     "title": "第1集：初次相遇",
@@ -1751,7 +1751,7 @@ curl -X GET \
     "status": "published",
     "series": {
       "id": 2001,
-      "uuid": "cfd7d3c1-acc1-4148-9d01-8c91d62ead32",
+      "shortId": "cfd7d3c1-acc1-4148-9d01-8c91d62ead32",
       "title": "霸道总裁爱上我",
       "description": "一个普通女孩与霸道总裁的爱情故事，充满甜蜜与波折",
       "coverUrl": "https://example.com/covers/series2001.jpg",
