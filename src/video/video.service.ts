@@ -1301,8 +1301,7 @@ async listSeriesFull(
           lastWatchTime: progress?.updatedAt?.toISOString() || null,
           urls: ep.urls?.map(url => ({
             quality: url.quality,
-            accessKey: url.accessKey,
-            ...(userId ? { cdnUrl: url.cdnUrl, ossUrl: url.ossUrl, subtitleUrl: url.subtitleUrl } : {})
+            accessKey: url.accessKey
           })) || [],
         };
       });

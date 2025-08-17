@@ -526,10 +526,6 @@ interface EpisodeItem {
 interface EpisodeUrl {
   quality: string;         // 清晰度
   accessKey: string;       // 访问密钥
-  // 以下字段仅在认证接口 /api/video/episodes 返回
-  cdnUrl?: string;         // CDN播放地址
-  ossUrl?: string;         // OSS源地址
-  subtitleUrl?: string | null; // 字幕地址
 }
 ```
 

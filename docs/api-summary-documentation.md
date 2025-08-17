@@ -787,15 +787,8 @@ ShortID是系统自定义的11位Base64字符标识符，用于替代传统的UU
         "isWatched": boolean,      // 是否已观看
         "lastWatchTime": string,   // 最后观看时间
         "episodeAccessKey?": string,  // 剧集级 accessKey（用于 /api/video/episode-url/:accessKey 或 POST 查询）
-        "urls": [                      // 播放地址（含访问密钥）
-          {
-            "quality": string,
-            "accessKey": string,
-            // 认证接口会额外返回以下字段：
-            "cdnUrl?": string,
-            "ossUrl?": string,
-            "subtitleUrl?": string | null
-          }
+        "urls": [                      // 播放地址（仅返回标识）
+          { "quality": string, "accessKey": string }
         ]
       }
     ],
