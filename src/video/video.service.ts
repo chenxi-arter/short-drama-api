@@ -280,6 +280,17 @@ export class VideoService {
     return this.episodeService.getEpisodeUrlByAccessKey(accessKey);
   }
 
+  /* 通过前缀强制指定 key 类型：prefix=ep|url */
+  async getEpisodeUrlByKey(prefix: string, raw: string) {
+    if (prefix === 'ep') {
+      return this.episodeService.getEpisodeUrlByEpisodeKey(raw);
+    }
+    if (prefix === 'url') {
+      return this.episodeService.getEpisodeUrlByUrlKey(raw);
+    }
+    throw new Error('不支持的 key 前缀，使用 ep: 或 url:');
+  }
+
   /* 更新剧集续集状态 */
   async updateEpisodeSequel(episodeId: number, hasSequel: boolean) {
     await this.epRepo.update(episodeId, { hasSequel });
@@ -1162,12 +1173,7 @@ async listSeriesFull(
         // 4. 年份
         let yearName = '';
         if (series.releaseDate) {
-          const year = new Date(series.releaseDate).getFullYear().toString();
-          let yearOption = await this.filterService['filterOptionRepo'].findOne({ where: { value: year } });
-          if (!yearOption) {
-            yearOption = await this.filterService['filterOptionRepo'].findOne({ where: { name: year + '年' } });
-          }
-          yearName = yearOption?.name || year;
+          yearName = await this.filterService.resolveYearNameFromDate(series.releaseDate);
         }
         // 5. 状态
         let statusName = '';
@@ -1288,13 +1294,15 @@ async listSeriesFull(
           seriesId: ep.series?.id || 0,
           seriesTitle: ep.series?.title || '',
           seriesShortId: ep.series?.shortId || '',
+          episodeAccessKey: ep.accessKey,
           watchProgress: watchProgress,
           watchPercentage: watchPercentage,
           isWatched: watchPercentage >= 90,
           lastWatchTime: progress?.updatedAt?.toISOString() || null,
           urls: ep.urls?.map(url => ({
             quality: url.quality,
-            accessKey: url.accessKey
+            accessKey: url.accessKey,
+            ...(userId ? { cdnUrl: url.cdnUrl, ossUrl: url.ossUrl, subtitleUrl: url.subtitleUrl } : {})
           })) || [],
         };
       });

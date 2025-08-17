@@ -15,14 +15,8 @@ import { Banner } from './entity/banner.entity';              // 轮播图实体
 import { FilterType } from './entity/filter-type.entity';      // 筛选器类型实体
 import { FilterOption } from './entity/filter-option.entity';  // 筛选器选项实体
 import { VideoService } from './video.service';                // 视频业务逻辑服务
-import { VideoController } from './video.controller';          // 视频相关API控制器
-import { PublicVideoController } from './public-video.controller'; // 公开视频API控制器
-import { HomeController } from './home.controller';           // 首页相关API控制器
-import { ListController } from './list.controller';           // 列表筛选相关API控制器
-import { CategoryController } from './category.controller';   // 分类相关API控制器
-import { BannerController } from './controllers/banner.controller'; // 轮播图API控制器
-import { BrowseHistoryController } from './browse-history.controller'; // 浏览记录API控制器
 import { CacheMonitorController } from './cache-monitor.controller'; // 缓存监控API控制器
+import { VideoApiModule } from './modules/video-api.module';
 import { AdminController } from './admin.controller'; // 管理员API控制器
 import { WatchProgressService } from './services/watch-progress.service';
 import { CommentService } from './services/comment.service';
@@ -35,10 +29,21 @@ import { BannerService } from './services/banner.service';     // 轮播图服�
 import { BrowseHistoryService } from './services/browse-history.service'; // 浏览记录服务
 import { AppLoggerService } from '../common/logger/app-logger.service';
 import { AppConfigService } from '../common/config/app-config.service';
+import { CatalogModule } from './modules/catalog.module';
+import { SeriesModule } from './modules/series.module';
+import { EpisodeModule } from './modules/episode.module';
+import { BannerModule } from './modules/banner.module';
+import { HistoryModule } from './modules/history.module';
 import { IsValidChannelExistsConstraint } from './validators/channel-exists.validator';
 @Module({
   imports: [
     CacheModule.register(),
+    // 子模块装载（在不改变现有路由前提下分层）
+    CatalogModule,
+    SeriesModule,
+    EpisodeModule,
+    BannerModule,
+    HistoryModule,
     // 注册当前模块需要的TypeORM实体，使它们可以在本模块的Provider中注入使用
     TypeOrmModule.forFeature([
       Series,         // 系列/剧集数据表
@@ -54,7 +59,7 @@ import { IsValidChannelExistsConstraint } from './validators/channel-exists.vali
       FilterOption,   // 筛选器选项数据表
       BrowseHistory   // 浏览记录数据表
     ])
-  ],
+  , VideoApiModule],
   providers: [
     VideoService,
     WatchProgressService,
@@ -65,23 +70,15 @@ import { IsValidChannelExistsConstraint } from './validators/channel-exists.vali
 
     FilterService,
     SeriesService,
-    BannerService,
     BrowseHistoryService,
     AppLoggerService,
     AppConfigService,
     IsValidChannelExistsConstraint,
   ],    // 注册本模块的服务提供者（业务逻辑）
   controllers: [
-    PublicVideoController, 
-    VideoController, 
-    HomeController, 
-    ListController,
-    CategoryController,
-    BannerController,
-    BrowseHistoryController,
     CacheMonitorController,
     AdminController
-  ], // 一起注册
+  ], // 仅保留内部控制器；公开API控制器移至 VideoApiModule
   // 注意：如果需要让其他模块使用这些实体或服务，应该在这里添加exports
 })
 export class VideoModule {}

@@ -40,6 +40,7 @@ export interface EpisodeBasicInfo {
   seriesId: number;              // 所属剧集ID
   seriesTitle: string;           // 所属剧集标题
   seriesShortId: string;         // 所属剧集shortId
+  episodeAccessKey?: string;     // 剧集级访问密钥（用于 /api/video/episode-url/:accessKey）
   // 播放进度相关字段（仅在有用户token时返回）
   watchProgress?: number;        // 观看进度（秒）
   watchPercentage?: number;      // 观看百分比（0-100）
@@ -56,6 +57,9 @@ export interface EpisodeBasicInfo {
 export interface EpisodeUrlInfo {
   quality: string;               // 清晰度（如：720p, 1080p）
   accessKey: string;             // 访问密钥
+  cdnUrl?: string;               // CDN播放地址（认证接口返回）
+  ossUrl?: string;               // OSS源地址（认证接口返回）
+  subtitleUrl?: string | null;   // 字幕地址（认证接口返回）
 }
 
 /**

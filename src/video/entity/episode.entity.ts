@@ -9,6 +9,7 @@ import { EpisodeUrl } from './episode-url.entity';
 import { WatchProgress } from './watch-progress.entity';
 import { Comment } from './comment.entity';
 import { ShortIdUtil } from '../../shared/utils/short-id.util';
+import { AccessKeyUtil } from '../../shared/utils/access-key.util';
 
 @Entity('episodes')
 export class Episode {
@@ -25,6 +26,13 @@ export class Episode {
    */
   @Column({ type: 'varchar', length: 11, unique: true, nullable: true, name: 'short_id' })
   shortId: string;
+
+  /**
+   * 剧集级访问密钥
+   * 使用一个 accessKey 可获取该集的所有播放地址
+   */
+  @Column({ type: 'varchar', length: 64, unique: true, nullable: true, name: 'access_key' })
+  accessKey: string;
 
   /** 
    * 所属电视剧ID 
@@ -129,6 +137,9 @@ export class Episode {
   generateShortId() {
     if (!this.shortId) {
       this.shortId = ShortIdUtil.generate();
+    }
+    if (!this.accessKey) {
+      this.accessKey = AccessKeyUtil.generateAccessKey(32);
     }
   }
 }

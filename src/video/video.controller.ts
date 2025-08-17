@@ -94,6 +94,28 @@ async getEpisodeUrlByAccessKey(@Param('accessKey') accessKey: string) {
   return this.videoService.getEpisodeUrlByAccessKey(accessKey);
 }
 
+/* 通过POST获取播放地址
+ * 推荐：Body { type: 'episode' | 'url', accessKey: string }
+ * 兼容：Body { key: 'ep:<accessKey>' | 'url:<accessKey>' }
+ */
+@Post('episode-url/query')
+async postEpisodeUrlByKey(@Body() body: any) {
+  const { type, accessKey, key } = body || {};
+  if (type && accessKey) {
+    const normalized = String(type).toLowerCase();
+    if (normalized !== 'episode' && normalized !== 'url') {
+      throw new BadRequestException("type 仅支持 'episode' 或 'url'");
+    }
+    const prefix = normalized === 'episode' ? 'ep' : 'url';
+    return this.videoService.getEpisodeUrlByKey(prefix, String(accessKey));
+  }
+  if (key && typeof key === 'string' && key.includes(':')) {
+    const [prefix, raw] = key.split(':', 2);
+    return this.videoService.getEpisodeUrlByKey(prefix, raw);
+  }
+  throw new BadRequestException("请求体应包含 { type: 'episode'|'url', accessKey }，或兼容的 { key: 'ep:<accessKey>' } 格式");
+}
+
 /* 更新剧集续集状态 */
 @Post('episode-sequel')
 async updateEpisodeSequel(

@@ -10,6 +10,7 @@ import { FilterTagsResponse, FilterTagGroup, FilterTagItem } from '../dto/filter
 import { FilterDataResponse, FilterDataItem } from '../dto/filter-data.dto';
 import { FuzzySearchResponse, FuzzySearchItem } from '../dto/fuzzy-search.dto';
 import { CacheKeys } from '../utils/cache-keys.util';
+import { FilterQueryBuilderUtil } from '../utils/filter-query-builder.util';
 
 /**
  * 筛选器服务
@@ -302,15 +303,7 @@ export class FilterService {
     channelId: string
   ): Promise<void> {
     // 频道筛选
-    if (channelId && channelId !== '0') {
-      // 如果channelId是字符串（如'drama'），需要根据category_id查找对应的数字ID
-      const isNumeric = /^\d+$/.test(channelId);
-      if (isNumeric) {
-        (queryBuilder as any).andWhere('category.id = :channelId', { channelId: parseInt(channelId) });
-      } else {
-        (queryBuilder as any).andWhere('category.category_id = :categoryId', { categoryId: channelId });
-      }
-    }
+    FilterQueryBuilderUtil.applyChannel(queryBuilder, channelId);
 
     // 动态获取filter_types按sort_order排序的映射
     const filterTypes = await this.filterTypeRepo.find({
@@ -352,7 +345,28 @@ export class FilterService {
             continue;
           }
           // 根据filter_type的code来应用不同的筛选逻辑，传递实际的option.id
-          await this.applyFilterByType(queryBuilder, filterType.code, option.id);
+          switch (filterType.code) {
+            case 'type':
+              FilterQueryBuilderUtil.applyType(queryBuilder, option.id);
+              break;
+            case 'region':
+              FilterQueryBuilderUtil.applyRegion(queryBuilder, option.id);
+              break;
+            case 'language':
+              FilterQueryBuilderUtil.applyLanguage(queryBuilder, option.id);
+              break;
+            case 'year':
+              FilterQueryBuilderUtil.applyYear(queryBuilder, option.id);
+              break;
+            case 'status':
+              FilterQueryBuilderUtil.applyStatus(queryBuilder, option.id);
+              break;
+            case 'sort':
+              // 排序在 applySorting 中统一处理
+              break;
+            default:
+              break;
+          }
         } else {
           console.log(`[DEBUG] 未找到筛选选项: filter_type_id=${filterType.id}, sort_order=${optionId}`);
         }
@@ -363,58 +377,26 @@ export class FilterService {
   /**
    * 根据筛选类型应用具体的筛选条件
    */
-  private async applyFilterByType(queryBuilder: any, filterTypeCode: string, optionId: number): Promise<void> {
-    // 使用唯一的参数名避免冲突
-    const paramName = `${filterTypeCode}_${optionId}_${Date.now()}`;
-    
-    switch (filterTypeCode) {
-      case 'sort':
-        // 排序在applySorting方法中处理，这里不需要处理
-        break;
-      case 'type':
-        // 类型筛选 - 特殊处理，需要映射到category
-        queryBuilder.andWhere(`category.id = :${paramName}`, { [paramName]: optionId });
-        break;
-      case 'region':
-        // 地区筛选
-        queryBuilder.andWhere(`series.region_option_id = :${paramName}`, { [paramName]: optionId });
-        break;
-      case 'language':
-        // 语言筛选
-        queryBuilder.andWhere(`series.language_option_id = :${paramName}`, { [paramName]: optionId });
-        break;
-      case 'year':
-        // 年份筛选
-        queryBuilder.andWhere(`series.year_option_id = :${paramName}`, { [paramName]: optionId });
-        break;
-      case 'status':
-        // 状态筛选
-        queryBuilder.andWhere(`series.status_option_id = :${paramName}`, { [paramName]: optionId });
-        break;
-      default:
-        // 未知类型，忽略
-        break;
-    }
-  }
+  private async applyFilterByType() { /* 已由 FilterQueryBuilderUtil 接管，保留空实现以兼容旧调用 */ }
 
   /**
    * 应用排序条件
    */
   private applySorting(queryBuilder: any, sortType: number): void {
-    switch (sortType) {
-      case 1: // 最新
-        queryBuilder.orderBy('series.createdAt', 'DESC');
-        break;
-      case 2: // 最热
-        queryBuilder.orderBy('series.playCount', 'DESC');
-        break;
-      case 3: // 评分
-        queryBuilder.orderBy('series.score', 'DESC');
-        break;
-      default: // 默认按创建时间倒序
-        queryBuilder.orderBy('series.createdAt', 'DESC');
-        break;
+    FilterQueryBuilderUtil.applySorting(queryBuilder, sortType);
+  }
+
+  /**
+   * 从日期解析中文年份名称，优先匹配 value，其次匹配 name（如“2024年”）
+   */
+  async resolveYearNameFromDate(date?: Date | string): Promise<string> {
+    if (!date) return '';
+    const year = (date instanceof Date ? date : new Date(date)).getFullYear().toString();
+    let yearOption = await this.filterOptionRepo.findOne({ where: { value: year } });
+    if (!yearOption) {
+      yearOption = await this.filterOptionRepo.findOne({ where: { name: year + '年' } });
     }
+    return yearOption?.name || year;
   }
 
   /**
@@ -555,7 +537,7 @@ export class FilterService {
       // 转换为响应格式
       const items: FuzzySearchItem[] = series.map(s => ({
         id: s.id,
-        uuid: s.shortId || '', // 使用shortId作为UUID
+        shortId: s.shortId || '',
         coverUrl: s.coverUrl || '',
         title: s.title,
         score: s.score?.toString() || '0.0',

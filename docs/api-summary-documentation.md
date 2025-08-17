@@ -360,7 +360,7 @@ ShortID是系统自定义的11位Base64字符标识符，用于替代传统的UU
 ```typescript
 {
   "id": number,           // 视频ID
-  "uuid": string,         // 视频唯一标识符
+  "shortId": string,      // 系列ShortID
   "coverUrl": string,     // 封面图片URL
   "title": string,        // 视频标题
   "score": string,        // 视频评分（格式如"9.2"，范围0-10分）
@@ -477,7 +477,7 @@ ShortID是系统自定义的11位Base64字符标识符，用于替代传统的UU
     "list": [
       {
         "id": number,          // 视频ID
-        "uuid": string,        // UUID标识符
+        "shortId": string,     // 系列ShortID
         "coverUrl": string,    // 封面图URL
         "title": string,       // 视频标题
         "score": string,       // 视频评分（格式如"9.2"，范围0-10分）
@@ -493,7 +493,11 @@ ShortID是系统自定义的11位Base64字符标识符，用于替代传统的UU
         "isRecommend": boolean,// 是否推荐
         "createdAt": string    // 创建时间
       }
-    ]
+    ],
+    "total": number,           // 总数量
+    "page": number,            // 当前页码
+    "size": number,            // 每页大小
+    "hasMore": boolean         // 是否有更多数据
   },
   "msg": string | null
 }
@@ -507,7 +511,7 @@ ShortID是系统自定义的11位Base64字符标识符，用于替代传统的UU
     "list": [
       {
         "id": number,          // 视频ID
-        "uuid": string,        // UUID标识符
+        "shortId": string,     // 系列ShortID
         "coverUrl": string,    // 封面图URL
         "title": string,       // 视频标题
         "score": string,       // 视频评分（格式如"9.2"，范围0-10分）
@@ -552,7 +556,7 @@ ShortID是系统自定义的11位Base64字符标识符，用于替代传统的UU
     "list": [
       {
         "id": number,          // 视频ID
-        "uuid": string,        // UUID标识符
+        "shortId": string,     // 系列ShortID
         "coverUrl": string,    // 封面图URL
         "title": string,       // 视频标题
         "score": string,       // 视频评分（格式如"9.2"，范围0-10分）
@@ -592,7 +596,7 @@ ShortID是系统自定义的11位Base64字符标识符，用于替代传统的UU
 | 发表评论 | POST | `/api/video/comment` | 发表弹幕/评论（支持ID/ShortID，支持中文内容） | ✅ | ✅ 正常工作 |
 | 获取用户媒体 | GET | `/api/video/media` | 获取用户相关媒体列表 | ✅ | ✅ 正常工作 |
 | 创建剧集URL | POST | `/api/video/episode-url` | 创建剧集播放URL | ✅ | ✅ 正常工作 |
-| 获取剧集URL | GET | `/api/video/episode-url/:accessKey` | 通过访问密钥获取剧集URL | ✅ | ✅ 正常工作 |
+| 获取剧集URL（POST查询） | POST | `/api/video/episode-url/query` | Body: `{ type: 'episode'|'url', accessKey: string }`（推荐）或 `{ key: 'ep:<accessKey>'|'url:<accessKey>' }`（兼容），聚合同集所有地址 | ✅ | ✅ 正常工作 |
 | 更新剧集续集状态 | POST | `/api/video/episode-sequel` | 更新剧集是否有续集 | ✅ | ✅ 正常工作 |
 | 生成访问密钥 | POST | `/api/video/generate-access-keys` | 创建剧集访问密钥 | ✅ | ✅ 正常工作 |
 | 获取剧集列表 | GET | `/api/video/episodes` | 获取剧集列表信息（包含播放进度、系列信息与系列标签tags，自动记录浏览历史） | ✅ | ✅ 正常工作 |
@@ -782,8 +786,16 @@ ShortID是系统自定义的11位Base64字符标识符，用于替代传统的UU
         "watchPercentage": number, // 观看百分比
         "isWatched": boolean,      // 是否已观看
         "lastWatchTime": string,   // 最后观看时间
-        "urls": [                  // 播放地址（含访问密钥）
-          { "quality": string, "accessKey": string }
+        "episodeAccessKey?": string,  // 剧集级 accessKey（用于 /api/video/episode-url/:accessKey 或 POST 查询）
+        "urls": [                      // 播放地址（含访问密钥）
+          {
+            "quality": string,
+            "accessKey": string,
+            // 认证接口会额外返回以下字段：
+            "cdnUrl?": string,
+            "ossUrl?": string,
+            "subtitleUrl?": string | null
+          }
         ]
       }
     ],
@@ -1273,6 +1285,37 @@ curl -X GET "http://localhost:8080/api/video/browse-history?page=1&size=20" \
 # 同步浏览记录
 curl -X GET "http://localhost:8080/api/video/browse-history/sync?seriesShortId=fpcxnnFA6m9&browseType=episode_list&lastEpisodeNumber=5" \
   -H "Authorization: Bearer <access_token>"
+
+# 获取播放地址（POST，推荐）- 使用剧集级 accessKey（episodes.access_key）
+curl -X POST "http://localhost:8080/api/video/episode-url/query" \
+  -H "Authorization: Bearer <access_token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "type": "episode",
+    "accessKey": "<EPISODE_ACCESS_KEY>"
+  }'
+
+# 获取播放地址（POST）- 使用地址级 accessKey（episode_urls.access_key）
+curl -X POST "http://localhost:8080/api/video/episode-url/query" \
+  -H "Authorization: Bearer <access_token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "type": "url",
+    "accessKey": "<URL_ACCESS_KEY>"
+  }'
+
+#### 参数与来源说明
+- 请求体（推荐）：
+  - `type`: `'episode' | 'url'`
+  - `accessKey`: 对应类型的访问密钥
+- 访问密钥来源：
+  - 当 `type = 'episode'`（剧集级）：
+    - 来源接口：`/api/video/episodes` 或 `/api/public/video/episodes`
+    - 字段路径：`data.list[i].episodeAccessKey`
+  - 当 `type = 'url'`（地址级）：
+    - 来源接口：`/api/video/episodes` 或 `/api/public/video/episodes`
+    - 字段路径：`data.list[i].urls[j].accessKey`
+    - 亦可来自创建接口：`POST /api/video/episode-url` 的返回体 `accessKey`
 ```
 
 ### 4. 轮播图管理

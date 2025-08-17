@@ -486,7 +486,6 @@ interface EpisodeResponse {
     page: number;
     size: number;
     hasMore: boolean;
-    tags: string[];          // 系列标签（类型/地区/语言/年份/状态）
     currentEpisode: string;  // 当前观看到的集数（与 episodeTitle 一致，如 "01"；无记录则为 "01"）
   };
 }
@@ -500,7 +499,7 @@ interface SeriesInfo {
   playCount: number;       // 播放次数
   isHot: boolean;          // 是否热门
   isVip: boolean;          // 是否VIP
-  tags?: string[];         // 系列标签
+  tags?: string[];         // 系列标签（类型/地区/语言/年份/状态）
 }
 
 interface UserProgress {
@@ -520,30 +519,83 @@ interface EpisodeItem {
   watchProgress?: number;  // 观看进度（秒）
   watchPercentage?: number; // 观看百分比
   isWatched?: boolean;     // 是否已观看
+  episodeAccessKey?: string; // 剧集级 accessKey，用于 /api/video/episode-url/:accessKey 或 POST 查询
   urls: EpisodeUrl[];      // 播放地址
 }
 
 interface EpisodeUrl {
   quality: string;         // 清晰度
   accessKey: string;       // 访问密钥
+  // 以下字段仅在认证接口 /api/video/episodes 返回
+  cdnUrl?: string;         // CDN播放地址
+  ossUrl?: string;         // OSS源地址
+  subtitleUrl?: string | null; // 字幕地址
 }
+```
+
+#### 获取 accessKey 的方式
+- 剧集级 accessKey（用于 type='episode'）：来自 `/api/video/episodes` 或 `/api/public/video/episodes` 的 `data.list[i].episodeAccessKey`
+- 地址级 accessKey（用于 type='url'）：来自上述接口的 `data.list[i].urls[j].accessKey`
+
+示例（先拿 accessKey 再查询播放地址）
+```bash
+TELEGRAM='{"id":6702079700,"first_name":"随风","username":"seo99991","auth_date":1754642628,"hash":"cd671f60a4393b399d9cb269ac4327c8a47a3807c5520077c37477544ae93c07"}'; \
+ACCESS=$(curl -s -H "Content-Type: application/json" -X POST -d "$TELEGRAM" http://localhost:8080/user/telegram-login | jq -r .access_token); \
+SERIES_SHORT=$(curl -s "http://localhost:8080/api/list/getfiltersdata?channeid=1&ids=0,0,0,0,0&page=1" | jq -r '.data.list[0].shortId'); \
+EP_JSON=$(curl -s -H "Authorization: Bearer $ACCESS" "http://localhost:8080/api/video/episodes?seriesShortId=$SERIES_SHORT&page=1&size=1"); \
+EP_ACCESS=$(echo "$EP_JSON" | jq -r '.data.list[0].episodeAccessKey'); \
+URL_ACCESS=$(echo "$EP_JSON" | jq -r '.data.list[0].urls[0].accessKey'); \
+echo "episodeAccessKey=$EP_ACCESS"; echo "urlAccessKey=$URL_ACCESS"
 ```
 
 #### **获取播放地址**
 ```typescript
-// 接口地址
-GET /api/video/episode-url/:accessKey
+// 接口地址（推荐POST）
+POST /api/video/episode-url/query
+// 推荐请求体
+interface EpisodeUrlQuery {
+  type: 'episode' | 'url';  // 'episode' = episodes.access_key, 'url' = episode_urls.access_key
+  accessKey: string;        // 对应类型的 accessKey
+}
+// 兼容老格式
+// { key: 'ep:<accessKey>' } 或 { key: 'url:<accessKey>' }
 
-// 响应格式
-interface EpisodeUrlResponse {
-  id: number;
+// 示例（使用剧集级 accessKey）
+curl -X POST "http://localhost:8080/api/video/episode-url/query" \
+  -H "Authorization: Bearer <access_token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "type": "episode",
+    "accessKey": "<EPISODE_ACCESS_KEY>"
+  }'
+
+// 示例（使用地址级 accessKey）
+curl -X POST "http://localhost:8080/api/video/episode-url/query" \
+  -H "Authorization: Bearer <access_token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "type": "url",
+    "accessKey": "<URL_ACCESS_KEY>"
+  }'
+
+// 响应格式（聚合同集所有地址）
+interface EpisodeUrlQueryResponse {
   episodeId: number;
-  quality: string;         // 清晰度
-  cdnUrl: string;          // CDN播放地址
-  ossUrl: string;          // OSS源地址
-  subtitleUrl: string | null; // 字幕地址
-  accessKey: string;      // 访问密钥
-  // expiresAt?: string;   // 过期时间（如实现）
+  episodeShortId: string;
+  episodeTitle: string;
+  seriesId?: number;
+  seriesShortId?: string;
+  urls: Array<{
+    id: number;
+    quality: string;
+    cdnUrl: string;
+    ossUrl: string;
+    subtitleUrl?: string | null;
+    accessKey: string;
+    createdAt: string;
+    updatedAt: string;
+  }>;
+  accessKeySource: 'episode' | 'url'; // 调用时使用的 accessKey 类型来源
 }
 ```
 

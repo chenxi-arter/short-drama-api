@@ -22,6 +22,34 @@ export class EpisodeService {
     private readonly cacheManager: Cache,
   ) {}
 
+  private async buildEpisodeUrlResponseByEpisodeId(episodeId: number) {
+    const episode = await this.episodeRepo.findOne({ where: { id: episodeId }, relations: ['series'] });
+    if (!episode) {
+      throw new NotFoundException('播放地址不存在或已过期');
+    }
+    const allUrls = await this.episodeUrlRepo.find({
+      where: { episodeId: episode.id },
+      order: { quality: 'DESC' },
+    });
+    return {
+      episodeId: episode.id,
+      episodeShortId: episode.shortId,
+      episodeTitle: episode.title,
+      seriesId: episode.series?.id,
+      seriesShortId: episode.series?.shortId,
+      urls: allUrls.map(u => ({
+        id: u.id,
+        quality: u.quality,
+        ossUrl: u.ossUrl,
+        cdnUrl: u.cdnUrl,
+        subtitleUrl: u.subtitleUrl,
+        accessKey: u.accessKey,
+        createdAt: u.createdAt,
+        updatedAt: u.updatedAt,
+      })),
+    };
+  }
+
   /**
    * 创建剧集播放地址
    */
@@ -56,17 +84,76 @@ export class EpisodeService {
     if (!AccessKeyUtil.isValidAccessKey(accessKey)) {
       throw new BadRequestException('无效的访问密钥格式');
     }
-    
+    // 优先按“剧集级 access_key”查找
+    const episodeByKey = await this.episodeRepo.findOne({
+      where: { accessKey },
+      relations: ['series'],
+    });
+
+    if (episodeByKey) {
+      const allUrls = await this.episodeUrlRepo.find({
+        where: { episodeId: episodeByKey.id },
+        order: { quality: 'DESC' },
+      });
+
+      return {
+        ...(await this.buildEpisodeUrlResponseByEpisodeId(episodeByKey.id)),
+        accessKeySource: 'episode',
+      };
+    }
+    // 回退：按“地址级 access_key”查找，并聚合该集所有地址
     const episodeUrl = await this.episodeUrlRepo.findOne({
       where: { accessKey },
       relations: ['episode', 'episode.series'],
     });
-    
+
     if (!episodeUrl) {
       throw new NotFoundException('播放地址不存在或已过期');
     }
-    
-    return episodeUrl;
+
+    const siblingUrls = await this.episodeUrlRepo.find({
+      where: { episodeId: episodeUrl.episodeId },
+      order: { quality: 'DESC' },
+    });
+
+    return {
+      ...(await this.buildEpisodeUrlResponseByEpisodeId(episodeUrl.episodeId)),
+      accessKeySource: 'url',
+    };
+  }
+
+  /**
+   * 强制：按剧集级 access_key 查询
+   */
+  async getEpisodeUrlByEpisodeKey(accessKey: string) {
+    if (!AccessKeyUtil.isValidAccessKey(accessKey)) {
+      throw new BadRequestException('无效的访问密钥格式');
+    }
+    const episode = await this.episodeRepo.findOne({ where: { accessKey }, relations: ['series'] });
+    if (!episode) {
+      throw new NotFoundException('播放地址不存在或已过期');
+    }
+    return {
+      ...(await this.buildEpisodeUrlResponseByEpisodeId(episode.id)),
+      accessKeySource: 'episode',
+    };
+  }
+
+  /**
+   * 强制：按地址级 access_key 查询
+   */
+  async getEpisodeUrlByUrlKey(accessKey: string) {
+    if (!AccessKeyUtil.isValidAccessKey(accessKey)) {
+      throw new BadRequestException('无效的访问密钥格式');
+    }
+    const episodeUrl = await this.episodeUrlRepo.findOne({ where: { accessKey } });
+    if (!episodeUrl) {
+      throw new NotFoundException('播放地址不存在或已过期');
+    }
+    return {
+      ...(await this.buildEpisodeUrlResponseByEpisodeId(episodeUrl.episodeId)),
+      accessKeySource: 'url',
+    };
   }
 
   /**
@@ -85,23 +172,35 @@ export class EpisodeService {
    * 批量为现有播放地址生成访问密钥
    */
   async generateAccessKeysForExisting() {
+    // 1) 地址级缺失 access_key 的补齐
     const episodeUrls = await this.episodeUrlRepo.find({
       where: { accessKey: '' },
     });
-    
-    const updates = episodeUrls.map(url => {
+
+    const urlUpdates = episodeUrls.map(url => {
       url.accessKey = AccessKeyUtil.generateAccessKey();
       return url;
     });
-    
-    if (updates.length > 0) {
-      await this.episodeUrlRepo.save(updates);
-      
-      // 清除所有相关缓存
-      await this.clearAllCache();
+
+    if (urlUpdates.length > 0) {
+      await this.episodeUrlRepo.save(urlUpdates);
     }
-    
-    return { updated: updates.length };
+
+    // 2) 剧集级缺失 access_key 的补齐
+    const episodesMissingKey = await this.episodeRepo.find({ where: { accessKey: null as any } });
+    const episodeKeyUpdates = episodesMissingKey.map(ep => {
+      ep.accessKey = AccessKeyUtil.generateAccessKey(32);
+      return ep;
+    });
+
+    if (episodeKeyUpdates.length > 0) {
+      await this.episodeRepo.save(episodeKeyUpdates);
+    }
+
+    // 清除所有相关缓存
+    await this.clearAllCache();
+
+    return { updatedUrlKeys: urlUpdates.length, updatedEpisodeKeys: episodeKeyUpdates.length };
   }
 
   /**
