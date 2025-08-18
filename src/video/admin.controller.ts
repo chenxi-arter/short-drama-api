@@ -5,7 +5,7 @@ import { VideoService } from './video.service';
  * 管理员剧集管理控制器
  * 处理剧集的软删除、恢复等管理操作
  */
-@Controller('api/admin/series')
+@Controller('admin/series')
 export class AdminController {
   constructor(private readonly videoService: VideoService) {}
 

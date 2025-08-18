@@ -35,7 +35,7 @@ const headers = {
 #### **Telegram OAuth 登录**
 ```typescript
 // 接口地址
-POST /user/telegram-login
+POST /api/user/telegram-login
 
 // 请求参数
 interface LoginRequest {
@@ -58,7 +58,7 @@ interface LoginResponse {
 #### **获取用户信息**
 ```typescript
 // 接口地址
-GET /user/me
+GET /api/user/me
 Headers: Authorization: Bearer <access_token>
 
 // 响应格式
@@ -75,7 +75,7 @@ interface UserInfo {
 #### **刷新访问令牌**
 ```typescript
 // 接口地址
-POST /user/refresh
+POST /api/user/refresh
 Headers: Authorization: Bearer <access_token>
 
 // 请求参数
@@ -94,7 +94,7 @@ interface RefreshResponse {
 #### **用户登出**
 ```typescript
 // 登出当前设备
-POST /user/logout
+POST /api/user/logout
 Headers: Authorization: Bearer <access_token>
 
 // 请求参数
@@ -103,7 +103,7 @@ interface LogoutRequest {
 }
 
 // 登出所有设备
-POST /user/logout-all
+POST /api/user/logout-all
 Headers: Authorization: Bearer <access_token>
 
 // 响应格式
@@ -115,7 +115,7 @@ interface LogoutResponse {
 #### **设备管理**
 ```typescript
 // 获取用户活跃设备列表
-GET /user/devices
+GET /api/user/devices
 Headers: Authorization: Bearer <access_token>
 
 // 响应格式
@@ -136,7 +136,7 @@ interface DeviceInfo {
 }
 
 // 撤销指定设备
-DELETE /user/devices/:tokenId
+DELETE /api/user/devices/:tokenId
 Headers: Authorization: Bearer <access_token>
 
 // 响应格式
@@ -149,7 +149,7 @@ interface RevokeDeviceResponse {
 #### **刷新访问令牌**
 ```typescript
 // 接口地址
-POST /user/refresh
+POST /api/user/refresh
 Headers: Authorization: Bearer <access_token>
 
 // 请求参数
@@ -168,7 +168,7 @@ interface RefreshResponse {
 #### **用户登出**
 ```typescript
 // 登出当前设备
-POST /user/logout
+POST /api/user/logout
 Headers: Authorization: Bearer <access_token>
 
 // 请求参数
@@ -177,7 +177,7 @@ interface LogoutRequest {
 }
 
 // 登出所有设备
-POST /user/logout-all
+POST /api/user/logout-all
 Headers: Authorization: Bearer <access_token>
 
 // 响应格式
@@ -189,7 +189,7 @@ interface LogoutResponse {
 #### **设备管理**
 ```typescript
 // 获取用户活跃设备列表
-GET /user/devices
+GET /api/user/devices
 Headers: Authorization: Bearer <access_token>
 
 // 响应格式
@@ -210,7 +210,7 @@ interface DeviceInfo {
 }
 
 // 撤销指定设备
-DELETE /user/devices/:tokenId
+DELETE /api/user/devices/:tokenId
 Headers: Authorization: Bearer <access_token>
 
 // 响应格式
@@ -536,7 +536,7 @@ interface EpisodeUrl {
 示例（先拿 accessKey 再查询播放地址）
 ```bash
 TELEGRAM='{"id":6702079700,"first_name":"随风","username":"seo99991","auth_date":1754642628,"hash":"cd671f60a4393b399d9cb269ac4327c8a47a3807c5520077c37477544ae93c07"}'; \
-ACCESS=$(curl -s -H "Content-Type: application/json" -X POST -d "$TELEGRAM" http://localhost:8080/user/telegram-login | jq -r .access_token); \
+ACCESS=$(curl -s -H "Content-Type: application/json" -X POST -d "$TELEGRAM" http://localhost:8080/api/user/telegram-login | jq -r .access_token); \
 SERIES_SHORT=$(curl -s "http://localhost:8080/api/list/getfiltersdata?channeid=1&ids=0,0,0,0,0&page=1" | jq -r '.data.list[0].shortId'); \
 EP_JSON=$(curl -s -H "Authorization: Bearer $ACCESS" "http://localhost:8080/api/video/episodes?seriesShortId=$SERIES_SHORT&page=1&size=1"); \
 EP_ACCESS=$(echo "$EP_JSON" | jq -r '.data.list[0].episodeAccessKey'); \
@@ -833,7 +833,7 @@ interface WarmupResponse {
 #### **基础健康检查**
 ```typescript
 // 接口地址
-GET /health
+GET /api/health
 
 // 响应格式
 interface HealthResponse {
@@ -846,7 +846,7 @@ interface HealthResponse {
 #### **详细健康检查**
 ```typescript
 // 接口地址
-GET /health/detailed
+GET /api/health/detailed
 
 // 响应格式
 interface DetailedHealthResponse {
@@ -872,7 +872,7 @@ interface DetailedHealthResponse {
 #### **系统信息**
 ```typescript
 // 接口地址
-GET /health/system
+GET /api/health/system
 
 // 响应格式
 interface SystemInfoResponse {
@@ -1005,7 +1005,7 @@ interface WarmupResponse {
 #### **基础健康检查**
 ```typescript
 // 接口地址
-GET /health
+GET /api/health
 
 // 响应格式
 interface HealthResponse {
@@ -1018,7 +1018,7 @@ interface HealthResponse {
 #### **详细健康检查**
 ```typescript
 // 接口地址
-GET /health/detailed
+GET /api/health/detailed
 
 // 响应格式
 interface DetailedHealthResponse {
@@ -1044,7 +1044,7 @@ interface DetailedHealthResponse {
 #### **系统信息**
 ```typescript
 // 接口地址
-GET /health/system
+GET /api/health/system
 
 // 响应格式
 interface SystemInfoResponse {
@@ -1675,7 +1675,7 @@ class TokenManager {
     }
     
     try {
-      const response = await axios.post('/user/refresh', {
+      const response = await axios.post('/api/user/refresh', {
         refresh_token: this.refreshToken
       });
       
@@ -1826,7 +1826,7 @@ class TokenManager {
     }
     
     try {
-      const response = await axios.post('/user/refresh', {
+      const response = await axios.post('/api/user/refresh', {
         refresh_token: this.refreshToken
       });
       

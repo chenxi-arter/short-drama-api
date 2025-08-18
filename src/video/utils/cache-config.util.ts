@@ -82,10 +82,7 @@ export class CacheConfig {
       TTL: CacheConfig.TTL.MEDIUM       // 15分钟
     },
     
-    // 模糊搜索缓存策略
-    FUZZY_SEARCH: {
-      TTL: CacheConfig.TTL.SHORT        // 5分钟
-    }
+    // 模糊搜索不再缓存，避免内存压力与键爆炸
   };
 
   /**

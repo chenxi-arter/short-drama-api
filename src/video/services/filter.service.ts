@@ -144,13 +144,7 @@ export class FilterService {
       };
     }
 
-    const cacheKey = CacheKeys.filterData(channelId, ids, page);
-    
-    // 尝试从缓存获取
-    const cached = await this.cacheManager.get<FilterDataResponse>(cacheKey);
-    if (cached) {
-      return cached;
-    }
+    // 说明：列表筛选数据不使用Redis缓存，避免不必要的内存占用
 
     try {
       const pageNum = parseInt(page) || 1;
@@ -186,8 +180,6 @@ export class FilterService {
           msg: '暂无相关数据',
         };
         
-        // 缓存空结果（5分钟）
-        await this.cacheManager.set(cacheKey, response, 300000);
         return response;
       }
 
@@ -223,13 +215,6 @@ export class FilterService {
         msg: null,
       };
 
-      // 注意：分页信息在实际项目中可能需要单独的响应接口
-      // 这里暂时注释掉不匹配的字段
-      // total, page, size, hasMore 等字段需要根据实际API设计调整
-
-      // 缓存结果（10分钟）
-      await this.cacheManager.set(cacheKey, response, CacheKeys.TTL.MEDIUM);
-      
       return response;
     } catch (error) {
       console.error('获取筛选器数据失败:', error);
@@ -474,15 +459,7 @@ export class FilterService {
       };
     }
 
-    const cacheKey = CacheKeys.fuzzySearch(keyword, channeid, page, size);
-    console.log('缓存键:', cacheKey);
-    
-    // 尝试从缓存获取
-    const cached = await this.cacheManager.get<FuzzySearchResponse>(cacheKey);
-    if (cached) {
-      console.log('从缓存返回结果');
-      return cached;
-    }
+    // 说明：关键词搜索不使用Redis缓存，避免热点键导致的内存压力与键爆炸
 
     try {
       const offset = (page - 1) * size;
@@ -529,8 +506,6 @@ export class FilterService {
           msg: '未找到相关结果'
         };
         
-        // 缓存空结果（5分钟）
-        await this.cacheManager.set(cacheKey, response, 300000);
         return response;
       }
 
@@ -569,9 +544,6 @@ export class FilterService {
 
       console.log('返回结果:', { itemCount: items.length, total, hasMore: response.data.hasMore });
 
-      // 缓存结果（10分钟）
-      await this.cacheManager.set(cacheKey, response, CacheKeys.TTL.MEDIUM);
-      
       return response;
     } catch (error) {
       console.error('模糊搜索失败:', error);

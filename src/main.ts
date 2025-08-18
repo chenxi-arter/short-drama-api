@@ -8,6 +8,9 @@ import { ValidationPipe } from '@nestjs/common';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
+  // 统一所有路由加上 /api 前缀
+  app.setGlobalPrefix('api');
+
   // ✅ 启用全局验证管道
   app.useGlobalPipes(new ValidationPipe({
     transform: true,

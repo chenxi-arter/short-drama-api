@@ -60,7 +60,7 @@
 ## 取用示例（可直接运行）
 ```bash
 TELEGRAM='{"id":6702079700,"first_name":"随风","username":"seo99991","auth_date":1754642628,"hash":"cd671f60a4393b399d9cb269ac4327c8a47a3807c5520077c37477544ae93c07"}'; \
-ACCESS=$(curl -s -H "Content-Type: application/json" -X POST -d "$TELEGRAM" http://localhost:8080/user/telegram-login | jq -r .access_token); \
+ACCESS=$(curl -s -H "Content-Type: application/json" -X POST -d "$TELEGRAM" http://localhost:8080/api/user/telegram-login | jq -r .access_token); \
 SERIES_SHORT=$(curl -s "http://localhost:8080/api/list/getfiltersdata?channeid=1&ids=0,0,0,0,0&page=1" | jq -r '.data.list[0].shortId'); \
 EP_KEY=$(curl -s -H "Authorization: Bearer $ACCESS" "http://localhost:8080/api/video/episodes?seriesShortId=$SERIES_SHORT&page=1&size=1" | jq -r '.data.list[0].episodeAccessKey'); \
 echo "ACCESS=${ACCESS:0:24}..."; echo "SERIES_SHORT_ID=$SERIES_SHORT"; echo "EPISODE_ACCESS_KEY=$EP_KEY"; \

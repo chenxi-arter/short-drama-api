@@ -4,7 +4,7 @@ import { VideoService } from './video.service';
 import { MediaQueryDto } from './dto/media-query.dto';
 import { EpisodeListDto } from './dto/episode-list.dto'; 
 
-@Controller('/api/public/video')   // 统一 /public 前缀，语义清晰
+@Controller('public/video')   // 统一 /public 前缀，语义清晰
 export class PublicVideoController {
   constructor(private readonly videoService: VideoService) {}
 

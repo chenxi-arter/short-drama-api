@@ -13,7 +13,7 @@ import {
 import { BannerService } from '../services/banner.service';
 import { CreateBannerDto, UpdateBannerDto, BannerQueryDto, BannerResponseDto } from '../dto/banner.dto';
 
-@Controller('api/banners')
+@Controller('banners')
 export class BannerController {
   constructor(private readonly bannerService: BannerService) {}
 

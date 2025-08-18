@@ -10,9 +10,9 @@
 
 ## 已确认正常
 - 登录与鉴权
-  - POST /user/telegram-login → 201（access_token/refresh_token）
-  - GET /user/me → 200
-  - POST /user/refresh → 201
+  - POST /api/user/telegram-login → 201（access_token/refresh_token）
+  - GET /api/user/me → 200
+  - POST /api/user/refresh → 201
 - 首页与分类/筛选
   - GET /api/home/categories → 200
   - GET /api/home/gethomemodules?channeid=1&page=1 → 200

@@ -9,7 +9,7 @@ import { BrowseHistoryService } from './services/browse-history.service';
  * 提供用户浏览历史的管理功能
  */
 @UseGuards(JwtAuthGuard, RateLimitGuard)
-@Controller('/api/video/browse-history')
+@Controller('video/browse-history')
 export class BrowseHistoryController {
   constructor(private readonly browseHistoryService: BrowseHistoryService) {}
 

@@ -7,7 +7,7 @@ import { Inject } from '@nestjs/common';
  * 🚀 缓存监控控制器
  * 提供缓存状态查看和管理功能
  */
-@Controller('/api/cache')
+@Controller('cache')
 export class CacheMonitorController {
   constructor(
     @Inject(CACHE_MANAGER)

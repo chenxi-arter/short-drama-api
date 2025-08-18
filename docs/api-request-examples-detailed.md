@@ -21,7 +21,7 @@ eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI3ODQ1MDc4ODQ0IiwiaWF0IjoxNzU0NDc
 **请求示例:**
 ```bash
 curl -X POST \
-  "http://localhost:8080/user/telegram-login" \
+  "http://localhost:8080/api/user/telegram-login" \
   -H "Content-Type: application/json" \
   -d '{
     "id": 123456789,
@@ -65,7 +65,7 @@ curl -X POST \
 **请求示例:**
 ```bash
 curl -X GET \
-  "http://localhost:8080/user/me" \
+  "http://localhost:8080/api/user/me" \
   -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI3ODQ1MDc4ODQ0IiwiaWF0IjoxNzU0NDcwODQ2LCJleHAiOjE3NTUwNzU2NDZ9.kScM1EGRDMrPV4h5QePRqZM46g_O51w5on7griBEqWc"
 ```
 

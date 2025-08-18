@@ -56,14 +56,10 @@
 - **智能清理**: 分类信息更新时自动清理
 
 #### 6. **筛选数据接口** (`/api/list/getfiltersdata`, `/api/list/getconditionfilterdata`)
-- **缓存键**: `filter_data:{channelId}:{ids}:{page}`
-- **缓存策略**: 15分钟
-- **智能清理**: 筛选条件更新时自动清理
+- **缓存策略**: 不缓存（避免大量组合键导致内存占用与管理复杂度）
 
 #### 7. **模糊搜索接口** (`/api/list/fuzzysearch`)
-- **缓存键**: `fuzzy_search:{keyword}:{channeid}:{page}:{size}`
-- **缓存策略**: 5分钟
-- **智能清理**: 搜索内容更新时自动清理
+- **缓存策略**: 不缓存（为避免热点搜索导致内存压力与键爆炸）
 
 ### 缓存清理机制
 
@@ -143,9 +139,9 @@ CacheModule.register({
 
 ### JWT Token 使用
 
-1. **获取Token**: 通过 `/user/telegram-login` 登录获取
+1. **获取Token**: 通过 `/api/user/telegram-login` 登录获取
 2. **使用Token**: 在请求头中添加 `Authorization: Bearer <access_token>`
-3. **刷新Token**: 使用 `/user/refresh` 接口刷新过期的access_token
+3. **刷新Token**: 使用 `/api/user/refresh` 接口刷新过期的access_token
 
 ---
 
@@ -204,18 +200,18 @@ ShortID是系统自定义的11位Base64字符标识符，用于替代传统的UU
 
 ## 👤 用户相关接口
 
-### UserController (`/user`)
+### UserController (`/api/user`)
 
 | 接口名称 | 方法 | 路径 | 描述 | 认证要求 | 状态 |
 |---------|------|------|------|----------|------|
-| Telegram登录 | POST/GET | `/user/telegram-login` | Telegram OAuth登录 | ✅ | ✅ 正常工作 |
-| 获取用户信息 | GET | `/user/me` | 获取当前用户信息 | ✅ | ✅ 正常工作 |
-| 刷新令牌 | POST | `/user/refresh` | 使用refresh_token获取新的access_token | ✅ | ✅ 正常工作 |
-| 验证令牌 | POST | `/user/verify-refresh-token` | 验证refresh_token有效性 | ✅ | ✅ 正常工作 |
-| 登出 | POST | `/user/logout` | 撤销指定的refresh_token | ✅ | ✅ 正常工作 |
-| 全设备登出 | POST | `/user/logout-all` | 撤销用户所有设备的令牌 | ✅ | ✅ 正常工作 |
-| 获取设备列表 | GET | `/user/devices` | 获取用户活跃设备列表 | ✅ | ✅ 正常工作 |
-| 撤销设备 | DELETE | `/user/devices/:id` | 撤销指定设备的令牌 | ✅ | ✅ 正常工作 |
+| Telegram登录 | POST/GET | `/api/user/telegram-login` | Telegram OAuth登录 | ✅ | ✅ 正常工作 |
+| 获取用户信息 | GET | `/api/user/me` | 获取当前用户信息 | ✅ | ✅ 正常工作 |
+| 刷新令牌 | POST | `/api/user/refresh` | 使用refresh_token获取新的access_token | ✅ | ✅ 正常工作 |
+| 验证令牌 | POST | `/api/user/verify-refresh-token` | 验证refresh_token有效性 | ✅ | ✅ 正常工作 |
+| 登出 | POST | `/api/user/logout` | 撤销指定的refresh_token | ✅ | ✅ 正常工作 |
+| 全设备登出 | POST | `/api/user/logout-all` | 撤销用户所有设备的令牌 | ✅ | ✅ 正常工作 |
+| 获取设备列表 | GET | `/api/user/devices` | 获取用户活跃设备列表 | ✅ | ✅ 正常工作 |
+| 撤销设备 | DELETE | `/api/user/devices/:id` | 撤销指定设备的令牌 | ✅ | ✅ 正常工作 |
 
 #### 请求参数
 
@@ -232,21 +228,21 @@ ShortID是系统自定义的11位Base64字符标识符，用于替代传统的UU
 }
 ```
 
-**刷新令牌 (POST /user/refresh)**
+**刷新令牌 (POST /api/user/refresh)**
 ```typescript
 {
   "refresh_token": string // 必填，刷新令牌
 }
 ```
 
-**验证令牌 (POST /user/verify-refresh-token)**
+**验证令牌 (POST /api/user/verify-refresh-token)**
 ```typescript
 {
   "refresh_token": string // 必填，待验证的刷新令牌
 }
 ```
 
-**登出 (POST /user/logout)**
+**登出 (POST /api/user/logout)**
 ```typescript
 {
   "refresh_token": string // 必填，要撤销的刷新令牌
@@ -1194,7 +1190,7 @@ ShortID是系统自定义的11位Base64字符标识符，用于替代传统的UU
 
 ```bash
 # 1. Telegram登录（注意：无 /api 前缀）
-curl -X POST "http://localhost:8080/user/telegram-login" \
+curl -X POST "http://localhost:8080/api/user/telegram-login" \
   -H "Content-Type: application/json" \
   -d '{
     "id": 123456789,
@@ -1204,7 +1200,7 @@ curl -X POST "http://localhost:8080/user/telegram-login" \
   }'
 
 # 2. 使用返回的token访问受保护接口
-curl -X GET "http://localhost:8080/user/me" \
+curl -X GET "http://localhost:8080/api/user/me" \
   -H "Authorization: Bearer <access_token>"
 ```
 
@@ -1534,11 +1530,10 @@ curl -X GET "http://localhost:8080/api/public/video/episodes?page=1&size=20"
 ## 📝 注意事项
 
 1. **接口路径说明**: 
-   - 用户认证接口：`/user/*`（无 `/api` 前缀）
-   - 其他业务接口：`/api/*`（有 `/api` 前缀）
+   - 所有业务接口统一前缀：`/api/*`
 
 2. **认证流程**: 
-   - 通过 `/user/telegram-login` 获取 JWT token
+   - 通过 `/api/user/telegram-login` 获取 JWT token
    - 在请求头中使用 `Authorization: Bearer <token>`
    - Token 有效期为 7 天
 
@@ -1628,7 +1623,7 @@ curl -X GET "http://localhost:8080/api/public/video/episodes?page=1&size=20"
 ### 接口测试示例
 ```bash
 # 1. 生成 Token
-curl -X POST "http://localhost:8080/user/telegram-login" \
+curl -X POST "http://localhost:8080/api/user/telegram-login" \
   -H "Content-Type: application/json" \
   -d '{
     "id": 6702079700,

@@ -5,7 +5,7 @@ import { BaseModuleController } from './base-module.controller';
 /**
  * 首页相关控制器
  */
-@Controller('/api/home')
+@Controller('home')
 export class HomeController extends BaseModuleController {
   constructor(videoService: VideoService) {
     super(videoService);

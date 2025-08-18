@@ -5,7 +5,7 @@ import { MediaQueryDto } from './dto/media-query.dto';
 import { EpisodeListDto } from './dto/episode-list.dto';
 
 @UseGuards(JwtAuthGuard)
-@Controller('/api/video')
+@Controller('video')
 export class VideoController {
   constructor(private readonly videoService: VideoService) {}
   /* 记录/更新断点（支持ID或ShortID自动识别） */
