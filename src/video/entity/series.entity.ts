@@ -33,6 +33,12 @@ export class Series {
   @Column({ length: 255, name: 'title' })
   title: string;
 
+  /**
+   * 外部唯一ID（用于采集与幂等）
+   */
+  @Column({ type: 'varchar', length: 128, nullable: true, unique: true, name: 'external_id' })
+  externalId: string | null;
+
   /** 
    * 简介/描述
    * 系列的详细介绍，可以为空

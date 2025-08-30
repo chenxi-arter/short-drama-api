@@ -1,7 +1,7 @@
 // src/video/video.module.ts
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { CacheModule } from '@nestjs/cache-manager';
+import { RedisCacheModule } from '../cache/cache.module';
 import { Series } from './entity/series.entity';               // 系列/剧集实体
 import { Episode } from './entity/episode.entity';             // 单集视频实体
 import { EpisodeUrl } from './entity/episode-url.entity';      // 视频播放地址实体
@@ -35,9 +35,12 @@ import { EpisodeModule } from './modules/episode.module';
 import { BannerModule } from './modules/banner.module';
 import { HistoryModule } from './modules/history.module';
 import { IsValidChannelExistsConstraint } from './validators/channel-exists.validator';
+import { IngestService } from './services/ingest.service';
+import { IngestController } from './controllers/ingest.controller';
+import { TestIngestController } from './controllers/test-ingest.controller';
 @Module({
   imports: [
-    CacheModule.register(),
+    RedisCacheModule,
     // 子模块装载（在不改变现有路由前提下分层）
     CatalogModule,
     SeriesModule,
@@ -66,6 +69,7 @@ import { IsValidChannelExistsConstraint } from './validators/channel-exists.vali
     CommentService,
     EpisodeService,
     CategoryService,
+    IngestService,
     BannerService,
 
     FilterService,
@@ -77,7 +81,9 @@ import { IsValidChannelExistsConstraint } from './validators/channel-exists.vali
   ],    // 注册本模块的服务提供者（业务逻辑）
   controllers: [
     CacheMonitorController,
-    AdminController
+    AdminController,
+    IngestController,
+    TestIngestController
   ], // 仅保留内部控制器；公开API控制器移至 VideoApiModule
   // 注意：如果需要让其他模块使用这些实体或服务，应该在这里添加exports
 })

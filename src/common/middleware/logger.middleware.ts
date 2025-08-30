@@ -3,7 +3,13 @@ import { Request, Response, NextFunction } from 'express';
 
 /**
  * 请求日志中间件
- * 记录所有HTTP请求的详细信息和性能数据
+ * 记录所有HTTP请求的关键信息与性能指标，用于排障与性能分析。
+ *
+ * 主要记录：method、url、status、耗时、clientIp、响应大小、Referer。
+ * 环境变量：
+ * - NODE_ENV=development 或 LOG_LEVEL=debug 时，输出更详细的性能诊断信息（内存/CPU等）。
+ *
+ * 用法：在应用入口通过 app.use(LoggerMiddleware) 挂载。
  */
 @Injectable()
 export class LoggerMiddleware implements NestMiddleware {
@@ -78,7 +84,7 @@ export class LoggerMiddleware implements NestMiddleware {
   }
 
   /**
-   * 获取客户端真实IP地址
+   * 获取客户端真实IP地址（优先 X-Forwarded-For / X-Real-IP）
    */
   private getClientIp(req: Request): string {
     const forwarded = req.headers['x-forwarded-for'] as string;
@@ -103,7 +109,7 @@ export class LoggerMiddleware implements NestMiddleware {
   }
 
   /**
-   * 记录详细的性能信息
+   * 记录详细的性能信息（开发/调试时启用）
    */
   private logPerformanceDetails(
     req: Request,
@@ -146,7 +152,7 @@ export class LoggerMiddleware implements NestMiddleware {
   }
 
   /**
-   * 清理敏感的请求头信息
+   * 清理敏感的请求头信息，避免泄露鉴权信息到日志
    */
   private sanitizeHeaders(headers: any): any {
     const sensitiveHeaders = [

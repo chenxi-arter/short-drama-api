@@ -2,6 +2,8 @@ import { SelectQueryBuilder, ObjectLiteral } from 'typeorm';
 
 /**
  * 数据库查询优化工具类
+ * 对 TypeORM QueryBuilder 提供通用增强（分页/排序/搜索/状态/日期范围等）。
+ * 注意：仅封装通用链式方法，不提交事务，不改变查询语义。
  */
 export class QueryOptimizer {
   /**

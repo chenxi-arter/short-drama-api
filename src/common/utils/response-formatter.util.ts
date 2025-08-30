@@ -1,5 +1,7 @@
 /**
- * 统一的API响应格式
+ * 统一响应格式与工具
+ * 提供统一的 ApiResponse / ErrorResponse 结构及常用构造函数，
+ * 用于控制器与服务层快速返回规范化的响应体。
  */
 export interface ApiResponse<T = any> {
   code: number;
@@ -37,6 +39,10 @@ export interface ErrorResponse {
 
 /**
  * 响应格式化工具类
+ * - success/created/noContent：成功类响应
+ * - clientError/validationError/...：错误类响应
+ * - withRequestId/withPath：增强字段
+ * - createPagination/formatValidationErrors：常用辅助
  */
 export class ResponseFormatter {
   /**

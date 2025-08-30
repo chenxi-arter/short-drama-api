@@ -151,6 +151,49 @@ GRANT ALL PRIVILEGES ON short_drama.* TO 'your_username'@'localhost';
 FLUSH PRIVILEGES;
 ```
 
+> 图形化工具（如 TablePlus、Sequel Ace、Navicat）创建数据库时：
+> - 字符集（Character Set）：填写/选择 `utf8mb4`
+> - 排序规则（Collation）：填写/选择 `utf8mb4_unicode_ci`
+>
+> 这与代码中的 TypeORM 配置保持一致（`charset: 'utf8mb4'`），确保能正确存储 emoji 与多语言字符。
+
+**可选：为已有数据库修正字符集/排序规则**
+```sql
+-- 数据库级
+ALTER DATABASE short_drama CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- 所有表与文本列（示例）
+-- 按需对每张表执行（建议在维护窗口执行，并做好备份）
+ALTER TABLE users CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+ALTER TABLE series CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+ALTER TABLE episodes CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+```
+
+**验证字符集设置（可选）**
+```sql
+SHOW VARIABLES LIKE 'character_set%';
+SHOW VARIABLES LIKE 'collation%';
+```
+
+> 已在用 `utf8mb4_general_ci` 怎么办？
+> - 可以继续使用，功能不受影响。
+> - 新部署推荐 `utf8mb4_unicode_ci`；若是 MySQL 8+，优先 `utf8mb4_0900_ai_ci`（更准确的比较/排序）。
+> - 如需切换，务必先备份，并在维护窗口执行：
+>
+> 切到 `utf8mb4_unicode_ci`：
+> ```sql
+> ALTER DATABASE short_drama CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+> -- 按需逐表：
+> ALTER TABLE users    CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+> ```
+>
+> MySQL 8+ 切到 `utf8mb4_0900_ai_ci`：
+> ```sql
+> ALTER DATABASE short_drama CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+> -- 按需逐表：
+> ALTER TABLE users    CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+> ```
+
 **运行迁移**
 ```bash
 # 如果有完整的SQL文件

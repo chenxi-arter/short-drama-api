@@ -27,6 +27,14 @@ export class AccessKeyUtil {
   }
 
   /**
+   * 基于稳定字符串生成确定性的访问密钥（推荐用于外部ID）
+   */
+  static generateFromString(key: string, length: number = 32): string {
+    const hash = createHash('sha256').update(`${key}_${process.env.APP_SECRET || 'default_secret'}`).digest('hex');
+    return hash.substring(0, length);
+  }
+
+  /**
    * 验证访问密钥格式
    * @param key 待验证的访问密钥
    * @returns 是否为有效格式

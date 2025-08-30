@@ -4,7 +4,9 @@ import { AppLoggerService } from '../logger/app-logger.service';
 
 /**
  * 错误处理中间件
- * 统一处理未捕获的错误和异常
+ * 捕获并记录未处理的异常/Promise 拒绝，以及 4xx/5xx 响应体，统一输出到业务日志。
+ *
+ * 注意：此中间件不改变响应，只负责记录；建议与全局异常过滤器配合使用。
  */
 @Injectable()
 export class ErrorHandlingMiddleware implements NestMiddleware {
@@ -37,7 +39,7 @@ export class ErrorHandlingMiddleware implements NestMiddleware {
       });
     });
 
-    // 设置错误处理
+    // Hook 响应发送，捕获 4xx/5xx 以便记录
     const originalSend = res.send;
     res.send = function(body: any) {
       // 如果是错误响应，记录日志

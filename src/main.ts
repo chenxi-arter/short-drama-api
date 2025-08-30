@@ -3,7 +3,7 @@ config();
 
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
-import { ValidationPipe } from '@nestjs/common';
+import { BadRequestException, ValidationPipe } from '@nestjs/common';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -18,8 +18,13 @@ async function bootstrap() {
     forbidNonWhitelisted: false, // 不禁止额外的参数
     // 添加错误处理
     exceptionFactory: (errors) => {
-      console.log('验证错误详情:', JSON.stringify(errors, null, 2));
-      return new Error('参数验证失败');
+      // 将验证错误压缩为前端可读的数组
+      const details = errors.map((e: any) => ({
+        property: e.property,
+        constraints: e.constraints,
+        children: e.children?.length ? e.children : undefined,
+      }));
+      return new BadRequestException({ message: '参数验证失败', details });
     }
   }));
 

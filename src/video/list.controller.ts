@@ -1,4 +1,5 @@
 import { Controller, Get, Query } from '@nestjs/common';
+import { AdminResponseUtil } from '../common/utils/admin-response.util';
 import { VideoService } from './video.service';
 import { FilterTagsDto } from './dto/filter-tags.dto';
 import { FilterDataDto } from './dto/filter-data.dto';
@@ -55,11 +56,8 @@ export class ListController {
   @Get('fuzzysearch')
   async fuzzySearch(@Query() dto: FuzzySearchDto) {
     if (!dto.keyword || dto.keyword.trim() === '') {
-      return {
-        code: 400,
-        msg: '搜索关键词不能为空',
-        data: null
-      };
+      const resp = AdminResponseUtil.error('搜索关键词不能为空', 400);
+      return { code: resp.code, msg: '搜索关键词不能为空', data: null, success: resp.success, timestamp: resp.timestamp };
     }
     
     return this.videoService.fuzzySearch(
@@ -77,10 +75,8 @@ export class ListController {
   @Get('clearfiltercache')
   async clearFilterCache(@Query('channeid') channeid?: string) {
     await this.videoService.clearFilterCache(channeid);
-    return {
-      code: 200,
-      msg: channeid ? `已清除频道 ${channeid} 的筛选器缓存` : '已清除所有筛选器缓存',
-      data: null
-    };
+    const message = channeid ? `已清除频道 ${channeid} 的筛选器缓存` : '已清除所有筛选器缓存';
+    const resp = AdminResponseUtil.success(null, message);
+    return { code: resp.code, msg: message, data: null, success: resp.success, timestamp: resp.timestamp };
   }
 }

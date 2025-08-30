@@ -1,0 +1,254 @@
+{
+  "_comment": "Ingest API 测试数据示例 - 包含所有接口的测试数据",
+  "_note": "Short ID 由系统自动生成，Access Key 基于 externalId + episodeNumber + quality 的MD5哈希生成",
+  "_external_id_note": "External ID 是业务系统的核心标识符，建议使用有意义的业务标识，如 'drama-2024-001'",
+  
+  "single_series_example": {
+    "title": "测试短剧系列",
+    "externalId": "test-series-001",
+    "description": "这是一个用于测试的短剧系列",
+    "coverUrl": "https://example.com/cover.jpg",
+    "categoryId": 1,
+    "status": "on-going",
+    "releaseDate": "2024-01-01",
+    "isCompleted": false,
+    "score": 8.5,
+    "playCount": 1000,
+    "upStatus": "up",
+    "upCount": 50,
+    "starring": "测试演员A,测试演员B",
+    "actor": "测试演员A,测试演员B,测试演员C",
+    "director": "测试导演",
+    "regionOptionId": 1,
+    "languageOptionId": 1,
+    "statusOptionId": 1,
+    "yearOptionId": 1,
+    "episodes": [
+      {
+        "episodeNumber": 1,
+        "title": "第1集：开始",
+        "duration": 1800,
+        "status": "published",
+        "urls": [
+          {
+            "quality": "720p",
+            "ossUrl": "https://oss.example.com/ep1.m3u8",
+            "cdnUrl": "https://cdn.example.com/ep1.m3u8",
+            "originUrl": "https://origin.example.com/ep1",
+            "subtitleUrl": "https://subtitle.example.com/ep1.srt"
+          },
+          {
+            "quality": "1080p",
+            "ossUrl": "https://oss.example.com/ep1-1080p.m3u8",
+            "cdnUrl": "https://cdn.example.com/ep1-1080p.m3u8",
+            "originUrl": "https://origin.example.com/ep1-1080p"
+          }
+        ]
+      },
+      {
+        "episodeNumber": 2,
+        "title": "第2集：发展",
+        "duration": 1800,
+        "status": "published",
+        "urls": [
+          {
+            "quality": "720p",
+            "ossUrl": "https://oss.example.com/ep2.m3u8",
+            "cdnUrl": "https://cdn.example.com/ep2.m3u8",
+            "originUrl": "https://origin.example.com/ep2"
+          }
+        ]
+      }
+    ]
+  },
+  
+  "invalid_single_missing_fields": {
+    "title": "无效单条-缺字段",
+    "externalId": "invalid-missing-001",
+    "episodes": [
+      {
+        "episodeNumber": 1,
+        "urls": [
+          {
+            "quality": "720p",
+            "cdnUrl": "https://cdn.example.com/x.m3u8",
+            "originUrl": "https://origin.example.com/x"
+          }
+        ]
+      }
+    ]
+  },
+
+  "invalid_batch_mixed": {
+    "items": [
+      {
+        "title": "批量-合法项",
+        "externalId": "batch-ok-001",
+        "description": "合法",
+        "coverUrl": "https://example.com/ok.jpg",
+        "categoryId": 1,
+        "status": "on-going",
+        "releaseDate": "2024-01-02",
+        "isCompleted": false,
+        "regionOptionId": 11,
+        "languageOptionId": 16,
+        "statusOptionId": 28,
+        "yearOptionId": 21,
+        "episodes": [{"episodeNumber":1, "title":"E1", "duration":1000, "status":"published", "urls":[{"quality":"720p","cdnUrl":"https://cdn.example.com/ok.m3u8","originUrl":"https://origin.example.com/ok"}]}]
+      },
+      {
+        "title": "批量-无效项",
+        "externalId": "batch-bad-001",
+        "description": "缺少必填导致失败",
+        "episodes": [{"episodeNumber":1, "urls":[{"quality":"720p","cdnUrl":"https://cdn.example.com/bad.m3u8","originUrl":"https://origin.example.com/bad"}]}]
+      }
+    ]
+  },
+
+  "invalid_update_not_found": {
+    "externalId": "not-exist-external-id",
+    "title": "更新但不存在",
+    "episodes": [{"episodeNumber": 1, "urls": [{"quality": "720p", "cdnUrl": "https://cdn.example.com/u.m3u8", "originUrl": "https://origin.example.com/u"}]}]
+  },
+  
+  "batch_series_example": {
+    "items": [
+      {
+        "title": "系列A",
+        "externalId": "series-a-001",
+        "description": "系列A的描述",
+        "episodes": [
+          {
+            "episodeNumber": 1,
+            "title": "系列A第1集",
+            "duration": 1800,
+            "urls": [
+              {
+                "quality": "720p",
+                "ossUrl": "https://oss.example.com/series-a-ep1.m3u8",
+                "cdnUrl": "https://cdn.example.com/series-a-ep1.m3u8",
+                "originUrl": "https://origin.example.com/series-a-ep1"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "title": "系列B",
+        "externalId": "series-b-001",
+        "description": "系列B的描述",
+        "episodes": [
+          {
+            "episodeNumber": 1,
+            "title": "系列B第1集",
+            "duration": 1800,
+            "urls": [
+              {
+                "quality": "720p",
+                "ossUrl": "https://oss.example.com/series-b-ep1.m3u8",
+                "cdnUrl": "https://cdn.example.com/series-b-ep1.m3u8",
+                "originUrl": "https://origin.example.com/series-b-ep1"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  
+  "update_example": {
+    "externalId": "test-series-001",
+    "title": "更新后的标题",
+    "description": "更新后的描述",
+    "episodes": [
+      {
+        "episodeNumber": 1,
+        "title": "更新后的第1集标题",
+        "urls": [
+          {
+            "quality": "720p",
+            "ossUrl": "https://oss.example.com/ep1-updated.m3u8",
+            "cdnUrl": "https://cdn.example.com/ep1-updated.m3u8",
+            "originUrl": "https://origin.example.com/ep1-updated"
+          }
+        ]
+      },
+      {
+        "episodeNumber": 3,
+        "title": "新增第3集",
+        "duration": 1800,
+        "status": "published",
+        "urls": [
+          {
+            "quality": "720p",
+            "ossUrl": "https://oss.example.com/ep3.m3u8",
+            "cdnUrl": "https://cdn.example.com/ep3.m3u8",
+            "originUrl": "https://origin.example.com/ep3"
+          }
+        ]
+      }
+    ],
+    "removeMissingEpisodes": true,
+    "removeMissingUrls": true
+  },
+  
+  "minimal_example": {
+    "title": "最小化示例",
+    "externalId": "minimal-001",
+    "description": "最小可用示例",
+    "coverUrl": "https://example.com/cover.jpg",
+    "categoryId": 1,
+    "status": "on-going",
+    "releaseDate": "2024-01-01",
+    "isCompleted": false,
+    "regionOptionId": 11,
+    "languageOptionId": 16,
+    "statusOptionId": 28,
+    "yearOptionId": 21,
+    "episodes": [
+      {
+        "episodeNumber": 1,
+        "title": "第1集",
+        "duration": 1800,
+        "status": "published",
+        "urls": [
+          {
+            "quality": "720p",
+            "cdnUrl": "https://cdn.example.com/minimal.m3u8",
+            "originUrl": "https://origin.example.com/minimal"
+          }
+        ]
+      }
+    ]
+  },
+  
+  "_access_key_examples": {
+    "_note": "Access Key 生成示例（基于 externalId + episodeNumber + quality 的MD5哈希）",
+    "test-series-001_1_720p": "458ce373ef70440061d0a50a569b09d3",
+    "test-series-001_1_1080p": "7bdbf593730e7568022b7a67c1f05d7f",
+    "test-series-001_2_720p": "2825fc8cd8074e350a27bd8a887c70c1",
+    "series-a-001_1_720p": "a1b2c3d4e5f678901234567890123456",
+    "series-b-001_1_720p": "b2c3d4e5f67890123456789012345678"
+  },
+  
+  "_short_id_examples": {
+    "_note": "Short ID 由系统自动分配，示例值仅供参考",
+    "test-series-001": "1001",
+    "series-a-001": "1002", 
+    "series-b-001": "1003",
+    "minimal-001": "1004"
+  },
+  
+  "_external_id_examples": {
+    "_note": "External ID 设计示例（建议使用有意义的业务标识）",
+    "_business_format": "{业务类型}-{年份}-{序号}",
+    "drama-2024-001": "2024年短剧第1部",
+    "movie-action-2024-001": "2024年动作电影第1部",
+    "series-romance-001": "浪漫系列第1部",
+    "webtoon-fantasy-001": "奇幻网漫第1部",
+    "cms-drama-2024-001": "CMS系统同步的2024年短剧第1部",
+    "_simple_format": "{业务前缀}-{序号}",
+    "test-series-001": "测试系列第1部",
+    "demo-movie-001": "演示电影第1部"
+  }
+}

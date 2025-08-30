@@ -3,8 +3,9 @@
  * 剧集播放地址实体类
  * 存储剧集的不同清晰度播放地址信息
  */
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, CreateDateColumn, UpdateDateColumn, BeforeInsert } from 'typeorm';
 import { Episode } from './episode.entity';
+import { AccessKeyUtil } from '../../shared/utils/access-key.util';
 
 @Entity('episode_urls')
 export class EpisodeUrl {
@@ -43,12 +44,19 @@ export class EpisodeUrl {
   @Column({ length: 255, name: 'cdn_url' })
   cdnUrl: string;
 
+  /**
+   * 原站/采集来源的视频地址（可选）
+   * 爬虫抓取到的原始站点播放地址，便于追溯或回源
+   */
+  @Column({ length: 255, nullable: false, name: 'origin_url' })
+  originUrl: string;
+
   /** 
    * 外挂字幕地址 
    * 可选的外部字幕文件地址
    */
-  @Column({ length: 255, nullable: true, name: 'subtitle_url' })
-  subtitleUrl: string;
+  @Column({ type: 'varchar', length: 255, nullable: true, name: 'subtitle_url' })
+  subtitleUrl: string | null;
 
   /** 
    * 加密索引键 
@@ -78,4 +86,15 @@ export class EpisodeUrl {
   @ManyToOne(() => Episode, ep => ep.urls)
   @JoinColumn({ name: 'episode_id' })
   episode: Episode;
+
+  /**
+   * 在插入前生成稳定的 accessKey（若未提供）
+   * 规则：基于 (episodeId + quality) 生成确定性哈希，保证同一集同清晰度固定
+   */
+  @BeforeInsert()
+  ensureAccessKey() {
+    if (!this.accessKey && this.episodeId && this.quality) {
+      this.accessKey = AccessKeyUtil.generateDeterministicKey(this.episodeId, this.quality);
+    }
+  }
 }
