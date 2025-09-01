@@ -28,10 +28,10 @@ Ingest API 是短剧系统的核心数据采集接口，提供完整的系列、
 
 ### Access Key 系统
 - **用途**: 为每个播放地址生成唯一的访问密钥
-- **格式**: 32位十六进制字符串，如 "458ce373ef70440061d0a50a569b09d3"
-- **生成规则**: 基于 `externalId + episodeNumber + quality` 的MD5哈希
+- **格式**: 32位十六进制字符串（SHA-256 截断）
+- **生成规则**: 基于 `externalId:episodeNumber:quality` 与应用密钥（APP_SECRET）经 SHA-256 计算后截取前32位
 - **使用场景**: 播放地址访问、防盗链、统计分析
-- **特点**: 确定性生成，相同参数总是生成相同的key
+- **特点**: 确定性生成（同参数与同密钥下恒定）、不可逆、安全性更高
 
 ## 📋 API 端点列表
 
@@ -69,18 +69,15 @@ Ingest API 是短剧系统的核心数据采集接口，提供完整的系列、
   "categoryId": 1,
   "status": "on-going",
   "releaseDate": "2024-01-01",
-  "isCompleted": false,
   "score": 8.5,
   "playCount": 1000,
-  "upStatus": "up",
-  "upCount": 50,
   "starring": "主演",
   "actor": "演员",
   "director": "导演",
-  "regionOptionId": 1,
-  "languageOptionId": 1,
-  "statusOptionId": 1,
-  "yearOptionId": 1,
+  "regionOptionName": "大陆",
+  "languageOptionName": "国语",
+  "statusOptionName": "连载中",
+  "yearOptionName": "2025",
   "episodes": [
     {
       "episodeNumber": 1,
@@ -111,52 +108,37 @@ Ingest API 是短剧系统的核心数据采集接口，提供完整的系列、
 | `description` | string | ✅ | 系列描述 | "这是一个精彩的短剧系列" |
 | `coverUrl` | string | ✅ | 封面图片URL（≤255） | "https://example.com/cover.jpg" |
 | `categoryId` | number | ✅ | 分类ID（≥1） | 1 |
-| `status` | string | ✅ | 系列状态 | "on-going" 或 "completed" |
+| `status` | string | ✅ | 系列状态（支持 deleted 触发软删除） | "on-going" / "completed" / "deleted" |
 | `releaseDate` | string | ✅ | 发布日期（ISO日期） | "2024-01-01" |
-| `isCompleted` | boolean | ✅ | 是否完结 | true/false |
+| `isCompleted` | boolean | 自动 | 由后端根据 `status` 自动维护（无需传入） | - |
 | `score` | number | ❌ | 评分（0-10） | 8.5 |
 | `playCount` | number | ❌ | 播放次数（≥0） | 1000 |
-| `upStatus` | string | ❌ | 点赞状态（≤255） | "up" |
-| `upCount` | number | ❌ | 点赞数量（≥0） | 50 |
+| `upStatus` | string | 自动 | 系统自动生成（如“更新至第10集”/“已完结”，无需传入） | - |
+| `upCount` | number | 自动 | 系统自动生成（当前已更新到的集数，无需传入） | - |
 | `starring` | string | ❌ | 主演（逗号分隔） | "张三,李四" |
 | `actor` | string | ❌ | 全演员（逗号分隔） | "张三,李四,王五" |
 | `director` | string | ❌ | 导演（≤255） | "导演A" |
-| `regionOptionId` | number | ✅ | 地区选项ID（≥1） | 1 |
-| `languageOptionId` | number | ✅ | 语言选项ID（≥1） | 1 |
-| `statusOptionId` | number | ✅ | 状态选项ID（≥1） | 1 |
-| `yearOptionId` | number | ✅ | 年份选项ID（≥1） | 1 |
+| `regionOptionName` | string | ✅ | 地区选项名称（不存在则自动创建） | "大陆" |
+| `languageOptionName` | string | ✅ | 语言选项名称（不存在则自动创建） | "国语" |
+| `statusOptionName` | string | ✅ | 状态选项名称（不存在则自动创建） | "连载中" |
+| `yearOptionName` | string | ✅ | 年份选项名称（不存在则自动创建） | "2025" |
 
-###### 关于 OptionId 的取值说明（来自数据库 filter_options）
-- 这些 ID 来自表 `filter_options`，按 `filter_types.code` 分类。下面列出系统内置映射，若你在库中新增/调整，会以库内为准。
+###### 关于 Option 取值说明（名称必填，自动归类/创建）
+- 仅需提供各选项的“名称”，系统会在对应的 `filter_types`（code: region/language/status/year）下查找；若名称不存在，会在该类型下自动创建。
+- 示例：地区「大陆」、语言「国语」、状态「连载中」、年份「2025」。
+- 注意：接口不接收这些选项的数值ID，示例中的数值ID仅为内部数据库标识。
+  - 存储结构说明：选项实体 `filter_options` 的 `value` 字段为 `varchar(100)`，确保与 MySQL 兼容。
 
-1) 地区（`regionOptionId`，filter_types.code = "region"）
-- 10: 全部地区 (all)
-- 11: 大陆 (mainland)
-- 12: 香港 (hongkong)
-- 13: 台湾 (taiwan)
-- 14: 日本 (japan)
+###### 关于分类 categoryId 的取值
+- 当前内置分类如下：
 
-2) 语言（`languageOptionId`，code = "language"）
-- 15: 全部语言 (all)
-- 16: 国语 (mandarin)
-- 17: 粤语 (cantonese)
-- 18: 英语 (english)
-- 19: 韩语 (korean)
+| id | category_id | 名称 |
+|----|-------------|------|
+| 1 | drama | 短剧 |
+| 2 | movie | 电影 |
+| 3 | variety | 综艺 |
 
-3) 年份（`yearOptionId`，code = "year"）
-- 20: 全部年份 (all)
-- 21: 2025
-- 22: 2024
-- 23: 2023
-- 24: 更早 (earlier)
-- 25: 90年代 (1990s)
-
-4) 状态（`statusOptionId`，code = "status"）
-- 26: 全部状态 (all)
-- 27: 全集 (complete)
-- 28: 连载中 (ongoing)
-
-示例：大陆/国语/连载中/2025年 → `regionOptionId: 11`, `languageOptionId: 16`, `statusOptionId: 28`, `yearOptionId: 21`。
+- 使用时在请求体中传 `categoryId` 的数值（如 1/2/3）。
 
 ##### 剧集信息
 | 字段 | 类型 | 必填 | 说明 | 示例值 |
@@ -404,24 +386,25 @@ curl -X POST http://localhost:8080/api/admin/ingest/series/update \
 
 ### Access Key 生成算法
 ```typescript
-// 基于以下参数生成MD5哈希：
+// 基于以下参数生成稳定的访问密钥（SHA-256 + 应用密钥）：
 // 1. externalId: 外部唯一标识
-// 2. episodeNumber: 剧集编号  
+// 2. episodeNumber: 剧集编号
 // 3. quality: 视频清晰度
 
-// 生成公式：
-// accessKey = MD5(externalId + episodeNumber + quality)
+// 生成公式（伪代码）：
+// const raw = `${externalId}:${episodeNumber}:${quality}`;
+// accessKey = SHA256(raw + '_' + APP_SECRET).hex().substring(0, 32);
 
-// 示例：
+// 示例（结果为32位十六进制字符串）：
 // externalId: "test-series-001"
 // episodeNumber: 1
 // quality: "720p"
-// 生成: "458ce373ef70440061d0a50a569b09d3"
+// 生成: "7f1a9c0d6b2e4a1f0c3d5e7a9b0c1d2e" // 示例值
 
 // 特点：
-// 1. 确定性：相同参数总是生成相同的key
+// 1. 确定性：相同参数（在相同 APP_SECRET 下）总是生成相同的key
 // 2. 唯一性：不同参数组合生成不同的key
-// 3. 安全性：无法反向推导原始参数
+// 3. 安全性：引入应用密钥，提高防伪造能力
 // 4. 一致性：支持跨系统同步
 ```
 
@@ -429,8 +412,10 @@ curl -X POST http://localhost:8080/api/admin/ingest/series/update \
 
 #### 1. 播放地址访问
 ```bash
-# 通过Access Key访问播放地址
-GET /api/video/episode-url/458ce373ef70440061d0a50a569b09d3
+# 通过Access Key访问播放地址（需要用户JWT认证）
+curl -X GET \
+  -H "Authorization: Bearer <YOUR_JWT_TOKEN>" \
+  http://localhost:8080/api/video/episode-url/458ce373ef70440061d0a50a569b09d3
 
 # 响应示例
 {
@@ -507,10 +492,10 @@ POST /api/admin/ingest/series/update
 - **episodeNumber**: 正整数，最小值为1
 - **duration**: 正整数，最小值为1
 - **quality**: 必须是预定义值之一：["360p", "480p", "720p", "1080p", "4K"]
-- **status**: 系列状态必须是 ["on-going", "completed"]，剧集状态必须是 ["published", "hidden", "draft"]
+- **status**: 系列状态必须是 ["on-going", "completed", "deleted"]，剧集状态必须是 ["published", "hidden", "draft"]
 
 ### 必填字段
-- 系列：`externalId`, `title`, `description`, `coverUrl`, `categoryId`, `status`, `releaseDate`, `isCompleted`, `regionOptionId`, `languageOptionId`, `statusOptionId`, `yearOptionId`, `episodes`
+- 系列：`externalId`, `title`, `description`, `coverUrl`, `categoryId`, `status`, `releaseDate`, `regionOptionName`, `languageOptionName`, `statusOptionName`, `yearOptionName`, `episodes`
 - 剧集：`episodeNumber`, `title`, `duration`, `status`, `urls`
 - 播放地址：`quality`, `cdnUrl`, `originUrl`  （`ossUrl` 可选）
 
@@ -537,6 +522,8 @@ POST /api/admin/ingest/series/update
   "error": "Bad Request"
 }
 ```
+
+> Ingest 接口特别说明：上述为通用错误示例。Ingest 采集端点统一返回 HTTP 200，错误以 `data.items[].statusCode`（如 400/404）和可选 `details` 表达，外层 `code` 恒为 200，详见单条/批量/增量的响应示例。
 
 ## 💡 使用示例
 
@@ -655,8 +642,8 @@ curl -X POST http://localhost:8080/api/admin/ingest/series/update \
 
 ### 示例4：通过Access Key访问播放地址
 ```bash
-# 假设已知Access Key
-curl -X GET http://localhost:8080/api/video/episode-url/458ce373ef70440061d0a50a569b09d3
+# 假设已知Access Key（需要用户JWT认证）
+curl -X GET -H "Authorization: Bearer <YOUR_JWT_TOKEN>" http://localhost:8080/api/video/episode-url/458ce373ef70440061d0a50a569b09d3
 
 # 响应示例
 {
@@ -705,11 +692,12 @@ curl -X POST http://localhost:8080/api/admin/ingest/series/update \
 
 ### 1. 智能字段处理
 - 只更新提供的字段，未提供的字段保持原值
-- 支持从不同字段获取备选值（如从ossUrl获取originUrl）
+- 支持从不同字段获取备选值（如创建时 cdnUrl 可回退为 ossUrl）
 
 ### 2. 自动清理机制
 - `removeMissingEpisodes`: 清理不再需要的剧集
 - `removeMissingUrls`: 清理不再需要的播放地址
+ - 当 `status=deleted` 时，对系列进行软删除：`isActive=0, deletedAt=当前时间`；其它写入将自动恢复为活跃状态。
 
 ### 3. 自动计数更新
 - 自动更新系列的totalEpisodes字段
@@ -722,7 +710,7 @@ curl -X POST http://localhost:8080/api/admin/ingest/series/update \
 ### 5. Short ID管理
 - 系统自动分配唯一标识符
 - 支持大规模数据导入
-- 确保ID连续性和唯一性
+- 确保ID不可预测性和唯一性
 
 ### 6. External ID管理
 - 支持业务语义的标识符设计
@@ -784,7 +772,7 @@ curl -X POST http://localhost:8080/api/admin/ingest/series/update \
 - **健康检查**: `GET /api/health`
 - **缓存管理**: `GET /api/cache/stats`
 - **系列管理**: `GET /api/admin/series`
-- **播放地址访问**: `GET /api/video/episode-url/:accessKey`
+- **播放地址访问**: `GET /api/video/episode-url/:accessKey`（需用户认证）
 - **系列详情**: `GET /api/public/video/series/:id`
 
 ## 📞 技术支持
@@ -799,5 +787,5 @@ curl -X POST http://localhost:8080/api/admin/ingest/series/update \
 ---
 
 **文档版本**: 1.0.0  
-**最后更新**: 2025-08-29  
+**最后更新**: 2025-09-01  
 **维护团队**: 短剧系统开发团队

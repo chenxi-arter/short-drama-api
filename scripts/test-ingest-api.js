@@ -9,7 +9,8 @@ const fs = require('fs');
 const path = require('path');
 
 // 配置
-const API_BASE = 'http://localhost:8080/api/admin/ingest';
+const DEFAULT_PORT = process.env.PORT || 8080;
+const API_BASE = process.env.API_BASE || `http://localhost:${DEFAULT_PORT}/api/admin/ingest`;
 const TEST_DATA_FILE = path.join(__dirname, 'ingest-test-examples.json');
 
 // 颜色输出
@@ -89,7 +90,20 @@ async function makeRequest(endpoint, data, description) {
 // 主测试函数
 async function runTests() {
   log('🚀 开始测试 Ingest API', 'bright');
-  log('=' * 50, 'cyan');
+  log(`目标地址: ${API_BASE}`, 'cyan');
+  log('==================================================', 'cyan');
+  // 健康检查
+  try {
+    const base = new URL(API_BASE);
+    const healthUrl = `${base.origin}/api/health`;
+    const healthRes = await fetch(healthUrl).catch(() => null);
+    if (!healthRes || !healthRes.ok) {
+      logWarning(`健康检查失败或服务不可达: ${healthUrl}`);
+      logInfo('请先启动服务，如: PORT=8080 npm run start');
+    } else {
+      logSuccess('健康检查通过');
+    }
+  } catch {}
   
   const testData = loadTestData();
   let successCount = 0;
@@ -165,7 +179,7 @@ async function runTests() {
   );
 
   // 测试结果汇总
-  log('=' * 50, 'cyan');
+  log('==================================================', 'cyan');
   log('📊 测试结果汇总', 'bright');
   log(`总测试数: ${totalCount}`, 'cyan');
   log(`成功数: ${successCount}`, 'green');

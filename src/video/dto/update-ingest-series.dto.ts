@@ -82,16 +82,14 @@ export class UpdateIngestSeriesDto {
 
   @IsOptional()
   @IsString()
-  @IsIn(['on-going', 'completed'])
+  @IsIn(['on-going', 'completed', 'deleted'])
   status?: string;
 
   @IsOptional()
   @IsDateString()
   releaseDate?: string;
 
-  @IsOptional()
-  @IsBoolean()
-  isCompleted?: boolean;
+  // isCompleted 由后端根据 status 自动维护
 
   @IsOptional()
   @IsNumber()
@@ -104,15 +102,7 @@ export class UpdateIngestSeriesDto {
   @Min(0)
   playCount?: number;
 
-  @IsOptional()
-  @IsString()
-  @MaxLength(255)
-  upStatus?: string;
-
-  @IsOptional()
-  @IsInt()
-  @Min(0)
-  upCount?: number;
+  // upStatus / upCount 由后端基于剧集进度自动生成，无需传入
 
   @IsOptional()
   @IsString()
@@ -128,24 +118,24 @@ export class UpdateIngestSeriesDto {
   director?: string;
 
   @IsOptional()
-  @IsInt()
-  @Min(1)
-  regionOptionId?: number;
+  @IsString()
+  @MaxLength(100)
+  regionOptionName?: string;
 
   @IsOptional()
-  @IsInt()
-  @Min(1)
-  languageOptionId?: number;
+  @IsString()
+  @MaxLength(100)
+  languageOptionName?: string;
 
   @IsOptional()
-  @IsInt()
-  @Min(1)
-  statusOptionId?: number;
+  @IsString()
+  @MaxLength(100)
+  statusOptionName?: string;
 
   @IsOptional()
-  @IsInt()
-  @Min(1)
-  yearOptionId?: number;
+  @IsString()
+  @MaxLength(100)
+  yearOptionName?: string;
 
   @IsOptional()
   @IsArray()

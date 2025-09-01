@@ -1792,6 +1792,179 @@ curl -X GET \
 | 获取视频详情 | GET | `/api/video/details` | ✅ | 正常返回视频详情 |
 | 获取剧集URL | GET | `/api/video/episode-url/:accessKey` | ✅ | 正常返回剧集播放信息 |
 
+---
+
+## 9. Ingest 数据采集接口（系列/剧集/播放地址）
+
+说明：为保证批量一致性，Ingest 接口外层 HTTP 始终 200，单条失败通过 `data.items[].statusCode` 与 `data.items[].details` 体现。
+
+### 9.1 单个系列入库（创建/更新）
+
+接口信息:
+- 方法: POST
+- 路径: `/api/admin/ingest/series`
+- 认证: 需要管理员 Token
+
+请求示例:
+```bash
+curl -X POST "http://localhost:8080/api/admin/ingest/series" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <YOUR_ADMIN_JWT>" \
+  -d '{
+    "externalId": "test-series-001",
+    "title": "测试系列",
+    "description": "用于接口连通性测试",
+    "coverUrl": "https://example.com/cover.jpg",
+    "categoryId": 1,
+    "status": "on-going",
+    "releaseDate": "2025-01-01",
+    "isCompleted": false,
+    "regionOptionId": 11,
+    "languageOptionId": 16,
+    "statusOptionId": 28,
+    "yearOptionId": 21,
+    "episodes": [
+      {
+        "episodeNumber": 1,
+        "title": "第1集",
+        "duration": 1800,
+        "status": "published",
+        "urls": [
+          {
+            "quality": "720p",
+            "cdnUrl": "https://cdn.example.com/ep1.m3u8",
+            "originUrl": "https://origin.example.com/ep1"
+          }
+        ]
+      }
+    ]
+  }'
+```
+
+成功响应示例（统一结构）:
+```json
+{
+  "code": 200,
+  "data": {
+    "summary": { "created": 1, "updated": 0, "failed": 0, "total": 1 },
+    "items": [
+      { "statusCode": 200, "seriesId": 1001, "shortId": "Ab3K7mP2XyZ", "externalId": "test-series-001", "action": "created", "title": "测试系列" }
+    ]
+  },
+  "message": "系列采集写入完成",
+  "success": true,
+  "timestamp": 1756402868040
+}
+```
+
+### 9.2 批量系列入库
+
+接口信息:
+- 方法: POST
+- 路径: `/api/admin/ingest/series/batch`
+
+请求示例:
+```bash
+curl -X POST "http://localhost:8080/api/admin/ingest/series/batch" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <YOUR_ADMIN_JWT>" \
+  -d '{
+    "items": [
+      { "externalId": "series-001", "title": "系列A", "description": "desc", "coverUrl": "https://example/a.jpg", "categoryId": 1, "status": "on-going", "releaseDate": "2025-01-01", "isCompleted": false, "regionOptionId": 11, "languageOptionId": 16, "statusOptionId": 28, "yearOptionId": 21, "episodes": [{"episodeNumber":1,"title":"E1","duration":1800,"status":"published","urls":[{"quality":"720p","cdnUrl":"https://cdn/a1.m3u8","originUrl":"https://origin/a1"}]}] },
+      { "externalId": "series-002", "title": "系列B", "description": "desc", "coverUrl": "https://example/b.jpg", "categoryId": 1, "status": "on-going", "releaseDate": "2025-01-02", "isCompleted": false, "regionOptionId": 11, "languageOptionId": 16, "statusOptionId": 28, "yearOptionId": 21, "episodes": [{"episodeNumber":1,"title":"E1","duration":1800,"status":"published","urls":[{"quality":"720p","cdnUrl":"https://cdn/b1.m3u8","originUrl":"https://origin/b1"}]}] },
+      { "externalId": "bad-id", "title": "坏数据", "description": "", "coverUrl": "", "categoryId": 0, "status": "on-going", "releaseDate": "2025-01-03", "isCompleted": false, "regionOptionId": 0, "languageOptionId": 0, "statusOptionId": 0, "yearOptionId": 0, "episodes": [] }
+    ]
+  }'
+```
+
+响应示例（含统计与失败项）:
+```json
+{
+  "code": 200,
+  "data": {
+    "summary": { "created": 1, "updated": 1, "failed": 1, "total": 3 },
+    "items": [
+      { "statusCode": 200, "seriesId": 1001, "shortId": "Ab3K7mP2XyZ", "action": "created", "externalId": "series-001", "title": "系列A" },
+      { "statusCode": 200, "seriesId": 1002, "shortId": "Cd9LmQ8RtUv", "action": "updated", "externalId": "series-002", "title": "系列B" },
+      { "statusCode": 400, "error": "参数验证失败", "details": [{"property":"categoryId"}], "externalId": "bad-id", "title": "坏数据" }
+    ]
+  },
+  "message": "批量系列采集写入完成",
+  "success": true,
+  "timestamp": 1756402868040
+}
+```
+
+### 9.3 增量更新（支持新增集数/清晰度URL）
+
+接口信息:
+- 方法: POST
+- 路径: `/api/admin/ingest/series/update`
+
+请求示例（新增第3集，并为第1集新增1080p）:
+```bash
+curl -X POST "http://localhost:8080/api/admin/ingest/series/update" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <YOUR_ADMIN_JWT>" \
+  -d '{
+    "externalId": "series-001",
+    "episodes": [
+      { "episodeNumber": 3, "title": "第3集", "duration": 1500, "status": "published", "urls": [{"quality":"720p","cdnUrl":"https://cdn/ep3.m3u8","originUrl":"https://origin/ep3"}] },
+      { "episodeNumber": 1, "urls": [{"quality":"1080p","cdnUrl":"https://cdn/ep1-1080.m3u8","originUrl":"https://origin/ep1-1080"}] }
+    ],
+    "removeMissingEpisodes": false,
+    "removeMissingUrls": false
+  }'
+```
+
+成功响应示例：
+```json
+{
+  "code": 200,
+  "data": {
+    "summary": { "created": 0, "updated": 1, "failed": 0, "total": 1 },
+    "items": [
+      { "statusCode": 200, "seriesId": 1001, "shortId": "Ab3K7mP2XyZ", "externalId": "series-001", "action": "updated", "title": "系列A" }
+    ]
+  },
+  "message": "系列采集写入完成",
+  "success": true,
+  "timestamp": 1756402868040
+}
+```
+
+### 9.4 失败示例（参数校验）
+
+请求示例（缺少必须字段）:
+```bash
+curl -X POST "http://localhost:8080/api/admin/ingest/series" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <YOUR_ADMIN_JWT>" \
+  -d '{ "externalId": "bad-id" }'
+```
+
+响应示例（HTTP 200，items 内部 400）:
+```json
+{
+  "code": 200,
+  "data": {
+    "summary": { "created": 0, "updated": 0, "failed": 1, "total": 1 },
+    "items": [
+      {
+        "statusCode": 400,
+        "error": "参数验证失败",
+        "details": [ { "property": "title" }, { "property": "description" }, { "property": "coverUrl" } ],
+        "externalId": "bad-id",
+        "title": null
+      }
+    ]
+  },
+  "message": "系列采集写入完成",
+  "success": true,
+  "timestamp": 1756402868040
+}
+```
+
 ## 注意事项
 
 1. **认证要求**: 大部分接口需要在请求头中包含 `Authorization: Bearer {token}`

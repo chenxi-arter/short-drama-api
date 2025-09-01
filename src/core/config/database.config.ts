@@ -14,14 +14,17 @@ export class DatabaseConfig {
   @Transform(({ value }) => parseInt(value) || 3306)
   port: number = 3306;
 
+  @IsOptional()
   @IsString()
-  username: string;
+  username?: string;
 
+  @IsOptional()
   @IsString()
-  password: string;
+  password?: string;
 
+  @IsOptional()
   @IsString()
-  database: string;
+  database?: string;
 
   @IsOptional()
   @IsString()
@@ -67,23 +70,30 @@ export class DatabaseConfig {
    * 获取TypeORM配置对象
    */
   getTypeOrmConfig() {
+    const useSqlite = (process.env.DB_TYPE === 'sqlite') || !this.username || !this.database;
+    if (useSqlite) {
+      return {
+        type: 'sqlite' as const,
+        database: process.env.SQLITE_DB_PATH || ':memory:',
+        synchronize: true,
+        logging: false,
+        autoLoadEntities: true,
+      };
+    }
     return {
       type: 'mysql' as const,
       host: this.host,
       port: this.port,
-      username: this.username,
-      password: this.password,
-      database: this.database,
+      username: this.username!,
+      password: this.password!,
+      database: this.database!,
       charset: 'utf8mb4',
-      timezone: '+08:00', // 修改时区格式
+      timezone: '+08:00',
       synchronize: this.synchronize,
       logging: this.logging,
       extra: {
         connectionLimit: this.maxConnections,
         charset: 'utf8mb4',
-        // 移除不支持的配置选项
-        // collation: 'utf8mb4_unicode_ci',  // MySQL2不支持此选项
-        // initSql: "SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci;",  // MySQL2不支持此选项
       },
       autoLoadEntities: true,
       retryAttempts: 3,

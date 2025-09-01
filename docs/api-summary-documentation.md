@@ -1092,6 +1092,81 @@ ShortID是系统自定义的11位Base64字符标识符，用于替代传统的UU
 
 ---
 
+## 管理端 Ingest 采集接口（系列/剧集/播放地址）
+
+说明：为保证批量一致性，Ingest 接口外层 HTTP 始终返回 200，单条失败通过 `data.items[].statusCode` 与 `data.items[].details` 体现；统一响应结构为 `summary + items`。
+
+- 接口一：单个系列入库（创建/更新）
+  - 方法：POST
+  - 路径：`/api/admin/ingest/series`
+  - 认证：管理员 Token
+  - 响应（成功示例）：
+    ```json
+    {
+      "code": 200,
+      "data": {
+        "summary": { "created": 1, "updated": 0, "failed": 0, "total": 1 },
+        "items": [
+          { "statusCode": 200, "seriesId": 1001, "shortId": "Ab3K7mP2XyZ", "externalId": "series-001", "action": "created", "title": "系列A" }
+        ]
+      },
+      "message": "系列采集写入完成",
+      "success": true,
+      "timestamp": 1756402868040
+    }
+    ```
+
+- 接口二：批量系列入库
+  - 方法：POST
+  - 路径：`/api/admin/ingest/series/batch`
+  - 认证：管理员 Token
+  - 响应（含失败项示例）：
+    ```json
+    {
+      "code": 200,
+      "data": {
+        "summary": { "created": 1, "updated": 1, "failed": 1, "total": 3 },
+        "items": [
+          { "statusCode": 200, "seriesId": 1001, "shortId": "Ab3K7mP2XyZ", "action": "created", "externalId": "series-001", "title": "系列A" },
+          { "statusCode": 200, "seriesId": 1002, "shortId": "Cd9LmQ8RtUv", "action": "updated", "externalId": "series-002", "title": "系列B" },
+          { "statusCode": 400, "error": "参数验证失败", "details": [{"property":"categoryId"}], "externalId": "bad-id", "title": "坏数据" }
+        ]
+      },
+      "message": "批量系列采集写入完成",
+      "success": true,
+      "timestamp": 1756402868040
+    }
+    ```
+
+- 接口三：增量更新（支持新增集数/清晰度 URL）
+  - 方法：POST
+  - 路径：`/api/admin/ingest/series/update`
+  - 认证：管理员 Token
+  - 响应（成功示例）：
+    ```json
+    {
+      "code": 200,
+      "data": {
+        "summary": { "created": 0, "updated": 1, "failed": 0, "total": 1 },
+        "items": [
+          { "statusCode": 200, "seriesId": 1001, "shortId": "Ab3K7mP2XyZ", "externalId": "series-001", "action": "updated", "title": "系列A" }
+        ]
+      },
+      "message": "系列采集写入完成",
+      "success": true,
+      "timestamp": 1756402868040
+    }
+    ```
+
+字段说明：
+- data.summary：`created/updated/failed/total`
+- data.items[].成功项：`statusCode=200, seriesId, shortId, externalId, action, title`
+- data.items[].失败项：`statusCode=4xx, error, details[], externalId, title`
+
+参数与字段校验规则、更多示例参见：`docs/ingest-api-complete-guide.md` 与 `docs/api-request-examples-detailed.md`。
+
+---
+
 ## 🏠 应用根接口
 
 ### AppController (`/`)

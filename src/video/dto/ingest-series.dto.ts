@@ -77,14 +77,13 @@ export class IngestSeriesDto {
   categoryId: number;
 
   @IsString()
-  @IsIn(['on-going', 'completed'])
+  @IsIn(['on-going', 'completed', 'deleted'])
   status: string;
 
   @IsDateString()
   releaseDate: string;
 
-  @IsBoolean()
-  isCompleted: boolean;
+  // isCompleted 由后端根据 status 自动维护
 
   @IsOptional()
   @IsNumber()
@@ -97,15 +96,7 @@ export class IngestSeriesDto {
   @Min(0)
   playCount?: number;
 
-  @IsOptional()
-  @IsString()
-  @MaxLength(255)
-  upStatus?: string;
-
-  @IsOptional()
-  @IsInt()
-  @Min(0)
-  upCount?: number;
+  // upStatus / upCount 由后端基于剧集进度自动生成，无需传入
 
   @IsOptional()
   @IsString()
@@ -121,21 +112,29 @@ export class IngestSeriesDto {
   director?: string;
 
   // 过滤/分类选项（均为外键ID，需预先存在）
-  @IsInt()
-  @Min(1)
-  regionOptionId: number;
+  @IsString()
+  @IsNotEmpty()
+  @IsString()
+  @MaxLength(100)
+  regionOptionName: string;
 
-  @IsInt()
-  @Min(1)
-  languageOptionId: number;
+  @IsString()
+  @IsNotEmpty()
+  @IsString()
+  @MaxLength(100)
+  languageOptionName: string;
 
-  @IsInt()
-  @Min(1)
-  statusOptionId: number;
+  @IsString()
+  @IsNotEmpty()
+  @IsString()
+  @MaxLength(100)
+  statusOptionName: string;
 
-  @IsInt()
-  @Min(1)
-  yearOptionId: number;
+  @IsString()
+  @IsNotEmpty()
+  @IsString()
+  @MaxLength(100)
+  yearOptionName: string;
 
   @IsArray()
   @ArrayMinSize(1)

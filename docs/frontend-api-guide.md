@@ -1113,6 +1113,53 @@ interface ErrorResponse {
 }
 ```
 
+### Ingest（采集）统一响应消费建议
+```typescript
+// Ingest 接口统一返回 { code, data: { summary, items }, message, success }
+// items 内可混合成功/失败项，失败项包含 statusCode 与 details（字段级错误）
+
+interface IngestItemSuccess {
+  statusCode: number;      // 200
+  seriesId: number;
+  shortId?: string | null;
+  externalId?: string | null;
+  action: 'created' | 'updated';
+  title?: string;
+}
+
+interface IngestItemError {
+  statusCode: number;      // 4xx
+  error: string;
+  details?: any;
+  externalId?: string | null;
+  title?: string | null;
+}
+
+type IngestItem = IngestItemSuccess | IngestItemError;
+
+function consumeIngestResponse(resp: any) {
+  const items: IngestItem[] = resp?.data?.items || [];
+  const successItems = items.filter(x => x.statusCode === 200) as IngestItemSuccess[];
+  const failedItems = items.filter(x => x.statusCode !== 200) as IngestItemError[];
+
+  // 展示统计
+  const summary = resp?.data?.summary;
+  console.log('created:', summary?.created, 'updated:', summary?.updated, 'failed:', summary?.failed);
+
+  // 成功项处理
+  successItems.forEach(item => {
+    // 如：记录 seriesId/shortId/externalId 到本地
+  });
+
+  // 失败项提示（字段级 details 可用于表单标注）
+  failedItems.forEach(err => {
+    // err.details: [{ property, constraints, children }]
+  });
+
+  return { successItems, failedItems, summary };
+}
+```
+
 ---
 
 ## 📱 前端集成建议

@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Series } from '../entity/series.entity';
@@ -7,6 +7,8 @@ import { EpisodeUrl } from '../entity/episode-url.entity';
 import { IngestSeriesDto } from '../dto/ingest-series.dto';
 import { AccessKeyUtil } from '../../shared/utils/access-key.util';
 import { UpdateIngestSeriesDto } from '../dto/update-ingest-series.dto';
+import { FilterType } from '../entity/filter-type.entity';
+import { FilterOption } from '../entity/filter-option.entity';
 
 @Injectable()
 export class IngestService {
@@ -14,7 +16,51 @@ export class IngestService {
     @InjectRepository(Series) private readonly seriesRepo: Repository<Series>,
     @InjectRepository(Episode) private readonly episodeRepo: Repository<Episode>,
     @InjectRepository(EpisodeUrl) private readonly urlRepo: Repository<EpisodeUrl>,
+    @InjectRepository(FilterType) private readonly filterTypeRepo: Repository<FilterType>,
+    @InjectRepository(FilterOption) private readonly filterOptionRepo: Repository<FilterOption>,
   ) {}
+
+  /**
+   * 根据剧集进度自动更新 upStatus/upCount/totalEpisodes
+   */
+  private async updateSeriesProgress(seriesId: number, isCompleted?: boolean, status?: string) {
+    const episodes = await this.episodeRepo.find({ where: { seriesId } });
+    const total = episodes.length;
+    let maxEpisodeNumber = 0;
+    for (const e of episodes) {
+      if (typeof (e as any).episodeNumber === 'number') {
+        maxEpisodeNumber = Math.max(maxEpisodeNumber, (e as any).episodeNumber);
+      }
+    }
+    const completed = isCompleted === true || status === 'completed';
+    const upStatus = completed
+      ? '已完结'
+      : (maxEpisodeNumber > 0 ? `更新至第${maxEpisodeNumber}集` : '未发布');
+    const upCount = maxEpisodeNumber;
+    await this.seriesRepo.update(seriesId, { totalEpisodes: total, upStatus, upCount });
+  }
+
+  /**
+   * 解析筛选项ID：优先用传入的ID；否则按名称在指定类型下查找，不存在则创建。
+   * @param typeCode filter_types.code，如 'region' | 'language' | 'status' | 'year'
+   * @param id 可选，直接使用的ID
+   * @param name 可选，按名称匹配/创建
+   */
+  private async resolveOptionId(typeCode: string, name: string | undefined): Promise<number | undefined> {
+    if (!name) return undefined;
+    const fType = await this.filterTypeRepo.findOne({ where: { code: typeCode, isActive: true as any } as any });
+    if (!fType) {
+      throw new BadRequestException({
+        message: '筛选器类型不存在',
+        details: { typeCode },
+      });
+    }
+    const existing = await this.filterOptionRepo.findOne({ where: { filterTypeId: fType.id, name } });
+    if (existing) return existing.id;
+    const created = this.filterOptionRepo.create({ filterTypeId: fType.id, name, value: null, isDefault: false as any, isActive: true as any, sortOrder: 0 });
+    const saved = await this.filterOptionRepo.save(created);
+    return saved.id;
+  }
 
   /**
    * 根据标题（或可扩展唯一键）进行 upsert，写入系列/剧集/链接
@@ -32,6 +78,11 @@ export class IngestService {
     let action: 'created' | 'updated' = 'updated';
     if (!series) {
       action = 'created';
+      // 解析各筛选项（支持传入具体 optionId，或按名称自动创建）
+      const regionId = (payload as any).regionOptionId ?? await this.resolveOptionId('region', payload.regionOptionName);
+      const languageId = (payload as any).languageOptionId ?? await this.resolveOptionId('language', payload.languageOptionName);
+      const statusId = (payload as any).statusOptionId ?? await this.resolveOptionId('status', payload.statusOptionName);
+      const yearId = (payload as any).yearOptionId ?? await this.resolveOptionId('year', payload.yearOptionName);
       series = this.seriesRepo.create({
         title: payload.title,
         externalId: payload.externalId,
@@ -40,18 +91,16 @@ export class IngestService {
         categoryId: payload.categoryId,
         status: payload.status ?? 'on-going',
         releaseDate: payload.releaseDate ? new Date(payload.releaseDate) : undefined,
-        isCompleted: payload.isCompleted ?? false,
+        isCompleted: (payload.status ?? 'on-going') === 'completed',
         score: payload.score ?? 0,
         playCount: payload.playCount ?? 0,
-        upStatus: payload.upStatus ?? 'up',
-        upCount: payload.upCount ?? 0,
         starring: payload.starring,
         actor: payload.actor,
         director: payload.director,
-        regionOptionId: payload.regionOptionId,
-        languageOptionId: payload.languageOptionId,
-        statusOptionId: payload.statusOptionId,
-        yearOptionId: payload.yearOptionId,
+        regionOptionId: regionId,
+        languageOptionId: languageId,
+        statusOptionId: statusId,
+        yearOptionId: yearId,
       });
     } else {
       action = 'updated';
@@ -61,18 +110,21 @@ export class IngestService {
       series.categoryId = payload.categoryId;
       if (payload.status !== undefined) series.status = payload.status;
       if (payload.releaseDate !== undefined) series.releaseDate = new Date(payload.releaseDate);
-      if (payload.isCompleted !== undefined) series.isCompleted = payload.isCompleted;
       if (payload.score !== undefined) series.score = payload.score;
       if (payload.playCount !== undefined) series.playCount = payload.playCount;
-      if (payload.upStatus !== undefined) series.upStatus = payload.upStatus;
-      if (payload.upCount !== undefined) series.upCount = payload.upCount;
+      // upStatus/upCount 自动维护
       if (payload.starring !== undefined) series.starring = payload.starring;
       if (payload.actor !== undefined) series.actor = payload.actor;
       if (payload.director !== undefined) series.director = payload.director;
-      series.regionOptionId = payload.regionOptionId;
-      series.languageOptionId = payload.languageOptionId;
-      series.statusOptionId = payload.statusOptionId;
-      series.yearOptionId = payload.yearOptionId;
+      // 解析名称与ID（仅在传入时才更新）
+      const regionId = (payload as any).regionOptionId ?? await this.resolveOptionId('region', payload.regionOptionName);
+      const languageId = (payload as any).languageOptionId ?? await this.resolveOptionId('language', payload.languageOptionName);
+      const statusId = (payload as any).statusOptionId ?? await this.resolveOptionId('status', payload.statusOptionName);
+      const yearId = (payload as any).yearOptionId ?? await this.resolveOptionId('year', payload.yearOptionName);
+      if (regionId !== undefined) series.regionOptionId = regionId;
+      if (languageId !== undefined) series.languageOptionId = languageId;
+      if (statusId !== undefined) series.statusOptionId = statusId;
+      if (yearId !== undefined) series.yearOptionId = yearId;
     }
     series = await this.seriesRepo.save(series);
 
@@ -125,10 +177,16 @@ export class IngestService {
       }
     }
 
-    // update total episodes
-    const count = await this.episodeRepo.count({ where: { seriesId: series.id } });
-    await this.seriesRepo.update(series.id, { totalEpisodes: count });
+    // 自动更新进度（upStatus/upCount/totalEpisodes）
+    await this.updateSeriesProgress(series.id, series.isCompleted, series.status);
 
+    // 如果传入 status=deleted，则做软删除标记
+    if (payload.status === 'deleted') {
+      await this.seriesRepo.update(series.id, { isActive: 0, deletedAt: new Date() as any });
+    } else {
+      // 确保未被删除
+      await this.seriesRepo.update(series.id, { isActive: 1 });
+    }
     return { seriesId: series.id, shortId: series.shortId, externalId: series.externalId ?? null, action };
   }
 
@@ -150,22 +208,33 @@ export class IngestService {
     if (payload.description !== undefined) update.description = payload.description;
     if (payload.coverUrl !== undefined) update.coverUrl = payload.coverUrl;
     if (payload.categoryId !== undefined) update.categoryId = payload.categoryId;
-    if (payload.status !== undefined) update.status = payload.status;
+    if (payload.status !== undefined) {
+      update.status = payload.status;
+      update.isCompleted = payload.status === 'completed';
+    }
     if (payload.releaseDate !== undefined) update.releaseDate = new Date(payload.releaseDate);
-    if (payload.isCompleted !== undefined) update.isCompleted = payload.isCompleted;
     if (payload.score !== undefined) update.score = payload.score;
     if (payload.playCount !== undefined) update.playCount = payload.playCount;
-    if (payload.upStatus !== undefined) update.upStatus = payload.upStatus;
-    if (payload.upCount !== undefined) update.upCount = payload.upCount;
+    // upStatus/upCount 自动维护
     if (payload.starring !== undefined) update.starring = payload.starring;
     if (payload.actor !== undefined) update.actor = payload.actor;
     if (payload.director !== undefined) update.director = payload.director;
-    if (payload.regionOptionId !== undefined) update.regionOptionId = payload.regionOptionId;
-    if (payload.languageOptionId !== undefined) update.languageOptionId = payload.languageOptionId;
-    if (payload.statusOptionId !== undefined) update.statusOptionId = payload.statusOptionId;
-    if (payload.yearOptionId !== undefined) update.yearOptionId = payload.yearOptionId;
-    if (Object.keys(update).length) {
+    // 解析名称（仅在传入时才更新）
+    const regionId = (payload as any).regionOptionId ?? await this.resolveOptionId('region', payload.regionOptionName);
+    const languageId = (payload as any).languageOptionId ?? await this.resolveOptionId('language', payload.languageOptionName);
+    const statusId = (payload as any).statusOptionId ?? await this.resolveOptionId('status', payload.statusOptionName);
+    const yearId = (payload as any).yearOptionId ?? await this.resolveOptionId('year', payload.yearOptionName);
+    if (regionId !== undefined) update.regionOptionId = regionId;
+    if (languageId !== undefined) update.languageOptionId = languageId;
+    if (statusId !== undefined) update.statusOptionId = statusId;
+    if (yearId !== undefined) update.yearOptionId = yearId;
+    if (payload.status === 'deleted') {
+      // 软删除
+      await this.seriesRepo.update(series.id, { isActive: 0, deletedAt: new Date() as any });
+    } else if (Object.keys(update).length) {
       await this.seriesRepo.update(series.id, update);
+      // 恢复为活跃（如果之前被删除）
+      await this.seriesRepo.update(series.id, { isActive: 1, deletedAt: null as any });
     }
 
     // 更新剧集与URL
@@ -241,9 +310,8 @@ export class IngestService {
       }
     }
 
-    // 更新 totalEpisodes
-    const count = await this.episodeRepo.count({ where: { seriesId: series.id } });
-    await this.seriesRepo.update(series.id, { totalEpisodes: count });
+    // 自动更新进度（upStatus/upCount/totalEpisodes）
+    await this.updateSeriesProgress(series.id, (update.isCompleted ?? series.isCompleted), (payload.status ?? series.status));
 
     return { seriesId: series.id, shortId: series.shortId, externalId: series.externalId ?? null };
   }

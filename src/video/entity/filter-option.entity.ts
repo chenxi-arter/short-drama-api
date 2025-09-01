@@ -15,8 +15,8 @@ export class FilterOption {
   @Column({ length: 100, comment: '选项名称' })
   name: string;
 
-  @Column({ length: 100, nullable: true, comment: '选项值' })
-  value: string;
+  @Column({ type: 'varchar', length: 100, nullable: true, comment: '选项值' })
+  value?: string | null;
 
   @Column({ name: 'is_default', type: 'tinyint', width: 1, default: 0, comment: '是否默认选中' })
   isDefault: boolean;

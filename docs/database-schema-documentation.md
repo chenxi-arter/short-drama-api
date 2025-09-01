@@ -65,38 +65,70 @@
 | 字段名 | 数据类型 | 约束 | 描述 |
 |--------|----------|------|------|
 | id | int | PRIMARY KEY AUTO_INCREMENT | 系列主键ID |
-| uuid | varchar(36) | UNIQUE, NULLABLE | UUID标识符（防枚举攻击） |
+| short_id | varchar(11) | UNIQUE, NULLABLE | 短ID（11位，不可预测，用于对外展示/防枚举） |
 | title | varchar(255) | NOT NULL | 电视剧标题 |
 | description | text | NULLABLE | 简介/描述 |
-| cover_url | varchar(255) | NULLABLE | 封面图OSS地址 |
+| cover_url | varchar(255) | NULLABLE | 封面图地址 |
 | total_episodes | int | DEFAULT 0 | 总集数（冗余字段） |
 | category_id | int | NULLABLE, FOREIGN KEY | 分类ID（关联categories.id） |
 | score | float | DEFAULT 0 | 评分 |
 | play_count | int | DEFAULT 0 | 播放次数 |
-| status | varchar(255) | DEFAULT 'on-going' | 状态（on-going/completed等） |
-| up_status | varchar(50) | NULLABLE | 更新状态（如：更新到第10集） |
+| status | varchar(255) | DEFAULT 'on-going' | 文本状态（展示用） |
+| up_status | varchar(255) | NULLABLE | 更新状态文案（如“更新至第10集”） |
 | up_count | int | DEFAULT 0 | 更新次数 |
 | starring | text | NULLABLE | 主演名单（逗号分隔） |
 | actor | text | NULLABLE | 演员名单（逗号分隔） |
 | director | varchar(255) | NULLABLE | 导演（逗号分隔） |
-| region | varchar(50) | NULLABLE | 地区 |
-| language | varchar(50) | NULLABLE | 语言 |
+| region_option_id | int | NULLABLE, FOREIGN KEY | 地区选项（关联filter_options.id） |
+| language_option_id | int | NULLABLE, FOREIGN KEY | 语言选项（关联filter_options.id） |
+| status_option_id | int | NULLABLE, FOREIGN KEY | 状态选项（关联filter_options.id） |
+| year_option_id | int | NULLABLE, FOREIGN KEY | 年份选项（关联filter_options.id） |
 | release_date | date | NULLABLE | 发布日期 |
 | is_completed | boolean | DEFAULT false | 是否完结 |
 | created_at | datetime(6) | DEFAULT CURRENT_TIMESTAMP(6) | 创建时间 |
 | updated_at | timestamp | NULLABLE | 更新时间 |
+| is_active | tinyint(1) | DEFAULT 1 | 是否活跃（软删除标记） |
+| deleted_at | timestamp | NULLABLE | 删除时间（软删除） |
+| deleted_by | int | NULLABLE | 删除者用户ID |
 
 **关系：**
 - 一对多：episodes（剧集）
 - 多对一：category（所属分类）
 - 一对多：banners（轮播图）
 
+#### 2.2.1 filter_types（筛选器类型表）
+
+| 字段名 | 数据类型 | 约束 | 描述 |
+|--------|----------|------|------|
+| id | int | PRIMARY KEY AUTO_INCREMENT | 类型主键ID |
+| code | varchar(50) | UNIQUE, NOT NULL | 类型编码（region/language/status/year 等） |
+| name | varchar(100) | NOT NULL | 类型名称 |
+| created_at | datetime(6) | DEFAULT CURRENT_TIMESTAMP(6) | 创建时间 |
+| updated_at | datetime(6) | DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6) | 更新时间 |
+
+#### 2.2.2 filter_options（筛选器选项表）
+
+| 字段名 | 数据类型 | 约束 | 描述 |
+|--------|----------|------|------|
+| id | int | PRIMARY KEY AUTO_INCREMENT | 选项主键ID |
+| filter_type_id | int | NOT NULL, FOREIGN KEY | 关联 `filter_types.id` |
+| name | varchar(100) | NOT NULL | 选项名称（如「大陆」「国语」「连载中」「2025」） |
+| value | varchar(100) | NULLABLE | 选项值（可选，展示/编码用） |
+| is_default | tinyint(1) | DEFAULT 0 | 是否默认选中 |
+| is_active | tinyint(1) | DEFAULT 1 | 是否启用 |
+| sort_order | int | DEFAULT 0 | 排序 |
+| created_at | datetime(6) | DEFAULT CURRENT_TIMESTAMP(6) | 创建时间 |
+| updated_at | datetime(6) | DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6) | 更新时间 |
+
+说明：为保证 TypeORM 与 MySQL 兼容，`filter_options.value` 字段使用 `varchar(100)`，避免使用不被 MySQL 支持的 `Object` 类型推断。
+
 #### 2.3 episodes（剧集表）
 
 | 字段名 | 数据类型 | 约束 | 描述 |
 |--------|----------|------|------|
 | id | int | PRIMARY KEY AUTO_INCREMENT | 剧集主键ID |
-| uuid | varchar(36) | UNIQUE, NULLABLE | UUID标识符（防枚举攻击） |
+| short_id | varchar(11) | UNIQUE, NULLABLE | 短ID（11位，不可预测） |
+| access_key | varchar(64) | UNIQUE, NULLABLE | 剧集级访问密钥 |
 | series_id | int | NOT NULL, FOREIGN KEY | 所属系列ID（关联series.id） |
 | episode_number | int | NOT NULL | 集数编号 |
 | title | varchar(255) | NOT NULL | 剧集标题 |
@@ -120,8 +152,9 @@
 | id | int | PRIMARY KEY AUTO_INCREMENT | 播放地址主键ID |
 | episode_id | int | NOT NULL, FOREIGN KEY | 所属剧集ID（关联episodes.id） |
 | quality | varchar(50) | NOT NULL | 视频清晰度（720p/1080p/4K等） |
-| oss_url | varchar(255) | NOT NULL | OSS原始地址 |
+| oss_url | varchar(255) | NOT NULL | OSS原始地址（采集未提供时可存空字符串） |
 | cdn_url | varchar(255) | NOT NULL | CDN加速播放地址 |
+| origin_url | varchar(255) | NOT NULL | 原站/采集来源地址 |
 | subtitle_url | varchar(255) | NULLABLE | 外挂字幕地址 |
 | access_key | varchar(64) | UNIQUE, NOT NULL | 加密索引键（防枚举攻击） |
 | created_at | datetime(6) | DEFAULT CURRENT_TIMESTAMP(6) | 创建时间 |
@@ -234,9 +267,9 @@ User (N) -----> (N) Episode (通过Comment)
 ## 📊 数据库设计特点
 
 ### 1. 安全性设计
-- **UUID字段**：所有主要实体都包含UUID字段，防止ID枚举攻击
+- **短ID字段**：主要实体（Series/Episode）包含 `short_id`（11位），防止ID枚举攻击
 - **访问密钥**：EpisodeUrl使用access_key字段进行安全访问控制
-- **软删除支持**：通过is_active等字段支持软删除
+- **软删除支持**：通过 `deleted_at`/`deleted_by`（以及历史保留的 is_active）支持软删除
 
 ### 2. 性能优化
 - **冗余字段**：Series.total_episodes等冗余字段减少关联查询

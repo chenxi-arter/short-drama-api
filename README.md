@@ -77,7 +77,15 @@ npm install
 cp .env.example .env
 
 # 开发模式启动
-npm run start:dev
+PORT=8080 npm run start:dev
+
+# 健康检查（可选）
+curl -s http://localhost:8080/api/health | jq .
+
+# 一键验证 Ingest 接口（使用内置示例数据）
+node scripts/test-ingest-api.js
+# 或指定目标地址
+API_BASE=http://localhost:8080/api/admin/ingest node scripts/test-ingest-api.js
 ```
 
 ## 环境配置
@@ -95,6 +103,7 @@ DB_NAME=short_drama
 # JWT配置
 JWT_SECRET=your_jwt_secret_key_here
 JWT_EXPIRES_IN=7d
+JWT_REFRESH_SECRET=your_refresh_jwt_secret_key_here
 
 # Redis配置（可选）
 REDIS_HOST=localhost
@@ -102,9 +111,12 @@ REDIS_PORT=6379
 REDIS_PASSWORD=
 
 # 应用配置
-PORT=3000
-NODE_ENV=production
+PORT=8080
+NODE_ENV=development
+APP_SECRET=your_app_secret_for_access_key
 ```
+
+提示：未配置 MySQL 时，可使用内置 SQLite 内存模式进行本地联调（设置 `DB_TYPE=sqlite` 或不填 `DB_USER/DB_NAME`）。
 
 ## 数据库初始化
 
@@ -291,9 +303,9 @@ docs/                    # 项目文档
 2. **端口占用**
    ```bash
    # 查看端口占用
-   lsof -i :3000
+   lsof -i :8080
    # 修改端口
-   echo "PORT=3001" >> .env
+   echo "PORT=8081" >> .env
    ```
 
 3. **JWT认证失败**
