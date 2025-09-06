@@ -1,0 +1,44 @@
+import { Module } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
+
+// Entities
+import { User } from '../user/entity/user.entity';
+import { Banner } from '../video/entity/banner.entity';
+import { Series } from '../video/entity/series.entity';
+import { Episode } from '../video/entity/episode.entity';
+import { EpisodeUrl } from '../video/entity/episode-url.entity';
+import { RefreshToken } from '../auth/entity/refresh-token.entity';
+import { Comment } from '../video/entity/comment.entity';
+import { WatchProgress } from '../video/entity/watch-progress.entity';
+import { BrowseHistory } from '../video/entity/browse-history.entity';
+
+// Controllers
+import { AdminUsersController, AdminBannersController, AdminEpisodesController } from './controllers';
+import { AdminSeriesController } from './controllers/admin-series.controller';
+import { AdminDashboardController } from './controllers/admin-dashboard.controller';
+
+@Module({
+  imports: [
+    TypeOrmModule.forFeature([
+      User,
+      Banner,
+      Series,
+      Episode,
+      EpisodeUrl,
+      RefreshToken,
+      Comment,
+      WatchProgress,
+      BrowseHistory,
+    ])
+  ],
+  controllers: [
+    AdminUsersController,
+    AdminBannersController,
+    AdminEpisodesController,
+    AdminSeriesController,
+    AdminDashboardController,
+  ],
+})
+export class AdminModule {}
+
+

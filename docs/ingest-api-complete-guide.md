@@ -789,3 +789,48 @@ curl -X POST http://localhost:8080/api/admin/ingest/series/update \
 **文档版本**: 1.0.0  
 **最后更新**: 2025-09-01  
 **维护团队**: 短剧系统开发团队
+
+## 4. 查询系列进度（新增）
+
+### 请求信息
+- 方法: `GET`
+- URL: `http://localhost:8080/api/admin/ingest/series/progress/:externalId`
+- Content-Type: `application/json`
+
+### 路径参数
+- `externalId`: 系列的外部唯一标识
+
+### 功能说明
+- 通过 `externalId` 查询该系列当前更新进度，返回已更新到第几集（`upCount`）、进度文案（`upStatus`）、总集数（`totalEpisodes`）以及是否完结（`isCompleted`）。
+- 返回前会轻量刷新一次进度，确保数据最新。
+
+### 成功响应
+```json
+{
+  "code": 200,
+  "data": {
+    "seriesId": 1001,
+    "shortId": "Ab3K7mP2XyZ",
+    "externalId": "series-001",
+    "upCount": 12,
+    "upStatus": "更新至第12集",
+    "totalEpisodes": 12,
+    "isCompleted": false
+  },
+  "message": "系列进度获取成功",
+  "success": true,
+  "timestamp": 1756402868040
+}
+```
+
+### 错误响应
+- 所有错误保持 HTTP 200，错误通过外层 `code` 与 `message` 表达。
+```json
+{
+  "code": 404,
+  "data": null,
+  "message": "系列不存在",
+  "success": false,
+  "timestamp": 1756402868040
+}
+```

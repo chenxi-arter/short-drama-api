@@ -85,6 +85,18 @@ export class Banner {
   @UpdateDateColumn({ name: 'updated_at' })
   updatedAt: Date;
 
+  /**
+   * 展示次数（曝光）
+   */
+  @Column({ type: 'int', default: 0, name: 'impressions' })
+  impressions: number;
+
+  /**
+   * 点击次数
+   */
+  @Column({ type: 'int', default: 0, name: 'clicks' })
+  clicks: number;
+
   // 关联关系
   @ManyToOne(() => Category, { eager: true })
   @JoinColumn({ name: 'category_id' })

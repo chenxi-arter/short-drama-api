@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, FindManyOptions, Between } from 'typeorm';
 import { Banner } from '../entity/banner.entity';
+import { BannerMetricDaily } from '../entity/banner-metric-daily.entity';
 import { CreateBannerDto, UpdateBannerDto, BannerQueryDto, BannerResponseDto } from '../dto/banner.dto';
 import { BannerItem } from '../dto/home-videos.dto';
 
@@ -10,6 +11,8 @@ export class BannerService {
   constructor(
     @InjectRepository(Banner)
     private readonly bannerRepo: Repository<Banner>,
+    @InjectRepository(BannerMetricDaily)
+    private readonly metricRepo: Repository<BannerMetricDaily>,
   ) {}
 
   /**
@@ -33,6 +36,45 @@ export class BannerService {
 
     const savedBanner = await this.bannerRepo.save(banner);
     return this.formatBannerResponse(savedBanner);
+  }
+
+  /**
+   * 记录曝光（简单自增，无需分布式锁）
+   */
+  async incrementImpression(id: number): Promise<void> {
+    await this.bannerRepo.increment({ id }, 'impressions', 1);
+    const date = new Date();
+    const d = date.toISOString().slice(0, 10);
+    await this.metricRepo
+      .createQueryBuilder()
+      .insert()
+      .into(BannerMetricDaily)
+      .values({ bannerId: id, date: d, impressions: 1, clicks: 0 })
+      .orUpdate(['impressions'], ['banner_id', 'date'])
+      .execute();
+  }
+
+  /**
+   * 记录点击（简单自增）
+   */
+  async incrementClick(id: number): Promise<void> {
+    await this.bannerRepo.increment({ id }, 'clicks', 1);
+    const date = new Date();
+    const d = date.toISOString().slice(0, 10);
+    await this.metricRepo
+      .createQueryBuilder()
+      .insert()
+      .into(BannerMetricDaily)
+      .values({ bannerId: id, date: d, impressions: 0, clicks: 1 })
+      .orUpdate(['clicks'], ['banner_id', 'date'])
+      .execute();
+  }
+
+  async getBannerDailyStats(id: number, from: string, to: string) {
+    return this.metricRepo.find({
+      where: { bannerId: id, date: Between(from, to) },
+      order: { date: 'ASC' as any },
+    } as any);
   }
 
   /**

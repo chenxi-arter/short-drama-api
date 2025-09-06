@@ -6,6 +6,7 @@ import { EpisodeUrl } from '../entity/episode-url.entity';
 import { Category } from '../entity/category.entity';
 import { FilterOption } from '../entity/filter-option.entity';
 import { Banner } from '../entity/banner.entity';
+import { BannerMetricDaily } from '../entity/banner-metric-daily.entity';
 import { BrowseHistory } from '../entity/browse-history.entity';
 import { VideoService } from '../video.service';
 import { SeriesService } from '../services/series.service';
@@ -19,7 +20,7 @@ import { CatalogModule } from './catalog.module';
 @Module({
   imports: [
     CatalogModule,
-    TypeOrmModule.forFeature([Series, Episode, EpisodeUrl, Category, FilterOption, BrowseHistory, Banner])
+    TypeOrmModule.forFeature([Series, Episode, EpisodeUrl, Category, FilterOption, BrowseHistory, Banner, BannerMetricDaily])
   ],
   providers: [
     VideoService,

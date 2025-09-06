@@ -315,6 +315,41 @@ export class IngestService {
 
     return { seriesId: series.id, shortId: series.shortId, externalId: series.externalId ?? null };
   }
+
+  /**
+   * 根据 externalId 获取系列进度信息（upCount、upStatus、totalEpisodes 等）
+   */
+  async getSeriesProgressByExternalId(externalId: string): Promise<{
+    seriesId: number;
+    shortId: string | null;
+    externalId: string | null;
+    upCount: number;
+    upStatus: string | null;
+    totalEpisodes: number;
+    isCompleted: boolean;
+  }> {
+    const series = await this.seriesRepo.findOne({ where: { externalId } });
+    if (!series) {
+      throw new NotFoundException({
+        message: '系列不存在',
+        details: { externalId }
+      });
+    }
+
+    // 确保进度是最新（轻量刷新一次）
+    await this.updateSeriesProgress(series.id, series.isCompleted, series.status);
+    const refreshed = await this.seriesRepo.findOne({ where: { id: series.id } });
+
+    return {
+      seriesId: refreshed!.id,
+      shortId: refreshed!.shortId ?? null,
+      externalId: refreshed!.externalId ?? null,
+      upCount: refreshed!.upCount,
+      upStatus: refreshed!.upStatus ?? null,
+      totalEpisodes: refreshed!.totalEpisodes,
+      isCompleted: !!refreshed!.isCompleted,
+    };
+  }
 }
 
 

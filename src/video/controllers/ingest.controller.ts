@@ -1,4 +1,4 @@
-import { Body, Controller, Post, UseInterceptors, UsePipes, ValidationPipe } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, UseInterceptors, UsePipes, ValidationPipe } from '@nestjs/common';
 import { IngestResultInterceptor } from '../../common/interceptors/ingest-result.interceptor';
 import { ValidationToItemsPipe } from '../../common/pipes/validation-to-items.pipe';
 import { plainToInstance } from 'class-transformer';
@@ -66,6 +66,22 @@ export class IngestController {
   @UseInterceptors(IngestResultInterceptor)
   async updateSeries(@Body(new ValidationToItemsPipe()) dto: UpdateIngestSeriesDto) {
     return this.ingestService.updateSeries(dto);
+  }
+
+  /**
+   * 查询系列进度（按 externalId）
+   * 返回 upCount / upStatus / totalEpisodes / isCompleted
+   */
+  @Get('series/progress/:externalId')
+  async getSeriesProgress(@Param('externalId') externalId: string) {
+    try {
+      const data = await this.ingestService.getSeriesProgressByExternalId(externalId);
+      return ResponseUtil.success(data, '系列进度获取成功');
+    } catch (e: any) {
+      const status = e?.status || 400;
+      const message = e?.response?.message || e?.message || 'unknown error';
+      return ResponseUtil.error(message, status);
+    }
   }
 }
 

@@ -92,4 +92,36 @@ export class BannerController {
     const resp = AdminResponseUtil.success(banners, '获取成功');
     return { code: resp.code, msg: '获取成功', data: resp.data, success: resp.success, timestamp: resp.timestamp };
   }
+
+  // 记录曝光（展示）
+  @Post(':id/impression')
+  async impression(
+    @Param('id', ParseIntPipe) id: number,
+  ): Promise<{ code: number; msg: string; success: boolean; timestamp: number; }> {
+    await this.bannerService.incrementImpression(id);
+    const resp = AdminResponseUtil.success(null as any, 'ok');
+    return { code: resp.code, msg: 'ok', success: resp.success, timestamp: resp.timestamp };
+  }
+
+  // 记录点击
+  @Post(':id/click')
+  async click(
+    @Param('id', ParseIntPipe) id: number,
+  ): Promise<{ code: number; msg: string; success: boolean; timestamp: number; }> {
+    await this.bannerService.incrementClick(id);
+    const resp = AdminResponseUtil.success(null as any, 'ok');
+    return { code: resp.code, msg: 'ok', success: resp.success, timestamp: resp.timestamp };
+  }
+
+  // 查询按日统计（简化版）
+  @Get(':id/stats')
+  async stats(
+    @Param('id', ParseIntPipe) id: number,
+    @Query('from') from: string,
+    @Query('to') to: string,
+  ): Promise<{ code: number; msg: string; data: any; success: boolean; timestamp: number; }> {
+    const data = await this.bannerService.getBannerDailyStats(id, from, to);
+    const resp = AdminResponseUtil.success(data, 'ok');
+    return { code: resp.code, msg: 'ok', data: resp.data, success: resp.success, timestamp: resp.timestamp };
+  }
 }

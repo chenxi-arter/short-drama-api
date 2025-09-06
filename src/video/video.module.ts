@@ -17,7 +17,6 @@ import { FilterOption } from './entity/filter-option.entity';  // 筛选器选�
 import { VideoService } from './video.service';                // 视频业务逻辑服务
 import { CacheMonitorController } from './cache-monitor.controller'; // 缓存监控API控制器
 import { VideoApiModule } from './modules/video-api.module';
-import { AdminController } from './admin.controller'; // 管理员API控制器
 import { WatchProgressService } from './services/watch-progress.service';
 import { CommentService } from './services/comment.service';
 import { EpisodeService } from './services/episode.service';
@@ -70,7 +69,7 @@ import { TestIngestController } from './controllers/test-ingest.controller';
     EpisodeService,
     CategoryService,
     IngestService,
-    BannerService,
+    // BannerService is provided in BannerModule; avoid duplicate provider here
 
     FilterService,
     SeriesService,
@@ -81,10 +80,9 @@ import { TestIngestController } from './controllers/test-ingest.controller';
   ],    // 注册本模块的服务提供者（业务逻辑）
   controllers: [
     CacheMonitorController,
-    AdminController,
     IngestController,
     TestIngestController
-  ], // 仅保留内部控制器；公开API控制器移至 VideoApiModule
+  ], // 仅保留内部控制器；公开API控制器移至 VideoApiModule；管理端控制器收敛到 AdminModule
   // 注意：如果需要让其他模块使用这些实体或服务，应该在这里添加exports
 })
 export class VideoModule {}
