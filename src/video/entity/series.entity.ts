@@ -124,12 +124,7 @@ export class Series {
   @Column({ type: 'int', default: 0, name: 'up_count' })
   upCount: number;
 
-  /** 
-   * 状态
-   * 系列的状态，如"on-going"、"completed"等
-   */
-  @Column({ length: 255, default: 'on-going', name: 'status' })
-  status: string;
+  // 状态字符串字段已移除，统一使用 statusOption/statusOptionId
 
   /** 
    * 主演名单

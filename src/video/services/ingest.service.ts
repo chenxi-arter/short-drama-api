@@ -128,7 +128,6 @@ export class IngestService {
         description: payload.description,
         coverUrl: payload.coverUrl,
         categoryId: payload.categoryId,
-        status: payload.status ?? 'on-going',
         releaseDate: payload.releaseDate ? new Date(payload.releaseDate) : undefined,
         isCompleted: (payload.status ?? 'on-going') === 'completed',
         score: payload.score ?? 0,
@@ -147,7 +146,7 @@ export class IngestService {
       series.description = payload.description;
       series.coverUrl = payload.coverUrl;
       series.categoryId = payload.categoryId;
-      if (payload.status !== undefined) series.status = payload.status;
+      // status 字段已废弃，不再直接写入字符串状态
       if (payload.releaseDate !== undefined) series.releaseDate = new Date(payload.releaseDate);
       if (payload.score !== undefined) series.score = payload.score;
       if (payload.playCount !== undefined) series.playCount = payload.playCount;
@@ -217,7 +216,7 @@ export class IngestService {
     }
 
     // 自动更新进度（upStatus/upCount/totalEpisodes）
-    await this.updateSeriesProgress(series.id, series.isCompleted, series.status);
+    await this.updateSeriesProgress(series.id, series.isCompleted);
 
     // 如果传入 status=deleted，则做软删除标记
     if (payload.status === 'deleted') {
@@ -248,7 +247,6 @@ export class IngestService {
     if (payload.coverUrl !== undefined) update.coverUrl = payload.coverUrl;
     if (payload.categoryId !== undefined) update.categoryId = payload.categoryId;
     if (payload.status !== undefined) {
-      update.status = payload.status;
       update.isCompleted = payload.status === 'completed';
     }
     if (payload.releaseDate !== undefined) update.releaseDate = new Date(payload.releaseDate);
@@ -350,7 +348,7 @@ export class IngestService {
     }
 
     // 自动更新进度（upStatus/upCount/totalEpisodes）
-    await this.updateSeriesProgress(series.id, (update.isCompleted ?? series.isCompleted), (payload.status ?? series.status));
+    await this.updateSeriesProgress(series.id, (update.isCompleted ?? series.isCompleted));
 
     return { seriesId: series.id, shortId: series.shortId, externalId: series.externalId ?? null };
   }
@@ -376,7 +374,8 @@ export class IngestService {
     }
 
     // 确保进度是最新（轻量刷新一次）
-    await this.updateSeriesProgress(series.id, series.isCompleted, series.status);
+    await this.updateSeriesProgress(series.id, series.isCompleted);
+    await this.updateSeriesProgress(series.id, series.isCompleted);
     const refreshed = await this.seriesRepo.findOne({ where: { id: series.id } });
 
     return {

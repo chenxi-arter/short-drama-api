@@ -139,6 +139,10 @@ export class FilterService {
       // 构建查询条件
       const queryBuilder = this.seriesRepo.createQueryBuilder('series')
         .leftJoinAndSelect('series.category', 'category')
+        .leftJoinAndSelect('series.regionOption', 'regionOption')
+        .leftJoinAndSelect('series.languageOption', 'languageOption')
+        .leftJoinAndSelect('series.statusOption', 'statusOption')
+        .leftJoinAndSelect('series.yearOption', 'yearOption')
         .where('series.isActive = :isActive', { isActive: 1 }) // 只查询未删除的剧集
         .distinct(true); // 避免联结导致的重复行
 
@@ -176,7 +180,7 @@ export class FilterService {
         url: s.id.toString(), // 使用ID作为URL
         type: s.category?.name || '未分类', // 使用分类名称作为类型
         isSerial: (s.totalEpisodes && s.totalEpisodes > 1) || false,
-        upStatus: s.upStatus || '已完结',
+        upStatus: s.upStatus || (s.statusOption?.name ? `${s.statusOption.name}` : '已完结'),
         upCount: s.upCount || 0,
         author: s.starring || s.actor || '', // 使用主演或演员作为作者
         description: s.description || '', // 使用描述字段
@@ -453,6 +457,10 @@ export class FilterService {
       const queryBuilder = this.seriesRepo.createQueryBuilder('series')
         .leftJoinAndSelect('series.category', 'category')
         .leftJoinAndSelect('series.episodes', 'episodes')
+        .leftJoinAndSelect('series.regionOption', 'regionOption')
+        .leftJoinAndSelect('series.languageOption', 'languageOption')
+        .leftJoinAndSelect('series.statusOption', 'statusOption')
+        .leftJoinAndSelect('series.yearOption', 'yearOption')
         .where('series.title LIKE :keyword', { keyword: `%${keyword.trim()}%` })
         .andWhere('series.isActive = :isActive', { isActive: 1 }); // 只查询未删除的剧集
 
@@ -504,7 +512,7 @@ export class FilterService {
         url: s.id.toString(), // 使用ID作为URL
         type: s.category?.name || '未分类', // 使用分类名称作为类型
         isSerial: (s.episodes && s.episodes.length > 1) || false,
-        upStatus: s.upStatus || '已完结',
+        upStatus: s.upStatus || (s.statusOption?.name ? `${s.statusOption.name}` : '已完结'),
         upCount: s.upCount || 0,
         author: s.starring || s.actor || '', // 使用主演或演员作为作者
         description: s.description || '', // 使用描述字段

@@ -284,7 +284,7 @@ export class ContentService {
           categoryName: series.category?.name || '',
           episodeCount: series.episodes?.length || 0,
           totalEpisodes: series.totalEpisodes,
-          status: series.status,
+          status: series.upStatus || (series.statusOption?.name || ''),
           upStatus: series.upStatus,
           score: series.score,
           playCount: series.playCount,

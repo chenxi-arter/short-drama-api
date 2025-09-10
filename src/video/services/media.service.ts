@@ -86,7 +86,7 @@ export class MediaService {
         type: s.category?.name || '',
         categoryId: s.categoryId,
         episodeCount: s.totalEpisodes,
-        status: s.status,
+        status: s.upStatus || (s.statusOption?.name || ''),
         score: s.score,
         playCount: s.playCount,
         starring: s.starring,
@@ -156,7 +156,7 @@ export class MediaService {
             categoryId: s.categoryId,
             categoryName: s.category?.name || '',
             episodeCount: s.totalEpisodes,
-            status: s.status,
+            status: s.upStatus || (s.statusOption?.name || ''),
             score: s.score,
             playCount: s.playCount,
             createdAt: s.createdAt.toISOString()
@@ -216,7 +216,7 @@ export class MediaService {
             coverUrl: s.coverUrl,
             categoryId: s.categoryId,
             episodeCount: s.totalEpisodes,
-            status: s.status,
+            status: s.upStatus || (s.statusOption?.name || ''),
             createdAt: s.createdAt.toISOString()
           })),
           total: series.length,
