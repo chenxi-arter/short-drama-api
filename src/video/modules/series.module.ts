@@ -8,7 +8,6 @@ import { FilterOption } from '../entity/filter-option.entity';
 import { Banner } from '../entity/banner.entity';
 import { BannerMetricDaily } from '../entity/banner-metric-daily.entity';
 import { BrowseHistory } from '../entity/browse-history.entity';
-import { VideoService } from '../video.service';
 import { SeriesService } from '../services/series.service';
 import { EpisodeService } from '../services/episode.service';
 import { BrowseHistoryService } from '../services/browse-history.service';
@@ -23,7 +22,6 @@ import { CatalogModule } from './catalog.module';
     TypeOrmModule.forFeature([Series, Episode, EpisodeUrl, Category, FilterOption, BrowseHistory, Banner, BannerMetricDaily])
   ],
   providers: [
-    VideoService,
     SeriesService,
     EpisodeService,
     BrowseHistoryService,
@@ -31,7 +29,7 @@ import { CatalogModule } from './catalog.module';
     BannerService,
     CommentService,
   ],
-  exports: [VideoService, SeriesService, EpisodeService, CommentService, TypeOrmModule],
+  exports: [SeriesService, EpisodeService, CommentService, TypeOrmModule],
 })
 export class SeriesModule {}
 

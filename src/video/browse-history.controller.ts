@@ -3,37 +3,45 @@ import { Controller, Get, Query, Delete, UseGuards, Req, Param } from '@nestjs/c
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RateLimitGuard, RateLimit, RateLimitConfigs } from '../common/guards/rate-limit.guard';
 import { BrowseHistoryService } from './services/browse-history.service';
+import { BaseController } from './controllers/base.controller';
 
 /**
- * 浏览记录控制器
- * 提供用户浏览历史的管理功能
+ * 私有浏览记录控制器
+ * 提供用户私有浏览历史的管理功能
  */
 @UseGuards(JwtAuthGuard, RateLimitGuard)
 @Controller('video/browse-history')
-export class BrowseHistoryController {
-  constructor(private readonly browseHistoryService: BrowseHistoryService) {}
+export class BrowseHistoryController extends BaseController {
+  constructor(private readonly browseHistoryService: BrowseHistoryService) {
+    super();
+  }
 
   /**
    * 获取用户浏览记录
    * @param req 请求对象
    * @param page 页码
-   * @param size 每页大小
+   * @param size 每页大小（默认10条）
    */
   @RateLimit(RateLimitConfigs.NORMAL)
   @Get()
   async getUserBrowseHistory(
     @Req() req,
     @Query('page') page: string = '1',
-    @Query('size') size: string = '20'
+    @Query('size') size: string = '10'  // ✅ 修改默认值为10
   ) {
-    const pageNum = parseInt(page, 10);
-    const sizeNum = parseInt(size, 10);
-    
-    return this.browseHistoryService.getUserBrowseHistory(
-      req.user.userId,
-      pageNum,
-      sizeNum
-    );
+    try {
+      const { page: pageNum, size: sizeNum } = this.normalizePagination(page, size, 50);
+
+      const result = await this.browseHistoryService.getUserBrowseHistory(
+        req.user.userId,
+        pageNum,
+        sizeNum
+      );
+
+      return this.success(result, '获取浏览记录成功');
+    } catch (error) {
+      return this.handleServiceError(error, '获取浏览记录失败');
+    }
   }
 
   /**
@@ -47,16 +55,18 @@ export class BrowseHistoryController {
     @Req() req,
     @Query('limit') limit: string = '10'
   ) {
-    const limitNum = parseInt(limit, 10);
-    
-    return {
-      code: 200,
-      data: await this.browseHistoryService.getRecentBrowsedSeries(
+    try {
+      const limitNum = this.validateId(limit, '限制数量');
+
+      const result = await this.browseHistoryService.getRecentBrowsedSeries(
         req.user.userId,
         limitNum
-      ),
-      msg: null
-    };
+      );
+
+      return this.success(result, '获取最近浏览记录成功');
+    } catch (error) {
+      return this.handleServiceError(error, '获取最近浏览记录失败');
+    }
   }
 
   /**

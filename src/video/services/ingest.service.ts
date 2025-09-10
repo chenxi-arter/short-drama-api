@@ -46,8 +46,15 @@ export class IngestService {
    * @param id 可选，直接使用的ID
    * @param name 可选，按名称匹配/创建
    */
+  /**
+   * 解析筛选项ID：优先用传入的ID；否则按名称在指定类型下查找，不存在则创建。
+   * ✅ 优化版：自动分配 display_order
+   * @param typeCode filter_types.code，如 'region' | 'language' | 'status' | 'year'
+   * @param name 可选，按名称匹配/创建
+   */
   private async resolveOptionId(typeCode: string, name: string | undefined): Promise<number | undefined> {
     if (!name) return undefined;
+    
     const fType = await this.filterTypeRepo.findOne({ where: { code: typeCode, isActive: true as any } as any });
     if (!fType) {
       throw new BadRequestException({
@@ -55,10 +62,33 @@ export class IngestService {
         details: { typeCode },
       });
     }
+    
     const existing = await this.filterOptionRepo.findOne({ where: { filterTypeId: fType.id, name } });
     if (existing) return existing.id;
-    const created = this.filterOptionRepo.create({ filterTypeId: fType.id, name, value: null, isDefault: false as any, isActive: true as any, sortOrder: 0 });
+    
+    // ✅ 获取该类型下最大的 display_order，为新选项分配下一个编号
+    const maxDisplayOrder = await this.filterOptionRepo
+      .createQueryBuilder('option')
+      .select('MAX(option.display_order)', 'maxOrder')
+      .where('option.filter_type_id = :filterTypeId', { filterTypeId: fType.id })
+      .getRawOne();
+    
+    const nextDisplayOrder = (maxDisplayOrder?.maxOrder || 0) + 1;
+    
+    const created = this.filterOptionRepo.create({ 
+      filterTypeId: fType.id, 
+      name, 
+      value: name.toLowerCase(), // 设置合理的 value
+      isDefault: false as any, 
+      isActive: true as any, 
+      sortOrder: nextDisplayOrder, // 保持 sortOrder 与 displayOrder 一致
+      displayOrder: nextDisplayOrder // ✅ 自动分配 display_order
+    });
+    
     const saved = await this.filterOptionRepo.save(created);
+    
+    console.log(`[INGEST] 创建新筛选选项: ${typeCode}/${name}, display_order: ${nextDisplayOrder}, id: ${saved.id}`);
+    
     return saved.id;
   }
 

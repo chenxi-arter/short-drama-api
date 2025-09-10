@@ -27,6 +27,9 @@ export class FilterOption {
   @Column({ name: 'sort_order', default: 0, comment: '排序顺序' })
   sortOrder: number;
 
+  @Column({ name: 'display_order', default: 0, comment: '显示顺序（对应ids中的数字）' })
+  displayOrder: number;
+
   @CreateDateColumn({ name: 'created_at', comment: '创建时间' })
   createdAt: Date;
 

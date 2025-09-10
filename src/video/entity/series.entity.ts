@@ -225,14 +225,14 @@ export class Series {
    * NULL=未删除，有值=删除时间
    */
   @Column({ type: 'timestamp', nullable: true, name: 'deleted_at' })
-  deletedAt: Date;
+  deletedAt: Date | null;
 
   /**
    * 删除者用户ID（可选）
    * 记录是谁删除了这个系列
    */
   @Column({ type: 'int', nullable: true, name: 'deleted_by' })
-  deletedBy: number;
+  deletedBy: number | null;
   
   /**
    * 在插入前自动生成短ID

@@ -81,6 +81,38 @@ export class CacheKeys {
   }
 
   /**
+   * ✅ 新增：剧集列表缓存键
+   * @param seriesIdentifier 系列标识符
+   * @param idType ID类型
+   * @param page 页码
+   * @param size 每页大小
+   * @param userId 用户ID（可选）
+   */
+  static episodeList(seriesIdentifier: string, idType: string, page: number, size: number, userId?: number): string {
+    const userPart = userId ? `_user_${userId}` : '';
+    return `episode_list_${seriesIdentifier}_${idType}_${page}_${size}${userPart}`;
+  }
+
+  /**
+   * ✅ 新增：系列列表缓存键
+   * @param categoryId 分类ID
+   * @param page 页码
+   * @param size 每页大小
+   */
+  static seriesList(categoryId?: number, page: number = 1, size: number = 20): string {
+    const categoryPart = categoryId ? `_cat_${categoryId}` : '_all';
+    return `series_list${categoryPart}_${page}_${size}`;
+  }
+
+  /**
+   * ✅ 新增：按分类获取系列缓存键
+   * @param categoryId 分类ID
+   */
+  static seriesByCategory(categoryId: number): string {
+    return `series_by_category_${categoryId}`;
+  }
+
+  /**
    * 模块视频缓存键
    * @param moduleType 模块类型（drama, movie, variety）
    * @param categoryId 分类ID

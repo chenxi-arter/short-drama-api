@@ -30,7 +30,7 @@ export class FilterService {
   ) {}
 
   /**
-   * 获取筛选器标签
+   * 获取筛选器标签（优化版 - 支持基于display_order的ids筛选）
    * @param channelId 频道ID
    */
   async getFiltersTags(channelId: string): Promise<FilterTagsResponse> {
@@ -43,23 +43,12 @@ export class FilterService {
     }
 
     try {
-      // 根据频道ID获取对应的筛选器类型及其选项
-      // 如果是特定频道，可以根据频道ID筛选相关的筛选器类型
-      let filterTypes;
-      if (channelId && channelId !== '0' && channelId !== '1') {
-        // 对于特定频道，可以根据业务需求筛选特定的筛选器类型
-        // 这里先获取所有筛选器，后续可以根据实际需求进行筛选
-        filterTypes = await this.filterTypeRepo.find({
-          relations: ['options'],
-          order: { sortOrder: 'ASC' },
-        });
-      } else {
-        // 默认获取所有筛选器类型及其选项
-        filterTypes = await this.filterTypeRepo.find({
-          relations: ['options'],
-          order: { sortOrder: 'ASC' },
-        });
-      }
+      // 获取所有筛选器类型及其选项，按照固定的位置顺序排序
+      const filterTypes = await this.filterTypeRepo.find({
+        relations: ['options'],
+        where: { isActive: true },
+        order: { indexPosition: 'ASC' }, // ✅ 使用 indexPosition 确保位置顺序
+      });
 
       const filterGroups: FilterTagGroup[] = [];
 
@@ -75,32 +64,23 @@ export class FilterService {
 
         // 添加筛选器选项
         if (filterType.options && filterType.options.length > 0) {
-          const sortedOptions = filterType.options.sort((a, b) => a.sortOrder - b.sortOrder);
+          // ✅ 按 display_order 排序，这是关键修改
+          const sortedOptions = filterType.options
+            .filter(option => option.isActive) // 只显示活跃选项
+            .sort((a, b) => (a.displayOrder || a.sortOrder || 0) - (b.displayOrder || b.sortOrder || 0));
           
-          // 根据频道ID筛选相关选项
-          let filteredOptions = sortedOptions;
-          if (channelId && channelId !== '0' && channelId !== '1') {
-            // 根据频道ID筛选特定的选项
-            // 例如：频道2只显示前3个选项，频道3只显示前5个选项等
-            const channelNum = parseInt(channelId);
-            if (channelNum === 2) {
-              filteredOptions = sortedOptions.slice(0, Math.min(3, sortedOptions.length));
-            } else if (channelNum === 3) {
-              filteredOptions = sortedOptions.slice(0, Math.min(5, sortedOptions.length));
-            } else if (channelNum >= 4) {
-              // 其他频道显示所有选项但顺序可能不同
-              filteredOptions = [...sortedOptions].reverse();
+          for (const option of sortedOptions) {
+            // ✅ 关键修改：使用 display_order 作为 classifyId 和 index
+            const displayOrder = option.displayOrder || option.sortOrder || 0;
+            
+            if (displayOrder > 0) { // 只显示有效的显示顺序
+              items.push({
+                index: displayOrder,           // ✅ 使用 display_order 作为前端标识
+                classifyId: displayOrder,      // ✅ 使用 display_order 作为筛选标识（对应ids中的数字）
+                classifyName: option.name,
+                isDefaultSelect: false,
+              });
             }
-          }
-          
-          for (let i = 0; i < filteredOptions.length; i++) {
-            const option = filteredOptions[i];
-            items.push({
-              index: i + 1,
-              classifyId: option.id,
-              classifyName: option.name,
-              isDefaultSelect: false,
-            });
           }
         }
 
@@ -118,8 +98,8 @@ export class FilterService {
         msg: null,
       };
 
-      // 缓存结果（缩短缓存时间以便测试）
-      await this.cacheManager.set(cacheKey, response, CacheKeys.TTL.SHORT);
+      // 缓存结果
+      await this.cacheManager.set(cacheKey, response, CacheKeys.TTL.MEDIUM);
       
       return response;
     } catch (error) {
@@ -312,17 +292,17 @@ export class FilterService {
       const optionId = idsArray[i];
 
       if (optionId > 0) {
-        // 根据filter_type和sort_order查找对应的选项
+        // ✅ 关键修改：根据filter_type和display_order查找对应的选项
         const option = await this.filterOptionRepo.findOne({
           where: { 
             filterTypeId: filterType.id,
-            sortOrder: optionId,
+            displayOrder: optionId, // ✅ 使用 display_order 而不是 sort_order
             isActive: true
           }
         });
 
         if (option) {
-          console.log(`[DEBUG] 应用筛选: ${filterType.code}, sort_order: ${optionId}, option_id: ${option.id}, option_name: ${option.name}`);
+          console.log(`[DEBUG] 应用筛选: ${filterType.code}, display_order: ${optionId}, option_id: ${option.id}, option_name: ${option.name}`);
           // 当 channeid 为数值且 > 0 时，忽略 ids 中的类型(type)筛选，避免与频道分类冲突
           const isNumericChannel = /^\d+$/.test(channelId);
           const hasChannelCategory = isNumericChannel && parseInt(channelId, 10) > 0;
@@ -353,7 +333,7 @@ export class FilterService {
               break;
           }
         } else {
-          console.log(`[DEBUG] 未找到筛选选项: filter_type_id=${filterType.id}, sort_order=${optionId}`);
+          console.log(`[DEBUG] 未找到筛选选项: filter_type_id=${filterType.id}, display_order=${optionId}`);
         }
       }
     }

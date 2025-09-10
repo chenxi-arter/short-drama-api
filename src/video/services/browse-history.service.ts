@@ -102,15 +102,15 @@ export class BrowseHistoryService {
   }
 
   /**
-   * 获取用户的浏览记录
+   * 获取用户的浏览记录（优化版 - 默认10条，包含详细观看信息）
    * @param userId 用户ID
    * @param page 页码
-   * @param size 每页大小
+   * @param size 每页大小（默认10条）
    */
   async getUserBrowseHistory(
     userId: number,
     page: number = 1,
-    size: number = 20
+    size: number = 10  // ✅ 修改默认值为10
   ): Promise<{
     list: any[];
     total: number;
@@ -129,8 +129,11 @@ export class BrowseHistoryService {
 
       const offset = (page - 1) * size;
       
+      // 使用关联查询获取完整的系列信息和分类信息
       const [browseHistories, total] = await this.browseHistoryRepo
         .createQueryBuilder('bh')
+        .leftJoinAndSelect('bh.series', 'series')
+        .leftJoinAndSelect('series.category', 'category')
         .where('bh.userId = :userId', { userId })
         .orderBy('bh.updatedAt', 'DESC')
         .skip(offset)
@@ -141,15 +144,18 @@ export class BrowseHistoryService {
         list: browseHistories.map(bh => ({
           id: bh.id,
           seriesId: bh.seriesId,
-          seriesTitle: `系列${bh.seriesId}`, // 临时标题
-          seriesShortId: '',
-          seriesCoverUrl: '',
-          categoryName: '',
+          seriesTitle: bh.series?.title || `系列${bh.seriesId}`, // 使用真实标题，fallback到临时标题
+          seriesShortId: bh.series?.shortId || '', // 使用真实shortId
+          seriesCoverUrl: bh.series?.coverUrl || '', // 使用真实封面URL
+          categoryName: bh.series?.category?.name || '', // 使用真实分类名称
           browseType: bh.browseType,
+          browseTypeDesc: this.getBrowseTypeDescription(bh.browseType), // ✅ 新增：浏览类型描述
           lastEpisodeNumber: bh.lastEpisodeNumber,
+          lastEpisodeTitle: bh.lastEpisodeNumber ? `第${bh.lastEpisodeNumber}集` : null, // ✅ 新增：集数标题
           visitCount: bh.visitCount,
           lastVisitTime: bh.updatedAt,
-          durationSeconds: bh.durationSeconds
+          durationSeconds: bh.durationSeconds,
+          watchStatus: this.getWatchStatus(bh.browseType, bh.lastEpisodeNumber) // ✅ 新增：观看状态
         })),
         total,
         page,
@@ -185,8 +191,11 @@ export class BrowseHistoryService {
         return cached as any[];
       }
 
+      // 使用关联查询获取完整的系列信息和分类信息
       const recentBrowsed = await this.browseHistoryRepo
         .createQueryBuilder('bh')
+        .leftJoinAndSelect('bh.series', 'series')
+        .leftJoinAndSelect('series.category', 'category')
         .where('bh.userId = :userId', { userId })
         .orderBy('bh.updatedAt', 'DESC')
         .take(limit)
@@ -194,10 +203,10 @@ export class BrowseHistoryService {
 
       const result = recentBrowsed.map(bh => ({
         seriesId: bh.seriesId,
-        seriesTitle: `系列${bh.seriesId}`, // 临时标题
-        seriesShortId: '',
-        seriesCoverUrl: '',
-        categoryName: '',
+        seriesTitle: bh.series?.title || `系列${bh.seriesId}`, // 使用真实标题，fallback到临时标题
+        seriesShortId: bh.series?.shortId || '', // 使用真实shortId
+        seriesCoverUrl: bh.series?.coverUrl || '', // 使用真实封面URL
+        categoryName: bh.series?.category?.name || '', // 使用真实分类名称
         lastEpisodeNumber: bh.lastEpisodeNumber,
         lastVisitTime: bh.updatedAt,
         visitCount: bh.visitCount
@@ -422,6 +431,33 @@ export class BrowseHistoryService {
     } catch (error) {
       console.error('通过ShortID查找系列失败:', error);
       return null;
+    }
+  }
+
+  /**
+   * ✅ 新增：获取浏览类型描述
+   */
+  private getBrowseTypeDescription(browseType: string): string {
+    const descriptions = {
+      'episode_list': '浏览剧集列表',
+      'episode_watch': '观看剧集', // ✅ 新的类型
+      'series_detail': '查看系列详情',
+      'search': '搜索浏览',
+      'category': '分类浏览'
+    };
+    return descriptions[browseType] || '未知浏览';
+  }
+
+  /**
+   * ✅ 新增：获取观看状态
+   */
+  private getWatchStatus(browseType: string, lastEpisodeNumber: number | null): string {
+    if (browseType === 'episode_watch' && lastEpisodeNumber) {
+      return `正在观看第${lastEpisodeNumber}集`;
+    } else if (browseType === 'episode_list') {
+      return lastEpisodeNumber ? `浏览到第${lastEpisodeNumber}集` : '浏览剧集列表';
+    } else {
+      return '浏览中';
     }
   }
 }
