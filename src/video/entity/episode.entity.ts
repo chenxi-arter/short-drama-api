@@ -104,6 +104,24 @@ export class Episode {
   @Column({ type: 'int', default: 0, name: 'play_count' })
   playCount: number;
 
+  /**
+   * 点赞数（喜欢）
+   */
+  @Column({ type: 'int', default: 0, name: 'like_count' })
+  likeCount: number;
+
+  /**
+   * 点踩数（不喜欢）
+   */
+  @Column({ type: 'int', default: 0, name: 'dislike_count' })
+  dislikeCount: number;
+
+  /**
+   * 收藏数
+   */
+  @Column({ type: 'int', default: 0, name: 'favorite_count' })
+  favoriteCount: number;
+
   /** 
    * 创建时间 
    * 记录剧集创建的时间戳

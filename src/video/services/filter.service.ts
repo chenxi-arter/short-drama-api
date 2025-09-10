@@ -53,14 +53,8 @@ export class FilterService {
       const filterGroups: FilterTagGroup[] = [];
 
       for (const filterType of filterTypes) {
-        const items: FilterTagItem[] = [
-          {
-            index: 0,
-            classifyId: 0,
-            classifyName: '全部',
-            isDefaultSelect: true,
-          },
-        ];
+        // 不再注入默认“全部(0)”，完全依据数据库选项返回
+        const items: FilterTagItem[] = [];
 
         // 添加筛选器选项
         if (filterType.options && filterType.options.length > 0) {
@@ -70,17 +64,14 @@ export class FilterService {
             .sort((a, b) => (a.displayOrder || a.sortOrder || 0) - (b.displayOrder || b.sortOrder || 0));
           
           for (const option of sortedOptions) {
-            // ✅ 关键修改：使用 display_order 作为 classifyId 和 index
+            // ✅ 使用 display_order 作为 classifyId 和 index（允许 0 显示，用于DB中的“全部...”）
             const displayOrder = option.displayOrder || option.sortOrder || 0;
-            
-            if (displayOrder > 0) { // 只显示有效的显示顺序
-              items.push({
-                index: displayOrder,           // ✅ 使用 display_order 作为前端标识
-                classifyId: displayOrder,      // ✅ 使用 display_order 作为筛选标识（对应ids中的数字）
-                classifyName: option.name,
-                isDefaultSelect: false,
-              });
-            }
+            items.push({
+              index: displayOrder,
+              classifyId: displayOrder,
+              classifyName: option.name,
+              isDefaultSelect: displayOrder === 0,
+            });
           }
         }
 

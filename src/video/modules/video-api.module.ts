@@ -14,6 +14,7 @@ import { CommentController } from '../controllers/comment.controller';
 import { UrlController } from '../controllers/url.controller';
 import { ContentController } from '../controllers/content.controller';
 import { PublicBrowseHistoryController } from '../controllers/public-browse-history.controller';
+import { InteractionController } from '../controllers/interaction.controller';
 import { VideoService } from '../video.service';
 import { CommentService } from '../services/comment.service';
 import { PlaybackService } from '../services/playback.service';
@@ -32,6 +33,7 @@ import { IngestService } from '../services/ingest.service';
 import { AppLoggerService } from '../../common/logger/app-logger.service';
 import { AppConfigService } from '../../common/config/app-config.service';
 import { PlayCountService } from '../services/play-count.service';
+import { EpisodeInteractionService } from '../services/episode-interaction.service';
 import { CatalogModule } from './catalog.module';
 import { SeriesModule } from './series.module';
 import { EpisodeModule } from './episode.module';
@@ -76,6 +78,7 @@ import { BrowseHistory } from '../entity/browse-history.entity';
     UrlController,
     ContentController,
     PublicBrowseHistoryController,
+    InteractionController,
   ],
   providers: [
     VideoService,
@@ -85,6 +88,7 @@ import { BrowseHistory } from '../entity/browse-history.entity';
     MediaService,
     UrlService,
     PlayCountService,
+    EpisodeInteractionService,
     FilterService,
     SeriesService,
     EpisodeService,
