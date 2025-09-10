@@ -285,13 +285,50 @@ export class CategoryService {
   }
 
   /**
+   * 获取原始分类数据（直接返回Category数组）
+   * @returns 原始分类数据数组
+   */
+  async getRawCategories() {
+    const cacheKey = 'categories:raw';
+    const startTime = Date.now();
+
+    try {
+      // 尝试从缓存获取
+      const cached = await this.cacheManager.get(cacheKey);
+      if (cached) {
+        this.logger.logCacheOperation('GET', cacheKey, true);
+        return cached;
+      }
+      this.logger.logCacheOperation('GET', cacheKey, false);
+
+      // 从数据库查询启用的分类
+      const categories = await this.categoryRepo.find({
+        where: { isEnabled: true },
+        order: { id: 'ASC' }
+      });
+
+      const duration = Date.now() - startTime;
+      this.logger.logDatabaseOperation('SELECT', 'category', { count: categories.length }, duration);
+
+      // 存入缓存（缓存1小时）
+      await this.cacheManager.set(cacheKey, categories, CacheKeys.TTL.LONG);
+      this.logger.logCacheOperation('SET', cacheKey, undefined, CacheKeys.TTL.LONG);
+
+      return categories;
+    } catch (error) {
+      this.logger.error('获取原始分类数据失败', error.stack);
+      throw new Error('获取原始分类数据失败');
+    }
+  }
+
+  /**
    * 获取分类列表（用于前端接口）
    * 返回格式化的分类列表数据
    */
   async getCategoryList(versionNo?: number) {
     const cacheKey = CacheKeys.categories() + ':list';
     const startTime = Date.now();
-    
+
     try {
       // 尝试从缓存获取
       const cached = await this.cacheManager.get(cacheKey);
@@ -306,7 +343,7 @@ export class CategoryService {
         where: { isEnabled: true },
         order: { categoryId: 'ASC' }
       });
-      
+
       const duration = Date.now() - startTime;
       this.logger.logDatabaseOperation('SELECT', 'category', { count: categories.length }, duration);
 
@@ -329,7 +366,7 @@ export class CategoryService {
       // 存入缓存（缓存1小时）
       await this.cacheManager.set(cacheKey, result, CacheKeys.TTL.LONG);
       this.logger.logCacheOperation('SET', cacheKey, undefined, CacheKeys.TTL.LONG);
-      
+
       return result;
     } catch (error) {
       this.logger.error('获取分类列表失败', error.stack);

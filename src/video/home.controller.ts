@@ -1,13 +1,17 @@
 import { Controller, Get } from '@nestjs/common';
 import { VideoService } from './video.service';
 import { BaseModuleController } from './base-module.controller';
+import { CategoryService } from './services/category.service';
 
 /**
  * 首页相关控制器
  */
 @Controller('home')
 export class HomeController extends BaseModuleController {
-  constructor(videoService: VideoService) {
+  constructor(
+    videoService: VideoService,
+    private readonly categoryService: CategoryService
+  ) {
     super(videoService);
   }
 
@@ -27,10 +31,10 @@ export class HomeController extends BaseModuleController {
 
   /**
    * 获取所有分类列表
-   * @returns 所有可用的视频分类
+   * @returns 所有可用的视频分类数组
    */
   @Get('categories')
   async getCategories() {
-    return this.videoService.listCategories();
+    return this.categoryService.getRawCategories();
   }
 }
