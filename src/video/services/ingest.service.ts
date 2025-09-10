@@ -23,7 +23,7 @@ export class IngestService {
   ) {}
 
   /**
-   * 根据剧集进度自动更新 upStatus/upCount/totalEpisodes
+   * 根据剧集进度自动更新 upStatus/totalEpisodes（upCount 改为实时计算，不再持久化）
    */
   private async updateSeriesProgress(seriesId: number, isCompleted?: boolean, status?: string) {
     const episodes = await this.episodeRepo.find({ where: { seriesId } });
@@ -38,8 +38,7 @@ export class IngestService {
     const upStatus = completed
       ? '已完结'
       : (maxEpisodeNumber > 0 ? `更新至第${maxEpisodeNumber}集` : '未发布');
-    const upCount = maxEpisodeNumber;
-    await this.seriesRepo.update(seriesId, { totalEpisodes: total, upStatus, upCount });
+    await this.seriesRepo.update(seriesId, { totalEpisodes: total, upStatus });
   }
 
   /**
@@ -215,7 +214,7 @@ export class IngestService {
       }
     }
 
-    // 自动更新进度（upStatus/upCount/totalEpisodes）
+    // 自动更新进度（upStatus/totalEpisodes）
     await this.updateSeriesProgress(series.id, series.isCompleted);
 
     // 如果传入 status=deleted，则做软删除标记
@@ -347,20 +346,19 @@ export class IngestService {
       }
     }
 
-    // 自动更新进度（upStatus/upCount/totalEpisodes）
+    // 自动更新进度（upStatus/totalEpisodes）
     await this.updateSeriesProgress(series.id, (update.isCompleted ?? series.isCompleted));
 
     return { seriesId: series.id, shortId: series.shortId, externalId: series.externalId ?? null };
   }
 
   /**
-   * 根据 externalId 获取系列进度信息（upCount、upStatus、totalEpisodes 等）
+   * 根据 externalId 获取系列进度信息（upStatus、totalEpisodes 等）
    */
   async getSeriesProgressByExternalId(externalId: string): Promise<{
     seriesId: number;
     shortId: string | null;
     externalId: string | null;
-    upCount: number;
     upStatus: string | null;
     totalEpisodes: number;
     isCompleted: boolean;
@@ -382,7 +380,6 @@ export class IngestService {
       seriesId: refreshed!.id,
       shortId: refreshed!.shortId ?? null,
       externalId: refreshed!.externalId ?? null,
-      upCount: refreshed!.upCount,
       upStatus: refreshed!.upStatus ?? null,
       totalEpisodes: refreshed!.totalEpisodes,
       isCompleted: !!refreshed!.isCompleted,

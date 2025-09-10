@@ -41,6 +41,9 @@ export interface EpisodeBasicInfo {
   seriesTitle: string;           // 所属剧集标题
   seriesShortId: string;         // 所属剧集shortId
   episodeAccessKey?: string;     // 剧集级访问密钥（用于 /api/video/episode-url/:accessKey）
+  likeCount?: number;            // 点赞数
+  dislikeCount?: number;         // 点踩数
+  favoriteCount?: number;        // 收藏数
   // 播放进度相关字段（仅在有用户token时返回）
   watchProgress?: number;        // 观看进度（秒）
   watchPercentage?: number;      // 观看百分比（0-100）

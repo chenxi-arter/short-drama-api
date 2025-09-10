@@ -199,7 +199,7 @@ export class HomeService {
         type: s.category?.name || '',
         isSerial: true,
         upStatus: s.upStatus || '',
-        upCount: s.upCount || 0,
+        upCount: 0,
         author: s.starring || '',
         description: s.description || '',
         cidMapper: s.categoryId?.toString() || '',

@@ -270,7 +270,7 @@ export class MediaService {
         type: s.category?.name || '',
         isSerial: true,
         upStatus: s.upStatus || '',
-        upCount: s.upCount || 0,
+        upCount: 0, // 已弃用字段，列表不再依赖
         author: s.starring || '',
         description: s.description || '',
         cidMapper: s.categoryId?.toString() || '',

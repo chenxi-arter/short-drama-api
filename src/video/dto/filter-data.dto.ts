@@ -36,6 +36,9 @@ export interface FilterDataItem {
   isSerial: boolean;   // 是否是系列剧集
   upStatus: string;    // 更新状态
   upCount: number;     // 更新次数
+  likeCount?: number;        // 点赞数（系列级聚合）
+  dislikeCount?: number;     // 点踩数（系列级聚合）
+  favoriteCount?: number;    // 收藏数（系列级聚合）
   author: string;      // 作者/主演
   description: string; // 描述
   cidMapper: string;   // 分类映射

@@ -1,11 +1,12 @@
 import { Injectable, Inject } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
 import { FilterType } from '../entity/filter-type.entity';
 import { FilterOption } from '../entity/filter-option.entity';
 import { Series } from '../entity/series.entity';
+import { Episode } from '../entity/episode.entity';
 import { FilterTagsResponse, FilterTagGroup, FilterTagItem } from '../dto/filter-tags.dto';
 import { FilterDataResponse, FilterDataItem } from '../dto/filter-data.dto';
 import { FuzzySearchResponse, FuzzySearchItem } from '../dto/fuzzy-search.dto';
@@ -25,6 +26,8 @@ export class FilterService {
     private readonly filterOptionRepo: Repository<FilterOption>,
     @InjectRepository(Series)
     private readonly seriesRepo: Repository<Series>,
+    @InjectRepository(Episode)
+    private readonly episodeRepo: Repository<Episode>,
     @Inject(CACHE_MANAGER)
     private readonly cacheManager: Cache,
   ) {}
@@ -169,6 +172,55 @@ export class FilterService {
         return response;
       }
 
+      // 计算当日（或昨日）新增集数作为 upCountToday
+      const seriesIds = series.map(s => s.id);
+      const now = new Date();
+      const tzOffsetMs = now.getTimezoneOffset() * 60000;
+      const localNow = new Date(now.getTime() - tzOffsetMs);
+      // 计算当天 00:00 和 明天 00:00（本地）
+      const dayStartLocal = new Date(localNow.getFullYear(), localNow.getMonth(), localNow.getDate());
+      const dayEndLocal = new Date(localNow.getFullYear(), localNow.getMonth(), localNow.getDate() + 1);
+      const dayStart = new Date(dayStartLocal.getTime() + tzOffsetMs);
+      const dayEnd = new Date(dayEndLocal.getTime() + tzOffsetMs);
+
+      let upCountMap: Record<number, number> = {};
+      if (seriesIds.length > 0) {
+        const rows = await this.episodeRepo.createQueryBuilder('ep')
+          .select('ep.series_id', 'seriesId')
+          .addSelect('COUNT(*)', 'cnt')
+          .where('ep.series_id IN (:...ids)', { ids: seriesIds })
+          .andWhere('ep.status = :published', { published: 'published' })
+          .andWhere('ep.created_at >= :start AND ep.created_at < :end', { start: dayStart, end: dayEnd })
+          .groupBy('ep.series_id')
+          .getRawMany();
+        upCountMap = rows.reduce((acc: Record<number, number>, r: any) => {
+          acc[Number(r.seriesId)] = Number(r.cnt) || 0;
+          return acc;
+        }, {});
+      }
+
+      // 统计系列下三项计数（按所有已发布集聚合）
+      let statMap: Record<number, { like: number; dislike: number; favorite: number }> = {};
+      if (seriesIds.length > 0) {
+        const rows2 = await this.episodeRepo.createQueryBuilder('ep')
+          .select('ep.series_id', 'seriesId')
+          .addSelect('SUM(ep.like_count)', 'likeSum')
+          .addSelect('SUM(ep.dislike_count)', 'dislikeSum')
+          .addSelect('SUM(ep.favorite_count)', 'favoriteSum')
+          .where('ep.series_id IN (:...ids)', { ids: seriesIds })
+          .andWhere('ep.status = :published', { published: 'published' })
+          .groupBy('ep.series_id')
+          .getRawMany();
+        statMap = rows2.reduce((acc: Record<number, { like: number; dislike: number; favorite: number }>, r: any) => {
+          acc[Number(r.seriesId)] = {
+            like: Number(r.likeSum) || 0,
+            dislike: Number(r.dislikeSum) || 0,
+            favorite: Number(r.favoriteSum) || 0,
+          };
+          return acc;
+        }, {});
+      }
+
       // 转换为响应格式
       const items: FilterDataItem[] = series.map(s => ({
         id: s.id,
@@ -181,7 +233,10 @@ export class FilterService {
         type: s.category?.name || '未分类', // 使用分类名称作为类型
         isSerial: (s.totalEpisodes && s.totalEpisodes > 1) || false,
         upStatus: s.upStatus || (s.statusOption?.name ? `${s.statusOption.name}` : '已完结'),
-        upCount: s.upCount || 0,
+        upCount: upCountMap[s.id] ?? 0,
+        likeCount: statMap[s.id]?.like ?? 0,
+        dislikeCount: statMap[s.id]?.dislike ?? 0,
+        favoriteCount: statMap[s.id]?.favorite ?? 0,
         author: s.starring || s.actor || '', // 使用主演或演员作为作者
         description: s.description || '', // 使用描述字段
         cidMapper: s.category?.id?.toString() || '0',
@@ -513,7 +568,7 @@ export class FilterService {
         type: s.category?.name || '未分类', // 使用分类名称作为类型
         isSerial: (s.episodes && s.episodes.length > 1) || false,
         upStatus: s.upStatus || (s.statusOption?.name ? `${s.statusOption.name}` : '已完结'),
-        upCount: s.upCount || 0,
+        upCount: 0,
         author: s.starring || s.actor || '', // 使用主演或演员作为作者
         description: s.description || '', // 使用描述字段
         cidMapper: s.category?.id?.toString() || '0',
