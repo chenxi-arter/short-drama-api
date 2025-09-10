@@ -43,11 +43,21 @@ export class FilterService {
     }
 
     try {
-      // 获取所有筛选器类型及其选项，按照固定的位置顺序排序
-      const filterTypes = await this.filterTypeRepo.find({
-        relations: ['options'],
-        where: { isActive: true },
-        order: { indexPosition: 'ASC' }, // ✅ 使用 indexPosition 确保位置顺序
+      // 使用 QueryBuilder 来确保正确的关联查询和过滤
+      const filterTypes = await this.filterTypeRepo
+        .createQueryBuilder('filterType')
+        .leftJoinAndSelect('filterType.options', 'option', 'option.isActive = :isActive', { isActive: true })
+        .where('filterType.isActive = :isActive', { isActive: true })
+        .orderBy('filterType.indexPosition', 'ASC')
+        .addOrderBy('option.displayOrder', 'ASC')
+        .getMany();
+
+      console.log('DEBUG: Raw query results:');
+      filterTypes.forEach((ft, i) => {
+        console.log(`  ${i+1}. FilterType ${ft.id} - ${ft.name} (${ft.options?.length || 0} options)`);
+        ft.options?.forEach((opt, j) => {
+          console.log(`    ${j+1}. Option ${opt.id}: ${opt.name} (display_order: ${opt.displayOrder}, filter_type_id: ${opt.filterTypeId})`);
+        });
       });
 
       const filterGroups: FilterTagGroup[] = [];
@@ -64,13 +74,14 @@ export class FilterService {
             .sort((a, b) => (a.displayOrder || a.sortOrder || 0) - (b.displayOrder || b.sortOrder || 0));
           
           for (const option of sortedOptions) {
-            // ✅ 使用 display_order 作为 classifyId 和 index（允许 0 显示，用于DB中的“全部...”）
-            const displayOrder = option.displayOrder || option.sortOrder || 0;
+            
+            // ✅ 使用 display_order 作为 classifyId 和 index（允许 0 显示，用于DB中的"全部..."）
+            const displayOrder = option.displayOrder !== null && option.displayOrder !== undefined ? option.displayOrder : (option.sortOrder || 0);
             items.push({
               index: displayOrder,
               classifyId: displayOrder,
               classifyName: option.name,
-              isDefaultSelect: displayOrder === 0,
+              isDefaultSelect: option.isDefault || displayOrder === 0,
             });
           }
         }
