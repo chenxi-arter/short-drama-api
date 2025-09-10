@@ -10,35 +10,37 @@ export abstract class BaseController {
    * 成功响应
    * @param data 数据
    * @param message 消息
-   * @param ret 状态码
+   * @param code 状态码
    */
   protected success<T = any>(
     data: T,
     message: string | null = null,
-    ret: number = 200
+    code: number = 200
   ): ApiResponse<T> {
     return {
-      ret,
+      code,
       data,
-      msg: message
+      message,
+      timestamp: new Date().toISOString()
     };
   }
 
   /**
    * 错误响应
    * @param message 错误消息
-   * @param ret 错误码
+   * @param code 错误码
    * @param status HTTP状态码
    */
   protected error(
     message: string = 'error',
-    ret: number = 500,
+    code: number = 500,
     status: HttpStatus = HttpStatus.INTERNAL_SERVER_ERROR
   ): ApiResponse<null> {
     throw new HttpException({
-      ret,
+      code,
       data: null,
-      msg: message
+      message,
+      timestamp: new Date().toISOString()
     }, status);
   }
 
@@ -58,7 +60,7 @@ export abstract class BaseController {
     message: string | null = null
   ): PaginatedApiResponse<T> {
     return {
-      ret: 200,
+      code: 200,
       data: {
         list: data,
         total,
@@ -66,7 +68,8 @@ export abstract class BaseController {
         size,
         hasMore: total > page * size
       },
-      msg: message
+      message,
+      timestamp: new Date().toISOString()
     };
   }
 
@@ -153,9 +156,10 @@ export abstract class BaseController {
  * API响应接口
  */
 export interface ApiResponse<T = any> {
-  ret: number;
+  code: number;
   data: T;
-  msg: string | null;
+  message: string | null;
+  timestamp: string;
 }
 
 /**
@@ -169,8 +173,6 @@ export interface PaginatedApiResponse<T = any> extends ApiResponse {
     size: number;
     hasMore: boolean;
   };
-  ret: number;
-  msg: string | null;
 }
 
 /**

@@ -333,7 +333,7 @@ export class VideoController extends BaseController {
           req.user?.userId,
           req
         );
-        return this.success(result, '获取剧集列表成功');
+        return result;
       } else if (dto.seriesId) {
         const result = await this.videoService.getEpisodeList(
           dto.seriesId,
@@ -343,7 +343,7 @@ export class VideoController extends BaseController {
           req.user?.userId,
           req
         );
-        return this.success(result, '获取剧集列表成功');
+        return result;
       } else {
         const result = await this.videoService.getEpisodeList(
           undefined,
@@ -353,7 +353,7 @@ export class VideoController extends BaseController {
           req.user?.userId,
           req
         );
-        return this.success(result, '获取剧集列表成功');
+        return result;
       }
     } catch (error) {
       return this.handleServiceError(error, '获取剧集列表失败');
