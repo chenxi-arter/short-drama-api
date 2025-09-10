@@ -9,6 +9,7 @@ import { AccessKeyUtil } from '../../shared/utils/access-key.util';
 import { UpdateIngestSeriesDto } from '../dto/update-ingest-series.dto';
 import { FilterType } from '../entity/filter-type.entity';
 import { FilterOption } from '../entity/filter-option.entity';
+import { FilterService } from './filter.service';
 
 @Injectable()
 export class IngestService {
@@ -18,6 +19,7 @@ export class IngestService {
     @InjectRepository(EpisodeUrl) private readonly urlRepo: Repository<EpisodeUrl>,
     @InjectRepository(FilterType) private readonly filterTypeRepo: Repository<FilterType>,
     @InjectRepository(FilterOption) private readonly filterOptionRepo: Repository<FilterOption>,
+    private readonly filterService: FilterService,
   ) {}
 
   /**
@@ -86,9 +88,16 @@ export class IngestService {
     });
     
     const saved = await this.filterOptionRepo.save(created);
-    
+
     console.log(`[INGEST] 创建新筛选选项: ${typeCode}/${name}, display_order: ${nextDisplayOrder}, id: ${saved.id}`);
-    
+
+    // ✅ 新增选项后清理筛选器标签缓存，确保前端立刻能拉到新标签
+    try {
+      await this.filterService.clearAllFilterTagsCache();
+    } catch (e) {
+      console.warn('[INGEST] 清理筛选器标签缓存失败（忽略）:', e?.message || e);
+    }
+
     return saved.id;
   }
 

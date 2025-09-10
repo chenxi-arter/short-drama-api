@@ -137,8 +137,8 @@ export class FilterService {
       // 构建查询条件
       const queryBuilder = this.seriesRepo.createQueryBuilder('series')
         .leftJoinAndSelect('series.category', 'category')
-        .leftJoinAndSelect('series.episodes', 'episodes')
-        .where('series.isActive = :isActive', { isActive: 1 }); // 只查询未删除的剧集
+        .where('series.isActive = :isActive', { isActive: 1 }) // 只查询未删除的剧集
+        .distinct(true); // 避免联结导致的重复行
 
       // 应用筛选条件
       await this.applyFilters(queryBuilder, filterIds, channelId);
@@ -173,7 +173,7 @@ export class FilterService {
         playCount: s.playCount || 0,
         url: s.id.toString(), // 使用ID作为URL
         type: s.category?.name || '未分类', // 使用分类名称作为类型
-        isSerial: (s.episodes && s.episodes.length > 1) || false,
+        isSerial: (s.totalEpisodes && s.totalEpisodes > 1) || false,
         upStatus: s.upStatus || '已完结',
         upCount: s.upCount || 0,
         author: s.starring || s.actor || '', // 使用主演或演员作为作者
@@ -270,9 +270,9 @@ export class FilterService {
     // 频道筛选
     FilterQueryBuilderUtil.applyChannel(queryBuilder, channelId);
 
-    // 动态获取filter_types按sort_order排序的映射
+    // 动态获取 filter_types，按 indexPosition 排序，确保与前端 ids 顺序一致
     const filterTypes = await this.filterTypeRepo.find({
-      order: { sortOrder: 'ASC' },
+      order: { indexPosition: 'ASC' },
       where: { isActive: true }
     });
 
@@ -334,6 +334,8 @@ export class FilterService {
           }
         } else {
           console.log(`[DEBUG] 未找到筛选选项: filter_type_id=${filterType.id}, display_order=${optionId}`);
+          // 当 ids 指定了非零选项，但该选项不存在时，返回空结果
+          queryBuilder.andWhere('1 = 0');
         }
       }
     }
