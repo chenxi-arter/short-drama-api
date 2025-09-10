@@ -48,7 +48,7 @@ export class UrlController extends BaseController {
         subtitleUrl?.trim()
       );
 
-      return this.success(result, '播放地址创建成功');
+      return this.success(result, '播放地址创建成功', 200);
     } catch (error) {
       return this.handleServiceError(error, '创建播放地址失败');
     }
@@ -65,7 +65,7 @@ export class UrlController extends BaseController {
       }
 
       const result = await this.videoService.getEpisodeUrlByAccessKey(accessKey.trim());
-      return this.success(result, '获取播放地址成功');
+      return this.success(result, '获取播放地址成功', 200);
     } catch (error) {
       return this.handleServiceError(error, '获取播放地址失败');
     }
@@ -87,13 +87,13 @@ export class UrlController extends BaseController {
         }
         const prefix = normalized === 'episode' ? 'ep' : 'url';
         const result = await this.videoService.getEpisodeUrlByKey(prefix, String(accessKey));
-        return this.success(result, '获取播放地址成功');
+        return this.success(result, '获取播放地址成功', 200);
       }
 
       if (key && typeof key === 'string' && key.includes(':')) {
         const [prefix, raw] = key.split(':', 2);
         const result = await this.videoService.getEpisodeUrlByKey(prefix, raw);
-        return this.success(result, '获取播放地址成功');
+        return this.success(result, '获取播放地址成功', 200);
       }
 
       return this.error("请求体应包含{type:'episode'|'url', accessKey}，或兼容的{key:'ep:<accessKey>'}格式", 400);
@@ -120,7 +120,7 @@ export class UrlController extends BaseController {
       }
 
       const result = await this.videoService.updateEpisodeSequel(episodeId, hasSequel);
-      return this.success(result, '续集状态更新成功');
+      return this.success(result, '续集状态更新成功', 200);
     } catch (error) {
       return this.handleServiceError(error, '更新续集状态失败');
     }
@@ -133,7 +133,7 @@ export class UrlController extends BaseController {
   async generateAccessKeysForExisting() {
     try {
       const result = await this.videoService.generateAccessKeysForExisting();
-      return this.success(result, '访问密钥生成完成');
+      return this.success(result, '访问密钥生成完成', 200);
     } catch (error) {
       return this.handleServiceError(error, '生成访问密钥失败');
     }

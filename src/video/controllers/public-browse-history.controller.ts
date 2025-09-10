@@ -32,7 +32,7 @@ export class PublicBrowseHistoryController extends BaseController {
         message: '热门浏览记录功能开发中'
       };
 
-      return this.success(result, '获取热门浏览记录成功');
+      return this.success(result, '获取热门浏览记录成功', 200);
     } catch (error) {
       return this.handleServiceError(error, '获取热门浏览记录失败');
     }
@@ -53,7 +53,7 @@ export class PublicBrowseHistoryController extends BaseController {
         message: '浏览统计功能开发中'
       };
 
-      return this.success(result, '获取浏览统计成功');
+      return this.success(result, '获取浏览统计成功', 200);
     } catch (error) {
       return this.handleServiceError(error, '获取浏览统计失败');
     }
@@ -78,7 +78,7 @@ export class PublicBrowseHistoryController extends BaseController {
         message: '推荐内容功能开发中'
       };
 
-      return this.success(result, '获取推荐内容成功');
+      return this.success(result, '获取推荐内容成功', 200);
     } catch (error) {
       return this.handleServiceError(error, '获取推荐内容失败');
     }

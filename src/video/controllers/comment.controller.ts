@@ -59,7 +59,7 @@ export class CommentController extends BaseController {
           content.trim(),
           appearSecond
         );
-        return this.success(result, '评论发表成功');
+        return this.success(result, '评论发表成功', 200);
       } else {
         const result = await this.videoService.addComment(
           req.user.userId,
@@ -67,7 +67,7 @@ export class CommentController extends BaseController {
           content.trim(),
           appearSecond
         );
-        return this.success(result, '评论发表成功');
+        return this.success(result, '评论发表成功', 200);
       }
     } catch (error) {
       return this.handleServiceError(error, '发表评论失败');

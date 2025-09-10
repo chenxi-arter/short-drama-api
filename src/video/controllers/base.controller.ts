@@ -10,35 +10,35 @@ export abstract class BaseController {
    * 成功响应
    * @param data 数据
    * @param message 消息
-   * @param code 状态码
+   * @param ret 状态码
    */
   protected success<T = any>(
     data: T,
-    message: string = 'success',
-    code: number = 200
+    message: string | null = null,
+    ret: number = 200
   ): ApiResponse<T> {
     return {
-      code,
-      msg: message,
-      data
+      ret,
+      data,
+      msg: message
     };
   }
 
   /**
    * 错误响应
    * @param message 错误消息
-   * @param code 错误码
+   * @param ret 错误码
    * @param status HTTP状态码
    */
   protected error(
     message: string = 'error',
-    code: number = 500,
+    ret: number = 500,
     status: HttpStatus = HttpStatus.INTERNAL_SERVER_ERROR
   ): ApiResponse<null> {
     throw new HttpException({
-      code,
-      msg: message,
-      data: null
+      ret,
+      data: null,
+      msg: message
     }, status);
   }
 
@@ -55,18 +55,18 @@ export abstract class BaseController {
     total: number,
     page: number,
     size: number,
-    message: string = 'success'
+    message: string | null = null
   ): PaginatedApiResponse<T> {
     return {
-      code: 200,
-      msg: message,
+      ret: 200,
       data: {
         list: data,
         total,
         page,
         size,
         hasMore: total > page * size
-      }
+      },
+      msg: message
     };
   }
 
@@ -153,9 +153,9 @@ export abstract class BaseController {
  * API响应接口
  */
 export interface ApiResponse<T = any> {
-  code: number;
-  msg: string;
+  ret: number;
   data: T;
+  msg: string | null;
 }
 
 /**
@@ -169,12 +169,14 @@ export interface PaginatedApiResponse<T = any> extends ApiResponse {
     size: number;
     hasMore: boolean;
   };
+  ret: number;
+  msg: string | null;
 }
 
 /**
- * 标准错误码定义
+ * 标准返回码定义
  */
-export const ErrorCodes = {
+export const RetCodes = {
   SUCCESS: 200,
   BAD_REQUEST: 400,
   UNAUTHORIZED: 401,
@@ -189,11 +191,11 @@ export const ErrorCodes = {
  * 标准错误消息
  */
 export const ErrorMessages = {
-  [ErrorCodes.BAD_REQUEST]: '请求参数错误',
-  [ErrorCodes.UNAUTHORIZED]: '未授权访问',
-  [ErrorCodes.FORBIDDEN]: '访问被拒绝',
-  [ErrorCodes.NOT_FOUND]: '资源不存在',
-  [ErrorCodes.CONFLICT]: '数据冲突',
-  [ErrorCodes.INTERNAL_ERROR]: '服务器内部错误',
-  [ErrorCodes.VALIDATION_ERROR]: '数据验证失败'
+  [RetCodes.BAD_REQUEST]: '请求参数错误',
+  [RetCodes.UNAUTHORIZED]: '未授权访问',
+  [RetCodes.FORBIDDEN]: '访问被拒绝',
+  [RetCodes.NOT_FOUND]: '资源不存在',
+  [RetCodes.CONFLICT]: '数据冲突',
+  [RetCodes.INTERNAL_ERROR]: '服务器内部错误',
+  [RetCodes.VALIDATION_ERROR]: '数据验证失败'
 } as const;

@@ -36,7 +36,7 @@ export class ContentController extends BaseController {
         size
       );
 
-      return this.success(result, '获取媒体列表成功');
+      return this.success(result, '获取媒体列表成功', 200);
     } catch (error) {
       return this.handleServiceError(error, '获取媒体列表失败');
     }
@@ -61,7 +61,7 @@ export class ContentController extends BaseController {
           req.user?.userId,
           req
         );
-        return this.success(result, '获取剧集列表成功');
+        return this.success(result, '获取剧集列表成功', 200);
       } else if (dto.seriesId) {
         const result = await this.videoService.getEpisodeList(
           dto.seriesId,
@@ -71,7 +71,7 @@ export class ContentController extends BaseController {
           req.user?.userId,
           req
         );
-        return this.success(result, '获取剧集列表成功');
+        return this.success(result, '获取剧集列表成功', 200);
       } else {
         // 如果都没有提供，返回所有剧集
         const result = await this.videoService.getEpisodeList(
@@ -82,7 +82,7 @@ export class ContentController extends BaseController {
           req.user?.userId,
           req
         );
-        return this.success(result, '获取剧集列表成功');
+        return this.success(result, '获取剧集列表成功', 200);
       }
     } catch (error) {
       return this.handleServiceError(error, '获取剧集列表失败');

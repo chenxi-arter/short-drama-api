@@ -51,7 +51,7 @@ export class ProgressController extends BaseController {
           stopAtSecond,
           req
         );
-        return this.success(result, '观看进度保存成功');
+        return this.success(result, '观看进度保存成功', 200);
       } else {
         const result = await this.videoService.saveProgressWithBrowseHistory(
           req.user.userId,
@@ -59,7 +59,7 @@ export class ProgressController extends BaseController {
           stopAtSecond,
           req
         );
-        return this.success(result, '观看进度保存成功');
+        return this.success(result, '观看进度保存成功', 200);
       }
     } catch (error) {
       return this.handleServiceError(error, '保存观看进度失败');
@@ -90,10 +90,10 @@ export class ProgressController extends BaseController {
           return this.error('剧集不存在', 404);
         }
         const result = await this.videoService.getProgress(req.user.userId, episode.id);
-        return this.success(result, '获取观看进度成功');
+        return this.success(result, '获取观看进度成功', 200);
       } else {
         const result = await this.videoService.getProgress(req.user.userId, Number(episodeIdentifier));
-        return this.success(result, '获取观看进度成功');
+        return this.success(result, '获取观看进度成功', 200);
       }
     } catch (error) {
       return this.handleServiceError(error, '获取观看进度失败');
