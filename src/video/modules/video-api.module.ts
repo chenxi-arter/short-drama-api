@@ -31,6 +31,7 @@ import { CategoryService } from '../services/category.service';
 import { IngestService } from '../services/ingest.service';
 import { AppLoggerService } from '../../common/logger/app-logger.service';
 import { AppConfigService } from '../../common/config/app-config.service';
+import { PlayCountService } from '../services/play-count.service';
 import { CatalogModule } from './catalog.module';
 import { SeriesModule } from './series.module';
 import { EpisodeModule } from './episode.module';
@@ -83,6 +84,7 @@ import { BrowseHistory } from '../entity/browse-history.entity';
     HomeService,
     MediaService,
     UrlService,
+    PlayCountService,
     FilterService,
     SeriesService,
     EpisodeService,

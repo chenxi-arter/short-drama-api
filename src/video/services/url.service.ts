@@ -1,8 +1,12 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Inject } from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Cache } from 'cache-manager';
+import { PlayCountService } from './play-count.service';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Episode } from '../entity/episode.entity';
 import { EpisodeUrl } from '../entity/episode-url.entity';
+import { Series } from '../entity/series.entity';
 import { AccessKeyUtil } from '../../shared/utils/access-key.util';
 
 /**
@@ -16,7 +20,19 @@ export class UrlService {
     private readonly episodeRepo: Repository<Episode>,
     @InjectRepository(EpisodeUrl)
     private readonly episodeUrlRepo: Repository<EpisodeUrl>,
+    @InjectRepository(Series)
+    private readonly seriesRepo: Repository<Series>,
+    @Inject(CACHE_MANAGER)
+    private readonly cacheManager: Cache,
+    private readonly playCountService: PlayCountService,
   ) {}
+
+  /**
+   * 优先使用 Redis 递增系列播放次数，失败时回退到 MySQL 原子自增
+   */
+  private async incrementSeriesPlayCount(seriesId: number): Promise<void> {
+    await this.playCountService.increment(seriesId);
+  }
 
   /**
    * 创建剧集播放地址
@@ -102,6 +118,11 @@ export class UrlService {
         throw new Error('播放地址不存在或访问密钥无效');
       }
 
+      // ✅ 访问播放地址时，优先用Redis计数，失败回退MySQL
+      if (episodeUrl.episode?.series?.id) {
+        await this.incrementSeriesPlayCount(episodeUrl.episode.series.id);
+      }
+
       return {
         code: 200,
         data: {
@@ -138,6 +159,11 @@ export class UrlService {
 
         if (!episode) {
           throw new Error('剧集不存在或访问密钥无效');
+        }
+
+        // ✅ 以剧集级 accessKey 获取播放列表时，优先用Redis计数，失败回退MySQL
+        if (episode.series?.id) {
+          await this.incrementSeriesPlayCount(episode.series.id);
         }
 
         return {

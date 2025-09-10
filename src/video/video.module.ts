@@ -45,6 +45,7 @@ import { IsValidChannelExistsConstraint } from './validators/channel-exists.vali
 import { IngestService } from './services/ingest.service';
 import { IngestController } from './controllers/ingest.controller';
 import { TestIngestController } from './controllers/test-ingest.controller';
+import { PlayCountService } from './services/play-count.service';
 @Module({
   imports: [
     RedisCacheModule,
@@ -81,6 +82,7 @@ import { TestIngestController } from './controllers/test-ingest.controller';
     HomeService,
     MediaService,
     UrlService,
+    PlayCountService,
     
     // 现有服务
     WatchProgressService,
