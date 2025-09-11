@@ -102,6 +102,16 @@ export class IngestService {
     return saved.id;
   }
 
+  /**
+   * 根据状态选项名称智能推断是否完结
+   */
+  private inferCompletedFromStatus(statusOptionName?: string): boolean {
+    if (!statusOptionName) return false;
+    const name = statusOptionName.toLowerCase();
+    const completedKeywords = ['完结', '完成', 'ended', 'finished', 'completed', '完'];
+    return completedKeywords.some(keyword => name.includes(keyword));
+  }
+
   private async resolveGenreOptionIds(payload: { genreOptionNames?: string[] }): Promise<number[]> {
     const ids = new Set<number>();
     if (Array.isArray(payload.genreOptionNames)) {
@@ -166,7 +176,7 @@ export class IngestService {
         coverUrl: payload.coverUrl,
         categoryId: payload.categoryId,
         releaseDate: payload.releaseDate ? new Date(payload.releaseDate) : undefined,
-        isCompleted: (payload.status ?? 'on-going') === 'completed',
+        isCompleted: payload.isCompleted,
         score: payload.score ?? 0,
         playCount: payload.playCount ?? 0,
         starring: payload.starring,
@@ -293,8 +303,8 @@ export class IngestService {
     if (payload.description !== undefined) update.description = payload.description;
     if (payload.coverUrl !== undefined) update.coverUrl = payload.coverUrl;
     if (payload.categoryId !== undefined) update.categoryId = payload.categoryId;
-    if (payload.status !== undefined) {
-      update.isCompleted = payload.status === 'completed';
+    if (payload.isCompleted !== undefined) {
+      update.isCompleted = payload.isCompleted;
     }
     if (payload.releaseDate !== undefined) update.releaseDate = new Date(payload.releaseDate);
     if (payload.score !== undefined) update.score = payload.score;

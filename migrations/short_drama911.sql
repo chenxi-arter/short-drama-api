@@ -11,7 +11,7 @@
  Target Server Version : 80043 (8.0.43)
  File Encoding         : 65001
 
- Date: 11/09/2025 00:47:09
+ Date: 11/09/2025 22:29:37
 */
 
 SET NAMES utf8mb4;
@@ -198,7 +198,7 @@ CREATE TABLE `episode_urls` (
   UNIQUE KEY `IDX_9f4c04c83bfc482e413a9f496d` (`access_key`) USING BTREE,
   KEY `FK_cd7538592624868a77732a822d2` (`episode_id`) USING BTREE,
   CONSTRAINT `FK_cd7538592624868a77732a822d2` FOREIGN KEY (`episode_id`) REFERENCES `episodes` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=637 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci ROW_FORMAT=DYNAMIC;
+) ENGINE=InnoDB AUTO_INCREMENT=655 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci ROW_FORMAT=DYNAMIC;
 
 -- ----------------------------
 -- Records of episode_urls
@@ -421,6 +421,24 @@ INSERT INTO `episode_urls` (`id`, `episode_id`, `quality`, `oss_url`, `cdn_url`,
 INSERT INTO `episode_urls` (`id`, `episode_id`, `quality`, `oss_url`, `cdn_url`, `origin_url`, `subtitle_url`, `access_key`, `created_at`, `updated_at`) VALUES (634, 2237, '720p', '', 'https://cdn.example.com/batch-b-ep1-720.m3u8', 'https://origin.example.com/batch-b-ep1-720', NULL, 'e4b081b30533e77dcbd9555885dfa0be', '2025-09-01 15:02:56.215650', '2025-09-01 15:02:56.215650');
 INSERT INTO `episode_urls` (`id`, `episode_id`, `quality`, `oss_url`, `cdn_url`, `origin_url`, `subtitle_url`, `access_key`, `created_at`, `updated_at`) VALUES (635, 2238, '720p', '', 'https://cdn.example.com/single-ep3-720.m3u8', 'https://origin.example.com/single-ep3-720', NULL, 'e3dca04bf9ef83ff64dc62124a246f26', '2025-09-01 15:02:57.273466', '2025-09-01 15:02:57.273466');
 INSERT INTO `episode_urls` (`id`, `episode_id`, `quality`, `oss_url`, `cdn_url`, `origin_url`, `subtitle_url`, `access_key`, `created_at`, `updated_at`) VALUES (636, 2239, '720p', '', 'https://cdn.example.com/ep1.m3u8', 'https://origin.example.com/ep1', NULL, '744fc87d56e9c1643196e79b3cb7b923', '2025-09-09 15:59:17.490404', '2025-09-09 15:59:17.490404');
+INSERT INTO `episode_urls` (`id`, `episode_id`, `quality`, `oss_url`, `cdn_url`, `origin_url`, `subtitle_url`, `access_key`, `created_at`, `updated_at`) VALUES (637, 2240, '720p', 'https://oss.example.com/demo-ep1.m3u8', 'https://cdn.example.com/demo-ep1.m3u8', 'https://origin.example.com/demo-ep1', 'https://subtitle.example.com/demo-ep1.srt', '0e537a458774563bf678f80055cb84e3', '2025-09-11 05:36:53.403207', '2025-09-11 05:36:53.403207');
+INSERT INTO `episode_urls` (`id`, `episode_id`, `quality`, `oss_url`, `cdn_url`, `origin_url`, `subtitle_url`, `access_key`, `created_at`, `updated_at`) VALUES (638, 2241, '720p', 'https://oss.example.com/demo-ep2.m3u8', 'https://cdn.example.com/demo-ep2.m3u8', 'https://origin.example.com/demo-ep2', NULL, '5bd83c3ba33b5afdc22390c1f1c2d4be', '2025-09-11 05:36:53.415857', '2025-09-11 05:36:53.415857');
+INSERT INTO `episode_urls` (`id`, `episode_id`, `quality`, `oss_url`, `cdn_url`, `origin_url`, `subtitle_url`, `access_key`, `created_at`, `updated_at`) VALUES (639, 2242, '720p', 'https://oss.example.com/demo-ep3.m3u8', 'https://cdn.example.com/demo-ep3.m3u8', 'https://origin.example.com/demo-ep3', NULL, '7845ea0d71415e9929e183ad59ed6720', '2025-09-11 05:36:53.457083', '2025-09-11 05:36:53.457083');
+INSERT INTO `episode_urls` (`id`, `episode_id`, `quality`, `oss_url`, `cdn_url`, `origin_url`, `subtitle_url`, `access_key`, `created_at`, `updated_at`) VALUES (640, 2243, '720p', 'https://oss.example.com/bulk-demo-20250911-01-ep1-720p.m3u8', 'https://cdn.example.com/bulk-demo-20250911-01-ep1-720p.m3u8', 'https://origin.example.com/bulk-demo-20250911-01-ep1-720p', NULL, '08f9cc38c90e80ce01064cb819e32c22', '2025-09-11 05:41:40.584537', '2025-09-11 05:41:40.584537');
+INSERT INTO `episode_urls` (`id`, `episode_id`, `quality`, `oss_url`, `cdn_url`, `origin_url`, `subtitle_url`, `access_key`, `created_at`, `updated_at`) VALUES (641, 2244, '720p', 'https://oss.example.com/bulk-demo-20250911-01-ep2-720p.m3u8', 'https://cdn.example.com/bulk-demo-20250911-01-ep2-720p.m3u8', 'https://origin.example.com/bulk-demo-20250911-01-ep2-720p', NULL, 'd99350356e76ca8ae85907a7e18ff1b4', '2025-09-11 05:41:40.597388', '2025-09-11 05:41:40.597388');
+INSERT INTO `episode_urls` (`id`, `episode_id`, `quality`, `oss_url`, `cdn_url`, `origin_url`, `subtitle_url`, `access_key`, `created_at`, `updated_at`) VALUES (642, 2245, '720p', 'https://oss.example.com/bulk-demo-20250911-01-ep3-720p.m3u8', 'https://cdn.example.com/bulk-demo-20250911-01-ep3-720p.m3u8', 'https://origin.example.com/bulk-demo-20250911-01-ep3-720p', NULL, '333c7a9b0ebbac730da7eb8cf39c17c4', '2025-09-11 05:41:40.607322', '2025-09-11 05:41:40.607322');
+INSERT INTO `episode_urls` (`id`, `episode_id`, `quality`, `oss_url`, `cdn_url`, `origin_url`, `subtitle_url`, `access_key`, `created_at`, `updated_at`) VALUES (643, 2246, '720p', 'https://oss.example.com/bulk-demo-20250911-02-ep1-720p.m3u8', 'https://cdn.example.com/bulk-demo-20250911-02-ep1-720p.m3u8', 'https://origin.example.com/bulk-demo-20250911-02-ep1-720p', NULL, '75d49e8230f88f3950a99341a1da1afc', '2025-09-11 05:41:40.642033', '2025-09-11 05:41:40.642033');
+INSERT INTO `episode_urls` (`id`, `episode_id`, `quality`, `oss_url`, `cdn_url`, `origin_url`, `subtitle_url`, `access_key`, `created_at`, `updated_at`) VALUES (644, 2247, '720p', 'https://oss.example.com/bulk-demo-20250911-02-ep2-720p.m3u8', 'https://cdn.example.com/bulk-demo-20250911-02-ep2-720p.m3u8', 'https://origin.example.com/bulk-demo-20250911-02-ep2-720p', NULL, '711bbb0ceb606dcae28b553581c20ca9', '2025-09-11 05:41:40.651785', '2025-09-11 05:41:40.651785');
+INSERT INTO `episode_urls` (`id`, `episode_id`, `quality`, `oss_url`, `cdn_url`, `origin_url`, `subtitle_url`, `access_key`, `created_at`, `updated_at`) VALUES (645, 2248, '720p', 'https://oss.example.com/bulk-demo-20250911-02-ep3-720p.m3u8', 'https://cdn.example.com/bulk-demo-20250911-02-ep3-720p.m3u8', 'https://origin.example.com/bulk-demo-20250911-02-ep3-720p', NULL, 'ec2a07f314c9d4977cfc86dd157cc429', '2025-09-11 05:41:40.661750', '2025-09-11 05:41:40.661750');
+INSERT INTO `episode_urls` (`id`, `episode_id`, `quality`, `oss_url`, `cdn_url`, `origin_url`, `subtitle_url`, `access_key`, `created_at`, `updated_at`) VALUES (646, 2249, '720p', 'https://oss.example.com/bulk-demo-20250911-03-ep1-720p.m3u8', 'https://cdn.example.com/bulk-demo-20250911-03-ep1-720p.m3u8', 'https://origin.example.com/bulk-demo-20250911-03-ep1-720p', NULL, 'ba678fd534e524eb5207f70746967413', '2025-09-11 05:41:41.246096', '2025-09-11 05:41:41.246096');
+INSERT INTO `episode_urls` (`id`, `episode_id`, `quality`, `oss_url`, `cdn_url`, `origin_url`, `subtitle_url`, `access_key`, `created_at`, `updated_at`) VALUES (647, 2250, '720p', 'https://oss.example.com/bulk-demo-20250911-03-ep2-720p.m3u8', 'https://cdn.example.com/bulk-demo-20250911-03-ep2-720p.m3u8', 'https://origin.example.com/bulk-demo-20250911-03-ep2-720p', NULL, '37bb7b3aa95d12ab358aebb40de815e9', '2025-09-11 05:41:41.258305', '2025-09-11 05:41:41.258305');
+INSERT INTO `episode_urls` (`id`, `episode_id`, `quality`, `oss_url`, `cdn_url`, `origin_url`, `subtitle_url`, `access_key`, `created_at`, `updated_at`) VALUES (648, 2251, '720p', 'https://oss.example.com/bulk-demo-20250911-03-ep3-720p.m3u8', 'https://cdn.example.com/bulk-demo-20250911-03-ep3-720p.m3u8', 'https://origin.example.com/bulk-demo-20250911-03-ep3-720p', NULL, 'affabd65d5712238315b1e73a18dd6f4', '2025-09-11 05:41:41.269273', '2025-09-11 05:41:41.269273');
+INSERT INTO `episode_urls` (`id`, `episode_id`, `quality`, `oss_url`, `cdn_url`, `origin_url`, `subtitle_url`, `access_key`, `created_at`, `updated_at`) VALUES (649, 2252, '720p', 'https://oss.example.com/bulk-demo-20250911-04-ep1-720p.m3u8', 'https://cdn.example.com/bulk-demo-20250911-04-ep1-720p.m3u8', 'https://origin.example.com/bulk-demo-20250911-04-ep1-720p', NULL, '29dfbb7ccd228656e1bb2a99d2c67a9d', '2025-09-11 05:41:41.306568', '2025-09-11 05:41:41.306568');
+INSERT INTO `episode_urls` (`id`, `episode_id`, `quality`, `oss_url`, `cdn_url`, `origin_url`, `subtitle_url`, `access_key`, `created_at`, `updated_at`) VALUES (650, 2253, '720p', 'https://oss.example.com/bulk-demo-20250911-04-ep2-720p.m3u8', 'https://cdn.example.com/bulk-demo-20250911-04-ep2-720p.m3u8', 'https://origin.example.com/bulk-demo-20250911-04-ep2-720p', NULL, '19fcb214bb8a160860efef1f17086ac6', '2025-09-11 05:41:41.317715', '2025-09-11 05:41:41.317715');
+INSERT INTO `episode_urls` (`id`, `episode_id`, `quality`, `oss_url`, `cdn_url`, `origin_url`, `subtitle_url`, `access_key`, `created_at`, `updated_at`) VALUES (651, 2254, '720p', 'https://oss.example.com/bulk-demo-20250911-04-ep3-720p.m3u8', 'https://cdn.example.com/bulk-demo-20250911-04-ep3-720p.m3u8', 'https://origin.example.com/bulk-demo-20250911-04-ep3-720p', NULL, '3ee4d021b8343a6e1d7ab352790f4d49', '2025-09-11 05:41:41.328675', '2025-09-11 05:41:41.328675');
+INSERT INTO `episode_urls` (`id`, `episode_id`, `quality`, `oss_url`, `cdn_url`, `origin_url`, `subtitle_url`, `access_key`, `created_at`, `updated_at`) VALUES (652, 2255, '720p', 'https://oss.example.com/bulk-demo-20250911-05-ep1-720p.m3u8', 'https://cdn.example.com/bulk-demo-20250911-05-ep1-720p.m3u8', 'https://origin.example.com/bulk-demo-20250911-05-ep1-720p', NULL, 'b2ab1fe14ea426dee60ed33bc19b7c9d', '2025-09-11 05:41:41.886355', '2025-09-11 05:41:41.886355');
+INSERT INTO `episode_urls` (`id`, `episode_id`, `quality`, `oss_url`, `cdn_url`, `origin_url`, `subtitle_url`, `access_key`, `created_at`, `updated_at`) VALUES (653, 2256, '720p', 'https://oss.example.com/bulk-demo-20250911-05-ep2-720p.m3u8', 'https://cdn.example.com/bulk-demo-20250911-05-ep2-720p.m3u8', 'https://origin.example.com/bulk-demo-20250911-05-ep2-720p', NULL, 'eff4836517a3fa6b13f347c3fd55557d', '2025-09-11 05:41:41.896922', '2025-09-11 05:41:41.896922');
+INSERT INTO `episode_urls` (`id`, `episode_id`, `quality`, `oss_url`, `cdn_url`, `origin_url`, `subtitle_url`, `access_key`, `created_at`, `updated_at`) VALUES (654, 2257, '720p', 'https://oss.example.com/bulk-demo-20250911-05-ep3-720p.m3u8', 'https://cdn.example.com/bulk-demo-20250911-05-ep3-720p.m3u8', 'https://origin.example.com/bulk-demo-20250911-05-ep3-720p', NULL, 'cc85c5f4bb6ad925b11e87afdecf4d1f', '2025-09-11 05:41:41.909111', '2025-09-11 05:41:41.909111');
 COMMIT;
 
 -- ----------------------------
@@ -448,7 +466,7 @@ CREATE TABLE `episodes` (
   UNIQUE KEY `IDX_31551a3813144b03fee21f86d1` (`access_key`) USING BTREE,
   KEY `FK_624166580dfcd4e2d88a978ce71` (`series_id`) USING BTREE,
   CONSTRAINT `FK_624166580dfcd4e2d88a978ce71` FOREIGN KEY (`series_id`) REFERENCES `series` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=2240 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci ROW_FORMAT=DYNAMIC;
+) ENGINE=InnoDB AUTO_INCREMENT=2258 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci ROW_FORMAT=DYNAMIC;
 
 -- ----------------------------
 -- Records of episodes
@@ -540,6 +558,24 @@ INSERT INTO `episodes` (`id`, `series_id`, `episode_number`, `title`, `duration`
 INSERT INTO `episodes` (`id`, `series_id`, `episode_number`, `title`, `duration`, `status`, `play_count`, `created_at`, `updated_at`, `has_sequel`, `short_id`, `access_key`, `like_count`, `dislike_count`, `favorite_count`) VALUES (2237, 2016, 1, 'B-第1集', 1600, 'published', 0, '2025-09-01 15:02:56.210649', '2025-09-01 15:02:56.210649', 0, 'TPSTbYJh2jY', '550cb3cbff05da7d4cf99850f303d2de', 0, 0, 0);
 INSERT INTO `episodes` (`id`, `series_id`, `episode_number`, `title`, `duration`, `status`, `play_count`, `created_at`, `updated_at`, `has_sequel`, `short_id`, `access_key`, `like_count`, `dislike_count`, `favorite_count`) VALUES (2238, 2014, 3, '第3集：新的开始', 1500, 'published', 0, '2025-09-01 15:02:57.266666', '2025-09-01 15:02:57.266666', 0, 'eH6R4egWVHE', '0807634aaa3c9093952a21df2e68fe1d', 0, 0, 0);
 INSERT INTO `episodes` (`id`, `series_id`, `episode_number`, `title`, `duration`, `status`, `play_count`, `created_at`, `updated_at`, `has_sequel`, `short_id`, `access_key`, `like_count`, `dislike_count`, `favorite_count`) VALUES (2239, 2017, 1, '第1集：测试开始', 1800, 'published', 0, '2025-09-09 15:59:17.482908', '2025-09-09 15:59:17.482908', 0, 'DcfGDSBx6v6', '55fbe9cf73911ca7ef7fc863d7950ee5', 0, 0, 0);
+INSERT INTO `episodes` (`id`, `series_id`, `episode_number`, `title`, `duration`, `status`, `play_count`, `created_at`, `updated_at`, `has_sequel`, `short_id`, `access_key`, `like_count`, `dislike_count`, `favorite_count`) VALUES (2240, 2023, 1, '第1集 起风了', 1800, 'published', 0, '2025-09-11 05:36:53.395345', '2025-09-11 05:36:53.395345', 0, 'KDkv2NFtJF3', '2d5582201c6a720b846cd4f9da0edb20', 0, 0, 0);
+INSERT INTO `episodes` (`id`, `series_id`, `episode_number`, `title`, `duration`, `status`, `play_count`, `created_at`, `updated_at`, `has_sequel`, `short_id`, `access_key`, `like_count`, `dislike_count`, `favorite_count`) VALUES (2241, 2023, 2, '第2集 心动信号', 1820, 'published', 0, '2025-09-11 05:36:53.409677', '2025-09-11 05:36:53.409677', 0, 'DfrRuY8CGZt', '38078404b7157a70bb1cca43d739aaa8', 0, 0, 0);
+INSERT INTO `episodes` (`id`, `series_id`, `episode_number`, `title`, `duration`, `status`, `play_count`, `created_at`, `updated_at`, `has_sequel`, `short_id`, `access_key`, `like_count`, `dislike_count`, `favorite_count`) VALUES (2242, 2023, 3, '第3集 约定', 1750, 'published', 0, '2025-09-11 05:36:53.451080', '2025-09-11 05:36:53.451080', 0, 'DSMvRQQwuxz', '31d90adfc84593b5987837fc44d007e8', 0, 0, 0);
+INSERT INTO `episodes` (`id`, `series_id`, `episode_number`, `title`, `duration`, `status`, `play_count`, `created_at`, `updated_at`, `has_sequel`, `short_id`, `access_key`, `like_count`, `dislike_count`, `favorite_count`) VALUES (2243, 2024, 1, '第1集 攻略', 1906, 'published', 0, '2025-09-11 05:41:40.578197', '2025-09-11 05:41:40.578197', 0, 'jg7WwxWgCdw', '9a0ab76c4e7261a6d3b1fd961131c52a', 0, 0, 0);
+INSERT INTO `episodes` (`id`, `series_id`, `episode_number`, `title`, `duration`, `status`, `play_count`, `created_at`, `updated_at`, `has_sequel`, `short_id`, `access_key`, `like_count`, `dislike_count`, `favorite_count`) VALUES (2244, 2024, 2, '第2集 重启', 1321, 'published', 0, '2025-09-11 05:41:40.591139', '2025-09-11 05:41:40.591139', 0, 'g8yEAfKTYXx', '12dce77344f0349bab83be03d919b843', 0, 0, 0);
+INSERT INTO `episodes` (`id`, `series_id`, `episode_number`, `title`, `duration`, `status`, `play_count`, `created_at`, `updated_at`, `has_sequel`, `short_id`, `access_key`, `like_count`, `dislike_count`, `favorite_count`) VALUES (2245, 2024, 3, '第3集 密语', 2064, 'published', 0, '2025-09-11 05:41:40.602701', '2025-09-11 05:41:40.602701', 0, 'ACKu5mMN2N7', '3fae70129f1e05b52d052643cc9c1d7b', 0, 0, 0);
+INSERT INTO `episodes` (`id`, `series_id`, `episode_number`, `title`, `duration`, `status`, `play_count`, `created_at`, `updated_at`, `has_sequel`, `short_id`, `access_key`, `like_count`, `dislike_count`, `favorite_count`) VALUES (2246, 2025, 1, '第1集 恋曲', 2371, 'published', 0, '2025-09-11 05:41:40.637102', '2025-09-11 05:41:40.637102', 0, 'nwRgTY8BEF3', 'd23e8da8a3dd12c8a883b80a53af5969', 0, 0, 0);
+INSERT INTO `episodes` (`id`, `series_id`, `episode_number`, `title`, `duration`, `status`, `play_count`, `created_at`, `updated_at`, `has_sequel`, `short_id`, `access_key`, `like_count`, `dislike_count`, `favorite_count`) VALUES (2247, 2025, 2, '第2集 攻略', 1622, 'published', 0, '2025-09-11 05:41:40.647152', '2025-09-11 05:41:40.647152', 0, 'a6ncT4EfRyz', '4bb51c09a6db55db50fa0507d68d357a', 0, 0, 0);
+INSERT INTO `episodes` (`id`, `series_id`, `episode_number`, `title`, `duration`, `status`, `play_count`, `created_at`, `updated_at`, `has_sequel`, `short_id`, `access_key`, `like_count`, `dislike_count`, `favorite_count`) VALUES (2248, 2025, 3, '第3集 心跳', 1950, 'published', 0, '2025-09-11 05:41:40.656615', '2025-09-11 05:41:40.656615', 0, 'NrYS4PdWnm6', '308e6d0276574fde776f34b2d5dfa841', 0, 0, 0);
+INSERT INTO `episodes` (`id`, `series_id`, `episode_number`, `title`, `duration`, `status`, `play_count`, `created_at`, `updated_at`, `has_sequel`, `short_id`, `access_key`, `like_count`, `dislike_count`, `favorite_count`) VALUES (2249, 2026, 1, '第1集 迷局', 2115, 'published', 0, '2025-09-11 05:41:41.238806', '2025-09-11 05:41:41.238806', 0, 'uz94nh2Xstr', '772e1ab8e8791ca3cc4b87e76e115f38', 0, 0, 0);
+INSERT INTO `episodes` (`id`, `series_id`, `episode_number`, `title`, `duration`, `status`, `play_count`, `created_at`, `updated_at`, `has_sequel`, `short_id`, `access_key`, `like_count`, `dislike_count`, `favorite_count`) VALUES (2250, 2026, 2, '第2集 重启', 1991, 'published', 0, '2025-09-11 05:41:41.251882', '2025-09-11 05:41:41.251882', 0, '9mkKTKb33qW', '5694886e219299fd7394130e89982724', 0, 0, 0);
+INSERT INTO `episodes` (`id`, `series_id`, `episode_number`, `title`, `duration`, `status`, `play_count`, `created_at`, `updated_at`, `has_sequel`, `short_id`, `access_key`, `like_count`, `dislike_count`, `favorite_count`) VALUES (2251, 2026, 3, '第3集 契约', 1270, 'published', 0, '2025-09-11 05:41:41.263631', '2025-09-11 05:41:41.263631', 0, 'NXPjG8YCp75', 'c90051eacb7805330e74b963df39e170', 0, 0, 0);
+INSERT INTO `episodes` (`id`, `series_id`, `episode_number`, `title`, `duration`, `status`, `play_count`, `created_at`, `updated_at`, `has_sequel`, `short_id`, `access_key`, `like_count`, `dislike_count`, `favorite_count`) VALUES (2252, 2027, 1, '第1集 救赎', 2186, 'published', 0, '2025-09-11 05:41:41.301831', '2025-09-11 05:41:41.301831', 0, 'u3KCfpnGaUX', 'b5a1b14f69fdfb3b6923c0b01a3c605f', 0, 0, 0);
+INSERT INTO `episodes` (`id`, `series_id`, `episode_number`, `title`, `duration`, `status`, `play_count`, `created_at`, `updated_at`, `has_sequel`, `short_id`, `access_key`, `like_count`, `dislike_count`, `favorite_count`) VALUES (2253, 2027, 2, '第2集 重启', 1462, 'published', 0, '2025-09-11 05:41:41.311901', '2025-09-11 05:41:41.311901', 0, 'CqMKAQZk92c', '7dfeb5de4469bb539c90587d7baf743b', 0, 0, 0);
+INSERT INTO `episodes` (`id`, `series_id`, `episode_number`, `title`, `duration`, `status`, `play_count`, `created_at`, `updated_at`, `has_sequel`, `short_id`, `access_key`, `like_count`, `dislike_count`, `favorite_count`) VALUES (2254, 2027, 3, '第3集 风暴', 2333, 'published', 0, '2025-09-11 05:41:41.322677', '2025-09-11 05:41:41.322677', 0, 'FjPXu2j36SQ', 'e8db0b747f75183fd922e46c2c238fc7', 0, 0, 0);
+INSERT INTO `episodes` (`id`, `series_id`, `episode_number`, `title`, `duration`, `status`, `play_count`, `created_at`, `updated_at`, `has_sequel`, `short_id`, `access_key`, `like_count`, `dislike_count`, `favorite_count`) VALUES (2255, 2028, 1, '第1集 契约', 1365, 'published', 0, '2025-09-11 05:41:41.880390', '2025-09-11 05:41:41.880390', 0, 'DXYaFJJfuhV', 'fa6ec43415baeb785e5b1e75bceb72a6', 0, 0, 0);
+INSERT INTO `episodes` (`id`, `series_id`, `episode_number`, `title`, `duration`, `status`, `play_count`, `created_at`, `updated_at`, `has_sequel`, `short_id`, `access_key`, `like_count`, `dislike_count`, `favorite_count`) VALUES (2256, 2028, 2, '第2集 救赎', 1744, 'published', 0, '2025-09-11 05:41:41.891555', '2025-09-11 05:41:41.891555', 0, '9SXgUmRduYC', '89c4210cb5bb7696e90fb6f0512a96d2', 0, 0, 0);
+INSERT INTO `episodes` (`id`, `series_id`, `episode_number`, `title`, `duration`, `status`, `play_count`, `created_at`, `updated_at`, `has_sequel`, `short_id`, `access_key`, `like_count`, `dislike_count`, `favorite_count`) VALUES (2257, 2028, 3, '第3集 契约', 2149, 'published', 0, '2025-09-11 05:41:41.902510', '2025-09-11 05:41:41.902510', 0, 'HRcESk3pntC', 'd3dd22330f52305794209a097f763a33', 0, 0, 0);
 COMMIT;
 
 -- ----------------------------
@@ -560,7 +596,7 @@ CREATE TABLE `filter_options` (
   PRIMARY KEY (`id`) USING BTREE,
   KEY `FK_2c145bc2913ac7b99ffbafa02bd` (`filter_type_id`) USING BTREE,
   CONSTRAINT `FK_2c145bc2913ac7b99ffbafa02bd` FOREIGN KEY (`filter_type_id`) REFERENCES `filter_types` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=36 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci ROW_FORMAT=DYNAMIC;
+) ENGINE=InnoDB AUTO_INCREMENT=61 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci ROW_FORMAT=DYNAMIC;
 
 -- ----------------------------
 -- Records of filter_options
@@ -571,11 +607,6 @@ INSERT INTO `filter_options` (`id`, `filter_type_id`, `name`, `value`, `is_defau
 INSERT INTO `filter_options` (`id`, `filter_type_id`, `name`, `value`, `is_default`, `is_active`, `sort_order`, `created_at`, `updated_at`, `display_order`) VALUES (3, 1, '最近更新', 'updated', 0, 1, 2, '2025-09-10 14:56:51.000000', '2025-09-10 14:56:51.000000', 2);
 INSERT INTO `filter_options` (`id`, `filter_type_id`, `name`, `value`, `is_default`, `is_active`, `sort_order`, `created_at`, `updated_at`, `display_order`) VALUES (4, 1, '人气最高', 'popular', 0, 1, 3, '2025-09-10 14:56:51.000000', '2025-09-10 14:56:51.000000', 3);
 INSERT INTO `filter_options` (`id`, `filter_type_id`, `name`, `value`, `is_default`, `is_active`, `sort_order`, `created_at`, `updated_at`, `display_order`) VALUES (5, 1, '评分最高', 'rating', 0, 1, 4, '2025-09-10 14:56:51.000000', '2025-09-10 14:56:51.000000', 4);
-INSERT INTO `filter_options` (`id`, `filter_type_id`, `name`, `value`, `is_default`, `is_active`, `sort_order`, `created_at`, `updated_at`, `display_order`) VALUES (6, 2, '全部类型', 'all', 1, 1, 0, '2025-09-10 14:56:51.000000', '2025-09-10 14:56:51.000000', 0);
-INSERT INTO `filter_options` (`id`, `filter_type_id`, `name`, `value`, `is_default`, `is_active`, `sort_order`, `created_at`, `updated_at`, `display_order`) VALUES (7, 2, '偶像', 'idol', 0, 1, 1, '2025-09-10 14:56:51.000000', '2025-09-10 14:56:51.000000', 1);
-INSERT INTO `filter_options` (`id`, `filter_type_id`, `name`, `value`, `is_default`, `is_active`, `sort_order`, `created_at`, `updated_at`, `display_order`) VALUES (8, 2, '言情', 'romance', 0, 1, 2, '2025-09-10 14:56:51.000000', '2025-09-10 14:56:51.000000', 2);
-INSERT INTO `filter_options` (`id`, `filter_type_id`, `name`, `value`, `is_default`, `is_active`, `sort_order`, `created_at`, `updated_at`, `display_order`) VALUES (9, 2, '爱情', 'love', 0, 1, 3, '2025-09-10 14:56:51.000000', '2025-09-10 14:56:51.000000', 3);
-INSERT INTO `filter_options` (`id`, `filter_type_id`, `name`, `value`, `is_default`, `is_active`, `sort_order`, `created_at`, `updated_at`, `display_order`) VALUES (10, 2, '古装', 'costume', 0, 1, 4, '2025-09-10 14:56:51.000000', '2025-09-10 14:56:51.000000', 4);
 INSERT INTO `filter_options` (`id`, `filter_type_id`, `name`, `value`, `is_default`, `is_active`, `sort_order`, `created_at`, `updated_at`, `display_order`) VALUES (11, 3, '全部地区', 'all', 1, 1, 0, '2025-09-10 14:56:51.000000', '2025-09-10 14:56:51.000000', 0);
 INSERT INTO `filter_options` (`id`, `filter_type_id`, `name`, `value`, `is_default`, `is_active`, `sort_order`, `created_at`, `updated_at`, `display_order`) VALUES (12, 3, '大陆', 'mainland', 0, 1, 1, '2025-09-10 14:56:51.000000', '2025-09-10 14:56:51.000000', 1);
 INSERT INTO `filter_options` (`id`, `filter_type_id`, `name`, `value`, `is_default`, `is_active`, `sort_order`, `created_at`, `updated_at`, `display_order`) VALUES (13, 3, '香港', 'hongkong', 0, 1, 2, '2025-09-10 14:56:51.000000', '2025-09-10 14:56:51.000000', 2);
@@ -601,6 +632,24 @@ INSERT INTO `filter_options` (`id`, `filter_type_id`, `name`, `value`, `is_defau
 INSERT INTO `filter_options` (`id`, `filter_type_id`, `name`, `value`, `is_default`, `is_active`, `sort_order`, `created_at`, `updated_at`, `display_order`) VALUES (33, 6, '已完结', 'complete', 0, 1, 1, '2025-09-10 14:56:51.000000', '2025-09-10 16:01:44.393332', 1);
 INSERT INTO `filter_options` (`id`, `filter_type_id`, `name`, `value`, `is_default`, `is_active`, `sort_order`, `created_at`, `updated_at`, `display_order`) VALUES (34, 6, '连载中', 'ongoing', 0, 1, 2, '2025-09-10 14:56:51.000000', '2025-09-10 14:56:51.000000', 2);
 INSERT INTO `filter_options` (`id`, `filter_type_id`, `name`, `value`, `is_default`, `is_active`, `sort_order`, `created_at`, `updated_at`, `display_order`) VALUES (35, 6, '预告中', 'preview', 0, 1, 3, '2025-09-10 14:56:51.000000', '2025-09-10 14:56:51.000000', 3);
+INSERT INTO `filter_options` (`id`, `filter_type_id`, `name`, `value`, `is_default`, `is_active`, `sort_order`, `created_at`, `updated_at`, `display_order`) VALUES (36, 5, '2025', '2025', 0, 1, 7, '2025-09-11 05:36:53.373789', '2025-09-11 05:36:53.373789', 7);
+INSERT INTO `filter_options` (`id`, `filter_type_id`, `name`, `value`, `is_default`, `is_active`, `sort_order`, `created_at`, `updated_at`, `display_order`) VALUES (37, 5, '2019', '2019', 0, 1, 8, '2025-09-11 05:41:40.626437', '2025-09-11 05:41:40.626437', 8);
+INSERT INTO `filter_options` (`id`, `filter_type_id`, `name`, `value`, `is_default`, `is_active`, `sort_order`, `created_at`, `updated_at`, `display_order`) VALUES (38, 3, '泰国', '泰国', 0, 1, 8, '2025-09-11 05:41:41.202958', '2025-09-11 05:41:41.202958', 8);
+INSERT INTO `filter_options` (`id`, `filter_type_id`, `name`, `value`, `is_default`, `is_active`, `sort_order`, `created_at`, `updated_at`, `display_order`) VALUES (39, 4, '泰语', '泰语', 0, 1, 6, '2025-09-11 05:41:41.214672', '2025-09-11 05:41:41.214672', 6);
+INSERT INTO `filter_options` (`id`, `filter_type_id`, `name`, `value`, `is_default`, `is_active`, `sort_order`, `created_at`, `updated_at`, `display_order`) VALUES (40, 5, '2021', '2021', 0, 1, 9, '2025-09-11 05:41:41.225537', '2025-09-11 05:41:41.225537', 9);
+INSERT INTO `filter_options` (`id`, `filter_type_id`, `name`, `value`, `is_default`, `is_active`, `sort_order`, `created_at`, `updated_at`, `display_order`) VALUES (41, 4, '日语', '日语', 0, 1, 7, '2025-09-11 05:41:41.286352', '2025-09-11 05:41:41.286352', 7);
+INSERT INTO `filter_options` (`id`, `filter_type_id`, `name`, `value`, `is_default`, `is_active`, `sort_order`, `created_at`, `updated_at`, `display_order`) VALUES (42, 3, '印度', '印度', 0, 1, 9, '2025-09-11 05:41:41.854962', '2025-09-11 05:41:41.854962', 9);
+INSERT INTO `filter_options` (`id`, `filter_type_id`, `name`, `value`, `is_default`, `is_active`, `sort_order`, `created_at`, `updated_at`, `display_order`) VALUES (43, 5, '2024', '2024', 0, 1, 10, '2025-09-11 05:41:41.870301', '2025-09-11 05:41:41.870301', 10);
+INSERT INTO `filter_options` (`id`, `filter_type_id`, `name`, `value`, `is_default`, `is_active`, `sort_order`, `created_at`, `updated_at`, `display_order`) VALUES (44, 2, '言情', 'yanqing', 0, 1, 1, '2025-09-11 13:07:29.606384', '2025-09-11 14:25:31.370495', 1);
+INSERT INTO `filter_options` (`id`, `filter_type_id`, `name`, `value`, `is_default`, `is_active`, `sort_order`, `created_at`, `updated_at`, `display_order`) VALUES (45, 2, '玄幻', 'xuanhuan', 0, 1, 2, '2025-09-11 13:07:29.606384', '2025-09-11 14:25:31.375398', 2);
+INSERT INTO `filter_options` (`id`, `filter_type_id`, `name`, `value`, `is_default`, `is_active`, `sort_order`, `created_at`, `updated_at`, `display_order`) VALUES (46, 2, '爱情', 'aiqing', 0, 1, 3, '2025-09-11 13:07:29.606384', '2025-09-11 14:25:31.376798', 3);
+INSERT INTO `filter_options` (`id`, `filter_type_id`, `name`, `value`, `is_default`, `is_active`, `sort_order`, `created_at`, `updated_at`, `display_order`) VALUES (47, 2, '都市', 'dushi', 0, 1, 4, '2025-09-11 13:07:29.606384', '2025-09-11 14:25:31.378630', 4);
+INSERT INTO `filter_options` (`id`, `filter_type_id`, `name`, `value`, `is_default`, `is_active`, `sort_order`, `created_at`, `updated_at`, `display_order`) VALUES (48, 2, '古风', 'gufeng', 0, 1, 5, '2025-09-11 13:07:29.606384', '2025-09-11 14:25:31.380493', 5);
+INSERT INTO `filter_options` (`id`, `filter_type_id`, `name`, `value`, `is_default`, `is_active`, `sort_order`, `created_at`, `updated_at`, `display_order`) VALUES (49, 2, '校园', 'xiaoyuan', 0, 1, 6, '2025-09-11 13:07:29.606384', '2025-09-11 14:25:31.381847', 6);
+INSERT INTO `filter_options` (`id`, `filter_type_id`, `name`, `value`, `is_default`, `is_active`, `sort_order`, `created_at`, `updated_at`, `display_order`) VALUES (50, 2, '职场', 'zhichang', 0, 1, 7, '2025-09-11 13:07:29.606384', '2025-09-11 14:25:31.383511', 7);
+INSERT INTO `filter_options` (`id`, `filter_type_id`, `name`, `value`, `is_default`, `is_active`, `sort_order`, `created_at`, `updated_at`, `display_order`) VALUES (58, 2, '全部类型', '全部类型', 1, 1, 0, '2025-09-11 13:26:13.450005', '2025-09-11 13:29:30.282765', 0);
+INSERT INTO `filter_options` (`id`, `filter_type_id`, `name`, `value`, `is_default`, `is_active`, `sort_order`, `created_at`, `updated_at`, `display_order`) VALUES (59, 2, '言情', 'yanqing', 0, 1, 1, '2025-09-11 13:26:13.450005', '2025-09-11 14:25:31.370495', 1);
+INSERT INTO `filter_options` (`id`, `filter_type_id`, `name`, `value`, `is_default`, `is_active`, `sort_order`, `created_at`, `updated_at`, `display_order`) VALUES (60, 2, '都市', 'dushi', 0, 1, 4, '2025-09-11 13:26:13.450005', '2025-09-11 14:25:31.378630', 4);
 COMMIT;
 
 -- ----------------------------
@@ -618,14 +667,14 @@ CREATE TABLE `filter_types` (
   `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6) COMMENT '更新时间',
   PRIMARY KEY (`id`) USING BTREE,
   UNIQUE KEY `IDX_a5b383d2e249a40efd45dde38b` (`code`) USING BTREE
-) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci ROW_FORMAT=DYNAMIC;
+) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci ROW_FORMAT=DYNAMIC;
 
 -- ----------------------------
 -- Records of filter_types
 -- ----------------------------
 BEGIN;
 INSERT INTO `filter_types` (`id`, `name`, `code`, `index_position`, `is_active`, `sort_order`, `created_at`, `updated_at`) VALUES (1, '排序', 'sort', 1, 1, 1, '2025-09-10 14:56:51.000000', '2025-09-10 14:56:51.000000');
-INSERT INTO `filter_types` (`id`, `name`, `code`, `index_position`, `is_active`, `sort_order`, `created_at`, `updated_at`) VALUES (2, '类型', 'type', 2, 1, 2, '2025-09-10 14:56:51.000000', '2025-09-10 14:56:51.000000');
+INSERT INTO `filter_types` (`id`, `name`, `code`, `index_position`, `is_active`, `sort_order`, `created_at`, `updated_at`) VALUES (2, '题材', 'genre', 2, 1, 2, '2025-09-11 13:07:29.589618', '2025-09-11 13:29:46.640232');
 INSERT INTO `filter_types` (`id`, `name`, `code`, `index_position`, `is_active`, `sort_order`, `created_at`, `updated_at`) VALUES (3, '地区', 'region', 3, 1, 3, '2025-09-10 14:56:51.000000', '2025-09-10 14:56:51.000000');
 INSERT INTO `filter_types` (`id`, `name`, `code`, `index_position`, `is_active`, `sort_order`, `created_at`, `updated_at`) VALUES (4, '语言', 'language', 4, 1, 4, '2025-09-10 14:56:51.000000', '2025-09-10 14:56:51.000000');
 INSERT INTO `filter_types` (`id`, `name`, `code`, `index_position`, `is_active`, `sort_order`, `created_at`, `updated_at`) VALUES (5, '年份', 'year', 5, 1, 5, '2025-09-10 14:56:51.000000', '2025-09-10 14:56:51.000000');
@@ -743,7 +792,7 @@ CREATE TABLE `series` (
   CONSTRAINT `FK_97d3e2dd92ad4f23b657920a6f0` FOREIGN KEY (`year_option_id`) REFERENCES `filter_options` (`id`),
   CONSTRAINT `FK_ddf675b3e90a375c943b206b2ac` FOREIGN KEY (`status_option_id`) REFERENCES `filter_options` (`id`),
   CONSTRAINT `FK_eb8f19671235980ae855edb6e93` FOREIGN KEY (`language_option_id`) REFERENCES `filter_options` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=2023 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci ROW_FORMAT=DYNAMIC;
+) ENGINE=InnoDB AUTO_INCREMENT=2029 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci ROW_FORMAT=DYNAMIC;
 
 -- ----------------------------
 -- Records of series
@@ -770,6 +819,94 @@ INSERT INTO `series` (`id`, `title`, `description`, `cover_url`, `total_episodes
 INSERT INTO `series` (`id`, `title`, `description`, `cover_url`, `total_episodes`, `created_at`, `score`, `play_count`, `starring`, `actor`, `director`, `release_date`, `is_completed`, `updated_at`, `category_id`, `short_id`, `region_option_id`, `language_option_id`, `status_option_id`, `year_option_id`, `is_active`, `deleted_at`, `deleted_by`, `up_status`, `external_id`, `up_count`) VALUES (2015, '精品剧集2015', '精品剧集内容', 'https://example.com/batch-a.jpg', 33, '2025-09-01 15:02:56.173557', 8.9, 80195, NULL, NULL, NULL, '2024-01-01', 1, NULL, 1, 'UbSTHmkb4Sd', 12, 20, 33, 27, 1, NULL, NULL, '已完结', 'guide-batch-a', 0);
 INSERT INTO `series` (`id`, `title`, `description`, `cover_url`, `total_episodes`, `created_at`, `score`, `play_count`, `starring`, `actor`, `director`, `release_date`, `is_completed`, `updated_at`, `category_id`, `short_id`, `region_option_id`, `language_option_id`, `status_option_id`, `year_option_id`, `is_active`, `deleted_at`, `deleted_by`, `up_status`, `external_id`, `up_count`) VALUES (2016, '精品剧集2016', '精品剧集内容', 'https://example.com/batch-b.jpg', 20, '2025-09-01 15:02:56.205308', 9.1, 23421, NULL, NULL, NULL, '2024-01-01', 1, NULL, 1, 'nqAHY6yBS4B', 12, 20, 33, 27, 1, NULL, NULL, '已完结', 'guide-batch-b', 0);
 INSERT INTO `series` (`id`, `title`, `description`, `cover_url`, `total_episodes`, `created_at`, `score`, `play_count`, `starring`, `actor`, `director`, `release_date`, `is_completed`, `updated_at`, `category_id`, `short_id`, `region_option_id`, `language_option_id`, `status_option_id`, `year_option_id`, `is_active`, `deleted_at`, `deleted_by`, `up_status`, `external_id`, `up_count`) VALUES (2017, '精品剧集2017', '精品剧集内容', 'https://example.com/cover.jpg', 29, '2025-09-09 15:59:17.470029', 8, 68463, NULL, NULL, NULL, '2024-01-01', 1, NULL, 1, 'W33vVCTzfPT', 12, 20, 33, 27, 1, NULL, NULL, '已完结', 'test-new-options-001', 0);
+INSERT INTO `series` (`id`, `title`, `description`, `cover_url`, `total_episodes`, `created_at`, `score`, `play_count`, `starring`, `actor`, `director`, `release_date`, `is_completed`, `updated_at`, `category_id`, `short_id`, `region_option_id`, `language_option_id`, `status_option_id`, `year_option_id`, `is_active`, `deleted_at`, `deleted_by`, `up_status`, `external_id`, `up_count`) VALUES (2023, '示例短剧·甜宠·校园（更新后）', '根据 ingest 文档写入的演示系列，用于联调验证。', 'https://example.com/demo-cover.jpg', 3, '2025-09-11 05:36:53.387568', 8.8, 12345, '张三,李四', '张三,李四,王五', '导演A', '2025-01-01', 0, NULL, 1, '7ypDfRfdqP3', 12, 20, 34, 36, 1, NULL, NULL, '更新至第3集', 'demo-drama-2025-001', 0);
+INSERT INTO `series` (`id`, `title`, `description`, `cover_url`, `total_episodes`, `created_at`, `score`, `play_count`, `starring`, `actor`, `director`, `release_date`, `is_completed`, `updated_at`, `category_id`, `short_id`, `region_option_id`, `language_option_id`, `status_option_id`, `year_option_id`, `is_active`, `deleted_at`, `deleted_by`, `up_status`, `external_id`, `up_count`) VALUES (2024, '示例短剧·都市·重启', '示例短剧·都市·重启 · 批量脚本生成示例', 'https://picsum.photos/seed/bulk-demo-20250911-01/400/600', 3, '2025-09-11 05:41:40.564744', 6.5, 461132, '张三,李四', '张三,李四,王五', '导演A', '2025-01-01', 0, NULL, 1, '3fv5wWerGUM', 14, 21, 34, 36, 1, NULL, NULL, '更新至第3集', 'bulk-demo-20250911-01', 0);
+INSERT INTO `series` (`id`, `title`, `description`, `cover_url`, `total_episodes`, `created_at`, `score`, `play_count`, `starring`, `actor`, `director`, `release_date`, `is_completed`, `updated_at`, `category_id`, `short_id`, `region_option_id`, `language_option_id`, `status_option_id`, `year_option_id`, `is_active`, `deleted_at`, `deleted_by`, `up_status`, `external_id`, `up_count`) VALUES (2025, '示例短剧·奇幻·迷局', '示例短剧·奇幻·迷局 · 批量脚本生成示例', 'https://picsum.photos/seed/bulk-demo-20250911-02/400/600', 3, '2025-09-11 05:41:40.631400', 9.1, 10400, '张三,李四', '张三,李四,王五', '导演A', '2019-01-01', 0, NULL, 1, '329acPVWEXQ', 15, 20, 34, 37, 1, NULL, NULL, '更新至第3集', 'bulk-demo-20250911-02', 0);
+INSERT INTO `series` (`id`, `title`, `description`, `cover_url`, `total_episodes`, `created_at`, `score`, `play_count`, `starring`, `actor`, `director`, `release_date`, `is_completed`, `updated_at`, `category_id`, `short_id`, `region_option_id`, `language_option_id`, `status_option_id`, `year_option_id`, `is_active`, `deleted_at`, `deleted_by`, `up_status`, `external_id`, `up_count`) VALUES (2026, '示例短剧·奇幻·重启', '示例短剧·奇幻·重启 · 批量脚本生成示例', 'https://picsum.photos/seed/bulk-demo-20250911-03/400/600', 3, '2025-09-11 05:41:41.230437', 9.4, 284840, '张三,李四', '张三,李四,王五', '导演A', '2021-01-01', 0, NULL, 1, 'P4sExbkcy8d', 38, 39, 34, 40, 1, NULL, NULL, '更新至第3集', 'bulk-demo-20250911-03', 0);
+INSERT INTO `series` (`id`, `title`, `description`, `cover_url`, `total_episodes`, `created_at`, `score`, `play_count`, `starring`, `actor`, `director`, `release_date`, `is_completed`, `updated_at`, `category_id`, `short_id`, `region_option_id`, `language_option_id`, `status_option_id`, `year_option_id`, `is_active`, `deleted_at`, `deleted_by`, `up_status`, `external_id`, `up_count`) VALUES (2027, '示例短剧·职场·重启', '示例短剧·职场·重启 · 批量脚本生成示例', 'https://picsum.photos/seed/bulk-demo-20250911-04/400/600', 3, '2025-09-11 05:41:41.295639', 9.5, 288794, '张三,李四', '张三,李四,王五', '导演A', '2021-01-01', 1, NULL, 1, 'AQN6Tn6MH9S', 38, 41, 33, 40, 1, NULL, NULL, '已完结', 'bulk-demo-20250911-04', 0);
+INSERT INTO `series` (`id`, `title`, `description`, `cover_url`, `total_episodes`, `created_at`, `score`, `play_count`, `starring`, `actor`, `director`, `release_date`, `is_completed`, `updated_at`, `category_id`, `short_id`, `region_option_id`, `language_option_id`, `status_option_id`, `year_option_id`, `is_active`, `deleted_at`, `deleted_by`, `up_status`, `external_id`, `up_count`) VALUES (2028, '示例短剧·职场·迷局', '示例短剧·职场·迷局 · 批量脚本生成示例', 'https://picsum.photos/seed/bulk-demo-20250911-05/400/600', 3, '2025-09-11 05:41:41.874914', 9.4, 64488, '张三,李四', '张三,李四,王五', '导演A', '2024-01-01', 1, NULL, 1, 'wTrvn9RhkQF', 42, 22, 33, 43, 1, NULL, NULL, '已完结', 'bulk-demo-20250911-05', 0);
+COMMIT;
+
+-- ----------------------------
+-- Table structure for series_genre_options
+-- ----------------------------
+DROP TABLE IF EXISTS `series_genre_options`;
+CREATE TABLE `series_genre_options` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `series_id` int NOT NULL,
+  `option_id` int NOT NULL,
+  `created_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_series_option` (`series_id`,`option_id`),
+  KEY `idx_series` (`series_id`),
+  KEY `idx_option` (`option_id`),
+  CONSTRAINT `FK_9f4fbd07357a4c9566f58959e7b` FOREIGN KEY (`option_id`) REFERENCES `filter_options` (`id`),
+  CONSTRAINT `FK_adc5d5d826c37e8c853beb220ef` FOREIGN KEY (`series_id`) REFERENCES `series` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_sgo_option` FOREIGN KEY (`option_id`) REFERENCES `filter_options` (`id`),
+  CONSTRAINT `fk_sgo_series` FOREIGN KEY (`series_id`) REFERENCES `series` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=123 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- ----------------------------
+-- Records of series_genre_options
+-- ----------------------------
+BEGIN;
+INSERT INTO `series_genre_options` (`id`, `series_id`, `option_id`, `created_at`) VALUES (38, 2023, 44, '2025-09-11 14:25:31.392389');
+INSERT INTO `series_genre_options` (`id`, `series_id`, `option_id`, `created_at`) VALUES (39, 2016, 44, '2025-09-11 14:25:31.392389');
+INSERT INTO `series_genre_options` (`id`, `series_id`, `option_id`, `created_at`) VALUES (40, 2009, 44, '2025-09-11 14:25:31.392389');
+INSERT INTO `series_genre_options` (`id`, `series_id`, `option_id`, `created_at`) VALUES (41, 2002, 44, '2025-09-11 14:25:31.392389');
+INSERT INTO `series_genre_options` (`id`, `series_id`, `option_id`, `created_at`) VALUES (42, 1001, 44, '2025-09-11 14:25:31.392389');
+INSERT INTO `series_genre_options` (`id`, `series_id`, `option_id`, `created_at`) VALUES (43, 2024, 45, '2025-09-11 14:25:31.392389');
+INSERT INTO `series_genre_options` (`id`, `series_id`, `option_id`, `created_at`) VALUES (44, 2017, 45, '2025-09-11 14:25:31.392389');
+INSERT INTO `series_genre_options` (`id`, `series_id`, `option_id`, `created_at`) VALUES (45, 2010, 45, '2025-09-11 14:25:31.392389');
+INSERT INTO `series_genre_options` (`id`, `series_id`, `option_id`, `created_at`) VALUES (46, 2003, 45, '2025-09-11 14:25:31.392389');
+INSERT INTO `series_genre_options` (`id`, `series_id`, `option_id`, `created_at`) VALUES (47, 1002, 45, '2025-09-11 14:25:31.392389');
+INSERT INTO `series_genre_options` (`id`, `series_id`, `option_id`, `created_at`) VALUES (48, 2025, 46, '2025-09-11 14:25:31.392389');
+INSERT INTO `series_genre_options` (`id`, `series_id`, `option_id`, `created_at`) VALUES (49, 2011, 46, '2025-09-11 14:25:31.392389');
+INSERT INTO `series_genre_options` (`id`, `series_id`, `option_id`, `created_at`) VALUES (50, 1003, 46, '2025-09-11 14:25:31.392389');
+INSERT INTO `series_genre_options` (`id`, `series_id`, `option_id`, `created_at`) VALUES (51, 2026, 47, '2025-09-11 14:25:31.392389');
+INSERT INTO `series_genre_options` (`id`, `series_id`, `option_id`, `created_at`) VALUES (52, 2012, 47, '2025-09-11 14:25:31.392389');
+INSERT INTO `series_genre_options` (`id`, `series_id`, `option_id`, `created_at`) VALUES (53, 2005, 47, '2025-09-11 14:25:31.392389');
+INSERT INTO `series_genre_options` (`id`, `series_id`, `option_id`, `created_at`) VALUES (54, 1004, 47, '2025-09-11 14:25:31.392389');
+INSERT INTO `series_genre_options` (`id`, `series_id`, `option_id`, `created_at`) VALUES (55, 2027, 48, '2025-09-11 14:25:31.392389');
+INSERT INTO `series_genre_options` (`id`, `series_id`, `option_id`, `created_at`) VALUES (56, 2013, 48, '2025-09-11 14:25:31.392389');
+INSERT INTO `series_genre_options` (`id`, `series_id`, `option_id`, `created_at`) VALUES (57, 2006, 48, '2025-09-11 14:25:31.392389');
+INSERT INTO `series_genre_options` (`id`, `series_id`, `option_id`, `created_at`) VALUES (58, 1005, 48, '2025-09-11 14:25:31.392389');
+INSERT INTO `series_genre_options` (`id`, `series_id`, `option_id`, `created_at`) VALUES (59, 2028, 49, '2025-09-11 14:25:31.392389');
+INSERT INTO `series_genre_options` (`id`, `series_id`, `option_id`, `created_at`) VALUES (60, 2014, 49, '2025-09-11 14:25:31.392389');
+INSERT INTO `series_genre_options` (`id`, `series_id`, `option_id`, `created_at`) VALUES (61, 2007, 49, '2025-09-11 14:25:31.392389');
+INSERT INTO `series_genre_options` (`id`, `series_id`, `option_id`, `created_at`) VALUES (62, 2015, 50, '2025-09-11 14:25:31.392389');
+INSERT INTO `series_genre_options` (`id`, `series_id`, `option_id`, `created_at`) VALUES (63, 2008, 50, '2025-09-11 14:25:31.392389');
+INSERT INTO `series_genre_options` (`id`, `series_id`, `option_id`, `created_at`) VALUES (64, 2001, 50, '2025-09-11 14:25:31.392389');
+INSERT INTO `series_genre_options` (`id`, `series_id`, `option_id`, `created_at`) VALUES (65, 2023, 59, '2025-09-11 14:25:31.392389');
+INSERT INTO `series_genre_options` (`id`, `series_id`, `option_id`, `created_at`) VALUES (66, 2016, 59, '2025-09-11 14:25:31.392389');
+INSERT INTO `series_genre_options` (`id`, `series_id`, `option_id`, `created_at`) VALUES (67, 2009, 59, '2025-09-11 14:25:31.392389');
+INSERT INTO `series_genre_options` (`id`, `series_id`, `option_id`, `created_at`) VALUES (68, 2002, 59, '2025-09-11 14:25:31.392389');
+INSERT INTO `series_genre_options` (`id`, `series_id`, `option_id`, `created_at`) VALUES (69, 1001, 59, '2025-09-11 14:25:31.392389');
+INSERT INTO `series_genre_options` (`id`, `series_id`, `option_id`, `created_at`) VALUES (70, 2026, 60, '2025-09-11 14:25:31.392389');
+INSERT INTO `series_genre_options` (`id`, `series_id`, `option_id`, `created_at`) VALUES (71, 2012, 60, '2025-09-11 14:25:31.392389');
+INSERT INTO `series_genre_options` (`id`, `series_id`, `option_id`, `created_at`) VALUES (72, 2005, 60, '2025-09-11 14:25:31.392389');
+INSERT INTO `series_genre_options` (`id`, `series_id`, `option_id`, `created_at`) VALUES (73, 1004, 60, '2025-09-11 14:25:31.392389');
+INSERT INTO `series_genre_options` (`id`, `series_id`, `option_id`, `created_at`) VALUES (101, 2006, 44, '2025-09-11 14:25:31.397270');
+INSERT INTO `series_genre_options` (`id`, `series_id`, `option_id`, `created_at`) VALUES (102, 2028, 45, '2025-09-11 14:25:31.397270');
+INSERT INTO `series_genre_options` (`id`, `series_id`, `option_id`, `created_at`) VALUES (103, 2014, 45, '2025-09-11 14:25:31.397270');
+INSERT INTO `series_genre_options` (`id`, `series_id`, `option_id`, `created_at`) VALUES (104, 2008, 46, '2025-09-11 14:25:31.397270');
+INSERT INTO `series_genre_options` (`id`, `series_id`, `option_id`, `created_at`) VALUES (105, 2016, 47, '2025-09-11 14:25:31.397270');
+INSERT INTO `series_genre_options` (`id`, `series_id`, `option_id`, `created_at`) VALUES (106, 2002, 47, '2025-09-11 14:25:31.397270');
+INSERT INTO `series_genre_options` (`id`, `series_id`, `option_id`, `created_at`) VALUES (107, 2024, 48, '2025-09-11 14:25:31.397270');
+INSERT INTO `series_genre_options` (`id`, `series_id`, `option_id`, `created_at`) VALUES (108, 2010, 48, '2025-09-11 14:25:31.397270');
+INSERT INTO `series_genre_options` (`id`, `series_id`, `option_id`, `created_at`) VALUES (109, 1002, 48, '2025-09-11 14:25:31.397270');
+INSERT INTO `series_genre_options` (`id`, `series_id`, `option_id`, `created_at`) VALUES (110, 2026, 50, '2025-09-11 14:25:31.397270');
+INSERT INTO `series_genre_options` (`id`, `series_id`, `option_id`, `created_at`) VALUES (111, 2012, 50, '2025-09-11 14:25:31.397270');
+INSERT INTO `series_genre_options` (`id`, `series_id`, `option_id`, `created_at`) VALUES (112, 1004, 50, '2025-09-11 14:25:31.397270');
+INSERT INTO `series_genre_options` (`id`, `series_id`, `option_id`, `created_at`) VALUES (113, 2006, 59, '2025-09-11 14:25:31.397270');
+INSERT INTO `series_genre_options` (`id`, `series_id`, `option_id`, `created_at`) VALUES (114, 2016, 60, '2025-09-11 14:25:31.397270');
+INSERT INTO `series_genre_options` (`id`, `series_id`, `option_id`, `created_at`) VALUES (115, 2002, 60, '2025-09-11 14:25:31.397270');
+INSERT INTO `series_genre_options` (`id`, `series_id`, `option_id`, `created_at`) VALUES (116, 2025, 44, '2025-09-11 14:25:31.399121');
+INSERT INTO `series_genre_options` (`id`, `series_id`, `option_id`, `created_at`) VALUES (117, 2005, 45, '2025-09-11 14:25:31.399121');
+INSERT INTO `series_genre_options` (`id`, `series_id`, `option_id`, `created_at`) VALUES (118, 1005, 46, '2025-09-11 14:25:31.399121');
+INSERT INTO `series_genre_options` (`id`, `series_id`, `option_id`, `created_at`) VALUES (119, 2015, 48, '2025-09-11 14:25:31.399121');
+INSERT INTO `series_genre_options` (`id`, `series_id`, `option_id`, `created_at`) VALUES (120, 2010, 50, '2025-09-11 14:25:31.399121');
+INSERT INTO `series_genre_options` (`id`, `series_id`, `option_id`, `created_at`) VALUES (121, 2025, 59, '2025-09-11 14:25:31.399121');
 COMMIT;
 
 -- ----------------------------

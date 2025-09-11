@@ -82,14 +82,16 @@ export class UpdateIngestSeriesDto {
 
   @IsOptional()
   @IsString()
-  @IsIn(['on-going', 'completed', 'deleted'])
+  @IsIn(['deleted'])
   status?: string;
 
   @IsOptional()
   @IsDateString()
   releaseDate?: string;
 
-  // isCompleted 由后端根据 status 自动维护
+  @IsOptional()
+  @IsBoolean()
+  isCompleted?: boolean;
 
   @IsOptional()
   @IsNumber()

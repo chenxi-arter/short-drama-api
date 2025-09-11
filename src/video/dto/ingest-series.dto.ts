@@ -76,14 +76,16 @@ export class IngestSeriesDto {
   @Min(1)
   categoryId: number;
 
+  @IsOptional()
   @IsString()
-  @IsIn(['on-going', 'completed', 'deleted'])
-  status: string;
+  @IsIn(['deleted'])
+  status?: string;
 
   @IsDateString()
   releaseDate: string;
 
-  // isCompleted 由后端根据 status 自动维护
+  @IsBoolean()
+  isCompleted: boolean;
 
   @IsOptional()
   @IsNumber()

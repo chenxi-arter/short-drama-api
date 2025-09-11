@@ -1,7 +1,10 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, CreateDateColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, CreateDateColumn, Index, Unique } from 'typeorm';
 import { Series } from './series.entity';
 import { FilterOption } from './filter-option.entity';
 
+@Unique('uq_series_option', ['seriesId', 'optionId'])
+@Index('idx_series', ['seriesId'])
+@Index('idx_option', ['optionId'])
 @Entity('series_genre_options')
 export class SeriesGenreOption {
   @PrimaryGeneratedColumn({ name: 'id' })

@@ -136,9 +136,13 @@ export class FilterService {
       const pageSize = 20;
       const offset = (pageNum - 1) * pageSize;
 
-      // 解析筛选条件（基础数值 + 原始token）
+      // 解析筛选条件（基础数值 + 原始token，长度不足自动补0到6位）
       const filterIds = this.parseFilterIds(ids);
-      const idTokens = ids.split(',');
+      const rawTokens = ids.split(',');
+      const idTokens = Array(6).fill('0');
+      for (let i = 0; i < Math.min(6, rawTokens.length); i++) {
+        idTokens[i] = (rawTokens[i] ?? '0') as string;
+      }
       
       // 构建查询条件
       const queryBuilder = this.seriesRepo.createQueryBuilder('series')
@@ -382,7 +386,7 @@ export class FilterService {
               break;
             }
             case 'genre': {
-              // 第二位作为“题材”处理：支持单选和多选（连字符）
+              // 第二位作为"题材"处理：支持单选和多选（连字符）
               const raw = idTokens?.[1] || '';
               const displayOrders = raw.includes('-')
                 ? raw.split('-').map(x => parseInt(x) || 0).filter(x => x > 0)
@@ -398,7 +402,16 @@ export class FilterService {
                     .getRawMany();
                   const genreIds = opts.map((r: any) => Number(r.id)).filter(Boolean);
                   if (genreIds.length) {
-                    queryBuilder.andWhere('sgo.option_id IN (:...genreIds)', { genreIds });
+                    if (displayOrders.length === 1) {
+                      // 单选：直接 IN
+                      queryBuilder.andWhere('sgo.option_id IN (:...genreIds)', { genreIds });
+                    } else {
+                      // 多选：必须同时具备所有题材（AND逻辑）
+                      // 使用 HAVING COUNT(DISTINCT sgo.option_id) = 要求的数量
+                      queryBuilder.andWhere('sgo.option_id IN (:...genreIds)', { genreIds });
+                      queryBuilder.groupBy('series.id');
+                      queryBuilder.having('COUNT(DISTINCT sgo.option_id) = :requiredCount', { requiredCount: genreIds.length });
+                    }
                   } else {
                     queryBuilder.andWhere('1 = 0');
                   }
