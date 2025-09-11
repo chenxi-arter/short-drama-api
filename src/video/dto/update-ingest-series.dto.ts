@@ -151,6 +151,17 @@ export class UpdateIngestSeriesDto {
   @IsOptional()
   @IsBoolean()
   removeMissingUrls?: boolean;
+
+  // 新增：题材/标签多选更新
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  genreOptionNames?: string[];
+
+  // 是否覆盖题材，不传则追加模式
+  @IsOptional()
+  @IsBoolean()
+  replaceGenres?: boolean;
 }
 
 

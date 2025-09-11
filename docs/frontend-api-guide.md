@@ -364,7 +364,7 @@ interface FilterTagsResponse {
 }
 
 interface FilterTagGroup {
-  name: string;         // 标签组名称（如：类型、地区、年份等）
+  name: string;         // 标签组名称（如：题材、地区、年份等）
   list: FilterTagItem[];
 }
 
@@ -385,6 +385,10 @@ const buildFilterIds = (selectedTags: FilterTagItem[]): string => {
 };
 ```
 
+说明：
+- 筛选位顺序固定为：0=排序(sort)，1=题材(genre)，2=地区(region)，3=语言(language)，4=年份(year)，5=状态(status)
+- 第二位（题材）支持多选，使用连字符连接 display_order 值，例如：`1,2-5-7,0,0,0,0`
+
 #### **条件筛选视频**
 ```typescript
 // 接口地址
@@ -393,7 +397,8 @@ GET /api/list/getfiltersdata?channeid=1&ids=1,2,0,0,0&page=1
 // 请求参数
 interface FilterRequest {
   channeid: number;     // 频道ID
-  ids: string;          // 筛选条件ID，格式：1,2,0,0,0
+  ids: string;          // 筛选条件，顺序：[sort,genre,region,language,year,status]
+                        // 例：单选题材：1,2,0,0,0,0  多选题材：1,2-5-7,0,0,0,0
   page: number;         // 页码
 }
 
@@ -411,17 +416,20 @@ interface FilterResponse {
 
 interface VideoItem {
   id: number;
-  shortId: string;      // 系列ShortID
-  coverUrl: string;     // 封面图
-  title: string;        // 标题
-  score: string;        // 评分（如"9.2"）
-  playCount: number;    // 播放次数
-  type: string;         // 类型（如"短剧"）
-  isSerial: boolean;    // 是否系列剧
-  upStatus: string;     // 更新状态
-  upCount: number;      // 集数
-  author: string;       // 主演
-  description: string;  // 描述
+  shortId: string;          // 系列ShortID
+  coverUrl: string;         // 封面图
+  title: string;            // 标题
+  score: string;            // 评分（如 "9.2"）
+  playCount: number;        // 播放次数
+  type: string;             // 类型（如 "短剧"）
+  isSerial: boolean;        // 是否系列剧
+  upStatus: string;         // 更新状态文案（如：更新至第X集 / 已完结）
+  upCount: number;          // 当天新增集数（按当天0点~次日0点统计）
+  likeCount?: number;       // 点赞数（系列下已发布剧集聚合）
+  dislikeCount?: number;    // 踩数（系列下已发布剧集聚合）
+  favoriteCount?: number;   // 收藏数（系列下已发布剧集聚合）
+  author: string;           // 主演
+  description: string;      // 描述
 }
 ```
 

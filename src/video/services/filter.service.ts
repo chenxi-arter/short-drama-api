@@ -136,8 +136,9 @@ export class FilterService {
       const pageSize = 20;
       const offset = (pageNum - 1) * pageSize;
 
-      // 解析筛选条件
+      // 解析筛选条件（基础数值 + 原始token）
       const filterIds = this.parseFilterIds(ids);
+      const idTokens = ids.split(',');
       
       // 构建查询条件
       const queryBuilder = this.seriesRepo.createQueryBuilder('series')
@@ -149,8 +150,11 @@ export class FilterService {
         .where('series.isActive = :isActive', { isActive: 1 }) // 只查询未删除的剧集
         .distinct(true); // 避免联结导致的重复行
 
+      // 题材多选中间表（若无筛选也可安全JOIN）
+      queryBuilder.leftJoin('series_genre_options', 'sgo', 'sgo.series_id = series.id');
+
       // 应用筛选条件
-      await this.applyFilters(queryBuilder, filterIds, channelId);
+      await this.applyFilters(queryBuilder, filterIds, channelId, idTokens);
 
       // 排序
       this.applySorting(queryBuilder, filterIds.sortType);
@@ -326,7 +330,8 @@ export class FilterService {
       yearId: number;
       statusId: number;
     }, 
-    channelId: string
+    channelId: string,
+    idTokens?: string[]
   ): Promise<void> {
     // 频道筛选
     FilterQueryBuilderUtil.applyChannel(queryBuilder, channelId);
@@ -372,9 +377,35 @@ export class FilterService {
           }
           // 根据filter_type的code来应用不同的筛选逻辑，传递实际的option.id
           switch (filterType.code) {
-            case 'type':
-              FilterQueryBuilderUtil.applyType(queryBuilder, option.id);
+            case 'type': {
+              // 如果禁用 type，则跳过
               break;
+            }
+            case 'genre': {
+              // 第二位作为“题材”处理：支持单选和多选（连字符）
+              const raw = idTokens?.[1] || '';
+              const displayOrders = raw.includes('-')
+                ? raw.split('-').map(x => parseInt(x) || 0).filter(x => x > 0)
+                : [optionId].filter(x => x > 0);
+              if (displayOrders.length) {
+                const genreRow = await this.filterTypeRepo.findOne({ where: { code: 'genre', isActive: true as any } as any });
+                if (genreRow) {
+                  const opts = await this.filterOptionRepo.createQueryBuilder('fo')
+                    .select('fo.id', 'id')
+                    .where('fo.filter_type_id = :ftid', { ftid: genreRow.id })
+                    .andWhere('fo.display_order IN (:...dos)', { dos: displayOrders })
+                    .andWhere('fo.is_active = 1')
+                    .getRawMany();
+                  const genreIds = opts.map((r: any) => Number(r.id)).filter(Boolean);
+                  if (genreIds.length) {
+                    queryBuilder.andWhere('sgo.option_id IN (:...genreIds)', { genreIds });
+                  } else {
+                    queryBuilder.andWhere('1 = 0');
+                  }
+                }
+              }
+              break;
+            }
             case 'region':
               FilterQueryBuilderUtil.applyRegion(queryBuilder, option.id);
               break;

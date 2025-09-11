@@ -15,6 +15,7 @@ import { User } from '../user/entity/user.entity';            // 用户实体（
 
 import { FilterType } from './entity/filter-type.entity';      // 筛选器类型实体
 import { FilterOption } from './entity/filter-option.entity';  // 筛选器选项实体
+import { SeriesGenreOption } from './entity/series-genre-option.entity'; // 系列题材中间表
 import { VideoService } from './video.service';                // 视频业务逻辑服务
 import { CacheMonitorController } from './cache-monitor.controller'; // 缓存监控API控制器
 import { VideoApiModule } from './modules/video-api.module';
@@ -69,6 +70,7 @@ import { PlayCountService } from './services/play-count.service';
 
       FilterType,     // 筛选器类型数据表
       FilterOption,   // 筛选器选项数据表
+      SeriesGenreOption, // 系列题材中间表
       BrowseHistory   // 浏览记录数据表
     ])
   , VideoApiModule],

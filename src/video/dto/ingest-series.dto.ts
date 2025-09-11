@@ -141,6 +141,12 @@ export class IngestSeriesDto {
   @ValidateNested({ each: true })
   @Type(() => EpisodeInputDto)
   episodes: EpisodeInputDto[];
+
+  // 新增：题材/标签多选（名称优先）
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  genreOptionNames?: string[];
 }
 
 

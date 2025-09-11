@@ -50,6 +50,7 @@ import { Banner } from '../entity/banner.entity';
 import { FilterType } from '../entity/filter-type.entity';
 import { FilterOption } from '../entity/filter-option.entity';
 import { BrowseHistory } from '../entity/browse-history.entity';
+import { SeriesGenreOption } from '../entity/series-genre-option.entity';
 
 @Module({
   imports: [
@@ -59,7 +60,8 @@ import { BrowseHistory } from '../entity/browse-history.entity';
     BannerModule,
     HistoryModule,
     TypeOrmModule.forFeature([
-      Series, Episode, EpisodeUrl, Comment, WatchProgress, Category, ShortVideo, Banner, FilterType, FilterOption, BrowseHistory
+      Series, Episode, EpisodeUrl, Comment, WatchProgress, Category, ShortVideo, Banner, FilterType, FilterOption, BrowseHistory,
+      SeriesGenreOption
     ])
   ],
   controllers: [

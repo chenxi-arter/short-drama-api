@@ -10,6 +10,7 @@ import { UpdateIngestSeriesDto } from '../dto/update-ingest-series.dto';
 import { FilterType } from '../entity/filter-type.entity';
 import { FilterOption } from '../entity/filter-option.entity';
 import { FilterService } from './filter.service';
+import { SeriesGenreOption } from '../entity/series-genre-option.entity';
 
 @Injectable()
 export class IngestService {
@@ -19,6 +20,7 @@ export class IngestService {
     @InjectRepository(EpisodeUrl) private readonly urlRepo: Repository<EpisodeUrl>,
     @InjectRepository(FilterType) private readonly filterTypeRepo: Repository<FilterType>,
     @InjectRepository(FilterOption) private readonly filterOptionRepo: Repository<FilterOption>,
+    @InjectRepository(SeriesGenreOption) private readonly seriesGenreRepo: Repository<SeriesGenreOption>,
     private readonly filterService: FilterService,
   ) {}
 
@@ -100,6 +102,42 @@ export class IngestService {
     return saved.id;
   }
 
+  private async resolveGenreOptionIds(payload: { genreOptionNames?: string[] }): Promise<number[]> {
+    const ids = new Set<number>();
+    if (Array.isArray(payload.genreOptionNames)) {
+      for (const name of payload.genreOptionNames) {
+        // 题材归属 genre 组
+        const id = await this.resolveOptionId('genre', name);
+        if (id) ids.add(id);
+      }
+    }
+    return Array.from(ids);
+  }
+
+  private async upsertSeriesGenres(seriesId: number, optionIds: number[], replace: boolean = false): Promise<void> {
+    if (!Array.isArray(optionIds)) return;
+    const unique = Array.from(new Set(optionIds.filter(x => typeof x === 'number' && x > 0)));
+    if (replace) {
+      if (unique.length === 0) {
+        await this.seriesGenreRepo.delete({ seriesId });
+        return;
+      }
+      // 删除未包含的旧关联
+      await this.seriesGenreRepo.createQueryBuilder()
+        .delete()
+        .where('series_id = :sid AND option_id NOT IN (:...ids)', { sid: seriesId, ids: unique })
+        .execute();
+    }
+    // upsert 新关联
+    for (const oid of unique) {
+      const exists = await this.seriesGenreRepo.findOne({ where: { seriesId, optionId: oid } });
+      if (!exists) {
+        const row = this.seriesGenreRepo.create({ seriesId, optionId: oid });
+        await this.seriesGenreRepo.save(row);
+      }
+    }
+  }
+
   /**
    * 根据标题（或可扩展唯一键）进行 upsert，写入系列/剧集/链接
    */
@@ -165,7 +203,17 @@ export class IngestService {
     }
     series = await this.seriesRepo.save(series);
 
-    // 2) episodes upsert by (seriesId, episodeNumber)
+    // 2) genres upsert (append mode)
+    try {
+      const genreIds = await this.resolveGenreOptionIds(payload);
+      if (genreIds.length) {
+        await this.upsertSeriesGenres(series.id, genreIds, false);
+      }
+    } catch (e) {
+      console.warn('[INGEST] 题材写入失败（忽略不中断）：', e?.message || e);
+    }
+
+    // 3) episodes upsert by (seriesId, episodeNumber)
     for (const ep of payload.episodes || []) {
       let episode = await this.episodeRepo.findOne({ where: { seriesId: series.id, episodeNumber: ep.episodeNumber } });
       if (!episode) {
@@ -183,7 +231,7 @@ export class IngestService {
       }
       episode = await this.episodeRepo.save(episode);
 
-      // 3) replace urls for the episode (idempotent strategy: clear and insert)
+      // 4) replace urls for the episode (idempotent strategy: clear and insert)
       if (Array.isArray(ep.urls)) {
         // 逐个 upsert，按 (episodeId, quality) 唯一
         for (const u of ep.urls) {
@@ -271,6 +319,18 @@ export class IngestService {
       await this.seriesRepo.update(series.id, update);
       // 恢复为活跃（如果之前被删除）
       await this.seriesRepo.update(series.id, { isActive: 1, deletedAt: null as any });
+    }
+
+    // 更新题材与剧集/URL
+    try {
+      const genreIds = await this.resolveGenreOptionIds(payload);
+      if (genreIds.length) {
+        await this.upsertSeriesGenres(series.id, genreIds, !!payload.replaceGenres);
+      } else if (payload.replaceGenres) {
+        await this.upsertSeriesGenres(series.id, [], true);
+      }
+    } catch (e) {
+      console.warn('[INGEST] 更新题材失败（忽略不中断）：', e?.message || e);
     }
 
     // 更新剧集与URL
