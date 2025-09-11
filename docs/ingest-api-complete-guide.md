@@ -74,8 +74,8 @@ Ingest API 是短剧系统的核心数据采集接口，提供完整的系列、
   "description": "系列描述",
   "coverUrl": "封面图片URL",
   "categoryId": 1,
-  "status": "on-going",
   "releaseDate": "2024-01-01",
+  "isCompleted": false,
   "score": 8.5,
   "playCount": 1000,
   "starring": "主演",
@@ -116,7 +116,7 @@ Ingest API 是短剧系统的核心数据采集接口，提供完整的系列、
 | `description` | string | ✅ | 系列描述 | "这是一个精彩的短剧系列" |
 | `coverUrl` | string | ✅ | 封面图片URL（≤255） | "https://example.com/cover.jpg" |
 | `categoryId` | number | ✅ | 分类ID（≥1） | 1 |
-| `status` | string | ❌ | 仅用于软删除：传 `deleted` 触发软删除（`isActive=0`）；其他值忽略。系列状态统一使用 `statusOptionName` + `isCompleted` 表达。 | "deleted"（仅软删除时传入） |
+fix| `status` | string | ❌ | 仅用于软删除：传 `deleted` 触发软删除（`isActive=0`）；其他值忽略。系列状态统一使用 `statusOptionName` + `isCompleted` 表达。 | "deleted"（仅软删除时传入） |
 | `releaseDate` | string | ✅ | 发布日期（ISO日期） | "2024-01-01" |
 | `isCompleted` | boolean | ✅ | 系列完结标识：`true`=已完结，`false`=连载中。影响 `upStatus` 文案："已完结" 或 "更新至第X集"。 | true / false |
 | `score` | number | ❌ | 评分（0-10） | 8.5 |
@@ -146,18 +146,16 @@ Ingest API 是短剧系统的核心数据采集接口，提供完整的系列、
 - 动态创建：传入不存在的题材名称会自动在 `filter_types(code='genre')` 下创建新选项。
 - 示例：`genreOptionNames: ["言情", "玄幻", "都市"]` 会为该系列关联三个题材。
 
-###### 关于 status 与 isCompleted 字段（优化后）
-- **status 字段**：仅用于软删除，传 `deleted` 触发软删除（`isActive=0`），其他值忽略。
-- **isCompleted 字段**：系列完结标识，可选传入：
+###### 关于 status 与 isCompleted 字段（最新规则）
+- **status 字段**：改为可选字段，仅用于软删除，传 `deleted` 触发软删除（`isActive=0`），其他值忽略。
+- **isCompleted 字段**：改为必填布尔字段，明确表示系列完结状态：
   - `true`：系列已完结，`upStatus` 显示为"已完结"
   - `false`：系列连载中，`upStatus` 显示为"更新至第X集"
-  - 不传入：后端根据 `statusOptionName` 智能推断（"已完结"→true，其他→false）
 - **statusOptionName**：对外展示与筛选的状态标签，存储在 `status_option_id` 外键
 - **推荐用法**：
-  - 连载系列：`statusOptionName: "连载中"`（可选：`isCompleted: false`）
-  - 完结系列：`statusOptionName: "已完结"`（可选：`isCompleted: true`）
-  - 软删除：`status: "deleted"`（其他字段忽略）
-- **智能推断规则**：当 `statusOptionName` 包含"完结"、"完成"、"ended"、"finished" 等关键词时，自动设置 `isCompleted=true`
+  - 连载系列：`isCompleted: false` + `statusOptionName: "连载中"`
+  - 完结系列：`isCompleted: true` + `statusOptionName: "已完结"`
+  - 软删除：`status: "deleted"`（其他字段可省略）
 
 ###### 关于分类 categoryId 的取值
 - 当前内置分类如下：
@@ -522,7 +520,7 @@ POST /api/admin/ingest/series/update
 - **episodeNumber**: 正整数，最小值为1
 - **duration**: 正整数，最小值为1
 - **quality**: 必须是预定义值之一：["360p", "480p", "720p", "1080p", "4K"]
-- **status**: 系列状态仅支持 "deleted"（软删除），剧集状态必须是 ["published", "hidden", "draft"]
+- **status**: 系列状态仅支持 "deleted"（软删除，可选），剧集状态必须是 ["published", "hidden", "draft"]
 - **isCompleted**: 布尔值，true 或 false
 - **statusOptionName**: 必须是有效的状态选项名称（如"连载中"、"已完结"等）
 

@@ -141,7 +141,7 @@ export class FilterService {
       const rawTokens = ids.split(',');
       const idTokens = Array(6).fill('0');
       for (let i = 0; i < Math.min(6, rawTokens.length); i++) {
-        idTokens[i] = (rawTokens[i] ?? '0') as string;
+        idTokens[i] = (rawTokens[i] ?? '0');
       }
       
       // 构建查询条件

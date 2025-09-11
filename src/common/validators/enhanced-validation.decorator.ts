@@ -46,7 +46,7 @@ export class EnhancedStringLengthConstraint implements ValidatorConstraintInterf
 }
 
 export function EnhancedStringLength(min: number, max: number, validationOptions?: ValidationOptions) {
-  return function (object: Object, propertyName: string) {
+  return function (object: object, propertyName: string) {
     registerDecorator({
       target: object.constructor,
       propertyName: propertyName,
@@ -92,7 +92,7 @@ export class VideoUrlConstraint implements ValidatorConstraintInterface {
 }
 
 export function IsVideoUrl(validationOptions?: ValidationOptions) {
-  return function (object: Object, propertyName: string) {
+  return function (object: object, propertyName: string) {
     registerDecorator({
       target: object.constructor,
       propertyName: propertyName,
@@ -136,7 +136,7 @@ export class ImageUrlConstraint implements ValidatorConstraintInterface {
 }
 
 export function IsImageUrl(validationOptions?: ValidationOptions) {
-  return function (object: Object, propertyName: string) {
+  return function (object: object, propertyName: string) {
     registerDecorator({
       target: object.constructor,
       propertyName: propertyName,
@@ -167,7 +167,7 @@ export class ChinesePhoneNumberConstraint implements ValidatorConstraintInterfac
 }
 
 export function IsChinesePhoneNumber(validationOptions?: ValidationOptions) {
-  return function (object: Object, propertyName: string) {
+  return function (object: object, propertyName: string) {
     registerDecorator({
       target: object.constructor,
       propertyName: propertyName,
@@ -204,7 +204,7 @@ export class StrongPasswordConstraint implements ValidatorConstraintInterface {
 }
 
 export function IsStrongPassword(minLength: number = 8, validationOptions?: ValidationOptions) {
-  return function (object: Object, propertyName: string) {
+  return function (object: object, propertyName: string) {
     registerDecorator({
       target: object.constructor,
       propertyName: propertyName,
@@ -236,7 +236,7 @@ export class ArrayLengthConstraint implements ValidatorConstraintInterface {
 }
 
 export function ArrayLength(min: number, max: number, validationOptions?: ValidationOptions) {
-  return function (object: Object, propertyName: string) {
+  return function (object: object, propertyName: string) {
     registerDecorator({
       target: object.constructor,
       propertyName: propertyName,
@@ -268,7 +268,7 @@ export class NumberRangeConstraint implements ValidatorConstraintInterface {
 }
 
 export function NumberRange(min: number, max: number, validationOptions?: ValidationOptions) {
-  return function (object: Object, propertyName: string) {
+  return function (object: object, propertyName: string) {
     registerDecorator({
       target: object.constructor,
       propertyName: propertyName,

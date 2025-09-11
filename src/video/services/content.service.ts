@@ -100,6 +100,9 @@ export class ContentService {
       // 获取系列基本信息
       let seriesInfo: SeriesBasicInfo | null = null;
       if (series) {
+        // 获取系列标签
+        const seriesTags = await this.getSeriesTags(series);
+
         seriesInfo = {
           starring: series.starring || '',
           id: series.id,
@@ -121,7 +124,8 @@ export class ContentService {
           watch_progress: 0,
           playCount: series.playCount || 0,
           isHot: false,
-          isVip: false
+          isVip: false,
+          tags: seriesTags
         };
       }
 
@@ -148,18 +152,39 @@ export class ContentService {
         tags = await this.getSeriesTags(series);
       }
 
+      // 获取用户对所有剧集的观看进度（批量查询）
+      const episodeProgressMap: Record<number, any> = {};
+      if (userId && episodes.length > 0) {
+        const episodeIds = episodes.map(ep => ep.id);
+        const progressList = await this.watchProgressService.getUserWatchProgressByEpisodeIds(userId, episodeIds);
+
+        progressList.forEach(progress => {
+          const episode = episodes.find(ep => ep.id === progress.episodeId);
+          if (episode) {
+            let watchPercentage = 0;
+            if (episode.duration > 0) {
+              watchPercentage = Math.round((progress.stopAtSecond / episode.duration) * 100);
+            }
+            const isWatched = watchPercentage >= 90; // 90%以上算已观看
+
+            episodeProgressMap[progress.episodeId] = {
+              watchProgress: progress.stopAtSecond,
+              watchPercentage,
+              isWatched,
+              lastWatchTime: progress.updatedAt.toISOString()
+            };
+          }
+        });
+      }
+
       // 构建剧集列表
       const episodeList = episodes.map(ep => {
-        // 获取用户对该集的观看进度
-        let episodeWatchProgress = 0;
-        let episodeWatchPercentage = 0;
-        let isWatched = false;
-        let lastWatchTime = '';
-
-        if (userId) {
-          // 这里可以优化为批量查询
-          // 暂时保持原有逻辑
-        }
+        const progress = episodeProgressMap[ep.id] || {
+          watchProgress: 0,
+          watchPercentage: 0,
+          isWatched: false,
+          lastWatchTime: ''
+        };
 
         return {
           id: ep.id,
@@ -177,10 +202,10 @@ export class ContentService {
           likeCount: ep.likeCount || 0,
           dislikeCount: ep.dislikeCount || 0,
           favoriteCount: ep.favoriteCount || 0,
-          watchProgress: episodeWatchProgress,
-          watchPercentage: episodeWatchPercentage,
-          isWatched,
-          lastWatchTime,
+          watchProgress: progress.watchProgress,
+          watchPercentage: progress.watchPercentage,
+          isWatched: progress.isWatched,
+          lastWatchTime: progress.lastWatchTime,
           episodeAccessKey: ep.accessKey,
           urls: ep.urls?.map(url => ({
             quality: url.quality,
@@ -313,17 +338,28 @@ export class ContentService {
   }
 
   /**
-   * 获取系列标签
+   * 获取系列标签（优先题材，然后其他维度）
    * @param series 系列实体
    */
   private async getSeriesTags(series: Series): Promise<string[]> {
     const tags: string[] = [];
     
     try {
-      // 添加分类标签
-      if (series.category?.name) {
-        tags.push(series.category.name);
-      }
+      // 优先添加题材标签（从中间表获取）
+      const genreTags = await this.seriesRepo
+        .createQueryBuilder('s')
+        .leftJoin('series_genre_options', 'sgo', 'sgo.series_id = s.id')
+        .leftJoin('filter_options', 'fo', 'fo.id = sgo.option_id')
+        .select('fo.name', 'name')
+        .where('s.id = :seriesId', { seriesId: series.id })
+        .andWhere('fo.filter_type_id = 2')
+        .andWhere('fo.is_active = 1')
+        .orderBy('fo.display_order', 'ASC')
+        .getRawMany();
+      
+      genreTags.forEach(tag => {
+        if (tag.name) tags.push(tag.name);
+      });
       
       // 添加地区标签
       if (series.regionOption?.name) {

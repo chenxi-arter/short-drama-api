@@ -40,7 +40,7 @@ export class ProgressController extends BaseController {
 
       if (isShortId) {
         // 通过shortId找到episode ID
-        const episode = await this.videoService.getEpisodeByShortId(episodeIdentifier as string);
+        const episode = await this.videoService.getEpisodeByShortId(episodeIdentifier);
         if (!episode) {
           return this.error('剧集不存在', 404);
         }

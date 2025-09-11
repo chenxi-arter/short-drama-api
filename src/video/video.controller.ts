@@ -52,7 +52,7 @@ export class VideoController extends BaseController {
         !/^\d+$/.test(episodeIdentifier);
 
       if (isShortId) {
-        const episode = await this.videoService.getEpisodeByShortId(episodeIdentifier as string);
+        const episode = await this.videoService.getEpisodeByShortId(episodeIdentifier);
         if (!episode) {
           return this.error('剧集不存在', 404);
         }
@@ -135,7 +135,7 @@ export class VideoController extends BaseController {
         !/^\d+$/.test(episodeIdentifier);
 
       if (isShortId) {
-        const episode = await this.videoService.getEpisodeByShortId(episodeIdentifier as string);
+        const episode = await this.videoService.getEpisodeByShortId(episodeIdentifier);
         if (!episode) {
           return this.error('剧集不存在', 404);
         }

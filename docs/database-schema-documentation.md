@@ -4,6 +4,12 @@
 
 本文档详细整理了短剧API项目中所有数据库表的字段定义和实体关系，基于TypeORM实体类分析生成。
 
+### 最新更新
+- 新增中间表 `series_genre_options` 支持系列题材多选
+- `episodes` 表新增交互字段：`like_count`、`dislike_count`、`favorite_count`
+- `series.is_completed` 字段语义明确为完结状态标识
+- 筛选维度调整：第二组为题材(genre)，支持单选和多选筛选
+
 ## 🗂️ 数据库表结构
 
 ### 1. 用户相关表
@@ -254,10 +260,17 @@ Category (1) -----> (N) Banner
 
 Series (1) -----> (N) Episode
 Series (1) <----- (N) Banner (可选关联)
+Series (N) <----> (N) FilterOption (通过series_genre_options，题材多选)
 
 Episode (1) -----> (N) EpisodeUrl
 Episode (1) -----> (N) Comment
 Episode (1) -----> (N) WatchProgress
+
+筛选关系:
+Series (N) -----> (1) FilterOption (region_option_id)
+Series (N) -----> (1) FilterOption (language_option_id)
+Series (N) -----> (1) FilterOption (status_option_id)
+Series (N) -----> (1) FilterOption (year_option_id)
 
 交叉关系:
 User (N) -----> (N) Episode (通过WatchProgress)
@@ -286,6 +299,32 @@ User (N) -----> (N) Episode (通过Comment)
 - **评论弹幕**：Comment.appear_second支持弹幕时间定位
 - **多清晰度**：EpisodeUrl支持多种视频清晰度
 - **运营管理**：Banner支持轮播图运营和权重排序
+- **题材多选**：series_genre_options中间表支持系列关联多个题材标签
+- **交互统计**：episodes表的like_count/dislike_count/favorite_count支持用户互动统计
+
+### 5. 新增表结构
+
+#### 5.1 series_genre_options（系列题材关联表）
+
+| 字段名 | 数据类型 | 约束 | 描述 |
+|--------|----------|------|------|
+| id | int | PRIMARY KEY AUTO_INCREMENT | 关联主键ID |
+| series_id | int | NOT NULL, FOREIGN KEY | 系列ID（关联series.id） |
+| option_id | int | NOT NULL, FOREIGN KEY | 题材选项ID（关联filter_options.id） |
+| created_at | timestamp | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
+
+**索引：**
+- UNIQUE KEY `uq_series_option` (series_id, option_id)
+- KEY `idx_series` (series_id)  
+- KEY `idx_option` (option_id)
+
+**外键约束：**
+- `fk_sgo_series`: series_id → series(id) ON DELETE CASCADE
+- `fk_sgo_option`: option_id → filter_options(id)
+
+**关系：**
+- 多对一：series（所属系列）
+- 多对一：filterOption（题材选项）
 
 ## 🔧 数据库配置
 

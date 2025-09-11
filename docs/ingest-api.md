@@ -28,17 +28,16 @@
   - `description` string 必填
   - `coverUrl` string ≤255 必填
   - `categoryId` int ≥1 必填（需为已存在的分类）
-  - `status` enum 必填：`on-going` | `completed`
+  - `isCompleted` boolean 必填：系列完结状态
   - `releaseDate` string 必填：ISO日期（如 `2024-08-01`）
-  - `isCompleted` boolean 必填
-  - `score` number [0,10] 必填
-  - `playCount` int ≥0 必填
-  - `upStatus` string ≤255 必填
-  - `upCount` int ≥0 必填
-  - `starring` string 必填（主演，逗号分隔）
-  - `actor` string 必填（全演员，逗号分隔）
-  - `director` string ≤255 必填
-  - `regionOptionId`/`languageOptionId`/`statusOptionId`/`yearOptionId` int ≥1 必填（需为已存在的 `filter_options`）
+  - `status` string 可选：仅用于软删除（传 "deleted"）
+  - `score` number [0,10] 可选：评分
+  - `playCount` int ≥0 可选：播放次数
+  - `starring` string 可选（主演，逗号分隔）
+  - `actor` string 可选（全演员，逗号分隔）
+  - `director` string ≤255 可选
+  - `regionOptionName`/`languageOptionName`/`statusOptionName`/`yearOptionName` string 必填（按名称自动创建选项）
+  - `genreOptionNames` string[] 可选（题材多选，按名称自动创建）
 
 - `episodes` 数组（至少1项）：
   - `episodeNumber` int ≥1 必填

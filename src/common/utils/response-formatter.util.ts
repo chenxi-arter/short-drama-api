@@ -284,7 +284,7 @@ export class ResponseFormatter {
       const property = error.property;
       const constraints = error.constraints || {};
       
-      formatted[property] = Object.values(constraints) as string[];
+      formatted[property] = Object.values(constraints);
     });
     
     return formatted;

@@ -10,7 +10,7 @@ import {
  * 验证频道ID格式
  */
 export function IsValidChannelId(validationOptions?: ValidationOptions) {
-  return function (object: Object, propertyName: string) {
+  return function (object: object, propertyName: string) {
     registerDecorator({
       name: 'isValidChannelId',
       target: object.constructor,
@@ -33,7 +33,7 @@ export function IsValidChannelId(validationOptions?: ValidationOptions) {
  * 验证筛选ID组合格式
  */
 export function IsValidFilterIds(validationOptions?: ValidationOptions) {
-  return function (object: Object, propertyName: string) {
+  return function (object: object, propertyName: string) {
     registerDecorator({
       name: 'isValidFilterIds',
       target: object.constructor,
@@ -57,7 +57,7 @@ export function IsValidFilterIds(validationOptions?: ValidationOptions) {
  * 验证媒体类型
  */
 export function IsValidMediaType(validationOptions?: ValidationOptions) {
-  return function (object: Object, propertyName: string) {
+  return function (object: object, propertyName: string) {
     registerDecorator({
       name: 'isValidMediaType',
       target: object.constructor,
@@ -80,7 +80,7 @@ export function IsValidMediaType(validationOptions?: ValidationOptions) {
  * 验证排序类型
  */
 export function IsValidSortType(validationOptions?: ValidationOptions) {
-  return function (object: Object, propertyName: string) {
+  return function (object: object, propertyName: string) {
     registerDecorator({
       name: 'isValidSortType',
       target: object.constructor,
@@ -116,7 +116,7 @@ export class IsTelegramHashConstraint implements ValidatorConstraintInterface {
 }
 
 export function IsTelegramHash(validationOptions?: ValidationOptions) {
-  return function (object: Object, propertyName: string) {
+  return function (object: object, propertyName: string) {
     registerDecorator({
       target: object.constructor,
       propertyName: propertyName,
@@ -131,7 +131,7 @@ export function IsTelegramHash(validationOptions?: ValidationOptions) {
  * 验证URL格式
  */
 export function IsValidUrl(validationOptions?: ValidationOptions) {
-  return function (object: Object, propertyName: string) {
+  return function (object: object, propertyName: string) {
     registerDecorator({
       name: 'isValidUrl',
       target: object.constructor,
@@ -159,7 +159,7 @@ export function IsValidUrl(validationOptions?: ValidationOptions) {
  * 验证评论内容
  */
 export function IsValidComment(validationOptions?: ValidationOptions) {
-  return function (object: Object, propertyName: string) {
+  return function (object: object, propertyName: string) {
     registerDecorator({
       name: 'isValidComment',
       target: object.constructor,
@@ -184,7 +184,7 @@ export function IsValidComment(validationOptions?: ValidationOptions) {
  * 验证时间戳（秒）
  */
 export function IsValidTimestamp(validationOptions?: ValidationOptions) {
-  return function (object: Object, propertyName: string) {
+  return function (object: object, propertyName: string) {
     registerDecorator({
       name: 'isValidTimestamp',
       target: object.constructor,

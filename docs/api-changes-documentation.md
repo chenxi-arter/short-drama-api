@@ -2,10 +2,47 @@
 
 ## 📅 文档信息
 
-**版本**: v1.0  
-**创建时间**: 2025年9月10日  
-**适用范围**: 控制器架构重构后接口变化  
+**版本**: v2.0  
+**创建时间**: 2025年9月11日  
+**适用范围**: 题材筛选重构、Ingest API优化、交互统计功能  
 **基础文档**: 参考 `api-summary-documentation.md`
+
+## 🚀 v2.0 重大更新 (2025年9月11日)
+
+### 1. 题材筛选系统重构
+- **变更**: 筛选第二位从"类型"改为"题材"(genre)
+- **影响接口**: 
+  - `/api/list/getfilterstags` 第二组返回题材选项
+  - `/api/list/getfiltersdata` ids第二位按题材筛选
+- **新功能**: 支持多选筛选语法 `ids=1,2-5-7,0,0,0,0`（AND逻辑：同时具备题材2、5、7）
+- **存储变更**: 新增中间表 `series_genre_options(series_id, option_id)` 支持多对多关系
+- **数据迁移**: 已完成 filter_types 重排序，genre 固定为 id=2
+
+### 2. Ingest API 字段优化
+- **isCompleted**: 
+  - 变更：从自动字段改为必填布尔字段
+  - 影响：所有 ingest 请求必须明确传入 true/false
+  - 用途：影响 upStatus 文案生成（"已完结" 或 "更新至第X集"）
+- **status**: 
+  - 变更：从必填改为可选，值限制为 ["deleted"]
+  - 用途：仅用于软删除，其他值忽略
+- **genreOptionNames**: 
+  - 新增：可选字符串数组字段
+  - 用途：支持题材多选入库（如 ["言情", "玄幻"]）
+  - 逻辑：按名称自动创建 filter_options，并写入中间表关联
+
+### 3. 交互统计功能
+- **新增字段**: episodes 表增加 `like_count`、`dislike_count`、`favorite_count`
+- **API响应**: 系列级接口新增聚合字段 `likeCount`、`dislikeCount`、`favoriteCount`
+- **影响接口**: 
+  - `/api/list/getfiltersdata` 
+  - `/api/video/episodes`
+- **聚合逻辑**: 从系列下所有已发布剧集聚合计算
+
+### 4. 实时数据计算
+- **upCount**: 改为当天新增集数的实时统计
+- **计算逻辑**: 按 episodes.created_at 在当天00:00~次日00:00范围内计数
+- **移除依赖**: 不再依赖 `series.up_count` 数据库字段
 
 ---
 

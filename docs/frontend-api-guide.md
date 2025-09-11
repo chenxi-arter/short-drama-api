@@ -421,6 +421,7 @@ interface VideoItem {
   title: string;            // 标题
   score: string;            // 评分（如 "9.2"）
   playCount: number;        // 播放次数
+  url: string;              // 访问URL（通常为系列ID字符串）
   type: string;             // 类型（如 "短剧"）
   isSerial: boolean;        // 是否系列剧
   upStatus: string;         // 更新状态文案（如：更新至第X集 / 已完结）
@@ -430,6 +431,9 @@ interface VideoItem {
   favoriteCount?: number;   // 收藏数（系列下已发布剧集聚合）
   author: string;           // 主演
   description: string;      // 描述
+  cidMapper: string;        // 分类映射ID
+  isRecommend: boolean;     // 是否推荐
+  createdAt: string;        // 创建时间（ISO格式）
 }
 ```
 
@@ -499,15 +503,28 @@ interface EpisodeResponse {
 }
 
 interface SeriesInfo {
+  starring: string;        // 主演
+  id: number;              // 系列ID
+  channeName: string;      // 频道名称
+  channeID: number;        // 频道ID
   title: string;           // 系列标题
   coverUrl: string;        // 封面
-  starring: string;        // 主演
+  mediaUrl: string;        // 媒体URL
+  fileName: string;        // 文件名（如 "series-123"）
+  mediaId: string;         // 媒体ID（如 "123_24,1000,85,1"）
+  postTime: string;        // 发布时间
+  contentType: string;     // 内容类型
+  actor: string;           // 演员
+  shareCount: number;      // 分享次数
   director: string;        // 导演
   description: string;     // 描述
+  comments: number;        // 评论数
+  updateStatus: string;    // 更新状态
+  watch_progress: number;  // 观看进度
   playCount: number;       // 播放次数
   isHot: boolean;          // 是否热门
   isVip: boolean;          // 是否VIP
-  tags?: string[];         // 系列标签（类型/地区/语言/年份/状态）
+  tags?: string[];         // 系列标签（题材/地区/语言/年份/状态）
 }
 
 interface UserProgress {
@@ -524,9 +541,19 @@ interface EpisodeItem {
   episodeTitle: string;    // 集数标题（如 01, 02...）
   title: string;           // 标题
   duration: number;        // 时长（秒）
+  status: string;          // 剧集状态
+  createdAt: string;       // 创建时间
+  updatedAt: string;       // 更新时间
+  seriesId: number;        // 所属系列ID
+  seriesTitle: string;     // 所属系列标题
+  seriesShortId: string;   // 所属系列ShortID
+  likeCount?: number;      // 点赞数
+  dislikeCount?: number;   // 点踩数
+  favoriteCount?: number;  // 收藏数
   watchProgress?: number;  // 观看进度（秒）
   watchPercentage?: number; // 观看百分比
   isWatched?: boolean;     // 是否已观看
+  lastWatchTime?: string;  // 最后观看时间
   episodeAccessKey?: string; // 剧集级 accessKey，用于 /api/video/episode-url/:accessKey 或 POST 查询
   urls: EpisodeUrl[];      // 播放地址
 }

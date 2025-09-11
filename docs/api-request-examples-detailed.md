@@ -1816,13 +1816,13 @@ curl -X POST "http://localhost:8080/api/admin/ingest/series" \
     "description": "用于接口连通性测试",
     "coverUrl": "https://example.com/cover.jpg",
     "categoryId": 1,
-    "status": "on-going",
     "releaseDate": "2025-01-01",
     "isCompleted": false,
-    "regionOptionId": 11,
-    "languageOptionId": 16,
-    "statusOptionId": 28,
-    "yearOptionId": 21,
+    "regionOptionName": "大陆",
+    "languageOptionName": "国语",
+    "statusOptionName": "连载中",
+    "yearOptionName": "2025",
+    "genreOptionNames": ["言情", "都市"],
     "episodes": [
       {
         "episodeNumber": 1,
