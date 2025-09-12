@@ -161,7 +161,7 @@ export class FilterService {
       await this.applyFilters(queryBuilder, filterIds, channelId, idTokens);
 
       // 排序
-      this.applySorting(queryBuilder, filterIds.sortType);
+      this.applySorting(queryBuilder, filterIds.typeId);
 
       // 分页
       const [series, total] = await queryBuilder
@@ -273,26 +273,27 @@ export class FilterService {
 
   /**
    * 解析筛选条件ID字符串
-   * @param ids 筛选条件的“序号”组合（sort_order），格式："sortType,categoryId,regionId,languageId,yearId,statusId"
-   * - 位置含义：[排序, 类型, 地区, 语言, 年份, 状态]
-   * - 映射原则：先用每一位的 sort_order 去 filter_options 中定位对应选项，再取该选项的 option.id 参与查询
-   * - 重要：ids 中的值是 sort_order（序号），不是 filter_options.id
-   * - 特殊规则：当 channelId 为数值且 > 0 时，会忽略 ids 中的“类型(type)”位，避免与频道分类冲突；channelId=0 表示全库筛选
-   * 示例："1,2,0,0,0,0" → 排序=1，类型=2，其他不筛选
+   * @param ids 筛选条件的“序号”组合（display_order），格式："typeId,genreId,regionId,languageId,yearId,statusId"
+   * - 位置含义：[类型, 题材, 地区, 语言, 年份, 状态]
+   * - 类型选项：1=最近上传，3=人气最高，4=评分最高
+   * - 映射原则：先用每一位的 display_order 去 filter_options 中定位对应选项，再取该选项的 option.id 参与查询
+   * - 重要：ids 中的值是 display_order（序号），不是 filter_options.id
+   * - 特殊规则：当 channelId 为数值且 > 0 时，会忽略 ids 中的"类型(type)"位，避免与频道分类冲突；channelId=0 表示全库筛选
+   * 示例："1,2,0,0,0,0" → 类型=最近上传，题材=2，其他不筛选
    */
   private parseFilterIds(ids: string): {
-    sortType: number;
-    categoryId: number;
-    regionId: number;
-    languageId: number;
-    yearId: number;
-    statusId: number;
+    typeId: number;      // 类型筛选（排序功能）
+    genreId: number;     // 题材筛选
+    regionId: number;    // 地区筛选
+    languageId: number;  // 语言筛选
+    yearId: number;      // 年份筛选
+    statusId: number;    // 状态筛选
   } {
     const parts = ids.split(',').map(id => parseInt(id) || 0);
-    
+
     return {
-      sortType: parts[0] || 0,     // filter_type_id = 1 (排序)
-      categoryId: parts[1] || 0,   // filter_type_id = 2 (类型)
+      typeId: parts[0] || 0,       // filter_type_id = 1 (类型)
+      genreId: parts[1] || 0,      // filter_type_id = 2 (题材)
       regionId: parts[2] || 0,     // filter_type_id = 3 (地区)
       languageId: parts[3] || 0,   // filter_type_id = 4 (语言)
       yearId: parts[4] || 0,       // filter_type_id = 5 (年份)
@@ -306,8 +307,8 @@ export class FilterService {
   async applyFiltersToQueryBuilder(
     queryBuilder: any,
     filterIds: {
-      sortType: number;
-      categoryId: number;
+      typeId: number;
+      genreId: number;
       regionId: number;
       languageId: number;
       yearId: number;
@@ -325,15 +326,15 @@ export class FilterService {
    * channelId=0 时不忽略任何 ids 位，在“全部分类”下按 ids 完整筛选。
    */
   private async applyFilters(
-    queryBuilder: any, 
+    queryBuilder: any,
     filterIds: {
-      sortType: number;
-      categoryId: number;
+      typeId: number;
+      genreId: number;
       regionId: number;
       languageId: number;
       yearId: number;
       statusId: number;
-    }, 
+    },
     channelId: string,
     idTokens?: string[]
   ): Promise<void> {
@@ -348,12 +349,12 @@ export class FilterService {
 
     // ids参数数组
     const idsArray = [
-      filterIds.sortType,
-      filterIds.categoryId, 
-      filterIds.regionId,
-      filterIds.languageId,
-      filterIds.yearId,
-      filterIds.statusId
+      filterIds.typeId,     // 类型筛选（排序功能）
+      filterIds.genreId,    // 题材筛选  ，
+      filterIds.regionId,   // 地区筛选
+      filterIds.languageId, // 语言筛选
+      filterIds.yearId,     // 年份筛选
+      filterIds.statusId    // 状态筛选
     ];
 
     // 根据sort_order动态应用筛选条件
@@ -431,8 +432,9 @@ export class FilterService {
             case 'status':
               FilterQueryBuilderUtil.applyStatus(queryBuilder, option.id);
               break;
-            case 'sort':
-              // 排序在 applySorting 中统一处理
+            case 'type':
+              // 类型筛选（排序功能）
+              this.applySorting(queryBuilder, optionId);
               break;
             default:
               break;
@@ -454,8 +456,8 @@ export class FilterService {
   /**
    * 应用排序条件
    */
-  private applySorting(queryBuilder: any, sortType: number): void {
-    FilterQueryBuilderUtil.applySorting(queryBuilder, sortType);
+  private applySorting(queryBuilder: any, typeId: number): void {
+    FilterQueryBuilderUtil.applySorting(queryBuilder, typeId);
   }
 
   /**
@@ -568,8 +570,22 @@ export class FilterService {
         queryBuilder.andWhere('series.category_id = :channeid', { channeid: parseInt(channeid) });
       }
 
-      // 排序：按相关性（标题匹配度）和创建时间
-      queryBuilder.orderBy('series.createdAt', 'DESC');
+      // 排序：按相关性（标题匹配度）优先，然后按创建时间
+      // 使用 MySQL 的 LOCATE 函数计算匹配位置，位置越靠前匹配度越高
+      // 同时考虑完全匹配和部分匹配的优先级
+      queryBuilder
+        .addSelect(`
+          CASE 
+            WHEN series.title = :keyword THEN 1
+            WHEN series.title LIKE CONCAT(:keyword, '%') THEN 2
+            WHEN series.title LIKE CONCAT('%', :keyword, '%') THEN 3
+            ELSE 4
+          END
+        `, 'matchPriority')
+        .addSelect('LOCATE(:keyword, series.title)', 'matchPosition')
+        .orderBy('matchPriority', 'ASC') // 完全匹配 > 前缀匹配 > 包含匹配
+        .addOrderBy('matchPosition', 'ASC') // 相同优先级时，匹配位置越靠前越好
+        .addOrderBy('series.createdAt', 'DESC'); // 最后按创建时间排序
 
       console.log('SQL查询:', queryBuilder.getSql());
       console.log('查询参数:', queryBuilder.getParameters());

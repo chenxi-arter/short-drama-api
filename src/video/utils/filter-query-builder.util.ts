@@ -13,16 +13,16 @@ export class FilterQueryBuilderUtil {
   static applySorting(qb: SelectQueryBuilder<any>, sortType: number) {
     switch (sortType) {
       case 1:
-        qb.orderBy('series.createdAt', 'DESC');
+        qb.orderBy('series.createdAt', 'DESC'); // 最近上传
         break;
       case 2:
-        qb.orderBy('series.playCount', 'DESC');
+        qb.orderBy('series.playCount', 'DESC'); // 人气最高
         break;
       case 3:
-        qb.orderBy('series.score', 'DESC');
+        qb.orderBy('series.score', 'DESC'); // 评分最高
         break;
       default:
-        qb.orderBy('series.createdAt', 'DESC');
+        qb.orderBy('series.createdAt', 'DESC'); // 默认按创建时间排序
     }
   }
 

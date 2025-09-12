@@ -124,18 +124,14 @@ export class UrlService {
       }
 
       return {
-        code: 200,
-        data: {
-          ossUrl: episodeUrl.ossUrl,
-          cdnUrl: episodeUrl.cdnUrl,
-          originUrl: episodeUrl.originUrl,
-          subtitleUrl: episodeUrl.subtitleUrl,
-          quality: episodeUrl.quality,
-          episodeId: episodeUrl.episodeId,
-          episodeTitle: episodeUrl.episode?.title,
-          seriesTitle: episodeUrl.episode?.series?.title
-        },
-        msg: '获取成功'
+        ossUrl: episodeUrl.ossUrl,
+        cdnUrl: episodeUrl.cdnUrl,
+        originUrl: episodeUrl.originUrl,
+        subtitleUrl: episodeUrl.subtitleUrl,
+        quality: episodeUrl.quality,
+        episodeId: episodeUrl.episodeId,
+        episodeTitle: episodeUrl.episode?.title,
+        seriesTitle: episodeUrl.episode?.series?.title
       };
     } catch (error) {
       console.error('通过访问密钥获取播放地址失败:', error);
@@ -167,22 +163,18 @@ export class UrlService {
         }
 
         return {
-          code: 200,
-          data: {
-            episodeId: episode.id,
-            episodeTitle: episode.title,
-            episodeNumber: episode.episodeNumber,
-            seriesTitle: episode.series?.title,
-            urls: episode.urls?.map(url => ({
-              quality: url.quality,
-              ossUrl: url.ossUrl,
-              cdnUrl: url.cdnUrl,
-              originUrl: url.originUrl,
-              subtitleUrl: url.subtitleUrl,
-              accessKey: url.accessKey
-            })) || []
-          },
-          msg: '获取成功'
+          episodeId: episode.id,
+          episodeTitle: episode.title,
+          episodeNumber: episode.episodeNumber,
+          seriesTitle: episode.series?.title,
+          urls: episode.urls?.map(url => ({
+            quality: url.quality,
+            ossUrl: url.ossUrl,
+            cdnUrl: url.cdnUrl,
+            originUrl: url.originUrl,
+            subtitleUrl: url.subtitleUrl,
+            accessKey: url.accessKey
+          })) || []
         };
       } else if (prefix === 'url') {
         // 地址级访问：通过具体URL的accessKey获取单个地址

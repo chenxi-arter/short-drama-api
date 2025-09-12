@@ -6,8 +6,271 @@
 
 **技术栈**: NestJS + TypeORM + MySQL + Redis + JWT  
 **基础URL**: `http://localhost:8080` (开发环境)  
-**文档版本**: v1.0  
-**最后更新**: 2025年1月
+**文档版本**: v1.1
+**最后更新**: 2025年9月12日
+
+---
+
+## ⚠️ 🚨 前端对接更新提醒
+
+### 🎯 重要更新内容（2025-09-12）
+
+#### **1. 接口字段扩展**
+**VideoItem 接口新增字段：**
+- `url`: string - 访问URL（通常为系列ID字符串）
+- `cidMapper`: string - 分类映射ID
+- `isRecommend`: boolean - 是否推荐
+- `createdAt`: string - 创建时间（ISO格式）
+
+**SeriesInfo 接口新增字段：**
+- `starring`: string - 主演
+- `id`: number - 系列ID
+- `channeName`: string - 频道名称
+- `channeID`: number - 频道ID
+- `mediaUrl`: string - 媒体URL
+- `fileName`: string - 文件名
+- `mediaId`: string - 媒体ID
+- `postTime`: string - 发布时间
+- `contentType`: string - 内容类型
+- `actor`: string - 演员
+- `shareCount`: number - 分享次数
+- `comments`: number - 评论数
+- `updateStatus`: string - 更新状态
+- `watch_progress`: number - 观看进度
+- `tags`: string[] - 系列标签（题材/地区/语言/年份/状态）
+
+**EpisodeItem 接口新增字段：**
+- `status`: string - 剧集状态
+- `createdAt`: string - 创建时间
+- `updatedAt`: string - 更新时间
+- `seriesId`: number - 所属系列ID
+- `seriesTitle`: string - 所属系列标题
+- `seriesShortId`: string - 所属系列ShortID
+- `likeCount`: number - 点赞数
+- `dislikeCount`: number - 点踩数
+- `favoriteCount`: number - 收藏数
+- `lastWatchTime`: string - 最后观看时间
+
+#### **2. API路径修正**
+- ❌ **旧路径**：`/api/video/episode-url/query` 和 `/api/video/episode-url/:accessKey`
+- ✅ **新路径**：`/api/video/url/query` 和 `/api/video/url/access/:accessKey`
+- ❌ **旧路径**：`/api/list/getfilterstags?channeid=1`
+- ✅ **新路径**：`/api/home/getfilterstags?channeid=1`
+
+#### **3. 请求参数格式更新**
+- ❌ **旧格式**：`ids=1,2,0,0,0`（5位）
+- ✅ **新格式**：`ids=1,2,0,0,0,0`（6位）
+- **参数顺序**：`sort,genre,region,language,year,status`
+
+#### **4. 筛选语法增强**
+- **题材多选**：`ids=0,1-3-5,0,0,0,0`（同时具备题材1、3、5）
+- **AND逻辑**：多选题材使用连字符连接，筛选结果需同时满足所有条件
+
+#### **5. 响应数据优化**
+- `tags` 字段现在包含题材标签（优先显示）
+- 所有接口返回的数据结构更加完整和一致
+
+#### **6. 新增交互功能**
+- 新增剧集交互接口：`POST /api/video/episode/:id/reaction`
+- 支持三种交互类型：点赞(`like`)、不喜欢(`dislike`)、收藏(`favorite`)
+- 交互计数会实时反映在 `likeCount`、`dislikeCount`、`favoriteCount` 字段中
+
+#### **7. 文档导航**
+- 📖 [VideoItem 接口定义](#videoitem)
+- 📖 [SeriesInfo 接口定义](#seriesinfo)
+- 📖 [EpisodeItem 接口定义](#episodeitem)
+- 📖 [筛选参数说明](#筛选参数)
+- 📖 [剧集交互接口](#剧集交互)
+
+### 🔄 迁移指南
+
+#### **立即需要处理的**
+1. **更新TypeScript接口定义** - 添加新增的字段类型
+2. **修改API调用路径** - 使用新的API路径
+3. **调整请求参数** - `ids`参数统一为6位格式
+4. **更新数据处理逻辑** - 处理新增的响应字段
+
+#### **推荐的更新步骤**
+```typescript
+// 1. 更新接口定义
+interface VideoItem {
+  // 原有字段...
+  url: string;              // 新增
+  cidMapper: string;        // 新增
+  isRecommend: boolean;     // 新增
+  createdAt: string;        // 新增
+}
+
+// 2. 更新API调用
+// 旧的
+fetch('/api/video/episode-url/query', {...})
+// 新的
+fetch('/api/video/url/query', {...})
+
+// 3. 更新参数格式
+// 旧的
+const params = 'ids=1,2,0,0,0';
+// 新的
+const params = 'ids=1,2,0,0,0,0';
+```
+
+### ❓ 有疑问？
+
+如果在对接过程中遇到问题，请：
+1. 检查浏览器开发者工具的网络请求
+2. 确认API路径是否正确
+3. 验证请求参数格式
+4. 查看接口返回的数据结构
+
+### 🎯 重要提醒
+
+**请务必仔细阅读以上更新内容！** 这些更新会影响：
+- 前端TypeScript接口定义
+- API调用的URL路径
+- 请求参数的格式
+- 响应数据的处理逻辑
+
+如果不及时更新，可能会导致：
+- 接口调用失败（路径错误）
+- 数据解析错误（字段缺失）
+- 筛选功能异常（参数格式错误）
+
+建议按"迁移指南"中的步骤逐步进行更新。
+
+### ❓ 常见问题解答
+
+#### **Q: 如何处理认证失败的情况？**
+```typescript
+// 推荐的错误处理方式
+const handleApiError = (error: any) => {
+  if (error.code === 401) {
+    // Token过期，跳转登录
+    localStorage.removeItem('access_token');
+    window.location.href = '/login';
+  } else if (error.code === 429) {
+    // 请求频率限制
+    alert('请求过于频繁，请稍后再试');
+  } else {
+    // 其他错误
+    console.error('API Error:', error);
+  }
+};
+```
+
+#### **Q: 筛选参数格式不对怎么办？**
+```typescript
+// 正确的筛选参数构建方式
+const buildFilterParams = (filters: {
+  sort?: number;
+  genre?: string; // 如 "1-3-5" 表示多选
+  region?: number;
+  language?: number;
+  year?: number;
+  status?: number;
+}) => {
+  const ids = [
+    filters.sort || 0,
+    filters.genre || 0,
+    filters.region || 0,
+    filters.language || 0,
+    filters.year || 0,
+    filters.status || 0
+  ].join(',');
+
+  return `ids=${ids}`;
+};
+```
+
+#### **Q: 如何处理分页数据？**
+```typescript
+// 分页数据处理示例
+interface PaginatedResponse<T> {
+  code: number;
+  data: {
+    list: T[];
+    total: number;
+    page: number;
+    size: number;
+    hasMore: boolean;
+  };
+}
+
+// 使用示例
+const loadMoreData = async (page: number) => {
+  const response = await fetch(`/api/list/getfiltersdata?channeid=1&page=${page}`);
+  const result: PaginatedResponse<VideoItem> = await response.json();
+
+  if (result.data.hasMore) {
+    // 还有更多数据可以加载
+    setCurrentPage(page + 1);
+  }
+
+  return result.data.list;
+};
+```
+
+#### **Q: 剧集交互功能的使用？**
+```typescript
+// 完整的交互功能实现
+class EpisodeService {
+  async reactToEpisode(episodeId: number, type: 'like' | 'dislike' | 'favorite') {
+    try {
+      const response = await fetch(`/api/video/episode/${episodeId}/reaction`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+        },
+        body: JSON.stringify({ type })
+      });
+
+      if (response.ok) {
+        // 更新本地状态
+        this.updateLocalCounts(episodeId, type);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Interaction failed:', error);
+    }
+  }
+
+  private updateLocalCounts(episodeId: number, type: string) {
+    // 更新本地缓存的计数
+    const episode = this.episodes.find(ep => ep.id === episodeId);
+    if (episode) {
+      episode[`${type}Count`] = (episode[`${type}Count`] || 0) + 1;
+    }
+  }
+}
+```
+
+#### **Q: 如何处理缓存和数据同步？**
+```typescript
+// 缓存策略示例
+class ApiCache {
+  private cache = new Map();
+
+  async getCachedData<T>(key: string, fetcher: () => Promise<T>, ttl = 300000): Promise<T> {
+    const cached = this.cache.get(key);
+    if (cached && Date.now() - cached.timestamp < ttl) {
+      return cached.data;
+    }
+
+    const data = await fetcher();
+    this.cache.set(key, { data, timestamp: Date.now() });
+    return data;
+  }
+}
+
+// 使用示例
+const apiCache = new ApiCache();
+const categories = await apiCache.getCachedData(
+  'categories',
+  () => fetch('/api/home/categories').then(r => r.json()),
+  600000 // 10分钟缓存
+);
+```
 
 ---
 
@@ -293,7 +556,7 @@ interface FilterTagItem {
 #### **获取筛选数据**
 ```typescript
 // 接口地址
-GET /api/list/getfiltersdata?channeid=1&ids=1,2,0,0,0&page=1
+GET /api/list/getfiltersdata?channeid=1&ids=1,2,0,0,0,0&page=1
 
 // 响应格式
 interface FiltersDataResponse {
@@ -385,6 +648,7 @@ const buildFilterIds = (selectedTags: FilterTagItem[]): string => {
 };
 ```
 
+<a id="筛选参数"></a>
 说明：
 - 筛选位顺序固定为：0=排序(sort)，1=题材(genre)，2=地区(region)，3=语言(language)，4=年份(year)，5=状态(status)
 - 第二位（题材）支持多选，使用连字符连接 display_order 值，例如：`1,2-5-7,0,0,0,0`
@@ -392,7 +656,7 @@ const buildFilterIds = (selectedTags: FilterTagItem[]): string => {
 #### **条件筛选视频**
 ```typescript
 // 接口地址
-GET /api/list/getfiltersdata?channeid=1&ids=1,2,0,0,0&page=1
+GET /api/list/getfiltersdata?channeid=1&ids=1,2,0,0,0,0&page=1
 
 // 请求参数
 interface FilterRequest {
@@ -414,6 +678,7 @@ interface FilterResponse {
   };
 }
 
+<a id="videoitem"></a>
 interface VideoItem {
   id: number;
   shortId: string;          // 系列ShortID
@@ -458,7 +723,7 @@ interface SearchResponse {
 #### **高级筛选**
 ```typescript
 // 接口地址
-GET /api/list/getconditionfilterdata?titleid=drama&ids=0,0,0,0,0&page=1&size=21
+GET /api/list/getconditionfilterdata?titleid=drama&ids=0,0,0,0,0,0&page=1&size=21
 
 // 响应格式（包含更详细的视频信息）
 interface AdvancedVideoItem extends VideoItem {
@@ -502,6 +767,7 @@ interface EpisodeResponse {
   };
 }
 
+<a id="seriesinfo"></a>
 interface SeriesInfo {
   starring: string;        // 主演
   id: number;              // 系列ID
@@ -534,6 +800,7 @@ interface UserProgress {
   isCompleted: boolean;    // 是否完成
 }
 
+<a id="episodeitem"></a>
 interface EpisodeItem {
   id: number;
   shortId: string;         // 剧集ShortID
@@ -572,7 +839,7 @@ interface EpisodeUrl {
 ```bash
 TELEGRAM='{"id":6702079700,"first_name":"随风","username":"seo99991","auth_date":1754642628,"hash":"cd671f60a4393b399d9cb269ac4327c8a47a3807c5520077c37477544ae93c07"}'; \
 ACCESS=$(curl -s -H "Content-Type: application/json" -X POST -d "$TELEGRAM" http://localhost:8080/api/user/telegram-login | jq -r .access_token); \
-SERIES_SHORT=$(curl -s "http://localhost:8080/api/list/getfiltersdata?channeid=1&ids=0,0,0,0,0&page=1" | jq -r '.data.list[0].shortId'); \
+SERIES_SHORT=$(curl -s "http://localhost:8080/api/list/getfiltersdata?channeid=1&ids=0,0,0,0,0,0&page=1" | jq -r '.data.list[0].shortId'); \
 EP_JSON=$(curl -s -H "Authorization: Bearer $ACCESS" "http://localhost:8080/api/video/episodes?seriesShortId=$SERIES_SHORT&page=1&size=1"); \
 EP_ACCESS=$(echo "$EP_JSON" | jq -r '.data.list[0].episodeAccessKey'); \
 URL_ACCESS=$(echo "$EP_JSON" | jq -r '.data.list[0].urls[0].accessKey'); \
@@ -669,6 +936,121 @@ interface CommentRequest {
   appearSecond?: number;      // 弹幕出现时间（秒）
 }
 ```
+
+<a id="剧集交互"></a>
+#### **剧集交互（点赞/不喜欢/收藏）**
+```typescript
+// 接口地址
+POST /api/video/episode/:id/reaction
+Headers: Authorization: Bearer <access_token>
+
+// 请求参数
+interface EpisodeReactionRequest {
+  type: 'like' | 'dislike' | 'favorite';  // 交互类型
+}
+
+// 响应格式
+interface EpisodeReactionResponse {
+  code: number;
+  data: {
+    id: number;      // 剧集ID
+    type: string;    // 交互类型
+  };
+  message: string;
+  success: boolean;
+}
+
+// TypeScript 类型定义（建议添加到项目中）
+export type EpisodeReactionType = 'like' | 'dislike' | 'favorite';
+
+export interface EpisodeReactionRequest {
+  type: EpisodeReactionType;
+}
+
+export interface EpisodeReactionResponse {
+  code: number;
+  data: {
+    id: number;
+    type: EpisodeReactionType;
+  };
+  message: string;
+  success: boolean;
+}
+```
+
+##### 交互类型说明
+- **`like`**: 点赞剧集，会增加剧集的 `likeCount`
+- **`dislike`**: 不喜欢剧集，会增加剧集的 `dislikeCount`
+- **`favorite`**: 收藏剧集，会增加剧集的 `favoriteCount`
+
+##### 使用示例
+```typescript
+// 点赞剧集
+const likeEpisode = async (episodeId: number) => {
+  const response = await fetch(`/api/video/episode/${episodeId}/reaction`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${accessToken}`
+    },
+    body: JSON.stringify({
+      type: 'like'
+    })
+  });
+  const result = await response.json();
+  return result;
+};
+
+// 收藏剧集
+const favoriteEpisode = async (episodeId: number) => {
+  const response = await fetch(`/api/video/episode/${episodeId}/reaction`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${accessToken}`
+    },
+    body: JSON.stringify({
+      type: 'favorite'
+    })
+  });
+  const result = await response.json();
+  return result;
+};
+```
+
+##### curl 示例
+```bash
+# 点赞剧集ID为123的剧集
+curl -X POST "http://localhost:8080/api/video/episode/123/reaction" \
+  -H "Authorization: Bearer <access_token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "type": "like"
+  }'
+
+# 收藏剧集
+curl -X POST "http://localhost:8080/api/video/episode/123/reaction" \
+  -H "Authorization: Bearer <access_token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "type": "favorite"
+  }'
+
+# 标记不喜欢
+curl -X POST "http://localhost:8080/api/video/episode/123/reaction" \
+  -H "Authorization: Bearer <access_token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "type": "dislike"
+  }'
+```
+
+##### 注意事项
+- **需要认证**: 必须在请求头中携带有效的 `Authorization: Bearer <access_token>`
+- **单向操作**: 目前只支持增加计数，不支持取消操作
+- **实时更新**: 操作后会立即更新剧集的对应计数器
+- **数据统计**: 这些计数会反映在系列列表和剧集列表中
+- **并发安全**: 系统会处理并发请求，确保计数准确性
 
 ---
 
@@ -1967,8 +2349,10 @@ function handleLoginSuccess(response: LoginResponse) {
 **相关文档**:
 - [API汇总文档](./api-summary-documentation.md)
 - [详细请求示例](./api-request-examples-detailed.md)
-- [测试指南](./api-testing-guide.md)
+- [数据库架构文档](./database-schema-documentation.md)
+- [Redis缓存指南](./redis-cache-guide.md)
+- [部署指南](./deployment-guide.md)
 
-**文档版本**: v1.0  
-**最后更新**: 2025年1月  
-**维护团队**: 后端开发团队
+**文档版本**: v1.1
+**最后更新**: 2025年9月12日
+**维护团队**: 短剧系统开发团队

@@ -17,7 +17,7 @@
   - GET /api/home/categories → 200
   - GET /api/home/gethomemodules?channeid=1&page=1 → 200
   - GET /api/list/getfilterstags?channeid=1 → 200
-  - GET /api/list/getfiltersdata?channeid=1&ids=0,0,0,0,0&page=1 → 200（含分页）
+  - GET /api/list/getfiltersdata?channeid=1&ids=0,0,0,0,0,0&page=1 → 200（含分页）
 - 剧集与播放
   - GET /api/public/video/episodes?seriesShortId=fpcxnnFA6m9&page=1&size=3 → 200
   - GET /api/video/episode-url/:accessKey（需登录）→ 200

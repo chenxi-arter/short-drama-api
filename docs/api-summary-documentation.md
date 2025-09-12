@@ -1310,11 +1310,11 @@ curl -X GET "http://localhost:8080/api/list/getfilterstags" \
 curl -X GET "http://localhost:8080/api/home/categories"
 
 # 根据筛选条件获取视频列表
-curl -X GET "http://localhost:8080/api/list/getfiltersdata?channeid=1&ids=1,2,0,0,0&page=1" \
+curl -X GET "http://localhost:8080/api/list/getfiltersdata?channeid=1&ids=1,2,0,0,0,0&page=1" \
   -H "Authorization: Bearer <access_token>"
 
 # 根据条件筛选视频
-curl -X GET "http://localhost:8080/api/list/getconditionfilterdata?titleid=drama&ids=0,0,0,0,0&page=1&size=21" \
+curl -X GET "http://localhost:8080/api/list/getconditionfilterdata?titleid=drama&ids=0,0,0,0,0,0&page=1&size=21" \
   -H "Authorization: Bearer <access_token>"
 
 # 模糊搜索（搜索全部频道）

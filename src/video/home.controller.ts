@@ -26,7 +26,7 @@ export class HomeController extends BaseModuleController {
    * 获取首页视频列表的服务方法
    */
   protected getModuleVideosMethod() {
-    return (channeid: number, page: number) => this.videoService.getHomeVideos(channeid, page);
+    return (channeid: number, page: number) => this.videoService.getHomeModules(channeid, page);
   }
 
   /**

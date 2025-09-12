@@ -572,7 +572,7 @@ curl -X GET \
 **请求示例:**
 ```bash
 curl -X GET \
-  "http://localhost:8080/api/list/getconditionfilterdata?titleid=drama&ids=0,0,0,0,0&page=1&size=21" \
+  "http://localhost:8080/api/list/getconditionfilterdata?titleid=drama&ids=0,0,0,0,0,0&page=1&size=21" \
   -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI3ODQ1MDc4ODQ0IiwiaWF0IjoxNzU0NDcwODQ2LCJleHAiOjE3NTUwNzU2NDZ9.kScM1EGRDMrPV4h5QePRqZM46g_O51w5on7griBEqWc"
 ```
 
