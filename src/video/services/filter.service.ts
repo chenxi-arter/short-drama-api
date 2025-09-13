@@ -555,6 +555,7 @@ export class FilterService {
       console.log('查询参数:', { offset, size });
       
       // 构建查询条件
+      const trimmedKeyword = keyword.trim();
       const queryBuilder = this.seriesRepo.createQueryBuilder('series')
         .leftJoinAndSelect('series.category', 'category')
         .leftJoinAndSelect('series.episodes', 'episodes')
@@ -562,7 +563,7 @@ export class FilterService {
         .leftJoinAndSelect('series.languageOption', 'languageOption')
         .leftJoinAndSelect('series.statusOption', 'statusOption')
         .leftJoinAndSelect('series.yearOption', 'yearOption')
-        .where('series.title LIKE :keyword', { keyword: `%${keyword.trim()}%` })
+        .where('series.title LIKE :keyword', { keyword: `%${trimmedKeyword}%` })
         .andWhere('series.isActive = :isActive', { isActive: 1 }); // 只查询未删除的剧集
 
       // 如果指定了频道ID，则添加频道筛选条件
@@ -583,8 +584,10 @@ export class FilterService {
           END
         `, 'matchPriority')
         .addSelect('LOCATE(:keyword, series.title)', 'matchPosition')
+        .addSelect('CHAR_LENGTH(series.title)', 'titleLength')
         .orderBy('matchPriority', 'ASC') // 完全匹配 > 前缀匹配 > 包含匹配
         .addOrderBy('matchPosition', 'ASC') // 相同优先级时，匹配位置越靠前越好
+        .addOrderBy('titleLength', 'ASC') // 相同匹配度时，标题越短越好（精确匹配）
         .addOrderBy('series.createdAt', 'DESC'); // 最后按创建时间排序
 
       console.log('SQL查询:', queryBuilder.getSql());
