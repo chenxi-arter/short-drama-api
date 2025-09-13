@@ -330,8 +330,7 @@ export class VideoController extends BaseController {
           true,
           page,
           size,
-          req.user?.userId,
-          req
+          req.user?.userId
         );
         return result;
       } else if (dto.seriesId) {
@@ -340,8 +339,7 @@ export class VideoController extends BaseController {
           false,
           page,
           size,
-          req.user?.userId,
-          req
+          req.user?.userId
         );
         return result;
       } else {
@@ -350,8 +348,7 @@ export class VideoController extends BaseController {
           false,
           page,
           size,
-          req.user?.userId,
-          req
+          req.user?.userId
         );
         return result;
       }

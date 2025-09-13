@@ -33,12 +33,6 @@ export class BrowseHistory {
   @Column({ type: 'varchar', length: 50, default: 'episode_watch', name: 'browse_type' })
   browseType: string;
 
-  /** 
-   * 浏览时长（秒）
-   * 记录用户在该页面的停留时间
-   */
-  @Column({ type: 'int', default: 0, name: 'duration_seconds' })
-  durationSeconds: number;
 
   /** 
    * 最后访问的集数

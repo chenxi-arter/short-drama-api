@@ -34,12 +34,12 @@ async getPublicEpisodeList(@Query() dto: EpisodeListDto) {
   
   // 优先使用shortId，如果没有则使用ID
   if (dto.seriesShortId) {
-    return this.videoService.getEpisodeList(dto.seriesShortId, true, page, size, undefined, undefined);
+    return this.videoService.getEpisodeList(dto.seriesShortId, true, page, size, undefined);
   } else if (dto.seriesId) {
-    return this.videoService.getEpisodeList(dto.seriesId, false, page, size, undefined, undefined);
+    return this.videoService.getEpisodeList(dto.seriesId, false, page, size, undefined);
   } else {
     // 如果都没有提供，返回所有剧集
-    return this.videoService.getEpisodeList(undefined, false, page, size, undefined, undefined);
+    return this.videoService.getEpisodeList(undefined, false, page, size, undefined);
   }
 }
 

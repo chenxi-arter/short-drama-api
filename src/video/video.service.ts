@@ -81,7 +81,7 @@ export class VideoService {
     userId?: number,
     req?: any
   ) {
-    return this.contentService.getEpisodeList(seriesIdentifier, isShortId, page, size, userId, req);
+    return this.contentService.getEpisodeList(seriesIdentifier, isShortId, page, size, userId);
   }
 
   async getEpisodeByShortId(shortId: string) {

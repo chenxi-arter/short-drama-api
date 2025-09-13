@@ -58,8 +58,7 @@ export class ContentController extends BaseController {
           true,
           page,
           size,
-          req.user?.userId,
-          req
+          req.user?.userId
         );
         return this.success(result, '获取剧集列表成功', 200);
       } else if (dto.seriesId) {
@@ -68,8 +67,7 @@ export class ContentController extends BaseController {
           false,
           page,
           size,
-          req.user?.userId,
-          req
+          req.user?.userId
         );
         return this.success(result, '获取剧集列表成功', 200);
       } else {
@@ -79,8 +77,7 @@ export class ContentController extends BaseController {
           false,
           page,
           size,
-          req.user?.userId,
-          req
+          req.user?.userId
         );
         return this.success(result, '获取剧集列表成功', 200);
       }

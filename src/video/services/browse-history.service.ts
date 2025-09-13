@@ -76,7 +76,7 @@ export class BrowseHistoryService {
         browseHistory.browseType = browseType; // 更新浏览类型为最新的
         
         if (lastEpisodeNumber !== undefined) {
-          browseHistory.lastEpisodeNumber = lastEpisodeNumber === undefined ? null : lastEpisodeNumber;
+          browseHistory.lastEpisodeNumber = lastEpisodeNumber;
         }
         
         if (req) {
@@ -178,7 +178,6 @@ export class BrowseHistoryService {
           lastEpisodeTitle: bh.lastEpisodeNumber ? `第${bh.lastEpisodeNumber}集` : null, // ✅ 新增：集数标题
           visitCount: bh.visitCount,
           lastVisitTime: bh.updatedAt,
-          durationSeconds: bh.durationSeconds,
           watchStatus: this.getWatchStatus(bh.browseType, bh.lastEpisodeNumber) // ✅ 新增：观看状态
         })),
         total: latestIds.length, // ✅ 修正：使用去重后的总数

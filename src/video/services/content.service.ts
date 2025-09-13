@@ -47,8 +47,7 @@ export class ContentService {
     isShortId: boolean = false,
     page: number = 1,
     size: number = 20,
-    userId?: number,
-    req?: any
+    userId?: number
   ): Promise<EpisodeListResponse> {
     
     // 构建缓存键
@@ -133,6 +132,23 @@ export class ContentService {
       let userProgress: UserWatchProgress | null = null;
       if (userId && series) {
         userProgress = await this.getUserSeriesProgress(userId, series.id);
+        
+        // ✅ 修复：从浏览记录中获取当前观看集数
+        const browseHistory = await this.browseHistoryService.getUserBrowseHistory(userId, 1, 100);
+        const seriesBrowseRecord = browseHistory.list.find((record: any) => record.seriesId === series.id) as any;
+        
+        console.log(`[DEBUG] 浏览记录查找: seriesId=${series.id}, found=${!!seriesBrowseRecord}, lastEpisodeNumber=${seriesBrowseRecord?.lastEpisodeNumber}`);
+        
+        if (seriesBrowseRecord && seriesBrowseRecord.lastEpisodeNumber && userProgress) {
+          console.log(`[DEBUG] 更新currentEpisode: ${userProgress.currentEpisode} -> ${seriesBrowseRecord.lastEpisodeNumber}`);
+          userProgress.currentEpisode = seriesBrowseRecord.lastEpisodeNumber;
+          // 找到对应集数的shortId
+          const currentEpisodeData = episodes.find(ep => ep.episodeNumber === seriesBrowseRecord.lastEpisodeNumber);
+          if (currentEpisodeData) {
+            userProgress.currentEpisodeShortId = currentEpisodeData.shortId;
+            console.log(`[DEBUG] 更新currentEpisodeShortId: ${currentEpisodeData.shortId}`);
+          }
+        }
       } else {
         // 默认用户进度
         userProgress = {
@@ -218,8 +234,6 @@ export class ContentService {
       if (userId && episodes.length > 0) {
         const seriesId = episodes[0].series?.id;
         if (seriesId) {
-          const lastEpisodeNumber = episodeList[episodeList.length - 1]?.episodeNumber;
-          
           // 注意：现在只记录 episode_watch 类型，浏览剧集列表不再记录
           // this.browseHistoryService.recordBrowseHistory(
           //   userId,
