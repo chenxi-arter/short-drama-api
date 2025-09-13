@@ -37,7 +37,7 @@ export class BrowseHistoryService {
   async recordBrowseHistory(
     userId: number,
     seriesId: number,
-    browseType: string = 'episode_list',
+    browseType: string = 'episode_watch',
     lastEpisodeNumber: number | null = null,
     req?: Request
   ): Promise<void> {
@@ -102,8 +102,8 @@ export class BrowseHistoryService {
 
       // 清除相关缓存
       await this.clearBrowseHistoryCache(userId);
-    } catch (error) {
-      console.error('记录浏览历史失败:', error);
+    } catch (error: any) {
+      console.error('记录浏览历史失败:', error?.message || error);
       // 不抛出错误，避免影响主要业务逻辑
     }
   }
@@ -130,16 +130,18 @@ export class BrowseHistoryService {
       const offset = (page - 1) * size;
       
       // ✅ 优化：使用子查询确保每个系列只返回最新的一条记录
+      // ✅ 只保留 episode_watch 类型的记录
       // 先获取每个系列的最新浏览记录ID
       const latestRecordIds = await this.browseHistoryRepo
         .createQueryBuilder('bh')
         .select('MAX(bh.id)', 'maxId')
         .addSelect('bh.seriesId')
         .where('bh.userId = :userId', { userId })
+        .andWhere('bh.browseType = :browseType', { browseType: 'episode_watch' })
         .groupBy('bh.seriesId')
         .getRawMany();
 
-      const latestIds = latestRecordIds.map((row: any) => row.maxId);
+      const latestIds = latestRecordIds.map((row: any) => Number(row.maxId));
       
       if (latestIds.length === 0) {
         return {
@@ -188,8 +190,8 @@ export class BrowseHistoryService {
       // 历史记录不缓存，确保实时性
       
       return result;
-    } catch (error) {
-      console.error('获取浏览历史失败:', error);
+    } catch (error: any) {
+      console.error('获取浏览历史失败:', error?.message || error);
       throw new Error('获取浏览历史失败');
     }
   }
@@ -206,18 +208,20 @@ export class BrowseHistoryService {
   ): Promise<any[]> {
     try {
       // ✅ 优化：使用子查询确保每个系列只返回最新的一条记录
+      // ✅ 只保留 episode_watch 类型的记录
       // 先获取每个系列的最新浏览记录ID
       const latestRecordIds = await this.browseHistoryRepo
         .createQueryBuilder('bh')
         .select('MAX(bh.id)', 'maxId')
         .addSelect('bh.seriesId')
         .where('bh.userId = :userId', { userId })
+        .andWhere('bh.browseType = :browseType', { browseType: 'episode_watch' })
         .groupBy('bh.seriesId')
         .orderBy('MAX(bh.updatedAt)', 'DESC') // 按最新更新时间排序
         .limit(limit)
         .getRawMany();
 
-      const latestIds = latestRecordIds.map((row: any) => row.maxId);
+      const latestIds = latestRecordIds.map((row: any) => Number(row.maxId));
       
       if (latestIds.length === 0) {
         return [];
@@ -246,8 +250,8 @@ export class BrowseHistoryService {
       // 最近浏览记录不缓存，确保实时性
       
       return result;
-    } catch (error) {
-      console.error('获取最近浏览失败:', error);
+    } catch (error: any) {
+      console.error('获取最近浏览失败:', error?.message || error);
       return [];
     }
   }
@@ -268,8 +272,8 @@ export class BrowseHistoryService {
         .execute();
       
       console.log(`清理了 ${result.affected} 条过期浏览记录`);
-    } catch (error) {
-      console.error('清理过期浏览记录失败:', error);
+    } catch (error: any) {
+      console.error('清理过期浏览记录失败:', error?.message || error);
     }
   }
 
@@ -294,11 +298,11 @@ export class BrowseHistoryService {
       
       return {
         totalRecords,
-        activeUsers: parseInt((activeUsers as any)?.count || '0'),
+        activeUsers: parseInt((activeUsers as any)?.count as string || '0'),
         totalOperations: 0 // 可以扩展为记录总操作次数
       };
-    } catch (error) {
-      console.error('获取系统统计信息失败:', error);
+    } catch (error: any) {
+      console.error('获取系统统计信息失败:', error?.message || error);
       return {
         totalRecords: 0,
         activeUsers: 0,
@@ -321,8 +325,8 @@ export class BrowseHistoryService {
       for (const pattern of patterns) {
         await this.cacheManager.del(pattern);
       }
-    } catch (error) {
-      console.error('清除浏览历史缓存失败:', error);
+    } catch (error: any) {
+      console.error('清除浏览历史缓存失败:', error?.message || error);
     }
   }
 
@@ -373,12 +377,12 @@ export class BrowseHistoryService {
       
       // 增加计数并设置过期时间（1分钟）
       await this.cacheManager.set(ipOperationKey, ipOperationCount + 1, 60000);
-    } catch (error) {
-      if (error.message.includes('IP地址')) {
+    } catch (error: any) {
+      if (error?.message?.includes('IP地址')) {
         throw error;
       }
       // 其他错误不影响主要业务逻辑
-      console.error('检查IP黑名单失败:', error);
+      console.error('检查IP黑名单失败:', error?.message || error);
     }
   }
 
@@ -398,12 +402,12 @@ export class BrowseHistoryService {
       
       // 增加计数并设置过期时间（1分钟）
       await this.cacheManager.set(cacheKey, operationCount + 1, 60000);
-    } catch (error) {
-      if (error.message === '操作过于频繁，请稍后再试') {
+    } catch (error: any) {
+      if (error?.message === '操作过于频繁，请稍后再试') {
         throw error;
       }
       // 其他错误不影响主要业务逻辑
-      console.error('检查用户操作限制失败:', error);
+      console.error('检查用户操作限制失败:', error?.message || error);
     }
   }
 
@@ -458,8 +462,8 @@ export class BrowseHistoryService {
       return await this.seriesRepo.findOne({
         where: { shortId }
       });
-    } catch (error) {
-      console.error('通过ShortID查找系列失败:', error);
+    } catch (error: any) {
+      console.error('通过ShortID查找系列失败:', error?.message || error);
       return null;
     }
   }
@@ -468,14 +472,11 @@ export class BrowseHistoryService {
    * ✅ 新增：获取浏览类型描述
    */
   private getBrowseTypeDescription(browseType: string): string {
-    const descriptions = {
-      'episode_list': '浏览剧集列表',
-      'episode_watch': '观看剧集', // ✅ 新的类型
-      'series_detail': '查看系列详情',
-      'search': '搜索浏览',
-      'category': '分类浏览'
-    };
-    return descriptions[browseType] || '未知浏览';
+    // 只保留 episode_watch 类型
+    if (browseType === 'episode_watch') {
+      return '观看剧集';
+    }
+    return '未知浏览类型';
   }
 
   /**
@@ -484,11 +485,8 @@ export class BrowseHistoryService {
   private getWatchStatus(browseType: string, lastEpisodeNumber: number | null): string {
     if (browseType === 'episode_watch' && lastEpisodeNumber) {
       return `正在观看第${lastEpisodeNumber}集`;
-    } else if (browseType === 'episode_list') {
-      return lastEpisodeNumber ? `浏览到第${lastEpisodeNumber}集` : '浏览剧集列表';
-    } else {
-      return '浏览中';
     }
+    return '浏览中';
   }
 
   /**

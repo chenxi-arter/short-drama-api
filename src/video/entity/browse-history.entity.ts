@@ -28,9 +28,9 @@ export class BrowseHistory {
 
   /** 
    * 浏览类型 
-   * 记录浏览的类型，如：'episode_list'（剧集列表）、'series_detail'（系列详情）等
+   * 记录浏览的类型，目前只支持：'episode_watch'（观看剧集）
    */
-  @Column({ type: 'varchar', length: 50, default: 'episode_list', name: 'browse_type' })
+  @Column({ type: 'varchar', length: 50, default: 'episode_watch', name: 'browse_type' })
   browseType: string;
 
   /** 

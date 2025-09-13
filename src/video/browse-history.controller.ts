@@ -37,7 +37,7 @@ export class BrowseHistoryController extends BaseController {
       const { page: pageNum, size: sizeNum } = this.normalizePagination(page, size, 50);
 
       const result = await this.browseHistoryService.getUserBrowseHistory(
-        (req.user as any).userId,
+        Number((req.user as any)?.userId),
         pageNum,
         sizeNum
       );
@@ -63,7 +63,7 @@ export class BrowseHistoryController extends BaseController {
       const limitNum = this.validateId(limit, '限制数量');
 
       const result = await this.browseHistoryService.getRecentBrowsedSeries(
-        (req.user as any).userId,
+        Number((req.user as any)?.userId),
         limitNum
       );
 
@@ -85,7 +85,7 @@ export class BrowseHistoryController extends BaseController {
   async syncBrowseHistory(
     @Req() req,
     @Query('seriesShortId') seriesShortId: string,
-    @Query('browseType') browseType: string = 'episode_list',
+    @Query('browseType') browseType: string = 'episode_watch',
     @Query('lastEpisodeNumber') lastEpisodeNumber?: string
   ) {
     if (!seriesShortId) {
@@ -110,7 +110,7 @@ export class BrowseHistoryController extends BaseController {
     const episodeNumber = lastEpisodeNumber ? parseInt(lastEpisodeNumber, 10) : undefined;
     
     await this.browseHistoryService.recordBrowseHistory(
-      (req.user as any).userId,
+      Number((req.user as any)?.userId),
       seriesIdNum,
       browseType,
       episodeNumber,
@@ -138,7 +138,7 @@ export class BrowseHistoryController extends BaseController {
     const seriesIdNum = parseInt(seriesId, 10);
     
     await this.browseHistoryService.deleteBrowseHistory(
-      (req.user as any).userId,
+      Number((req.user as any)?.userId),
       seriesIdNum
     );
     

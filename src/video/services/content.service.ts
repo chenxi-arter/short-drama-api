@@ -220,15 +220,16 @@ export class ContentService {
         if (seriesId) {
           const lastEpisodeNumber = episodeList[episodeList.length - 1]?.episodeNumber;
           
-          this.browseHistoryService.recordBrowseHistory(
-            userId,
-            seriesId,
-            'episode_list',
-            lastEpisodeNumber,
-            req
-          ).catch(error => {
-            console.error('记录浏览历史失败:', error);
-          });
+          // 注意：现在只记录 episode_watch 类型，浏览剧集列表不再记录
+          // this.browseHistoryService.recordBrowseHistory(
+          //   userId,
+          //   seriesId,
+          //   'episode_list',
+          //   lastEpisodeNumber,
+          //   req
+          // ).catch(error => {
+          //   console.error('记录浏览历史失败:', error);
+          // });
         }
       }
       
