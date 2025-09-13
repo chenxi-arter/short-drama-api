@@ -123,15 +123,29 @@ export class UrlService {
         await this.incrementSeriesPlayCount(episodeUrl.episode.series.id);
       }
 
+      // 获取该剧集的所有播放地址
+      const allUrls = await this.episodeUrlRepo.find({
+        where: { episodeId: episodeUrl.episodeId },
+        order: { quality: 'DESC' },
+      });
+
       return {
-        ossUrl: episodeUrl.ossUrl,
-        cdnUrl: episodeUrl.cdnUrl,
-        originUrl: episodeUrl.originUrl,
-        subtitleUrl: episodeUrl.subtitleUrl,
-        quality: episodeUrl.quality,
-        episodeId: episodeUrl.episodeId,
-        episodeTitle: episodeUrl.episode?.title,
-        seriesTitle: episodeUrl.episode?.series?.title
+        episodeId: episodeUrl.episode.id,
+        episodeShortId: episodeUrl.episode.shortId,
+        episodeTitle: episodeUrl.episode.title,
+        seriesId: episodeUrl.episode.series?.id,
+        seriesShortId: episodeUrl.episode.series?.shortId,
+        urls: allUrls.map(url => ({
+          id: url.id,
+          quality: url.quality,
+          ossUrl: url.ossUrl,
+          cdnUrl: url.cdnUrl,
+          subtitleUrl: url.subtitleUrl,
+          accessKey: url.accessKey,
+          createdAt: url.createdAt,
+          updatedAt: url.updatedAt
+        })),
+        accessKeySource: 'url'
       };
     } catch (error) {
       console.error('通过访问密钥获取播放地址失败:', error);
@@ -164,17 +178,21 @@ export class UrlService {
 
         return {
           episodeId: episode.id,
+          episodeShortId: episode.shortId,
           episodeTitle: episode.title,
-          episodeNumber: episode.episodeNumber,
-          seriesTitle: episode.series?.title,
+          seriesId: episode.series?.id,
+          seriesShortId: episode.series?.shortId,
           urls: episode.urls?.map(url => ({
+            id: url.id,
             quality: url.quality,
             ossUrl: url.ossUrl,
             cdnUrl: url.cdnUrl,
-            originUrl: url.originUrl,
             subtitleUrl: url.subtitleUrl,
-            accessKey: url.accessKey
-          })) || []
+            accessKey: url.accessKey,
+            createdAt: url.createdAt,
+            updatedAt: url.updatedAt
+          })) || [],
+          accessKeySource: 'episode'
         };
       } else if (prefix === 'url') {
         // 地址级访问：通过具体URL的accessKey获取单个地址
