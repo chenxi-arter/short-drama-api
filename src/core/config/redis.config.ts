@@ -16,6 +16,10 @@ export class RedisConfig {
 
   @IsOptional()
   @IsString()
+  username?: string;
+
+  @IsOptional()
+  @IsString()
   password?: string;
 
   @IsOptional()
@@ -67,10 +71,9 @@ export class RedisConfig {
    * 获取Redis配置对象
    */
   getRedisConfig() {
-    return {
+    const config: any = {
       host: this.host,
       port: this.port,
-      password: this.password,
       db: this.db,
       connectTimeout: this.connectTimeout,
       lazyConnect: this.lazyConnect,
@@ -79,20 +82,43 @@ export class RedisConfig {
       enableReadyCheck: this.enableReadyCheck,
       maxRetriesPerRequest: this.maxRetriesPerRequest,
     };
+
+    // 只有在有用户名时才添加username参数
+    if (this.username && this.username.trim() !== '') {
+      config.username = this.username;
+    }
+
+    // 只有在有密码时才添加password参数
+    if (this.password && this.password.trim() !== '') {
+      config.password = this.password;
+    }
+
+    return config;
   }
 
   /**
    * 获取缓存模块配置
    */
   getCacheConfig() {
-    return {
+    const config: any = {
       store: 'redis',
       host: this.host,
       port: this.port,
-      password: this.password,
       db: this.db,
       ttl: this.ttl,
       max: this.max,
     };
+
+    // 只有在有用户名时才添加username参数
+    if (this.username && this.username.trim() !== '') {
+      config.username = this.username;
+    }
+
+    // 只有在有密码时才添加password参数
+    if (this.password && this.password.trim() !== '') {
+      config.password = this.password;
+    }
+
+    return config;
   }
 }

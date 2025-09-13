@@ -2,10 +2,67 @@
 
 ## 📅 文档信息
 
-**版本**: v2.0  
-**创建时间**: 2025年9月11日  
-**适用范围**: 题材筛选重构、Ingest API优化、交互统计功能  
+**版本**: v2.1  
+**创建时间**: 2025年9月13日  
+**适用范围**: 播放地址接口优化、搜索功能改进、Redis认证支持  
 **基础文档**: 参考 `api-summary-documentation.md`
+
+## 🚀 v2.1 重要更新 (2025年9月13日)
+
+### 1. 播放地址接口返回结构优化
+- **变更**: 播放地址数据直接放在 `data` 字段中，不再嵌套在 `data.data` 中
+- **影响接口**: 
+  - `POST /api/video/episode-url/query` - 获取播放地址
+  - `GET /api/video/url/access/:accessKey` - 通过访问密钥获取播放地址
+- **返回格式变更**:
+  ```json
+  {
+    "code": 200,
+    "message": "获取播放地址成功",
+    "data": {
+      "episodeId": 2266,
+      "episodeShortId": "e23fy2RZCqp",
+      "episodeTitle": "01",
+      "seriesId": 2017,
+      "seriesShortId": "kYRaj64ymaJ",
+      "urls": [...],
+      "accessKeySource": "episode"
+    },
+    "timestamp": "2025-09-13T02:50:41.855Z"
+  }
+  ```
+- **前端影响**: 前端可直接从 `data` 字段获取播放数据，无需访问 `data.data`
+
+### 2. 搜索功能精确匹配优化
+- **问题**: 搜索 "test1" 时返回 "test1999" 而不是完全匹配的 "test1"
+- **解决方案**: 改进搜索优先级算法
+- **影响接口**: `GET /api/list/fuzzysearch` - 模糊搜索
+- **优化内容**:
+  - 完全匹配 (title = keyword) - 优先级 1
+  - 前缀匹配 (title LIKE 'keyword%') - 优先级 2
+  - 包含匹配 (title LIKE '%keyword%') - 优先级 3
+  - 添加标题长度排序，确保精确匹配优先显示
+- **效果**: 搜索 "test1" 时，"test1" 排在 "test1999" 前面
+
+### 3. Redis认证支持增强
+- **新增功能**: 支持Redis用户名和密码认证（Redis 6.0+ ACL）
+- **支持的环境变量**:
+  - 用户名: `REDIS_USERNAME` 或 `REDIS_USER`
+  - 密码: `REDIS_PASSWORD` 或 `REDIS_PASS`
+- **配置示例**:
+  ```bash
+  REDIS_HOST=localhost
+  REDIS_PORT=6379
+  REDIS_USERNAME=your_username
+  REDIS_PASSWORD=Drama@456
+  REDIS_DB=0
+  ```
+- **向后兼容**: 如果没有用户名/密码则不传递这些参数
+- **影响模块**: 缓存模块、播放计数服务
+
+### 4. 错误处理改进
+- **Redis连接**: 优化Redis连接错误处理，避免认证失败时的重复错误日志
+- **搜索服务**: 改进搜索服务的错误处理和日志记录
 
 ## 🚀 v2.0 重大更新 (2025年9月11日)
 

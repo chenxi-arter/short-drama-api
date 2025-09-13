@@ -51,7 +51,8 @@ function validateConfig(config: Record<string, unknown>) {
   const redisConfig = plainToClass(RedisConfig, {
     host: config.REDIS_HOST,
     port: config.REDIS_PORT,
-    password: config.REDIS_PASSWORD,
+    username: config.REDIS_USERNAME || config.REDIS_USER,
+    password: config.REDIS_PASSWORD || config.REDIS_PASS,
     db: config.REDIS_DB,
     ttl: config.REDIS_TTL,
     max: config.REDIS_MAX,

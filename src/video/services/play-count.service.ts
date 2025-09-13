@@ -23,14 +23,25 @@ export class PlayCountService implements OnModuleInit, OnModuleDestroy {
 
   async onModuleInit() {
     try {
-      this.redisClient = createClient({
+      const redisConfig: any = {
         socket: {
           host: this.redisConfig.host,
           port: this.redisConfig.port,
         },
-        password: this.redisConfig.password,
         database: this.redisConfig.db,
-      });
+      };
+      
+      // 只有在有用户名时才添加username参数
+      if (this.redisConfig.username && this.redisConfig.username.trim() !== '') {
+        redisConfig.username = this.redisConfig.username;
+      }
+      
+      // 只有在有密码时才添加password参数
+      if (this.redisConfig.password && this.redisConfig.password.trim() !== '') {
+        redisConfig.password = this.redisConfig.password;
+      }
+      
+      this.redisClient = createClient(redisConfig);
       this.redisClient.on('error', (err) => {
         console.error('[PlayCountService] Redis error:', err?.message || err);
       });

@@ -119,14 +119,6 @@ export class BrowseHistoryService {
     hasMore: boolean;
   }> {
     try {
-      const cacheKey = `browse_history_${userId}_${page}_${size}`;
-      
-      // 尝试从缓存获取
-      const cached = await this.cacheManager.get(cacheKey);
-      if (cached) {
-        return cached as any;
-      }
-
       const offset = (page - 1) * size;
       
       // 使用关联查询获取完整的系列信息和分类信息
@@ -163,8 +155,7 @@ export class BrowseHistoryService {
         hasMore: total > page * size
       };
 
-      // 缓存结果（5分钟）
-      await this.cacheManager.set(cacheKey, result, 300000);
+      // 历史记录不缓存，确保实时性
       
       return result;
     } catch (error) {
@@ -183,13 +174,6 @@ export class BrowseHistoryService {
     limit: number = 10
   ): Promise<any[]> {
     try {
-      const cacheKey = `recent_browsed_${userId}_${limit}`;
-      
-      // 尝试从缓存获取
-      const cached = await this.cacheManager.get(cacheKey);
-      if (cached) {
-        return cached as any[];
-      }
 
       // 使用关联查询获取完整的系列信息和分类信息
       const recentBrowsed = await this.browseHistoryRepo
@@ -212,8 +196,7 @@ export class BrowseHistoryService {
         visitCount: bh.visitCount
       }));
 
-      // 缓存结果（3分钟）
-      await this.cacheManager.set(cacheKey, result, 180000);
+      // 最近浏览记录不缓存，确保实时性
       
       return result;
     } catch (error) {

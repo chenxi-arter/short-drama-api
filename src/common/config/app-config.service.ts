@@ -27,7 +27,8 @@ export class AppConfigService {
     return {
       host: this.configService.get<string>('REDIS_HOST', 'localhost'),
       port: this.configService.get<number>('REDIS_PORT', 6379),
-      password: this.configService.get<string>('REDIS_PASSWORD'),
+      username: this.configService.get<string>('REDIS_USERNAME') || this.configService.get<string>('REDIS_USER'),
+      password: this.configService.get<string>('REDIS_PASSWORD') || this.configService.get<string>('REDIS_PASS'),
       db: this.configService.get<number>('REDIS_DB', 0),
       ttl: this.configService.get<number>('REDIS_TTL', 300), // 默认5分钟
     };
