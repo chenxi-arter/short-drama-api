@@ -26,8 +26,9 @@ import { CategoryService } from './services/category.service';
 
 import { FilterService } from './services/filter.service';
 import { SeriesService } from './services/series.service';
-import { BannerService } from './services/banner.service';     // 轮播图服务
+// import { BannerService } from './services/banner.service';     // 轮播图服务
 import { BrowseHistoryService } from './services/browse-history.service'; // 浏览记录服务
+import { BrowseHistoryCleanupService } from './services/browse-history-cleanup.service'; // 浏览记录清理服务
 
 // ✅ 新增：专门的业务服务
 import { PlaybackService } from './services/playback.service';
@@ -95,6 +96,7 @@ import { PlayCountService } from './services/play-count.service';
     FilterService,
     SeriesService,
     BrowseHistoryService,
+    BrowseHistoryCleanupService,
     
     // 工具和配置服务
     AppLoggerService,

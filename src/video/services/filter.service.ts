@@ -1,6 +1,6 @@
 import { Injectable, Inject } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { Repository } from 'typeorm';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
 import { FilterType } from '../entity/filter-type.entity';
@@ -431,10 +431,6 @@ export class FilterService {
               break;
             case 'status':
               FilterQueryBuilderUtil.applyStatus(queryBuilder, option.id);
-              break;
-            case 'type':
-              // 类型筛选（排序功能）
-              this.applySorting(queryBuilder, optionId);
               break;
             default:
               break;

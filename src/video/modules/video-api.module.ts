@@ -26,6 +26,7 @@ import { FilterService } from '../services/filter.service';
 import { SeriesService } from '../services/series.service';
 import { EpisodeService } from '../services/episode.service';
 import { BrowseHistoryService } from '../services/browse-history.service';
+import { BrowseHistoryCleanupService } from '../services/browse-history-cleanup.service';
 import { WatchProgressService } from '../services/watch-progress.service';
 import { BannerService } from '../services/banner.service';
 import { CategoryService } from '../services/category.service';
@@ -95,6 +96,7 @@ import { SeriesGenreOption } from '../entity/series-genre-option.entity';
     SeriesService,
     EpisodeService,
     BrowseHistoryService,
+    BrowseHistoryCleanupService,
     WatchProgressService,
     BannerService,
     CategoryService,

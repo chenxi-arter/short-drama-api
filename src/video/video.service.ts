@@ -181,9 +181,9 @@ export class VideoService {
   async getConditionFilterData(dto: any) {
     // 暂时使用现有的筛选方法，稍后可以扩展为更完整的实现
     return this.filterService.getFiltersData(
-      dto.titleid || 'drama',
-      dto.ids || '0,0,0,0,0',
-      dto.page?.toString() || '1'
+      (dto as any).titleid || 'drama',
+      (dto as any).ids || '0,0,0,0,0',
+      ((dto as any).page?.toString()) || '1'
     );
   }
 
@@ -243,7 +243,7 @@ export class VideoService {
       await this.seriesRepo.save(series);
 
       // 清理相关缓存
-      await this.clearSeriesRelatedCache(seriesId);
+      this.clearSeriesRelatedCache(seriesId);
 
       return { success: true, message: '剧集已成功删除' };
     } catch (error) {
@@ -272,7 +272,7 @@ export class VideoService {
       await this.seriesRepo.save(series);
 
       // 清理相关缓存
-      await this.clearSeriesRelatedCache(seriesId);
+      this.clearSeriesRelatedCache(seriesId);
 
       return { success: true, message: '剧集已成功恢复' };
     } catch (error) {
@@ -323,13 +323,17 @@ export class VideoService {
 
   // ==================== 缓存管理方法 ====================
 
-  async clearProgressRelatedCache(episodeId: number) {
+  clearProgressRelatedCache(episodeId: number) {
     console.log(`清理缓存请求: episodeId=${episodeId}`);
     // 现在由各个专门服务内部处理
   }
 
-  async clearSeriesRelatedCache(seriesId: number) {
+  clearSeriesRelatedCache(seriesId: number) {
     console.log(`清理系列缓存请求: seriesId=${seriesId}`);
-    // 委托给相关服务
+    // 委托给相关服务 - 异步执行，不阻塞主流程
+    setImmediate(() => {
+      // 这里可以调用实际的缓存清理逻辑
+      // 例如：this.cacheService.clearSeriesCache(seriesId);
+    });
   }
 }

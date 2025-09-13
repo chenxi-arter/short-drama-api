@@ -1,8 +1,9 @@
 // src/video/browse-history.controller.ts
-import { Controller, Get, Query, Delete, UseGuards, Req, Param } from '@nestjs/common';
+import { Controller, Get, Query, Delete, UseGuards, Req, Param, Post } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RateLimitGuard, RateLimit, RateLimitConfigs } from '../common/guards/rate-limit.guard';
 import { BrowseHistoryService } from './services/browse-history.service';
+import { BrowseHistoryCleanupService } from './services/browse-history-cleanup.service';
 import { BaseController } from './controllers/base.controller';
 
 /**
@@ -12,7 +13,10 @@ import { BaseController } from './controllers/base.controller';
 @UseGuards(JwtAuthGuard, RateLimitGuard)
 @Controller('video/browse-history')
 export class BrowseHistoryController extends BaseController {
-  constructor(private readonly browseHistoryService: BrowseHistoryService) {
+  constructor(
+    private readonly browseHistoryService: BrowseHistoryService,
+    private readonly browseHistoryCleanupService: BrowseHistoryCleanupService
+  ) {
     super();
   }
 
@@ -33,7 +37,7 @@ export class BrowseHistoryController extends BaseController {
       const { page: pageNum, size: sizeNum } = this.normalizePagination(page, size, 50);
 
       const result = await this.browseHistoryService.getUserBrowseHistory(
-        req.user.userId,
+        (req.user as any).userId,
         pageNum,
         sizeNum
       );
@@ -59,7 +63,7 @@ export class BrowseHistoryController extends BaseController {
       const limitNum = this.validateId(limit, '限制数量');
 
       const result = await this.browseHistoryService.getRecentBrowsedSeries(
-        req.user.userId,
+        (req.user as any).userId,
         limitNum
       );
 
@@ -106,7 +110,7 @@ export class BrowseHistoryController extends BaseController {
     const episodeNumber = lastEpisodeNumber ? parseInt(lastEpisodeNumber, 10) : undefined;
     
     await this.browseHistoryService.recordBrowseHistory(
-      req.user.userId,
+      (req.user as any).userId,
       seriesIdNum,
       browseType,
       episodeNumber,
@@ -134,7 +138,7 @@ export class BrowseHistoryController extends BaseController {
     const seriesIdNum = parseInt(seriesId, 10);
     
     await this.browseHistoryService.deleteBrowseHistory(
-      req.user.userId,
+      (req.user as any).userId,
       seriesIdNum
     );
     
@@ -152,7 +156,7 @@ export class BrowseHistoryController extends BaseController {
   @RateLimit(RateLimitConfigs.STRICT)
   @Delete()
   async deleteAllBrowseHistory(@Req() req) {
-    await this.browseHistoryService.deleteBrowseHistory(req.user.userId);
+    await this.browseHistoryService.deleteBrowseHistory((req.user as any).userId);
     
     return {
       code: 200,
@@ -189,5 +193,55 @@ export class BrowseHistoryController extends BaseController {
       msg: '过期记录清理完成',
       data: null
     };
+  }
+
+  /**
+   * ✅ 新增：手动触发浏览记录清理任务（管理员接口）
+   */
+  @RateLimit(RateLimitConfigs.STRICT)
+  @Post('cleanup-excess')
+  async manualCleanupExcessRecords() {
+    try {
+      const result = await this.browseHistoryCleanupService.manualCleanup();
+      
+      return {
+        code: 200,
+        msg: '浏览记录清理任务完成',
+        data: {
+          processedUsers: result.processedUsers,
+          totalCleanedRecords: result.totalCleanedRecords,
+          duration: result.duration
+        }
+      };
+    } catch {
+      return {
+        code: 500,
+        msg: '浏览记录清理任务失败',
+        data: null
+      };
+    }
+  }
+
+  /**
+   * ✅ 新增：获取浏览记录清理统计信息（管理员接口）
+   */
+  @RateLimit(RateLimitConfigs.NORMAL)
+  @Get('cleanup-stats')
+  async getCleanupStats() {
+    try {
+      const stats = await this.browseHistoryCleanupService.getCleanupStats();
+      
+      return {
+        code: 200,
+        msg: '获取清理统计信息成功',
+        data: stats
+      };
+    } catch {
+      return {
+        code: 500,
+        msg: '获取清理统计信息失败',
+        data: null
+      };
+    }
   }
 }

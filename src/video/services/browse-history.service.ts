@@ -27,7 +27,7 @@ export class BrowseHistoryService {
   ) {}
 
   /**
-   * 记录用户浏览剧集列表
+   * 记录用户浏览剧集列表（优化版）
    * @param userId 用户ID
    * @param seriesId 剧集系列ID
    * @param browseType 浏览类型
@@ -59,27 +59,34 @@ export class BrowseHistoryService {
         throw new Error('无效的集数');
       }
       
-      // 检查是否已存在浏览记录
+      // ✅ 优化：使用更精确的查询条件，确保同系列只保留一条记录
+      // 对于同一个用户和同一个系列，无论浏览类型如何，都只保留一条记录
       let browseHistory = await this.browseHistoryRepo.findOne({
         where: {
           userId,
-          seriesId,
-          browseType
+          seriesId
+          // 移除 browseType 条件，确保同系列只保留一条记录
         }
       });
 
       if (browseHistory) {
-        // 更新现有记录
+        // ✅ 更新现有记录（同系列更新而非新建）
         browseHistory.visitCount += 1;
         browseHistory.updatedAt = new Date();
+        browseHistory.browseType = browseType; // 更新浏览类型为最新的
+        
         if (lastEpisodeNumber !== undefined) {
           browseHistory.lastEpisodeNumber = lastEpisodeNumber === undefined ? null : lastEpisodeNumber;
         }
+        
         if (req) {
           browseHistory.userAgent = req.headers['user-agent'] || browseHistory.userAgent;
           browseHistory.ipAddress = this.getClientIp(req) || browseHistory.ipAddress;
         }
       } else {
+        // ✅ 创建新记录前，先检查用户记录数量限制
+        await this.checkAndEnforceUserRecordLimit(userId);
+        
         // 创建新记录
         browseHistory = new BrowseHistory();
         browseHistory.userId = userId;
@@ -103,6 +110,7 @@ export class BrowseHistoryService {
 
   /**
    * 获取用户的浏览记录（优化版 - 默认10条，包含详细观看信息）
+   * ✅ 优化：确保同系列只返回最新的一条记录
    * @param userId 用户ID
    * @param page 页码
    * @param size 每页大小（默认10条）
@@ -121,12 +129,34 @@ export class BrowseHistoryService {
     try {
       const offset = (page - 1) * size;
       
+      // ✅ 优化：使用子查询确保每个系列只返回最新的一条记录
+      // 先获取每个系列的最新浏览记录ID
+      const latestRecordIds = await this.browseHistoryRepo
+        .createQueryBuilder('bh')
+        .select('MAX(bh.id)', 'maxId')
+        .addSelect('bh.seriesId')
+        .where('bh.userId = :userId', { userId })
+        .groupBy('bh.seriesId')
+        .getRawMany();
+
+      const latestIds = latestRecordIds.map((row: any) => row.maxId);
+      
+      if (latestIds.length === 0) {
+        return {
+          list: [],
+          total: 0,
+          page,
+          size,
+          hasMore: false
+        };
+      }
+
       // 使用关联查询获取完整的系列信息和分类信息
-      const [browseHistories, total] = await this.browseHistoryRepo
+      const [browseHistories] = await this.browseHistoryRepo
         .createQueryBuilder('bh')
         .leftJoinAndSelect('bh.series', 'series')
         .leftJoinAndSelect('series.category', 'category')
-        .where('bh.userId = :userId', { userId })
+        .where('bh.id IN (:...ids)', { ids: latestIds })
         .orderBy('bh.updatedAt', 'DESC')
         .skip(offset)
         .take(size)
@@ -149,10 +179,10 @@ export class BrowseHistoryService {
           durationSeconds: bh.durationSeconds,
           watchStatus: this.getWatchStatus(bh.browseType, bh.lastEpisodeNumber) // ✅ 新增：观看状态
         })),
-        total,
+        total: latestIds.length, // ✅ 修正：使用去重后的总数
         page,
         size,
-        hasMore: total > page * size
+        hasMore: latestIds.length > page * size
       };
 
       // 历史记录不缓存，确保实时性
@@ -165,7 +195,8 @@ export class BrowseHistoryService {
   }
 
   /**
-   * 获取用户最近浏览的剧集系列
+   * 获取用户最近浏览的剧集系列（优化版）
+   * ✅ 优化：确保同系列只返回最新的一条记录
    * @param userId 用户ID
    * @param limit 限制数量
    */
@@ -174,15 +205,31 @@ export class BrowseHistoryService {
     limit: number = 10
   ): Promise<any[]> {
     try {
+      // ✅ 优化：使用子查询确保每个系列只返回最新的一条记录
+      // 先获取每个系列的最新浏览记录ID
+      const latestRecordIds = await this.browseHistoryRepo
+        .createQueryBuilder('bh')
+        .select('MAX(bh.id)', 'maxId')
+        .addSelect('bh.seriesId')
+        .where('bh.userId = :userId', { userId })
+        .groupBy('bh.seriesId')
+        .orderBy('MAX(bh.updatedAt)', 'DESC') // 按最新更新时间排序
+        .limit(limit)
+        .getRawMany();
+
+      const latestIds = latestRecordIds.map((row: any) => row.maxId);
+      
+      if (latestIds.length === 0) {
+        return [];
+      }
 
       // 使用关联查询获取完整的系列信息和分类信息
       const recentBrowsed = await this.browseHistoryRepo
         .createQueryBuilder('bh')
         .leftJoinAndSelect('bh.series', 'series')
         .leftJoinAndSelect('series.category', 'category')
-        .where('bh.userId = :userId', { userId })
+        .where('bh.id IN (:...ids)', { ids: latestIds })
         .orderBy('bh.updatedAt', 'DESC')
-        .take(limit)
         .getMany();
 
       const result = recentBrowsed.map(bh => ({
@@ -247,7 +294,7 @@ export class BrowseHistoryService {
       
       return {
         totalRecords,
-        activeUsers: parseInt(activeUsers?.count || '0'),
+        activeUsers: parseInt((activeUsers as any)?.count || '0'),
         totalOperations: 0 // 可以扩展为记录总操作次数
       };
     } catch (error) {
@@ -397,7 +444,7 @@ export class BrowseHistoryService {
       
       // 清除相关缓存
       await this.clearBrowseHistoryCache(userId);
-    } catch (error) {
+    } catch (error: any) {
       console.error('删除浏览历史失败:', error);
       throw new Error(error.message || '删除浏览历史失败');
     }
@@ -441,6 +488,52 @@ export class BrowseHistoryService {
       return lastEpisodeNumber ? `浏览到第${lastEpisodeNumber}集` : '浏览剧集列表';
     } else {
       return '浏览中';
+    }
+  }
+
+  /**
+   * ✅ 新增：检查并强制执行用户记录数量限制
+   * 当用户记录数量接近或超过限制时，删除最旧的记录
+   * @param userId 用户ID
+   */
+  private async checkAndEnforceUserRecordLimit(userId: number): Promise<void> {
+    const MAX_RECORDS_PER_USER = 100;
+    
+    try {
+      // 获取用户当前的浏览记录总数
+      const currentCount = await this.browseHistoryRepo.count({
+        where: { userId }
+      });
+
+      // 如果记录数量已经达到或超过限制，删除最旧的记录
+      if (currentCount >= MAX_RECORDS_PER_USER) {
+        const recordsToDelete = currentCount - MAX_RECORDS_PER_USER + 1; // +1 为即将新增的记录预留空间
+        
+        // 获取需要删除的最旧记录ID列表
+        const recordsToDeleteIds = await this.browseHistoryRepo
+          .createQueryBuilder('bh')
+          .select('bh.id')
+          .where('bh.userId = :userId', { userId })
+          .orderBy('bh.updatedAt', 'ASC') // 按更新时间升序，删除最旧的
+          .limit(recordsToDelete)
+          .getMany();
+
+        if (recordsToDeleteIds.length > 0) {
+          // 批量删除最旧的记录
+          await this.browseHistoryRepo
+            .createQueryBuilder()
+            .delete()
+            .where('id IN (:...ids)', { 
+              ids: recordsToDeleteIds.map(record => record.id) 
+            })
+            .execute();
+
+          console.log(`用户 ${userId} 自动清理了 ${recordsToDeleteIds.length} 条最旧的浏览记录`);
+        }
+      }
+    } catch (error: any) {
+      console.error(`检查用户 ${userId} 记录数量限制失败:`, error);
+      // 不抛出错误，避免影响主要业务逻辑
     }
   }
 }
