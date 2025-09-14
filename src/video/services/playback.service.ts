@@ -7,7 +7,6 @@ import { Episode } from '../entity/episode.entity';
 import { WatchProgress } from '../entity/watch-progress.entity';
 import { DateUtil } from '../../common/utils/date.util';
 import { WatchProgressService } from './watch-progress.service';
-import { BrowseHistoryService } from './browse-history.service';
 import { CacheKeys } from '../utils/cache-keys.util';
 
 /**
@@ -22,7 +21,6 @@ export class PlaybackService {
     @InjectRepository(WatchProgress)
     private readonly watchProgressRepo: Repository<WatchProgress>,
     private readonly watchProgressService: WatchProgressService,
-    private readonly browseHistoryService: BrowseHistoryService,
     @Inject(CACHE_MANAGER)
     private readonly cacheManager: Cache,
   ) {}
