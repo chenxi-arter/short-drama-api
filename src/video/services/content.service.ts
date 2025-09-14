@@ -440,8 +440,9 @@ export class ContentService {
       let lastWatchTime = new Date(0);
       let completedEpisodes = 0;
 
-      // 忽略极小的“误触发”进度（如进入详情页触发的 1 秒）
-      const MIN_VALID_PROGRESS_SECONDS = 10;
+      // 忽略极小的“误触发”进度（可通过环境变量调整）
+      const MIN_VALID_PROGRESS_SECONDS = Number(process.env.PROGRESS_MIN_SECONDS ?? '2');
+      const MIN_VALID_PROGRESS_PERCENT = Number(process.env.PROGRESS_MIN_PERCENT ?? '0.01'); // 1%
       let lastValidWatchTime = new Date(0);
       let validEpisodeNumber = 0;
       let validEpisodeShortId = '';
@@ -454,8 +455,7 @@ export class ContentService {
           totalWatchTime += progress.stopAtSecond;
           
           // 记录“任意进度”的最新（兜底）
-          if (progress.updatedAt > lastWatchTime ||
-              (progress.updatedAt.getTime() === lastWatchTime.getTime() && episode.episodeNumber > currentEpisode)) {
+          if (progress.updatedAt > lastWatchTime) {
             lastWatchTime = progress.updatedAt;
             currentEpisode = episode.episodeNumber;
             currentEpisodeShortId = episode.shortId;
@@ -466,9 +466,10 @@ export class ContentService {
           }
 
           // 记录“有效进度”的最新（用于避免被 1 秒等误触发覆盖）
-          if (progress.stopAtSecond >= MIN_VALID_PROGRESS_SECONDS) {
-            if (progress.updatedAt > lastValidWatchTime ||
-                (progress.updatedAt.getTime() === lastValidWatchTime.getTime() && episode.episodeNumber > validEpisodeNumber)) {
+          const meetsSeconds = progress.stopAtSecond >= MIN_VALID_PROGRESS_SECONDS;
+          const meetsPercent = episode.duration > 0 && (progress.stopAtSecond / episode.duration) >= MIN_VALID_PROGRESS_PERCENT;
+          if (meetsSeconds || meetsPercent) {
+            if (progress.updatedAt > lastValidWatchTime) {
               lastValidWatchTime = progress.updatedAt;
               validEpisodeNumber = episode.episodeNumber;
               validEpisodeShortId = episode.shortId;

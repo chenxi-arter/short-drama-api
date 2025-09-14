@@ -66,22 +66,21 @@ export class CompatBrowseHistoryController extends BaseController {
       }
 
       // 忽略极小的误触发进度（如 1 秒进入详情）
-      const MIN_VALID_PROGRESS_SECONDS = 10;
+      const MIN_VALID_PROGRESS_SECONDS = Number(process.env.PROGRESS_MIN_SECONDS ?? '2');
+      const MIN_VALID_PROGRESS_PERCENT = Number(process.env.PROGRESS_MIN_PERCENT ?? '0.01');
 
-      // 记录“任意进度”的最新（兜底）
-      if (p.updatedAt > current.lastVisitTime ||
-          (p.updatedAt.getTime() === current.lastVisitTime.getTime() && ep.episodeNumber > current.lastEpisodeNumber)) {
+      // 记录“任意进度”的最新（兜底）——严格以时间为准
+      if (p.updatedAt > current.lastVisitTime) {
         current.lastVisitTime = p.updatedAt;
         current.lastEpisodeNumber = ep.episodeNumber;
       }
 
       // 若达到有效进度阈值，以“有效进度”的最新为准
-      if (p.stopAtSecond >= MIN_VALID_PROGRESS_SECONDS) {
+      const meetsSeconds = p.stopAtSecond >= MIN_VALID_PROGRESS_SECONDS;
+      const meetsPercent = ep.duration > 0 && (p.stopAtSecond / (ep.duration || 1)) >= MIN_VALID_PROGRESS_PERCENT;
+      if (meetsSeconds || meetsPercent) {
         if (!current.__validLastVisitTime) current.__validLastVisitTime = new Date(0);
-        if (
-          p.updatedAt > current.__validLastVisitTime ||
-          (p.updatedAt.getTime() === current.__validLastVisitTime.getTime() && ep.episodeNumber > (current.__validEpisodeNumber || 0))
-        ) {
+        if (p.updatedAt > current.__validLastVisitTime) {
           current.__validLastVisitTime = p.updatedAt;
           current.__validEpisodeNumber = ep.episodeNumber;
         }
