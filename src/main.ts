@@ -4,6 +4,7 @@ config();
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { BadRequestException, ValidationPipe } from '@nestjs/common';
+import { DateUtil } from './common/utils/date.util';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -34,6 +35,10 @@ async function bootstrap() {
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     credentials: true,
   });
+
+  // ✅ 配置全局时区（可从环境变量动态切换）
+  const appTimezone = process.env.APP_TIMEZONE || process.env.DB_TIMEZONE || 'Asia/Shanghai';
+  DateUtil.setTimezone(appTimezone);
 
   await app.listen(process.env.PORT ?? 3000);
 }

@@ -5,6 +5,7 @@ import { Repository } from 'typeorm';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
 import { BrowseHistory } from '../entity/browse-history.entity';
+import { DateUtil } from '../../common/utils/date.util';
 import { Series } from '../entity/series.entity';
 import { User } from '../../user/entity/user.entity';
 import { Request } from 'express';
@@ -178,7 +179,7 @@ export class BrowseHistoryService {
           lastEpisodeNumber: bh.lastEpisodeNumber,
           lastEpisodeTitle: bh.lastEpisodeNumber ? `第${bh.lastEpisodeNumber}集` : null, // ✅ 新增：集数标题
           visitCount: bh.visitCount,
-          lastVisitTime: this.formatDateTime(bh.updatedAt),
+          lastVisitTime: DateUtil.formatDateTime(bh.updatedAt),
           watchStatus: this.getWatchStatus(bh.browseType, bh.lastEpisodeNumber) // ✅ 新增：观看状态
         })),
         total: latestIds.length, // ✅ 修正：使用去重后的总数
@@ -243,7 +244,7 @@ export class BrowseHistoryService {
         seriesCoverUrl: bh.series?.coverUrl || '', // 使用真实封面URL
         categoryName: bh.series?.category?.name || '', // 使用真实分类名称
         lastEpisodeNumber: bh.lastEpisodeNumber,
-        lastVisitTime: this.formatDateTime(bh.updatedAt),
+        lastVisitTime: DateUtil.formatDateTime(bh.updatedAt),
         visitCount: bh.visitCount
       }));
 
@@ -491,18 +492,22 @@ export class BrowseHistoryService {
   }
 
   /**
-   * ✅ 新增：格式化日期时间为用户友好的格式
+   * ✅ 新增：格式化日期时间为用户友好的格式（支持时区转换）
    * @param date 日期对象
    * @returns 格式化后的日期字符串，如 "2024-01-15 16:30"
    */
   private formatDateTime(date: Date): string {
     if (!date) return '';
     
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    const hours = String(date.getHours()).padStart(2, '0');
-    const minutes = String(date.getMinutes()).padStart(2, '0');
+    // ✅ 修复：确保时区正确处理
+    // 将UTC时间转换为北京时间 (UTC+8)
+    const beijingTime = new Date(date.getTime() + (date.getTimezoneOffset() * 60000) + (8 * 3600000));
+    
+    const year = beijingTime.getFullYear();
+    const month = String(beijingTime.getMonth() + 1).padStart(2, '0');
+    const day = String(beijingTime.getDate()).padStart(2, '0');
+    const hours = String(beijingTime.getHours()).padStart(2, '0');
+    const minutes = String(beijingTime.getMinutes()).padStart(2, '0');
     
     return `${year}-${month}-${day} ${hours}:${minutes}`;
   }

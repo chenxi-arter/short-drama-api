@@ -1,4 +1,5 @@
 import { Injectable, Inject } from '@nestjs/common';
+import { DateUtil } from '../../common/utils/date.util';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
@@ -204,7 +205,7 @@ export class HomeService {
         description: s.description || '',
         cidMapper: s.categoryId?.toString() || '',
         isRecommend: s.score >= 8.0,
-        createdAt: this.formatDateTime(s.createdAt)
+        createdAt: DateUtil.formatDateTime(s.createdAt)
       }));
     } catch (error) {
       console.error('获取视频列表失败:', error);
@@ -213,18 +214,22 @@ export class HomeService {
   }
 
   /**
-   * ✅ 新增：格式化日期时间为用户友好的格式
+   * ✅ 新增：格式化日期时间为用户友好的格式（支持时区转换）
    * @param date 日期对象
    * @returns 格式化后的日期字符串，如 "2024-01-15 16:30"
    */
   private formatDateTime(date: Date): string {
     if (!date) return '';
     
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    const hours = String(date.getHours()).padStart(2, '0');
-    const minutes = String(date.getMinutes()).padStart(2, '0');
+    // ✅ 修复：确保时区正确处理
+    // 将UTC时间转换为北京时间 (UTC+8)
+    const beijingTime = new Date(date.getTime() + (date.getTimezoneOffset() * 60000) + (8 * 3600000));
+    
+    const year = beijingTime.getFullYear();
+    const month = String(beijingTime.getMonth() + 1).padStart(2, '0');
+    const day = String(beijingTime.getDate()).padStart(2, '0');
+    const hours = String(beijingTime.getHours()).padStart(2, '0');
+    const minutes = String(beijingTime.getMinutes()).padStart(2, '0');
     
     return `${year}-${month}-${day} ${hours}:${minutes}`;
   }

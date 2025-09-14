@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
+import { DateUtil } from '../../common/utils/date.util';
 import { Series } from '../entity/series.entity';
 import { Episode } from '../entity/episode.entity';
 import { EpisodeUrl } from '../entity/episode-url.entity';
@@ -112,7 +113,7 @@ export class ContentService {
           mediaUrl: '',
           fileName: '',
           mediaId: '',
-          postTime: this.formatDateTime(series.createdAt),
+          postTime: DateUtil.formatDateTime(series.createdAt),
           contentType: series.category?.name || '',
           actor: series.actor || '',
           shareCount: 0,
@@ -144,7 +145,7 @@ export class ContentService {
           watchProgress: 0,
           watchPercentage: 0,
           totalWatchTime: 0,
-          lastWatchTime: this.formatDateTime(new Date()),
+          lastWatchTime: DateUtil.formatDateTime(new Date()),
           isCompleted: false
         };
       }
@@ -174,7 +175,7 @@ export class ContentService {
               watchProgress: progress.stopAtSecond,
               watchPercentage,
               isWatched,
-              lastWatchTime: this.formatDateTime(progress.updatedAt)
+              lastWatchTime: DateUtil.formatDateTime(progress.updatedAt)
             };
           }
         });
@@ -197,8 +198,8 @@ export class ContentService {
           title: ep.title,
           duration: ep.duration,
           status: ep.status,
-          createdAt: this.formatDateTime(ep.createdAt),
-          updatedAt: this.formatDateTime(ep.updatedAt),
+          createdAt: DateUtil.formatDateTime(ep.createdAt),
+          updatedAt: DateUtil.formatDateTime(ep.updatedAt),
           seriesId: ep.seriesId,
           seriesTitle: ep.series?.title || '',
           seriesShortId: ep.series?.shortId || '',
@@ -323,7 +324,7 @@ export class ContentService {
           director: series.director,
           releaseDate: series.releaseDate,
           isCompleted: series.isCompleted,
-          createdAt: this.formatDateTime(series.createdAt)
+          createdAt: DateUtil.formatDateTime(series.createdAt)
         },
         msg: null
       };
@@ -477,7 +478,7 @@ export class ContentService {
         watchProgress,
         watchPercentage,
         totalWatchTime,
-        lastWatchTime: lastWatchTime.getTime() > 0 ? this.formatDateTime(lastWatchTime) : this.formatDateTime(new Date()),
+        lastWatchTime: lastWatchTime.getTime() > 0 ? DateUtil.formatDateTime(lastWatchTime) : DateUtil.formatDateTime(new Date()),
         isCompleted: completedEpisodes === episodes.length && episodes.length > 0
       };
     } catch (error) {
@@ -487,18 +488,22 @@ export class ContentService {
   }
 
   /**
-   * ✅ 新增：格式化日期时间为用户友好的格式
+   * ✅ 新增：格式化日期时间为用户友好的格式（支持时区转换）
    * @param date 日期对象
    * @returns 格式化后的日期字符串，如 "2024-01-15 16:30"
    */
   private formatDateTime(date: Date): string {
     if (!date) return '';
     
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    const hours = String(date.getHours()).padStart(2, '0');
-    const minutes = String(date.getMinutes()).padStart(2, '0');
+    // ✅ 修复：确保时区正确处理
+    // 将UTC时间转换为北京时间 (UTC+8)
+    const beijingTime = new Date(date.getTime() + (date.getTimezoneOffset() * 60000) + (8 * 3600000));
+    
+    const year = beijingTime.getFullYear();
+    const month = String(beijingTime.getMonth() + 1).padStart(2, '0');
+    const day = String(beijingTime.getDate()).padStart(2, '0');
+    const hours = String(beijingTime.getHours()).padStart(2, '0');
+    const minutes = String(beijingTime.getMinutes()).padStart(2, '0');
     
     return `${year}-${month}-${day} ${hours}:${minutes}`;
   }
