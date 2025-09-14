@@ -75,7 +75,8 @@ export class BrowseHistoryService {
         browseHistory.updatedAt = new Date();
         browseHistory.browseType = browseType; // 更新浏览类型为最新的
         
-        if (lastEpisodeNumber !== undefined) {
+        // ✅ 修复：只有在明确传递了有效的集数时才更新，避免覆盖已有的观看进度
+        if (lastEpisodeNumber !== undefined && lastEpisodeNumber !== null && lastEpisodeNumber > 0) {
           browseHistory.lastEpisodeNumber = lastEpisodeNumber;
         }
         
@@ -177,7 +178,7 @@ export class BrowseHistoryService {
           lastEpisodeNumber: bh.lastEpisodeNumber,
           lastEpisodeTitle: bh.lastEpisodeNumber ? `第${bh.lastEpisodeNumber}集` : null, // ✅ 新增：集数标题
           visitCount: bh.visitCount,
-          lastVisitTime: bh.updatedAt,
+          lastVisitTime: this.formatDateTime(bh.updatedAt),
           watchStatus: this.getWatchStatus(bh.browseType, bh.lastEpisodeNumber) // ✅ 新增：观看状态
         })),
         total: latestIds.length, // ✅ 修正：使用去重后的总数
@@ -242,7 +243,7 @@ export class BrowseHistoryService {
         seriesCoverUrl: bh.series?.coverUrl || '', // 使用真实封面URL
         categoryName: bh.series?.category?.name || '', // 使用真实分类名称
         lastEpisodeNumber: bh.lastEpisodeNumber,
-        lastVisitTime: bh.updatedAt,
+        lastVisitTime: this.formatDateTime(bh.updatedAt),
         visitCount: bh.visitCount
       }));
 
@@ -480,12 +481,30 @@ export class BrowseHistoryService {
 
   /**
    * ✅ 新增：获取观看状态
+   * ✅ 修复：使用更准确的观看状态描述
    */
   private getWatchStatus(browseType: string, lastEpisodeNumber: number | null): string {
     if (browseType === 'episode_watch' && lastEpisodeNumber) {
-      return `正在观看第${lastEpisodeNumber}集`;
+      return `观看至第${lastEpisodeNumber}集`;
     }
     return '浏览中';
+  }
+
+  /**
+   * ✅ 新增：格式化日期时间为用户友好的格式
+   * @param date 日期对象
+   * @returns 格式化后的日期字符串，如 "2024-01-15 16:30"
+   */
+  private formatDateTime(date: Date): string {
+    if (!date) return '';
+    
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    
+    return `${year}-${month}-${day} ${hours}:${minutes}`;
   }
 
   /**

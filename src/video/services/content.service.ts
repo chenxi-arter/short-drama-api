@@ -112,7 +112,7 @@ export class ContentService {
           mediaUrl: '',
           fileName: '',
           mediaId: '',
-          postTime: series.createdAt.toISOString(),
+          postTime: this.formatDateTime(series.createdAt),
           contentType: series.category?.name || '',
           actor: series.actor || '',
           shareCount: 0,
@@ -133,22 +133,9 @@ export class ContentService {
       if (userId && series) {
         userProgress = await this.getUserSeriesProgress(userId, series.id);
         
-        // ✅ 修复：从浏览记录中获取当前观看集数
-        const browseHistory = await this.browseHistoryService.getUserBrowseHistory(userId, 1, 100);
-        const seriesBrowseRecord = browseHistory.list.find((record: any) => record.seriesId === series.id) as any;
-        
-        console.log(`[DEBUG] 浏览记录查找: seriesId=${series.id}, found=${!!seriesBrowseRecord}, lastEpisodeNumber=${seriesBrowseRecord?.lastEpisodeNumber}`);
-        
-        if (seriesBrowseRecord && seriesBrowseRecord.lastEpisodeNumber && userProgress) {
-          console.log(`[DEBUG] 更新currentEpisode: ${userProgress.currentEpisode} -> ${seriesBrowseRecord.lastEpisodeNumber}`);
-          userProgress.currentEpisode = seriesBrowseRecord.lastEpisodeNumber;
-          // 找到对应集数的shortId
-          const currentEpisodeData = episodes.find(ep => ep.episodeNumber === seriesBrowseRecord.lastEpisodeNumber);
-          if (currentEpisodeData) {
-            userProgress.currentEpisodeShortId = currentEpisodeData.shortId;
-            console.log(`[DEBUG] 更新currentEpisodeShortId: ${currentEpisodeData.shortId}`);
-          }
-        }
+        // ✅ 修复：基于实际观看进度（watch_progress表）计算当前集数
+        // 这样可以准确反映用户实际观看到哪一集，而不是仅仅浏览过的集数
+        console.log(`[DEBUG] 用户观看进度: currentEpisode=${userProgress?.currentEpisode}, currentEpisodeShortId=${userProgress?.currentEpisodeShortId}`);
       } else {
         // 默认用户进度
         userProgress = {
@@ -157,7 +144,7 @@ export class ContentService {
           watchProgress: 0,
           watchPercentage: 0,
           totalWatchTime: 0,
-          lastWatchTime: new Date().toISOString(),
+          lastWatchTime: this.formatDateTime(new Date()),
           isCompleted: false
         };
       }
@@ -187,7 +174,7 @@ export class ContentService {
               watchProgress: progress.stopAtSecond,
               watchPercentage,
               isWatched,
-              lastWatchTime: progress.updatedAt.toISOString()
+              lastWatchTime: this.formatDateTime(progress.updatedAt)
             };
           }
         });
@@ -210,8 +197,8 @@ export class ContentService {
           title: ep.title,
           duration: ep.duration,
           status: ep.status,
-          createdAt: ep.createdAt.toISOString(),
-          updatedAt: ep.updatedAt.toISOString(),
+          createdAt: this.formatDateTime(ep.createdAt),
+          updatedAt: this.formatDateTime(ep.updatedAt),
           seriesId: ep.seriesId,
           seriesTitle: ep.series?.title || '',
           seriesShortId: ep.series?.shortId || '',
@@ -336,7 +323,7 @@ export class ContentService {
           director: series.director,
           releaseDate: series.releaseDate,
           isCompleted: series.isCompleted,
-          createdAt: series.createdAt.toISOString()
+          createdAt: this.formatDateTime(series.createdAt)
         },
         msg: null
       };
@@ -465,7 +452,9 @@ export class ContentService {
         if (episode) {
           totalWatchTime += progress.stopAtSecond;
           
-          if (progress.updatedAt > lastWatchTime) {
+          // ✅ 修复：当时间相同时，选择集数更大的（最新观看的集数）
+          if (progress.updatedAt > lastWatchTime || 
+              (progress.updatedAt.getTime() === lastWatchTime.getTime() && episode.episodeNumber > currentEpisode)) {
             lastWatchTime = progress.updatedAt;
             currentEpisode = episode.episodeNumber;
             currentEpisodeShortId = episode.shortId;
@@ -488,12 +477,29 @@ export class ContentService {
         watchProgress,
         watchPercentage,
         totalWatchTime,
-        lastWatchTime: lastWatchTime.toISOString(),
+        lastWatchTime: this.formatDateTime(lastWatchTime),
         isCompleted: completedEpisodes === episodes.length && episodes.length > 0
       };
     } catch (error) {
       console.error('获取用户系列播放进度失败:', error);
       return null;
     }
+  }
+
+  /**
+   * ✅ 新增：格式化日期时间为用户友好的格式
+   * @param date 日期对象
+   * @returns 格式化后的日期字符串，如 "2024-01-15 16:30"
+   */
+  private formatDateTime(date: Date): string {
+    if (!date) return '';
+    
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    
+    return `${year}-${month}-${day} ${hours}:${minutes}`;
   }
 }

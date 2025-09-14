@@ -249,7 +249,7 @@ export class FilterService {
         description: s.description || '', // 使用描述字段
         cidMapper: s.category?.id?.toString() || '0',
         isRecommend: false, // 默认不推荐，可根据实际业务逻辑调整
-        createdAt: s.createdAt ? s.createdAt.toISOString() : new Date().toISOString(), // 创建时间
+        createdAt: s.createdAt ? this.formatDateTime(s.createdAt) : this.formatDateTime(new Date()), // 创建时间
       }));
 
       const response: FilterDataResponse = {
@@ -632,7 +632,7 @@ export class FilterService {
         description: s.description || '', // 使用描述字段
         cidMapper: s.category?.id?.toString() || '0',
         isRecommend: false, // 默认不推荐，可根据实际业务逻辑调整
-        createdAt: s.createdAt ? s.createdAt.toISOString() : new Date().toISOString(),
+        createdAt: s.createdAt ? this.formatDateTime(s.createdAt) : this.formatDateTime(new Date()),
         channeid: s.categoryId || 0 // 添加频道ID标识
       }));
 
@@ -665,5 +665,22 @@ export class FilterService {
         msg: '搜索失败，请稍后重试'
       };
     }
+  }
+
+  /**
+   * ✅ 新增：格式化日期时间为用户友好的格式
+   * @param date 日期对象
+   * @returns 格式化后的日期字符串，如 "2024-01-15 16:30"
+   */
+  private formatDateTime(date: Date): string {
+    if (!date) return '';
+    
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    
+    return `${year}-${month}-${day} ${hours}:${minutes}`;
   }
 }

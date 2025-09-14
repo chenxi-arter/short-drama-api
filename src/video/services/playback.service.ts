@@ -131,8 +131,9 @@ export class PlaybackService {
         if (episode) {
           totalWatchTime += progress.stopAtSecond;
           
-          // 更新最后观看时间
-          if (progress.updatedAt > lastWatchTime) {
+          // ✅ 修复：当时间相同时，选择集数更大的（最新观看的集数）
+          if (progress.updatedAt > lastWatchTime || 
+              (progress.updatedAt.getTime() === lastWatchTime.getTime() && episode.episodeNumber > currentEpisode)) {
             lastWatchTime = progress.updatedAt;
             currentEpisode = episode.episodeNumber;
             currentEpisodeShortId = episode.shortId;
@@ -157,7 +158,7 @@ export class PlaybackService {
         watchProgress,
         watchPercentage,
         totalWatchTime,
-        lastWatchTime: lastWatchTime.toISOString(),
+        lastWatchTime: this.formatDateTime(lastWatchTime),
         isCompleted: completedEpisodes === episodes.length && episodes.length > 0
       };
     } catch (error) {
@@ -197,5 +198,22 @@ export class PlaybackService {
     } catch (error) {
       console.error('清理进度相关缓存失败:', error);
     }
+  }
+
+  /**
+   * ✅ 新增：格式化日期时间为用户友好的格式
+   * @param date 日期对象
+   * @returns 格式化后的日期字符串，如 "2024-01-15 16:30"
+   */
+  private formatDateTime(date: Date): string {
+    if (!date) return '';
+    
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    
+    return `${year}-${month}-${day} ${hours}:${minutes}`;
   }
 }

@@ -91,7 +91,7 @@ export class MediaService {
         playCount: s.playCount,
         starring: s.starring,
         director: s.director,
-        createdAt: s.createdAt.toISOString()
+        createdAt: this.formatDateTime(s.createdAt)
       }));
 
       return {
@@ -159,7 +159,7 @@ export class MediaService {
             status: s.upStatus || (s.statusOption?.name || ''),
             score: s.score,
             playCount: s.playCount,
-            createdAt: s.createdAt.toISOString()
+            createdAt: this.formatDateTime(s.createdAt)
           })),
           total,
           page,
@@ -217,7 +217,7 @@ export class MediaService {
             categoryId: s.categoryId,
             episodeCount: s.totalEpisodes,
             status: s.upStatus || (s.statusOption?.name || ''),
-            createdAt: s.createdAt.toISOString()
+            createdAt: this.formatDateTime(s.createdAt)
           })),
           total: series.length,
           categoryName: series[0]?.category?.name || ''
@@ -275,11 +275,28 @@ export class MediaService {
         description: s.description || '',
         cidMapper: s.categoryId?.toString() || '',
         isRecommend: s.score >= 8.0,
-        createdAt: s.createdAt.toISOString()
+        createdAt: this.formatDateTime(s.createdAt)
       }));
     } catch (error) {
       console.error('获取视频列表失败:', error);
       return [];
     }
+  }
+
+  /**
+   * ✅ 新增：格式化日期时间为用户友好的格式
+   * @param date 日期对象
+   * @returns 格式化后的日期字符串，如 "2024-01-15 16:30"
+   */
+  private formatDateTime(date: Date): string {
+    if (!date) return '';
+    
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    
+    return `${year}-${month}-${day} ${hours}:${minutes}`;
   }
 }
