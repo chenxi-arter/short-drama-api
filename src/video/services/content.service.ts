@@ -440,21 +440,42 @@ export class ContentService {
       let lastWatchTime = new Date(0);
       let completedEpisodes = 0;
 
+      // 忽略极小的“误触发”进度（如进入详情页触发的 1 秒）
+      const MIN_VALID_PROGRESS_SECONDS = 10;
+      let lastValidWatchTime = new Date(0);
+      let validEpisodeNumber = 0;
+      let validEpisodeShortId = '';
+      let validWatchProgress = 0;
+      let validWatchPercentage = 0;
+
       progressList.forEach(progress => {
         const episode = episodes.find(ep => ep.id === progress.episodeId);
         if (episode) {
           totalWatchTime += progress.stopAtSecond;
           
-          // ✅ 修复：当时间相同时，选择集数更大的（最新观看的集数）
-          if (progress.updatedAt > lastWatchTime || 
+          // 记录“任意进度”的最新（兜底）
+          if (progress.updatedAt > lastWatchTime ||
               (progress.updatedAt.getTime() === lastWatchTime.getTime() && episode.episodeNumber > currentEpisode)) {
             lastWatchTime = progress.updatedAt;
             currentEpisode = episode.episodeNumber;
             currentEpisodeShortId = episode.shortId;
             watchProgress = progress.stopAtSecond;
-            
             if (episode.duration > 0) {
               watchPercentage = Math.round((progress.stopAtSecond / episode.duration) * 100);
+            }
+          }
+
+          // 记录“有效进度”的最新（用于避免被 1 秒等误触发覆盖）
+          if (progress.stopAtSecond >= MIN_VALID_PROGRESS_SECONDS) {
+            if (progress.updatedAt > lastValidWatchTime ||
+                (progress.updatedAt.getTime() === lastValidWatchTime.getTime() && episode.episodeNumber > validEpisodeNumber)) {
+              lastValidWatchTime = progress.updatedAt;
+              validEpisodeNumber = episode.episodeNumber;
+              validEpisodeShortId = episode.shortId;
+              validWatchProgress = progress.stopAtSecond;
+              if (episode.duration > 0) {
+                validWatchPercentage = Math.round((progress.stopAtSecond / episode.duration) * 100);
+              }
             }
           }
           
@@ -464,13 +485,15 @@ export class ContentService {
         }
       });
 
+      // 若存在“有效进度”，优先使用有效进度作为当前集，避免被 1 秒更新覆盖
+      const useValid = lastValidWatchTime.getTime() > 0;
       return {
-        currentEpisode: currentEpisode > 0 ? currentEpisode : 1, // ✅ 修复：如果没有观看记录，默认为第1集
-        currentEpisodeShortId: currentEpisodeShortId || (episodes.length > 0 ? episodes[0].shortId : ''),
-        watchProgress,
-        watchPercentage,
+        currentEpisode: useValid ? validEpisodeNumber : (currentEpisode > 0 ? currentEpisode : 1),
+        currentEpisodeShortId: useValid ? validEpisodeShortId : (currentEpisodeShortId || (episodes.length > 0 ? episodes[0].shortId : '')),
+        watchProgress: useValid ? validWatchProgress : watchProgress,
+        watchPercentage: useValid ? validWatchPercentage : watchPercentage,
         totalWatchTime,
-        lastWatchTime: lastWatchTime.getTime() > 0 ? DateUtil.formatDateTime(lastWatchTime) : DateUtil.formatDateTime(new Date()),
+        lastWatchTime: DateUtil.formatDateTime(useValid ? lastValidWatchTime : (lastWatchTime.getTime() > 0 ? lastWatchTime : new Date())),
         isCompleted: completedEpisodes === episodes.length && episodes.length > 0
       };
     } catch (error) {

@@ -65,20 +65,40 @@ export class CompatBrowseHistoryController extends BaseController {
         current.visitCount += 1;
       }
 
-      // 取最后观看时间与对应集数（若同一时间，取集数更大）
-      if (
-        p.updatedAt > current.lastVisitTime ||
-        (p.updatedAt.getTime() === current.lastVisitTime.getTime() && ep.episodeNumber > current.lastEpisodeNumber)
-      ) {
+      // 忽略极小的误触发进度（如 1 秒进入详情）
+      const MIN_VALID_PROGRESS_SECONDS = 10;
+
+      // 记录“任意进度”的最新（兜底）
+      if (p.updatedAt > current.lastVisitTime ||
+          (p.updatedAt.getTime() === current.lastVisitTime.getTime() && ep.episodeNumber > current.lastEpisodeNumber)) {
         current.lastVisitTime = p.updatedAt;
         current.lastEpisodeNumber = ep.episodeNumber;
+      }
+
+      // 若达到有效进度阈值，以“有效进度”的最新为准
+      if (p.stopAtSecond >= MIN_VALID_PROGRESS_SECONDS) {
+        if (!current.__validLastVisitTime) current.__validLastVisitTime = new Date(0);
+        if (
+          p.updatedAt > current.__validLastVisitTime ||
+          (p.updatedAt.getTime() === current.__validLastVisitTime.getTime() && ep.episodeNumber > (current.__validEpisodeNumber || 0))
+        ) {
+          current.__validLastVisitTime = p.updatedAt;
+          current.__validEpisodeNumber = ep.episodeNumber;
+        }
       }
 
       seriesMap.set(key, current);
     }
 
     const listAll = Array.from(seriesMap.values())
-      .sort((a, b) => b.lastVisitTime.getTime() - a.lastVisitTime.getTime())
+      .map(item => {
+        const useValid = item.__validLastVisitTime && item.__validLastVisitTime.getTime() > 0;
+        const lastTime = useValid ? item.__validLastVisitTime : item.lastVisitTime;
+        const lastEp = useValid ? item.__validEpisodeNumber : item.lastEpisodeNumber;
+        return { ...item, __finalLastVisitTime: lastTime, __finalLastEpisodeNumber: lastEp };
+      })
+      .sort((a, b) => a.__finalLastVisitTime.getTime() - b.__finalLastVisitTime.getTime())
+      .sort((a, b) => b.__finalLastVisitTime.getTime() - a.__finalLastVisitTime.getTime())
       .map(item => ({
         id: item.seriesId, // 兼容旧字段：使用seriesId占位
         seriesId: item.seriesId,
@@ -88,11 +108,11 @@ export class CompatBrowseHistoryController extends BaseController {
         categoryName: item.categoryName,
         browseType: 'episode_watch',
         browseTypeDesc: '观看剧集',
-        lastEpisodeNumber: item.lastEpisodeNumber,
-        lastEpisodeTitle: item.lastEpisodeNumber ? `第${item.lastEpisodeNumber}集` : null,
+        lastEpisodeNumber: item.__finalLastEpisodeNumber,
+        lastEpisodeTitle: item.__finalLastEpisodeNumber ? `第${item.__finalLastEpisodeNumber}集` : null,
         visitCount: item.visitCount,
-        lastVisitTime: DateUtil.formatDateTime(item.lastVisitTime),
-        watchStatus: item.lastEpisodeNumber ? `观看至第${item.lastEpisodeNumber}集` : '浏览中'
+        lastVisitTime: DateUtil.formatDateTime(item.__finalLastVisitTime),
+        watchStatus: item.__finalLastEpisodeNumber ? `观看至第${item.__finalLastEpisodeNumber}集` : '浏览中'
       }));
 
     const total = listAll.length;
