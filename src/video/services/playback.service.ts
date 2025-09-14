@@ -153,12 +153,12 @@ export class PlaybackService {
       });
 
       return {
-        currentEpisode,
-        currentEpisodeShortId,
+        currentEpisode: currentEpisode > 0 ? currentEpisode : 1, // ✅ 修复：如果没有观看记录，默认为第1集
+        currentEpisodeShortId: currentEpisodeShortId || (episodes.length > 0 ? episodes[0].shortId : ''),
         watchProgress,
         watchPercentage,
         totalWatchTime,
-        lastWatchTime: this.formatDateTime(lastWatchTime),
+        lastWatchTime: lastWatchTime.getTime() > 0 ? this.formatDateTime(lastWatchTime) : this.formatDateTime(new Date()),
         isCompleted: completedEpisodes === episodes.length && episodes.length > 0
       };
     } catch (error) {
