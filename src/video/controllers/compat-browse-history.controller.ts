@@ -58,7 +58,12 @@ export class CompatBrowseHistoryController extends BaseController {
         visitCount: 0,
       };
 
-      current.visitCount += 1; // 以有进度的剧集数近似访问次数
+      // 以“有进度的剧集条数”近似访问次数：只对该系列第一次出现的episodeId计数
+      if (!current.__episodeIds) current.__episodeIds = new Set<number>();
+      if (!current.__episodeIds.has(ep.id)) {
+        current.__episodeIds.add(ep.id);
+        current.visitCount += 1;
+      }
 
       // 取最后观看时间与对应集数（若同一时间，取集数更大）
       if (

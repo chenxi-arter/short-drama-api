@@ -53,11 +53,13 @@ export class ContentService {
     const idType = isShortId ? 'shortId' : 'id';
     const cacheKey = CacheKeys.episodeList(seriesIdentifier || 'all', idType, page, size, userId);
     
-    // 尝试从缓存获取
-    const cached = await this.cacheManager.get<EpisodeListResponse>(cacheKey);
-    if (cached) {
-      console.log(`💾 剧集列表缓存命中: ${cacheKey}`);
-      return cached;
+    // 尝试从缓存获取（仅对公开数据生效，用户个性化数据不缓存）
+    if (!userId) {
+      const cached = await this.cacheManager.get<EpisodeListResponse>(cacheKey);
+      if (cached) {
+        console.log(`💾 剧集列表缓存命中: ${cacheKey}`);
+        return cached;
+      }
     }
 
     try {
@@ -156,6 +158,7 @@ export class ContentService {
 
       // 获取用户对所有剧集的观看进度（批量查询）
       const episodeProgressMap: Record<number, any> = {};
+      let latestUpdatedAt: Date = new Date(0);
       if (userId && episodes.length > 0) {
         const episodeIds = episodes.map(ep => ep.id);
         const progressList = await this.watchProgressService.getUserWatchProgressByEpisodeIds(userId, episodeIds);
@@ -175,6 +178,10 @@ export class ContentService {
               isWatched,
               lastWatchTime: DateUtil.formatDateTime(progress.updatedAt)
             };
+
+            if (progress.updatedAt > latestUpdatedAt) {
+              latestUpdatedAt = progress.updatedAt;
+            }
           }
         });
       }
@@ -234,10 +241,12 @@ export class ContentService {
         msg: null
       };
       
-      // 缓存结果
-      const cacheTTL = userId ? 300 : 1800; // 用户相关数据缓存5分钟，公开数据缓存30分钟
-      await this.cacheManager.set(cacheKey, response, cacheTTL);
-      console.log(`💾 剧集列表已缓存: ${cacheKey}, TTL: ${cacheTTL}s`);
+      // 仅缓存公开数据；用户个性化数据不缓存，避免 userProgress 过期
+      if (!userId) {
+        const cacheTTL = 1800; // 公开数据缓存30分钟
+        await this.cacheManager.set(cacheKey, response, cacheTTL);
+        console.log(`💾 剧集列表已缓存: ${cacheKey}, TTL: ${cacheTTL}s`);
+      }
       
       return response;
     } catch (error) {
