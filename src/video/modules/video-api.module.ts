@@ -13,6 +13,7 @@ import { CommentController } from '../controllers/comment.controller';
 import { UrlController } from '../controllers/url.controller';
 import { ContentController } from '../controllers/content.controller';
 import { InteractionController } from '../controllers/interaction.controller';
+import { CompatBrowseHistoryController } from '../controllers/compat-browse-history.controller';
 import { VideoService } from '../video.service';
 import { CommentService } from '../services/comment.service';
 import { PlaybackService } from '../services/playback.service';
@@ -70,6 +71,7 @@ import { SeriesGenreOption } from '../entity/series-genre-option.entity';
     CategoryController,
     BannerController,
     // BrowseHistoryController,
+    CompatBrowseHistoryController,
 
     // 新增的专门控制器
     ProgressController,
