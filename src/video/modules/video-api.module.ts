@@ -2,7 +2,6 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { VideoController } from '../video.controller';
 import { PublicVideoController } from '../public-video.controller';
-import { BrowseHistoryController } from '../browse-history.controller';
 import { HomeController } from '../home.controller';
 import { ListController } from '../list.controller';
 import { CategoryController } from '../category.controller';
@@ -13,7 +12,6 @@ import { ProgressController } from '../controllers/progress.controller';
 import { CommentController } from '../controllers/comment.controller';
 import { UrlController } from '../controllers/url.controller';
 import { ContentController } from '../controllers/content.controller';
-import { PublicBrowseHistoryController } from '../controllers/public-browse-history.controller';
 import { InteractionController } from '../controllers/interaction.controller';
 import { VideoService } from '../video.service';
 import { CommentService } from '../services/comment.service';
@@ -25,8 +23,6 @@ import { UrlService } from '../services/url.service';
 import { FilterService } from '../services/filter.service';
 import { SeriesService } from '../services/series.service';
 import { EpisodeService } from '../services/episode.service';
-import { BrowseHistoryService } from '../services/browse-history.service';
-import { BrowseHistoryCleanupService } from '../services/browse-history-cleanup.service';
 import { WatchProgressService } from '../services/watch-progress.service';
 import { BannerService } from '../services/banner.service';
 import { CategoryService } from '../services/category.service';
@@ -39,7 +35,7 @@ import { CatalogModule } from './catalog.module';
 import { SeriesModule } from './series.module';
 import { EpisodeModule } from './episode.module';
 import { BannerModule } from './banner.module';
-import { HistoryModule } from './history.module';
+// import { HistoryModule } from './history.module';
 import { Series } from '../entity/series.entity';
 import { Episode } from '../entity/episode.entity';
 import { EpisodeUrl } from '../entity/episode-url.entity';
@@ -50,7 +46,7 @@ import { ShortVideo } from '../entity/short-video.entity';
 import { Banner } from '../entity/banner.entity';
 import { FilterType } from '../entity/filter-type.entity';
 import { FilterOption } from '../entity/filter-option.entity';
-import { BrowseHistory } from '../entity/browse-history.entity';
+// import { BrowseHistory } from '../entity/browse-history.entity';
 import { SeriesGenreOption } from '../entity/series-genre-option.entity';
 
 @Module({
@@ -59,9 +55,9 @@ import { SeriesGenreOption } from '../entity/series-genre-option.entity';
     SeriesModule,
     EpisodeModule,
     BannerModule,
-    HistoryModule,
+    // HistoryModule,
     TypeOrmModule.forFeature([
-      Series, Episode, EpisodeUrl, Comment, WatchProgress, Category, ShortVideo, Banner, FilterType, FilterOption, BrowseHistory,
+      Series, Episode, EpisodeUrl, Comment, WatchProgress, Category, ShortVideo, Banner, FilterType, FilterOption,
       SeriesGenreOption
     ])
   ],
@@ -73,14 +69,14 @@ import { SeriesGenreOption } from '../entity/series-genre-option.entity';
     ListController,
     CategoryController,
     BannerController,
-    BrowseHistoryController,
+    // BrowseHistoryController,
 
     // 新增的专门控制器
     ProgressController,
     CommentController,
     UrlController,
     ContentController,
-    PublicBrowseHistoryController,
+    // PublicBrowseHistoryController,
     InteractionController,
   ],
   providers: [
@@ -95,8 +91,8 @@ import { SeriesGenreOption } from '../entity/series-genre-option.entity';
     FilterService,
     SeriesService,
     EpisodeService,
-    BrowseHistoryService,
-    BrowseHistoryCleanupService,
+    // BrowseHistoryService,
+    // BrowseHistoryCleanupService,
     WatchProgressService,
     BannerService,
     CategoryService,

@@ -9,7 +9,6 @@ import { Episode } from '../entity/episode.entity';
 import { EpisodeUrl } from '../entity/episode-url.entity';
 import { Category } from '../entity/category.entity';
 import { WatchProgressService } from './watch-progress.service';
-import { BrowseHistoryService } from './browse-history.service';
 import { CacheKeys } from '../utils/cache-keys.util';
 import { EpisodeListResponse, SeriesBasicInfo, UserWatchProgress } from '../dto/episode-list.dto';
 
@@ -29,7 +28,6 @@ export class ContentService {
     @InjectRepository(Category)
     private readonly categoryRepo: Repository<Category>,
     private readonly watchProgressService: WatchProgressService,
-    private readonly browseHistoryService: BrowseHistoryService,
     @Inject(CACHE_MANAGER)
     private readonly cacheManager: Cache,
   ) {}
@@ -218,22 +216,7 @@ export class ContentService {
         };
       });
 
-      // 记录用户浏览历史（如果有用户ID）
-      if (userId && episodes.length > 0) {
-        const seriesId = episodes[0].series?.id;
-        if (seriesId) {
-          // 注意：现在只记录 episode_watch 类型，浏览剧集列表不再记录
-          // this.browseHistoryService.recordBrowseHistory(
-          //   userId,
-          //   seriesId,
-          //   'episode_list',
-          //   lastEpisodeNumber,
-          //   req
-          // ).catch(error => {
-          //   console.error('记录浏览历史失败:', error);
-          // });
-        }
-      }
+      // 不再记录 browse_history（播放/浏览相关一律依赖 watch_progress）
       
       const response = {
         code: 200,

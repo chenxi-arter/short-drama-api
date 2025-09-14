@@ -60,20 +60,7 @@ export class PlaybackService {
         relations: ['series']
       });
       
-      if (episode && episode.series) {
-        // 3. 自动记录浏览历史 - 记录观看的具体集数
-        this.browseHistoryService.recordBrowseHistory(
-          userId,
-          episode.series.id,
-          'episode_watch', // 新的浏览类型：具体集数观看
-          episode.episodeNumber,
-          req
-        ).catch(error => {
-          console.error('自动记录浏览历史失败:', error);
-        });
-        
-        console.log(`[AUTO_RECORD] 用户${userId}观看了系列${episode.series.id}的第${episode.episodeNumber}集，进度：${stopAtSecond}秒`);
-      }
+      // 3. 不再记录 browse_history（按方案A，唯一事实来源为 watch_progress）
       
       // 4. 清理相关缓存
       await this.clearProgressRelatedCache(episodeId);
