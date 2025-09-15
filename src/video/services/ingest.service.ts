@@ -193,6 +193,10 @@ export class IngestService {
       series.description = payload.description;
       series.coverUrl = payload.coverUrl;
       series.categoryId = payload.categoryId;
+      // ✅ 修复：允许在更新时变更完结状态
+      if (payload.isCompleted !== undefined) {
+        series.isCompleted = payload.isCompleted;
+      }
       // status 字段已废弃，不再直接写入字符串状态
       if (payload.releaseDate !== undefined) series.releaseDate = new Date(payload.releaseDate);
       if (payload.score !== undefined) series.score = payload.score;
