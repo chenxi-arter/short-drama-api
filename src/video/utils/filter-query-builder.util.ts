@@ -13,12 +13,9 @@ export class FilterQueryBuilderUtil {
   static applySorting(qb: SelectQueryBuilder<any>, sortType: number) {
     switch (sortType) {
       case 1:
-        qb.orderBy('series.createdAt', 'DESC'); // 最近上传
-        break;
-      case 2:
         qb.orderBy('series.playCount', 'DESC'); // 人气最高
         break;
-      case 3:
+      case 2:
         qb.orderBy('series.score', 'DESC'); // 评分最高
         break;
       default:
