@@ -8,6 +8,11 @@ import { Series } from '../entity/series.entity';
 import { BaseController } from './base.controller';
 import { DateUtil } from '../../common/utils/date.util';
 
+// 仅使用到 userId，不强依赖 express 类型
+interface RequestWithUser {
+  user?: { userId?: number };
+}
+
 @UseGuards(JwtAuthGuard)
 @Controller('video/browse-history')
 export class CompatBrowseHistoryController extends BaseController {
@@ -24,14 +29,14 @@ export class CompatBrowseHistoryController extends BaseController {
 
   @Get()
   async getUserBrowseHistory(
-    @Req() req,
+    @Req() req: RequestWithUser,
     @Query('page') page: string = '1',
     @Query('size') size: string = '10',
   ) {
     const pageNum = Math.max(parseInt(page || '1', 10), 1);
     const sizeNum = Math.max(parseInt(size || '10', 10), 1);
 
-    const userId = Number((req.user as any)?.userId);
+    const userId = Number(req.user?.userId);
 
     // 获取用户的所有观看进度，带上剧集和系列信息
     const progresses = await this.watchProgressRepo.find({
@@ -40,65 +45,59 @@ export class CompatBrowseHistoryController extends BaseController {
       order: { updatedAt: 'DESC' },
     });
 
-    // 按系列聚合：最后观看时间、最后观看的集数、访问次数（按有记录的剧集数近似）
-    const seriesMap = new Map<number, any>();
+    // 按系列聚合：最后一次观看时间、最后观看的集数、访问次数、该集的观看时长
+    interface SeriesAggregate {
+      seriesId: number;
+      seriesTitle: string;
+      seriesShortId: string;
+      seriesCoverUrl: string;
+      categoryName: string;
+      lastEpisodeNumber: number;
+      lastVisitTime: Date;
+      visitCount: number;
+      __episodeIds: Set<number>;
+      __finalDurationSeconds?: number;
+    }
+
+    const seriesMap = new Map<number, SeriesAggregate>();
     for (const p of progresses) {
-      const ep = (p as any).episode as Episode;
+      const ep: Episode | undefined = p.episode;
       if (!ep || !ep.series) continue;
-      const s = ep.series as Series;
+      const s: Series = ep.series;
       const key = s.id;
       const current = seriesMap.get(key) || {
         seriesId: s.id,
         seriesTitle: s.title || `系列${s.id}`,
         seriesShortId: s.shortId || '',
         seriesCoverUrl: s.coverUrl || '',
-        categoryName: (s as any).category?.name || '',
+        categoryName: s.category?.name || '',
         lastEpisodeNumber: 0,
         lastVisitTime: new Date(0),
         visitCount: 0,
+        __episodeIds: new Set<number>()
       };
 
       // 以“有进度的剧集条数”近似访问次数：只对该系列第一次出现的episodeId计数
-      if (!current.__episodeIds) current.__episodeIds = new Set<number>();
       if (!current.__episodeIds.has(ep.id)) {
         current.__episodeIds.add(ep.id);
         current.visitCount += 1;
       }
 
-      // 忽略极小的误触发进度（如 1 秒进入详情）
-      const MIN_VALID_PROGRESS_SECONDS = Number(process.env.PROGRESS_MIN_SECONDS ?? '2');
-      const MIN_VALID_PROGRESS_PERCENT = Number(process.env.PROGRESS_MIN_PERCENT ?? '0.01');
-
-      // 记录“任意进度”的最新（兜底）——严格以时间为准
+      // 以更新时间为准，选择最新一条记录作为“展示的这一集”
       if (p.updatedAt > current.lastVisitTime) {
         current.lastVisitTime = p.updatedAt;
         current.lastEpisodeNumber = ep.episodeNumber;
-      }
-
-      // 若达到有效进度阈值，以“有效进度”的最新为准
-      const meetsSeconds = p.stopAtSecond >= MIN_VALID_PROGRESS_SECONDS;
-      const meetsPercent = ep.duration > 0 && (p.stopAtSecond / (ep.duration || 1)) >= MIN_VALID_PROGRESS_PERCENT;
-      if (meetsSeconds || meetsPercent) {
-        if (!current.__validLastVisitTime) current.__validLastVisitTime = new Date(0);
-        if (p.updatedAt > current.__validLastVisitTime) {
-          current.__validLastVisitTime = p.updatedAt;
-          current.__validEpisodeNumber = ep.episodeNumber;
-        }
+        // 对应该集的观看时长（按剧集时长封顶）
+        const capped = Math.max(0, Math.min(p.stopAtSecond || 0, ep.duration || 0));
+        current.__finalDurationSeconds = capped;
       }
 
       seriesMap.set(key, current);
     }
 
     const listAll = Array.from(seriesMap.values())
-      .map(item => {
-        const useValid = item.__validLastVisitTime && item.__validLastVisitTime.getTime() > 0;
-        const lastTime = useValid ? item.__validLastVisitTime : item.lastVisitTime;
-        const lastEp = useValid ? item.__validEpisodeNumber : item.lastEpisodeNumber;
-        return { ...item, __finalLastVisitTime: lastTime, __finalLastEpisodeNumber: lastEp };
-      })
-      .sort((a, b) => a.__finalLastVisitTime.getTime() - b.__finalLastVisitTime.getTime())
-      .sort((a, b) => b.__finalLastVisitTime.getTime() - a.__finalLastVisitTime.getTime())
-      .map(item => ({
+      .sort((a, b) => b.lastVisitTime.getTime() - a.lastVisitTime.getTime())
+      .map((item: SeriesAggregate) => ({
         id: item.seriesId, // 兼容旧字段：使用seriesId占位
         seriesId: item.seriesId,
         seriesTitle: item.seriesTitle,
@@ -107,11 +106,12 @@ export class CompatBrowseHistoryController extends BaseController {
         categoryName: item.categoryName,
         browseType: 'episode_watch',
         browseTypeDesc: '观看剧集',
-        lastEpisodeNumber: item.__finalLastEpisodeNumber,
-        lastEpisodeTitle: item.__finalLastEpisodeNumber ? `第${item.__finalLastEpisodeNumber}集` : null,
+        lastEpisodeNumber: item.lastEpisodeNumber,
+        lastEpisodeTitle: item.lastEpisodeNumber ? `第${item.lastEpisodeNumber}集` : null,
         visitCount: item.visitCount,
-        lastVisitTime: DateUtil.formatDateTime(item.__finalLastVisitTime),
-        watchStatus: item.__finalLastEpisodeNumber ? `观看至第${item.__finalLastEpisodeNumber}集` : '浏览中'
+        durationSeconds: item.__finalDurationSeconds || 0,
+        lastVisitTime: DateUtil.formatDateTime(item.lastVisitTime),
+        watchStatus: item.lastEpisodeNumber ? `观看至第${item.lastEpisodeNumber}集` : '浏览中'
       }));
 
     const total = listAll.length;

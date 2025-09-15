@@ -157,14 +157,20 @@ export class ContentService {
       }
 
       // 获取用户对所有剧集的观看进度（批量查询）
-      const episodeProgressMap: Record<number, any> = {};
+      type EpisodeProgressMapValue = {
+        watchProgress: number;
+        watchPercentage: number;
+        isWatched: boolean;
+        lastWatchTime: string;
+      };
+      const episodeProgressMap: Record<number, EpisodeProgressMapValue> = {};
       let latestUpdatedAt: Date = new Date(0);
       if (userId && episodes.length > 0) {
         const episodeIds = episodes.map(ep => ep.id);
         const progressList = await this.watchProgressService.getUserWatchProgressByEpisodeIds(userId, episodeIds);
 
         progressList.forEach(progress => {
-          const episode = episodes.find(ep => ep.id === progress.episodeId);
+          const episode = episodes.find((ep: Episode) => ep.id === progress.episodeId);
           if (episode) {
             let watchPercentage = 0;
             if (episode.duration > 0) {
@@ -187,8 +193,8 @@ export class ContentService {
       }
 
       // 构建剧集列表
-      const episodeList = episodes.map(ep => {
-        const progress = episodeProgressMap[ep.id] || {
+      const episodeList = episodes.map((ep: Episode) => {
+        const progress: EpisodeProgressMapValue = episodeProgressMap[ep.id] || {
           watchProgress: 0,
           watchPercentage: 0,
           isWatched: false,
@@ -341,7 +347,8 @@ export class ContentService {
     
     try {
       // 优先添加题材标签（从中间表获取）
-      const genreTags = await this.seriesRepo
+      type RawTag = { name?: string };
+      const genreTags: RawTag[] = await this.seriesRepo
         .createQueryBuilder('s')
         .leftJoin('series_genre_options', 'sgo', 'sgo.series_id = s.id')
         .leftJoin('filter_options', 'fo', 'fo.id = sgo.option_id')
@@ -352,35 +359,19 @@ export class ContentService {
         .orderBy('fo.display_order', 'ASC')
         .getRawMany();
       
-      genreTags.forEach(tag => {
+      genreTags.forEach((tag: RawTag) => {
         if (tag.name) tags.push(tag.name);
       });
       
-      // 添加地区标签
-      if (series.regionOption?.name) {
-        tags.push(series.regionOption.name);
-      }
-      
-      // 添加语言标签
-      if (series.languageOption?.name) {
-        tags.push(series.languageOption.name);
-      }
-      
-      // 添加年份标签
-      if (series.yearOption?.name) {
-        tags.push(series.yearOption.name);
-      }
-      
-      // 添加状态标签
-      if (series.statusOption?.name) {
-        tags.push(series.statusOption.name);
-      }
-      
+      // 去重并限制最多5个标签
+      const deduped = Array.from(new Set(tags));
+      return deduped.slice(0, 5);
     } catch (error) {
       console.error('获取系列标签失败:', error);
     }
     
-    return tags;
+    // 出错时返回空数组
+    return [];
   }
 
   /**
