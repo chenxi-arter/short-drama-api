@@ -14,9 +14,7 @@ export class Banner {
    * 轮播图标题
    */
   @Column({ 
-    length: 255,
-    charset: 'utf8mb4',
-    collation: 'utf8mb4_unicode_ci'
+    length: 255
   })
   title: string;
 
@@ -73,9 +71,7 @@ export class Banner {
    */
   @Column({ 
     type: 'text', 
-    nullable: true,
-    charset: 'utf8mb4',
-    collation: 'utf8mb4_unicode_ci'
+    nullable: true
   })
   description?: string;
 

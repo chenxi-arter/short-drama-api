@@ -539,7 +539,7 @@ ShortID是系统自定义的11位Base64字符标识符，用于替代传统的UU
         "director": string,    // 导演
         "region": string,      // 地区
         "language": string,    // 语言
-        "releaseDate": string, // 发布日期
+        "releaseDate": string, // 发布日期（ISO日期时间，如 2024-08-01T12:34:56Z）
         "isCompleted": boolean, // 是否完结
         "episodeCount": number, // 当前集数
         "tags": any[]          // 标签

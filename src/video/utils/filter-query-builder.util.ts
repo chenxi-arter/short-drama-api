@@ -1,14 +1,5 @@
 import { SelectQueryBuilder } from 'typeorm';
 
-type FilterIds = {
-  sortType: number;
-  categoryId: number;
-  regionId: number;
-  languageId: number;
-  yearId: number;
-  statusId: number;
-};
-
 export class FilterQueryBuilderUtil {
   static applySorting(qb: SelectQueryBuilder<any>, sortType: number) {
     switch (sortType) {
@@ -19,7 +10,9 @@ export class FilterQueryBuilderUtil {
         qb.orderBy('series.score', 'DESC'); // 评分最高
         break;
       default:
-        qb.orderBy('series.createdAt', 'DESC'); // 默认按创建时间排序
+        qb.orderBy('series.updatedAt', 'DESC')
+          .addOrderBy('series.createdAt', 'DESC')
+          .addOrderBy('series.id', 'DESC'); // 默认按更新时间排序
     }
   }
 

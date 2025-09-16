@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
+import { DebugUtil } from '../../common/utils/debug.util';
 import { Series } from '../entity/series.entity';
 import { Episode } from '../entity/episode.entity';
 import { Category } from '../entity/category.entity';
@@ -62,7 +63,7 @@ export class SeriesService {
       
       return result;
     } catch (error) {
-      console.error('根据分类获取系列列表失败:', error);
+      DebugUtil.error('根据分类获取系列列表失败', error as Error);
       throw new Error('根据分类获取系列列表失败');
     }
   }
@@ -93,7 +94,7 @@ export class SeriesService {
       
       return series;
     } catch (error) {
-      console.error('获取系列详情失败:', error);
+      DebugUtil.error('获取系列详情失败', error as Error);
       return null;
     }
   }
@@ -134,7 +135,7 @@ export class SeriesService {
       
       return series;
     } catch (error) {
-      console.error('获取热门系列失败:', error);
+      DebugUtil.error('获取热门系列失败', error as Error);
       throw new Error('获取热门系列失败');
     }
   }
@@ -160,7 +161,9 @@ export class SeriesService {
         .createQueryBuilder('series')
         .leftJoinAndSelect('series.category', 'category')
         .leftJoinAndSelect('series.episodes', 'episodes')
-        .orderBy('series.createdAt', 'DESC')
+        .orderBy('series.updatedAt', 'DESC')
+        .addOrderBy('series.createdAt', 'DESC')
+        .addOrderBy('series.id', 'DESC')
         .limit(limit);
 
       if (categoryId) {
@@ -174,7 +177,7 @@ export class SeriesService {
       
       return series;
     } catch (error) {
-      console.error('获取最新系列失败:', error);
+      DebugUtil.error('获取最新系列失败', error as Error);
       throw new Error('获取最新系列失败');
     }
   }
@@ -214,7 +217,7 @@ export class SeriesService {
       
       return { series, total };
     } catch (error) {
-      console.error('搜索系列失败:', error);
+      DebugUtil.error('搜索系列失败', error as Error);
       throw new Error('搜索系列失败');
     }
   }
@@ -253,7 +256,7 @@ export class SeriesService {
       
       return series;
     } catch (error) {
-      console.error('获取推荐系列失败:', error);
+      DebugUtil.error('获取推荐系列失败', error as Error);
       throw new Error('获取推荐系列失败');
     }
   }
@@ -269,7 +272,7 @@ export class SeriesService {
       // 清除相关缓存
       await this.clearSeriesCache(seriesId);
     } catch (error) {
-      console.error('增加播放次数失败:', error);
+      DebugUtil.error('增加播放次数失败', error as Error);
     }
   }
 
@@ -285,7 +288,7 @@ export class SeriesService {
       // 清除相关缓存
       await this.clearSeriesCache(seriesId);
     } catch (error) {
-      console.error('更新系列评分失败:', error);
+      DebugUtil.error('更新系列评分失败', error as Error);
       throw new Error('更新系列评分失败');
     }
   }
@@ -304,7 +307,7 @@ export class SeriesService {
       
       return savedSeries;
     } catch (error) {
-      console.error('创建系列失败:', error);
+      DebugUtil.error('创建系列失败', error as Error);
       throw new Error('创建系列失败');
     }
   }
@@ -328,7 +331,7 @@ export class SeriesService {
       
       return updatedSeries;
     } catch (error) {
-      console.error('更新系列失败:', error);
+      DebugUtil.error('更新系列失败', error as Error);
       throw new Error('更新系列失败');
     }
   }
@@ -353,7 +356,7 @@ export class SeriesService {
       // 清除相关缓存
       await this.clearSeriesCache(seriesId);
     } catch (error) {
-      console.error('删除系列失败:', error);
+      DebugUtil.error('删除系列失败', error as Error);
       throw new Error('删除系列失败');
     }
   }
@@ -384,7 +387,7 @@ export class SeriesService {
         }
       }
     } catch (error) {
-      console.error('清除系列缓存失败:', error);
+      DebugUtil.error('清除系列缓存失败', error as Error);
     }
   }
 }

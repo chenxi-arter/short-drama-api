@@ -1,12 +1,12 @@
 import { Injectable, Inject } from '@nestjs/common';
 import { DateUtil } from '../../common/utils/date.util';
+import { DebugUtil } from '../../common/utils/debug.util';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
 import { Series } from '../entity/series.entity';
 import { Category } from '../entity/category.entity';
-import { Banner } from '../entity/banner.entity';
 import { FilterService } from './filter.service';
 import { BannerService } from './banner.service';
 import { CacheKeys } from '../utils/cache-keys.util';
@@ -39,7 +39,7 @@ export class HomeService {
     // 尝试从缓存获取
     const cached = await this.cacheManager.get(cacheKey);
     if (cached) {
-      console.log(`💾 首页视频缓存命中: ${cacheKey}`);
+      DebugUtil.cache('首页视频缓存命中', cacheKey);
       return cached;
     }
 
@@ -48,11 +48,11 @@ export class HomeService {
       
       // 缓存结果（5分钟）
       await this.cacheManager.set(cacheKey, result, 300000);
-      console.log(`💾 首页视频已缓存: ${cacheKey}`);
+      DebugUtil.cache('首页视频已缓存', cacheKey);
       
       return result;
     } catch (error) {
-      console.error('获取首页视频失败:', error);
+      DebugUtil.error('获取首页视频失败', error as Error);
       throw new Error('获取首页视频失败');
     }
   }
@@ -118,7 +118,7 @@ export class HomeService {
         }
       };
     } catch (error) {
-      console.error('获取首页模块失败:', error);
+      DebugUtil.error('获取首页模块失败', error as Error);
       throw new Error('获取首页模块失败');
     }
   }
@@ -132,7 +132,7 @@ export class HomeService {
     // 尝试从缓存获取
     const cached = await this.cacheManager.get(cacheKey);
     if (cached) {
-      console.log(`💾 分类列表缓存命中: ${cacheKey}`);
+      DebugUtil.cache('分类列表缓存命中', cacheKey);
       return cached;
     }
 
@@ -157,11 +157,11 @@ export class HomeService {
 
       // 缓存结果（1小时）
       await this.cacheManager.set(cacheKey, result, 3600000);
-      console.log(`💾 分类列表已缓存: ${cacheKey}`);
+      DebugUtil.cache('分类列表已缓存', cacheKey);
       
       return result;
     } catch (error) {
-      console.error('获取分类列表失败:', error);
+      DebugUtil.error('获取分类列表失败', error as Error);
       throw new Error('获取分类列表失败');
     }
   }
@@ -179,7 +179,9 @@ export class HomeService {
       const queryBuilder = this.seriesRepo.createQueryBuilder('series')
         .leftJoinAndSelect('series.category', 'category')
         .where('series.isActive = :isActive', { isActive: 1 })
-        .orderBy('series.createdAt', 'DESC')
+        .orderBy('series.updatedAt', 'DESC')
+        .addOrderBy('series.createdAt', 'DESC')
+        .addOrderBy('series.id', 'DESC')
         .skip(offset)
         .take(size);
 
@@ -208,7 +210,7 @@ export class HomeService {
         createdAt: DateUtil.formatDateTime(s.createdAt)
       }));
     } catch (error) {
-      console.error('获取视频列表失败:', error);
+      DebugUtil.error('获取视频列表失败', error as Error);
       return [];
     }
   }

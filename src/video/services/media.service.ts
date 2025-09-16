@@ -1,5 +1,6 @@
 import { Injectable, Inject } from '@nestjs/common';
 import { DateUtil } from '../../common/utils/date.util';
+import { DebugUtil } from '../../common/utils/debug.util';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
@@ -61,7 +62,9 @@ export class MediaService {
       // 排序
       switch (sort) {
         case 'latest':
-          queryBuilder.orderBy('series.createdAt', 'DESC');
+          queryBuilder.orderBy('series.updatedAt', 'DESC')
+                     .addOrderBy('series.createdAt', 'DESC')
+                     .addOrderBy('series.id', 'DESC');
           break;
         case 'like':
           queryBuilder.orderBy('series.score', 'DESC');
@@ -70,7 +73,9 @@ export class MediaService {
           queryBuilder.orderBy('series.playCount', 'DESC');
           break;
         default:
-          queryBuilder.orderBy('series.createdAt', 'DESC');
+          queryBuilder.orderBy('series.updatedAt', 'DESC')
+                     .addOrderBy('series.createdAt', 'DESC')
+                     .addOrderBy('series.id', 'DESC');
       }
 
       const [series, total] = await queryBuilder
@@ -107,7 +112,7 @@ export class MediaService {
         msg: null
       };
     } catch (error) {
-      console.error('获取媒体列表失败:', error);
+      DebugUtil.error('获取媒体列表失败', error as Error);
       throw new Error('获取媒体列表失败');
     }
   }
@@ -124,7 +129,7 @@ export class MediaService {
     // 尝试从缓存获取
     const cached = await this.cacheManager.get(cacheKey);
     if (cached) {
-      console.log(`💾 系列列表缓存命中: ${cacheKey}`);
+      DebugUtil.cache('系列列表缓存命中', cacheKey);
       return cached;
     }
 
@@ -134,7 +139,9 @@ export class MediaService {
       const queryBuilder = this.seriesRepo.createQueryBuilder('series')
         .leftJoinAndSelect('series.category', 'category')
         .where('series.isActive = :isActive', { isActive: 1 })
-        .orderBy('series.createdAt', 'DESC');
+        .orderBy('series.updatedAt', 'DESC')
+        .addOrderBy('series.createdAt', 'DESC')
+        .addOrderBy('series.id', 'DESC');
 
       if (categoryId && categoryId > 0) {
         queryBuilder.andWhere('series.categoryId = :categoryId', { categoryId });
@@ -172,11 +179,11 @@ export class MediaService {
 
       // 缓存结果（30分钟）
       await this.cacheManager.set(cacheKey, result, 1800000);
-      console.log(`💾 系列列表已缓存: ${cacheKey}`);
+      DebugUtil.cache('系列列表已缓存', cacheKey);
       
       return result;
     } catch (error) {
-      console.error('获取系列列表失败:', error);
+      DebugUtil.error('获取系列列表失败', error as Error);
       throw new Error('获取系列列表失败');
     }
   }
@@ -191,7 +198,7 @@ export class MediaService {
     // 尝试从缓存获取
     const cached = await this.cacheManager.get(cacheKey);
     if (cached) {
-      console.log(`💾 分类系列缓存命中: ${cacheKey}`);
+      DebugUtil.cache('分类系列缓存命中', cacheKey);
       return cached;
     }
 
@@ -228,11 +235,11 @@ export class MediaService {
 
       // 缓存结果（30分钟）
       await this.cacheManager.set(cacheKey, result, 1800000);
-      console.log(`💾 分类系列已缓存: ${cacheKey}`);
+      DebugUtil.cache('分类系列已缓存', cacheKey);
       
       return result;
     } catch (error) {
-      console.error('根据分类获取系列列表失败:', error);
+      DebugUtil.error('根据分类获取系列列表失败', error as Error);
       throw new Error('根据分类获取系列列表失败');
     }
   }
@@ -250,7 +257,9 @@ export class MediaService {
       const queryBuilder = this.seriesRepo.createQueryBuilder('series')
         .leftJoinAndSelect('series.category', 'category')
         .where('series.isActive = :isActive', { isActive: 1 })
-        .orderBy('series.createdAt', 'DESC')
+        .orderBy('series.updatedAt', 'DESC')
+        .addOrderBy('series.createdAt', 'DESC')
+        .addOrderBy('series.id', 'DESC')
         .skip(offset)
         .take(size);
 
@@ -279,7 +288,7 @@ export class MediaService {
         createdAt: DateUtil.formatDateTime(s.createdAt)
       }));
     } catch (error) {
-      console.error('获取视频列表失败:', error);
+      DebugUtil.error('获取视频列表失败', error as Error);
       return [];
     }
   }

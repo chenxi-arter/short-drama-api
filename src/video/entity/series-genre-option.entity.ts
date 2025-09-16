@@ -16,7 +16,7 @@ export class SeriesGenreOption {
   @Column({ type: 'int', name: 'option_id' })
   optionId: number;
 
-  @CreateDateColumn({ name: 'created_at', type: 'timestamp' })
+  @CreateDateColumn({ name: 'created_at', type: 'datetime' })
   createdAt: Date;
 
   @ManyToOne(() => Series, { onDelete: 'CASCADE' })

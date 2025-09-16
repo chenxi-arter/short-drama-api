@@ -29,7 +29,7 @@
   - `coverUrl` string ≤255 必填
   - `categoryId` int ≥1 必填（需为已存在的分类）
   - `isCompleted` boolean 必填：系列完结状态
-  - `releaseDate` string 必填：ISO日期（如 `2024-08-01`）
+  - `releaseDate` string 必填：ISO日期时间（如 `2024-08-01T12:34:56Z`）
   - `status` string 可选：仅用于软删除（传 "deleted"）
   - `score` number [0,10] 可选：评分
   - `playCount` int ≥0 可选：播放次数
@@ -60,7 +60,7 @@
   "coverUrl": "https://cdn.example.com/cover/xxx.jpg",
   "categoryId": 1,
   "status": "on-going",
-  "releaseDate": "2024-08-01",
+  "releaseDate": "2024-08-01T12:34:56Z",
   "isCompleted": false,
   "score": 8.2,
   "playCount": 0,

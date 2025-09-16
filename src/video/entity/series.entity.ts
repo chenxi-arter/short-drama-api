@@ -3,7 +3,7 @@
  * 剧集系列实体类
  * 表示一个完整的电视剧或系列，包含多个剧集
  */
-import { Entity, PrimaryGeneratedColumn, Column, OneToMany, CreateDateColumn, ManyToOne, JoinColumn, BeforeInsert } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, OneToMany, CreateDateColumn, ManyToOne, JoinColumn, BeforeInsert, UpdateDateColumn } from 'typeorm';
 import { Episode } from './episode.entity';
 import { Category } from './category.entity';
 // import { BrowseHistory } from './browse-history.entity';
@@ -191,7 +191,7 @@ export class Series {
    * 发布日期
    * 系列的首播或发布日期
    */
-  @Column({ type: 'date', nullable: true, name: 'release_date' })
+  @Column({ type: 'datetime', nullable: true, name: 'release_date' })
   releaseDate: Date;
 
   /** 
@@ -205,7 +205,7 @@ export class Series {
    * 更新时间
    * 记录系列最后更新的时间
    */
-  @Column({ type: 'timestamp', nullable: true, name: 'updated_at' })
+  @UpdateDateColumn({ name: 'updated_at' })
   updatedAt: Date;
 
   /**
@@ -219,7 +219,7 @@ export class Series {
    * 删除时间（软删除）
    * NULL=未删除，有值=删除时间
    */
-  @Column({ type: 'timestamp', nullable: true, name: 'deleted_at' })
+  @Column({ type: 'datetime', nullable: true, name: 'deleted_at' })
   deletedAt: Date | null;
 
   /**

@@ -40,7 +40,7 @@ export class IngestService {
     const upStatus = completed
       ? '已完结'
       : (maxEpisodeNumber > 0 ? `更新至第${maxEpisodeNumber}集` : '未发布');
-    await this.seriesRepo.update(seriesId, { totalEpisodes: total, upStatus });
+    await this.seriesRepo.update(seriesId, { totalEpisodes: total, upStatus, updatedAt: new Date() as any });
   }
 
   /**
@@ -281,10 +281,10 @@ export class IngestService {
 
     // 如果传入 status=deleted，则做软删除标记
     if (payload.status === 'deleted') {
-      await this.seriesRepo.update(series.id, { isActive: 0, deletedAt: new Date() as any });
+      await this.seriesRepo.update(series.id, { isActive: 0, deletedAt: new Date() as any, updatedAt: new Date() as any });
     } else {
       // 确保未被删除
-      await this.seriesRepo.update(series.id, { isActive: 1 });
+      await this.seriesRepo.update(series.id, { isActive: 1, updatedAt: new Date() as any });
     }
     return { seriesId: series.id, shortId: series.shortId, externalId: series.externalId ?? null, action };
   }
@@ -328,11 +328,11 @@ export class IngestService {
     if (yearId !== undefined) update.yearOptionId = yearId;
     if (payload.status === 'deleted') {
       // 软删除
-      await this.seriesRepo.update(series.id, { isActive: 0, deletedAt: new Date() as any });
+      await this.seriesRepo.update(series.id, { isActive: 0, deletedAt: new Date() as any, updatedAt: new Date() as any });
     } else if (Object.keys(update).length) {
-      await this.seriesRepo.update(series.id, update);
+      await this.seriesRepo.update(series.id, { ...update, updatedAt: new Date() as any });
       // 恢复为活跃（如果之前被删除）
-      await this.seriesRepo.update(series.id, { isActive: 1, deletedAt: null as any });
+      await this.seriesRepo.update(series.id, { isActive: 1, deletedAt: null as any, updatedAt: new Date() as any });
     }
 
     // 更新题材与剧集/URL

@@ -34,7 +34,7 @@ export class WatchProgress {
    * 更新时间 
    * 记录观看进度最后更新的时间戳
    */
-  @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP', name: 'updated_at' })
+  @Column({ type: 'datetime', default: () => 'CURRENT_TIMESTAMP', name: 'updated_at' })
   updatedAt: Date;
 
   /** 

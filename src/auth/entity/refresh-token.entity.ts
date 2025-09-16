@@ -32,7 +32,7 @@ export class RefreshToken {
    * 过期时间 
    * Refresh token的过期时间戳
    */
-  @Column({ name: 'expires_at', type: 'timestamp' })
+  @Column({ name: 'expires_at', type: 'datetime' })
   expiresAt: Date;
 
   /** 

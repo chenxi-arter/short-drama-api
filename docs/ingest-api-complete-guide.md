@@ -75,7 +75,7 @@ Ingest API 是短剧系统的核心数据采集接口，提供完整的系列、
   "description": "系列描述",
   "coverUrl": "封面图片URL",
   "categoryId": 1,
-  "releaseDate": "2024-01-01",
+  "releaseDate": "2024-01-01T12:00:00Z",
   "isCompleted": false,
   "score": 8.5,
   "playCount": 1000,
@@ -118,7 +118,7 @@ Ingest API 是短剧系统的核心数据采集接口，提供完整的系列、
 | `coverUrl` | string | ✅ | 封面图片URL（≤255） | "https://example.com/cover.jpg" |
 | `categoryId` | number | ✅ | 分类ID（≥1） | 1 |
 | `status` | string | ❌ | 仅用于软删除：传 `deleted` 触发软删除（`isActive=0`）；其他值忽略。系列状态统一使用 `statusOptionName` + `isCompleted` 表达。 | "deleted"（仅软删除时传入） |
-| `releaseDate` | string | ✅ | 发布日期（ISO日期） | "2024-01-01" |
+| `releaseDate` | string | ✅ | 发布日期（ISO日期时间） | "2024-01-01T12:00:00Z" |
 | `isCompleted` | boolean | ✅ | 系列完结标识：`true`=已完结，`false`=连载中。影响 `upStatus` 文案："已完结" 或 "更新至第X集"。 | true / false |
 | `score` | number | ❌ | 评分（0-10） | 8.5 |
 | `playCount` | number | ❌ | 播放次数（≥0） | 1000 |
