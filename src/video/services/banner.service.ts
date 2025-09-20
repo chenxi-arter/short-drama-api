@@ -71,10 +71,11 @@ export class BannerService {
   }
 
   async getBannerDailyStats(id: number, from: string, to: string) {
-    return this.metricRepo.find({
+    const options: FindManyOptions<BannerMetricDaily> = {
       where: { bannerId: id, date: Between(from, to) },
-      order: { date: 'ASC' as any },
-    } as any);
+      order: { date: 'ASC' },
+    };
+    return this.metricRepo.find(options);
   }
 
   /**
@@ -149,7 +150,7 @@ export class BannerService {
     const { categoryId, isActive, page = 1, size = 10 } = queryDto;
     const skip = (page - 1) * size;
 
-    const whereConditions: any = {};
+    const whereConditions: Partial<Banner> & { isActive?: boolean } = {};
     
     if (categoryId !== undefined) {
       whereConditions.categoryId = categoryId;
@@ -183,7 +184,7 @@ export class BannerService {
    */
   async getActiveBanners(categoryId?: number, limit: number = 5): Promise<BannerItem[]> {
     const now = new Date();
-    const whereConditions: any = {
+    const whereConditions: Partial<Banner> & { isActive?: boolean } = {
       isActive: true,
     };
 
@@ -213,9 +214,10 @@ export class BannerService {
       showURL: banner.imageUrl,
       title: banner.title,
       id: banner.seriesId || banner.id,
-              shortId: banner.series?.shortId,
+      shortId: banner.series?.shortId ?? null,
       channeID: banner.categoryId,
       url: banner.linkUrl || (banner.seriesId ? banner.seriesId.toString() : banner.id.toString()),
+      isAd: !!banner.isAd, // 仅由数据库字段 is_ad 决定
     }));
   }
 
@@ -261,6 +263,7 @@ export class BannerService {
       linkUrl: banner.linkUrl,
       weight: banner.weight,
       isActive: banner.isActive,
+      isAd: !!banner.isAd,
       startTime: banner.startTime,
       endTime: banner.endTime,
       description: banner.description,

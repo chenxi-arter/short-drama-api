@@ -62,6 +62,13 @@ export class CreateBannerDto {
   isActive?: boolean = true;
 
   /**
+   * 是否为广告（true=广告，false=自有内容）
+   */
+  @IsOptional()
+  @IsBoolean({ message: '广告标记必须是布尔值' })
+  isAd?: boolean = false;
+
+  /**
    * 开始展示时间
    */
   @IsOptional()
@@ -147,6 +154,13 @@ export class UpdateBannerDto {
   isActive?: boolean;
 
   /**
+   * 是否为广告（true=广告，false=自有内容）
+   */
+  @IsOptional()
+  @IsBoolean({ message: '广告标记必须是布尔值' })
+  isAd?: boolean;
+
+  /**
    * 开始展示时间
    */
   @IsOptional()
@@ -220,6 +234,7 @@ export interface BannerResponseDto {
   linkUrl?: string;
   weight: number;
   isActive: boolean;
+  isAd: boolean;
   startTime?: Date;
   endTime?: Date;
   description?: string;

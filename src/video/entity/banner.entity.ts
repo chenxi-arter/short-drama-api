@@ -55,6 +55,12 @@ export class Banner {
   isActive: boolean;
 
   /**
+   * 是否为广告（true=广告，false=自有内容）
+   */
+  @Column({ default: false, name: 'is_ad' })
+  isAd: boolean;
+
+  /**
    * 开始展示时间
    */
   @Column({ nullable: true, name: 'start_time' })

@@ -34,9 +34,10 @@ export interface BannerItem {
   showURL: string;  // 图片的URL地址
   title: string;    // 视频的标题
   id: number;       // 视频的唯一标识符
-  shortId?: string; // 视频ShortID（11位Base64字符，防枚举攻击）
+  shortId: string | null; // 视频ShortID（11位Base64字符，找不到则为null）
   channeID: number; // 频道分类ID
   url: string;      // 视频详情页path
+  isAd: boolean;    // 是否为广告（true=广告；false=我方系列）
 }
 
 /**
