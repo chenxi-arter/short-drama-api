@@ -17,8 +17,12 @@ import { AdminUsersController, AdminBannersController, AdminEpisodesController }
 import { AdminSeriesController } from './controllers/admin-series.controller';
 import { AdminDashboardController } from './controllers/admin-dashboard.controller';
 
+// Modules
+import { VideoModule } from '../video/video.module';
+
 @Module({
   imports: [
+    VideoModule,
     TypeOrmModule.forFeature([
       User,
       Banner,

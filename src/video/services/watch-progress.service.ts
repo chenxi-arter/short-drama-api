@@ -21,13 +21,12 @@ export class WatchProgressService {
     episodeId: number,
     stopAtSecond: number,
   ) {
-    // 检查剧集是否存在
+    // 检查剧集是否存在；如果不存在则静默跳过，避免抛错导致调用方中断
     const episode = await this.episodeRepo.findOne({
       where: { id: episodeId },
     });
-    
     if (!episode) {
-      throw new Error('剧集不存在');
+      return { ok: false, reason: 'episode_not_found' } as const;
     }
 
     // 查找现有的观看进度记录
@@ -53,7 +52,7 @@ export class WatchProgressService {
     }
 
     await this.watchProgressRepo.save(watchProgress);
-    return { ok: true };
+    return { ok: true } as const;
   }
 
   /**

@@ -67,61 +67,40 @@
 
 ### 轮播图管理 Banners
 
-资源路径: `/admin/banners`
+资源路径（标准化控制器）：`/banners` ；兼容旧简化路由：`/admin/banners`
 
-- 列表
-  - `GET /api/admin/banners?page=1&size=20`
+- 列表（带筛选）
+  - `GET /api/banners?categoryId=&isActive=&page=1&size=10`
+  - 响应：`{ code,msg,data:{ data, total, page, size }, success, timestamp }`
 
 - 详情
-  - `GET /api/admin/banners/:id`
+  - `GET /api/banners/:id`
+  - 响应：`{ code,msg,data: BannerResponseDto, success, timestamp }`
 
-- 新增
-  - `POST /api/admin/banners`
-  - 字段：
-    - `title` string（必填）
-    - `imageUrl` string（必填）
-    - `categoryId` number（必填）
-    - `seriesId` number（可选）
-    - `linkUrl` string（可选）
-    - `weight` number（可选，默认 0）
-    - `isActive` boolean（可选，默认 true）
-    - `startTime` string ISO 时间（可选）
-    - `endTime` string ISO 时间（可选）
-    - `description` string（可选）
-  - 请求示例：
-```json
-{
-  "title": "首页 Banner",
-  "imageUrl": "https://cdn.example.com/banner.png",
-  "categoryId": 1,
-  "seriesId": 12,
-  "weight": 10,
-  "isActive": true
-}
-```
+- 新增（CreateBannerDto，含校验与时间顺序检查）
+  - `POST /api/banners`
+  - 字段：`title,imageUrl,categoryId,seriesId?,linkUrl?,weight?,isActive?,isAd?,startTime?,endTime?,description?`
 
-- 更新
-  - `PUT /api/admin/banners/:id`
-  - 请求示例：
-```json
-{ "title": "首页 Banner - 更新", "weight": 20 }
-```
+- 更新（UpdateBannerDto）
+  - `PUT /api/banners/:id`
 
 - 删除
-  - `DELETE /api/admin/banners/:id`
+  - `DELETE /api/banners/:id`
 
-- 曝光/点击埋点（简单调用，方便前端）
-  - `POST /api/banners/:id/impression` 记录展示 +1
-  - `POST /api/banners/:id/click` 记录点击 +1
-  - 字段变更：`banners` 实体新增 `impressions`、`clicks` 两个整数字段
-  - 读取统计：管理端列表/详情接口会返回当前累计 `impressions` 与 `clicks`
-  - 按日统计（趋势图）：`GET /api/banners/:id/stats?from=YYYY-MM-DD&to=YYYY-MM-DD`
-```json
-[
-  { "date": "2025-09-01", "impressions": 2300, "clicks": 80 },
-  { "date": "2025-09-02", "impressions": 2100, "clicks": 95 }
-]
-```
+- 启用/禁用
+  - `PUT /api/banners/:id/status` Body: `{ "isActive": true|false }`
+
+- 批量调权
+  - `PUT /api/banners/weights` Body: `{ "updates": [{ "id": 12, "weight": 200 }] }`
+
+- 获取活跃 Banner（前台）
+  - `GET /api/banners/active/list?categoryId=&limit=5`
+  - 返回项：`{ showURL,title,id,shortId,channeID,url,isAd }`
+
+- 曝光/点击与统计
+  - `POST /api/banners/:id/impression`、`POST /api/banners/:id/click`
+  - `GET /api/banners/:id/stats?from=YYYY-MM-DD&to=YYYY-MM-DD`
+  - 示例：`[{ "date": "2025-09-01", "impressions": 2300, "clicks": 80 }]`
 
 ---
 
@@ -129,8 +108,52 @@
 
 资源路径: `/admin/series`
 
-- 列表
-  - `GET /api/admin/series?page=1&size=20`
+- 列表（默认仅显示未删除的系列）
+  - `GET /api/admin/series?page=1&size=20&includeDeleted=false`
+  - 参数：
+    - `includeDeleted=true` 显示所有系列（包括已删除）
+    - `includeDeleted=false` 或不传：仅显示未删除系列（默认）
+  - 响应示例：
+```json
+{
+  "total": 1200,
+  "items": [
+    {
+      "id": 2455,
+      "shortId": "kK22TBWdV7q",
+      "title": "朱雀堂",
+      "description": "一部精彩的短剧...",
+      "coverUrl": "https://cdn.example.com/cover.jpg",
+      "isActive": 1,
+      "deletedAt": null,
+      "created_at": "2025-09-01T12:00:00.000Z"
+    }
+  ],
+  "page": 1,
+  "size": 20
+}
+```
+
+- 已删除系列列表
+  - `GET /api/admin/series/deleted?page=1&size=20`
+  - 专门获取已删除的系列列表，按删除时间倒序排列
+  - 响应示例：
+```json
+{
+  "total": 5,
+  "items": [
+    {
+      "id": 2456,
+      "title": "已删除的系列",
+      "isActive": 0,
+      "deletedAt": "2025-09-20T15:30:00.000Z",
+      "deletedBy": null
+    }
+  ],
+  "page": 1,
+  "size": 20
+}
+```
 
 - 详情
   - `GET /api/admin/series/:id`
@@ -146,8 +169,27 @@
 - 更新
   - `PUT /api/admin/series/:id`
 
-- 删除
+- 软删除（推荐使用，不会违反外键约束）
   - `DELETE /api/admin/series/:id`
+  - 说明：使用软删除机制，数据不会被真正删除，只是标记为删除状态
+  - 响应示例：
+```json
+{
+  "success": true,
+  "message": "剧集已成功删除"
+}
+```
+
+- 恢复已删除的系列
+  - `POST /api/admin/series/:id/restore`
+  - 将已软删除的系列恢复为正常状态
+  - 响应示例：
+```json
+{
+  "success": true,
+  "message": "剧集已成功恢复"
+}
+```
 
 ### 单集管理 Episode（系列下的具体某一集）
 
@@ -179,6 +221,55 @@
 
 ### 播放地址管理 EpisodeUrl（某一集的播放源）
 ---
+
+### 模糊搜索 Fuzzy Search
+
+资源路径：`/list/fuzzysearch`
+
+- 方法：`GET /api/list/fuzzysearch?keyword=xxx&channeid=&page=1&size=20`
+- 入参（FuzzySearchDto）：
+  - `keyword` string 必填：搜索关键词
+  - `channeid` string 可选：频道ID，不传搜全部
+  - `page` number 可选：默认 1
+  - `size` number 可选：默认 20
+- 响应（FuzzySearchResponse）：
+```json
+{
+  "code": 200,
+  "data": {
+    "list": [
+      {
+        "id": 2436,
+        "shortId": "kK22TBWdV7q",
+        "coverUrl": "https://.../cover.gif",
+        "title": "朱雀堂",
+        "score": "7.7",
+        "playCount": 1298564,
+        "url": "kK22TBWdV7q",
+        "type": "短剧",
+        "isSerial": true,
+        "upStatus": "已完结",
+        "upCount": 0,
+        "author": "演员A,演员B",
+        "description": "简介...",
+        "cidMapper": "1",
+        "isRecommend": false,
+        "createdAt": "2025-09-19 04:56",
+        "channeid": 1
+      }
+    ],
+    "total": 100,
+    "page": 1,
+    "size": 20,
+    "hasMore": true
+  },
+  "msg": "success"
+}
+```
+
+说明：
+- 该接口不启用服务端缓存（避免键爆炸）。
+- `isRecommend` 在模糊搜索中当前默认为 false（可按业务改为评分阈值或人工标记）。
 
 ### 仪表盘 Dashboard（融合各管理信息）
 
@@ -241,11 +332,11 @@
 ### cURL 示例
 
 ```bash
-# 列出轮播图
-curl -X GET "http://localhost:3000/api/admin/banners?page=1&size=10"
+# 列出轮播图（标准化）
+curl -X GET "http://localhost:3000/api/banners?page=1&size=10"
 
-# 新建轮播图
-curl -X POST "http://localhost:3000/api/admin/banners" \
+# 新建轮播图（标准化）
+curl -X POST "http://localhost:3000/api/banners" \
   -H "Content-Type: application/json" \
   -d '{
     "title": "首页 Banner",
@@ -275,6 +366,25 @@ curl -X POST "http://localhost:3000/api/admin/episodes" \
     "title": "第一集",
     "duration": 1500
   }'
+
+# 系列管理 - 软删除功能示例
+
+# 获取所有系列（仅未删除）
+curl -X GET "http://localhost:8080/api/admin/series?page=1&size=20"
+
+# 获取所有系列（包括已删除）
+curl -X GET "http://localhost:8080/api/admin/series?page=1&size=20&includeDeleted=true"
+
+# 获取已删除系列列表
+curl -X GET "http://localhost:8080/api/admin/series/deleted?page=1&size=20"
+
+# 软删除系列（推荐使用，不会出现外键约束错误）
+curl -X DELETE "http://localhost:8080/api/admin/series/2455" \
+  -H "Content-Type: application/json"
+
+# 恢复已删除的系列
+curl -X POST "http://localhost:8080/api/admin/series/2455/restore" \
+  -H "Content-Type: application/json"
 ```
 
 ---
@@ -284,5 +394,23 @@ curl -X POST "http://localhost:3000/api/admin/episodes" \
 - 当前接口未做鉴权与验证，前端需自行保证传参正确性。
 - 所有时间字段请使用 ISO 8601 字符串（如 `2025-09-05T12:00:00Z`）。
 - `users` 的 `id` 为 bigint，若前端使用 JavaScript，请注意大整数精度问题（建议在 UI 层以字符串管理；传输时可用数字或字符串，按后端实际配置调整）。
+
+#### 软删除机制说明
+
+- **系列删除**已改为软删除机制，解决了原有的外键约束问题
+- 软删除字段：
+  - `isActive`: 1=正常，0=已删除
+  - `deletedAt`: 删除时间（NULL=未删除）
+  - `deletedBy`: 删除者用户ID（可选）
+- **优势**：
+  - 避免外键约束错误（系列下有剧集时也可以删除）
+  - 支持数据恢复
+  - 保留数据完整性
+  - 提供删除历史记录
+- **前端注意事项**：
+  - 默认列表只显示未删除项（`isActive=1`）
+  - 可通过 `includeDeleted=true` 查看所有项
+  - 使用专门的 `/deleted` 端点查看回收站
+  - 删除操作返回成功消息而非简单的 `{success: true}`
 
 

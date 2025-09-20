@@ -108,6 +108,18 @@ import { PlayCountService } from './services/play-count.service';
     IngestController,
     TestIngestController
   ], // 仅保留内部控制器；公开API控制器移至 VideoApiModule；管理端控制器收敛到 AdminModule
-  // 注意：如果需要让其他模块使用这些实体或服务，应该在这里添加exports
+  exports: [
+    VideoService,
+    PlaybackService,
+    ContentService,
+    HomeService,
+    MediaService,
+    UrlService,
+    FilterService,
+    CommentService,
+    SeriesService,
+    CategoryService,
+    IngestService,
+  ], // 导出服务供其他模块使用
 })
 export class VideoModule {}
