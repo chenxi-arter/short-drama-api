@@ -94,6 +94,18 @@ export class DatabaseConfig {
       extra: {
         connectionLimit: this.maxConnections,
         charset: 'utf8mb4',
+        // Ensure driver treats zero-datetime values safely
+        dateStrings: true,
+        typeCast: function (field: any, next: () => any) {
+          if (field.type === 'DATETIME' || field.type === 'TIMESTAMP') {
+            const val = field.string();
+            if (val === '0000-00-00 00:00:00') {
+              return null;
+            }
+            return val;
+          }
+          return next();
+        },
       },
       autoLoadEntities: true,
       retryAttempts: 3,
