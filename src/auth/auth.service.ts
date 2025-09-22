@@ -2,6 +2,7 @@ import { Injectable, UnauthorizedException, BadRequestException } from '@nestjs/
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, LessThan } from 'typeorm';
+import { ConfigService } from '@nestjs/config';
 import { RefreshToken } from './entity/refresh-token.entity';
 import { User } from '../user/entity/user.entity';
 import { randomBytes } from 'crypto';
@@ -12,6 +13,7 @@ export class AuthService {
     private readonly jwtService: JwtService,
     @InjectRepository(RefreshToken)
     private readonly refreshTokenRepo: Repository<RefreshToken>,
+    private readonly configService: ConfigService,
   ) {}
 
   /**
@@ -23,11 +25,14 @@ export class AuthService {
    */
   async generateTokens(user: User, deviceInfo?: string, ipAddress?: string) {
     // 生成 access token (短期，使用环境变量配置)
+    const jwtSecret = this.configService.get<string>('JWT_SECRET');
+    const jwtExpiresIn = this.configService.get<string>('JWT_EXPIRES_IN') || '1h';
+    
     const accessToken = this.jwtService.sign(
       { sub: user.id },
       {
-        secret: process.env.JWT_SECRET,
-        expiresIn: process.env.JWT_EXPIRES_IN || '1h',
+        secret: jwtSecret,
+        expiresIn: jwtExpiresIn,
       }
     );
 
@@ -92,11 +97,14 @@ export class AuthService {
     }
 
     // 生成新的 access token
+    const jwtSecret = this.configService.get<string>('JWT_SECRET');
+    const jwtExpiresIn = this.configService.get<string>('JWT_EXPIRES_IN') || '1h';
+    
     const accessToken = this.jwtService.sign(
       { sub: refreshToken.userId },
       {
-        secret: process.env.JWT_SECRET,
-        expiresIn: process.env.JWT_EXPIRES_IN || '1h',
+        secret: jwtSecret,
+        expiresIn: jwtExpiresIn,
       }
     );
 

@@ -5,7 +5,11 @@ export function verifyTelegramHash(
   botToken: string,
   data: TelegramUserDto,
 ): boolean {
-  const { hash, ...userData } = data;
+  const { hash, loginType, deviceInfo, ...userData } = data;
+  
+  // 忽略loginType和deviceInfo，它们不参与hash验证
+  void loginType;
+  void deviceInfo;
 
   // 过滤掉undefined值
   const filteredData = Object.fromEntries(

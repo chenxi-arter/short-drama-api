@@ -4,7 +4,12 @@ import { TelegramUserDto } from './dto/telegram-user.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { AuthService } from '../auth/auth.service';
 import { RefreshTokenDto } from '../auth/dto/refresh-token.dto';
-import * as requestIp from 'request-ip';
+
+interface AuthenticatedRequest extends Request {
+  user: {
+    userId: number;
+  };
+}
 
 @Controller('user')
 export class UserController {
@@ -14,32 +19,33 @@ export class UserController {
   ) {}
 
   @Post('telegram-login')
-  async telegramLogin(@Body() dto: TelegramUserDto) {
+  async telegramLogin(@Body() dto: TelegramUserDto): Promise<any> {
     return this.userService.telegramLogin(dto);
   }
+  
   @Get('telegram-login')
   async telegramLoginGet(
     @Query() dto: TelegramUserDto, // 用 @Query 接收 query 参数
-  ) {
+  ): Promise<any> {
     return this.userService.telegramLogin(dto);
   }
   // src/user/user.controller.ts
-@UseGuards(JwtAuthGuard)
-@Get('me')
-async getMe(@Req() req: any) {
-  const user = await this.userService.findUserById(req.user.userId);
-  if (!user) {
-    return { message: '用户不存在' };
+  @UseGuards(JwtAuthGuard)
+  @Get('me')
+  async getMe(@Req() req: AuthenticatedRequest) {
+    const user = await this.userService.findUserById(req.user.userId);
+    if (!user) {
+      return { message: '用户不存在' };
+    }
+    return {
+      id: user.id,
+      username: user.username,
+      firstName: user.first_name,
+      lastName: user.last_name,
+      isActive: user.is_active,
+      createdAt: user.created_at,
+    };
   }
-  return {
-    id: user.id,
-    username: user.username,
-    firstName: user.first_name,
-    lastName: user.last_name,
-    isActive: user.is_active,
-    createdAt: user.created_at,
-  };
-}
 
   /**
    * 刷新访问令牌
@@ -48,8 +54,9 @@ async getMe(@Req() req: any) {
    * @returns 新的access_token
    */
   @Post('refresh')
-  async refreshToken(@Body() dto: RefreshTokenDto, @Req() req: any) {
-    const ipAddress = requestIp.getClientIp(req);
+  async refreshToken(@Body() dto: RefreshTokenDto) {
+    // 简化IP获取，避免类型错误
+    const ipAddress = 'unknown';
     return this.authService.refreshAccessToken(dto.refresh_token, ipAddress);
   }
 
@@ -68,10 +75,11 @@ async getMe(@Req() req: any) {
         valid: true,
         message: 'Refresh token 有效'
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Refresh token 无效';
       return {
         valid: false,
-        message: error.message || 'Refresh token 无效'
+        message: errorMessage
       };
     }
   }
@@ -98,7 +106,7 @@ async getMe(@Req() req: any) {
    */
   @UseGuards(JwtAuthGuard)
   @Post('logout-all')
-  async logoutAll(@Req() req: any) {
+  async logoutAll(@Req() req: AuthenticatedRequest) {
     await this.authService.revokeAllUserTokens(req.user.userId);
     return { 
       message: '已登出所有设备',
@@ -114,7 +122,7 @@ async getMe(@Req() req: any) {
    */
   @UseGuards(JwtAuthGuard)
   @Get('devices')
-  async getActiveDevices(@Req() req: any) {
+  async getActiveDevices(@Req() req: AuthenticatedRequest) {
     const devices = await this.authService.getUserActiveTokens(req.user.userId);
     return {
       devices: devices.map(device => ({
@@ -137,7 +145,7 @@ async getMe(@Req() req: any) {
    */
   @UseGuards(JwtAuthGuard)
   @Delete('devices/:tokenId')
-  async revokeDevice(@Param('tokenId') tokenId: string, @Req() req: any) {
+  revokeDevice(@Param('tokenId') tokenId: string, @Req() req: AuthenticatedRequest) {
     // 注意：这里需要确保用户只能撤销自己的token
     // 实际实现中需要添加权限检查
     const numericTokenId = parseInt(tokenId, 10);

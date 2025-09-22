@@ -1,11 +1,32 @@
-import { IsNumber, IsString, IsOptional } from 'class-validator';
+import { IsNumber, IsString, IsOptional, IsEnum, ValidateIf } from 'class-validator';
+
+export enum LoginType {
+  WEBAPP = 'webapp',
+  BOT = 'bot'
+}
 
 export class TelegramUserDto {
-  @IsNumber()
-  id: number;
+  // 登录方式标识（仅用于判断使用哪种验证方式）
+  @IsEnum(LoginType)
+  loginType: LoginType;
 
+  // 新格式：initData字段（当loginType为webapp时使用）
+  @ValidateIf((o: TelegramUserDto) => o.loginType === LoginType.WEBAPP)
   @IsString()
-  first_name: string;
+  initData?: string;
+
+  @IsOptional()
+  @IsString()
+  deviceInfo?: string;
+
+  // 旧格式：分离字段（当loginType为bot时必需）
+  @ValidateIf((o: TelegramUserDto) => o.loginType === LoginType.BOT)
+  @IsNumber()
+  id?: number;
+
+  @ValidateIf((o: TelegramUserDto) => o.loginType === LoginType.BOT)
+  @IsString()
+  first_name?: string;
 
   @IsOptional()
   @IsString()
@@ -15,11 +36,13 @@ export class TelegramUserDto {
   @IsString()
   username?: string;
 
+  @ValidateIf((o: TelegramUserDto) => o.loginType === LoginType.BOT)
   @IsNumber()
-  auth_date: number;
+  auth_date?: number;
 
+  @ValidateIf((o: TelegramUserDto) => o.loginType === LoginType.BOT)
   @IsString()
-  hash: string;
+  hash?: string;
 
   @IsOptional()
   @IsString()
