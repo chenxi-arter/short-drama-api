@@ -54,9 +54,11 @@ export class TelegramAuthService {
       const currentTime = Math.floor(Date.now() / 1000);
       const timeDiff = currentTime - authDate;
       
-      // 如果数据超过24小时，拒绝验证
-      if (timeDiff > 86400) {
-        this.logger.warn(`initData过期: ${timeDiff}秒前的数据`);
+      // 获取过期时间配置（默认7天，可通过环境变量配置）
+      const maxAge = parseInt(process.env.TELEGRAM_AUTH_MAX_AGE || '604800'); // 7天 = 604800秒
+      
+      if (timeDiff > maxAge) {
+        this.logger.warn(`initData过期: ${timeDiff}秒前的数据，最大允许${maxAge}秒`);
         return null;
       }
 
@@ -83,7 +85,7 @@ export class TelegramAuthService {
 
       // 验证hash
       if (hmacHash !== receivedHash) {
-        this.logger.warn('initData hash验证失败');
+        this.logger.warn(`initData hash验证失败 - 计算值: ${hmacHash}, 接收值: ${receivedHash}`);
         return null;
       }
 

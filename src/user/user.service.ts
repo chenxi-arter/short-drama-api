@@ -179,6 +179,17 @@ export class UserService {
       throw new UnauthorizedException('Bot登录需要提供id、first_name、auth_date和hash字段');
     }
 
+    // 检查auth_date过期时间（防止重放攻击）
+    const currentTime = Math.floor(Date.now() / 1000);
+    const timeDiff = currentTime - dto.auth_date;
+    
+    // 获取过期时间配置（默认7天，可通过环境变量配置）
+    const maxAge = parseInt(process.env.TELEGRAM_AUTH_MAX_AGE || '604800'); // 7天 = 604800秒
+    
+    if (timeDiff > maxAge) {
+      throw new UnauthorizedException(`Bot登录数据过期: ${timeDiff}秒前的数据，最大允许${maxAge}秒`);
+    }
+
     // 验证hash
     const botToken = process.env.TELEGRAM_BOT_TOKEN!;
     const isValid = verifyTelegramHash(botToken, dto);
@@ -219,7 +230,7 @@ export class UserService {
       telegram_id: userData.id, // 使用Telegram ID
       first_name: userData.first_name,
       last_name: userData.last_name || '',
-      username: userData.username || `user_${userData.id}`,
+      username: userData.username || `tg_${userData.id}`, // 使用tg_前缀避免与邮箱注册冲突
       is_active: true,
     });
     
@@ -281,10 +292,12 @@ export class UserService {
       throw new ConflictException('该邮箱已被注册');
     }
 
-    // 检查用户名是否已存在
-    const existingUserByUsername = await this.userRepo.findOneBy({ username: dto.username });
-    if (existingUserByUsername) {
-      throw new ConflictException('该用户名已被使用');
+    // 检查用户名是否已存在（如果提供了用户名）
+    if (dto.username) {
+      const existingUserByUsername = await this.userRepo.findOneBy({ username: dto.username });
+      if (existingUserByUsername) {
+        throw new ConflictException('该用户名已被使用');
+      }
     }
 
     // 生成用户ID（使用时间戳 + 随机数）
@@ -298,9 +311,9 @@ export class UserService {
       id: userId,
       email: dto.email,
       password_hash: passwordHash,
-      username: dto.username,
-      first_name: dto.firstName,
-      last_name: dto.lastName || '',
+      username: dto.username || `user_${userId}`, // 如果没有提供用户名，生成默认用户名
+      first_name: dto.firstName || '', // 如果没有提供名字，使用空字符串
+      last_name: dto.lastName || '', // 如果没有提供姓氏，使用空字符串
       is_active: true,
     });
 

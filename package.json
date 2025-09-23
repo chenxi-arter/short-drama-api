@@ -32,6 +32,7 @@
     "@nestjs/throttler": "^6.4.0",
     "@nestjs/typeorm": "^11.0.0",
     "axios": "^1.12.2",
+    "bcrypt": "^6.0.0",
     "cache-manager": "^7.0.1",
     "cache-manager-redis-store": "^3.0.1",
     "class-transformer": "^0.5.1",

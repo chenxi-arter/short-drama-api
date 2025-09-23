@@ -1,4 +1,4 @@
-import { IsEmail, IsString, IsNotEmpty, MinLength, MaxLength, Matches } from 'class-validator';
+import { IsEmail, IsString, IsNotEmpty, IsOptional, MinLength, MaxLength, Matches } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 /**
@@ -45,14 +45,15 @@ export class RegisterDto {
     example: 'username123',
     type: String,
     minLength: 3,
-    maxLength: 20
+    maxLength: 20,
+    required: false
   })
+  @IsOptional()
   @IsString({ message: '用户名必须是字符串' })
-  @IsNotEmpty({ message: '用户名不能为空' })
   @MinLength(3, { message: '用户名长度不能少于3位' })
   @MaxLength(20, { message: '用户名长度不能超过20位' })
   @Matches(/^[a-zA-Z0-9_]+$/, { message: '用户名只能包含字母、数字和下划线' })
-  username: string;
+  username?: string;
 
   @ApiProperty({ 
     description: '名字', 
@@ -60,10 +61,10 @@ export class RegisterDto {
     type: String,
     required: false
   })
+  @IsOptional()
   @IsString({ message: '名字必须是字符串' })
-  @IsNotEmpty({ message: '名字不能为空' })
   @MaxLength(50, { message: '名字长度不能超过50位' })
-  firstName: string;
+  firstName?: string;
 
   @ApiProperty({ 
     description: '姓氏', 
@@ -71,6 +72,7 @@ export class RegisterDto {
     type: String,
     required: false
   })
+  @IsOptional()
   @IsString({ message: '姓氏必须是字符串' })
   @MaxLength(50, { message: '姓氏长度不能超过50位' })
   lastName?: string;
@@ -104,6 +106,8 @@ export class RegisterResponseDto {
   @ApiProperty({ description: '创建时间' })
   createdAt: Date;
 }
+
+
 
 
 

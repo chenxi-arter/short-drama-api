@@ -55,7 +55,7 @@
 - ❌ **旧路径**：`/api/video/episode-url/query` 和 `/api/video/episode-url/:accessKey`
 - ✅ **新路径**：`/api/video/url/query` 和 `/api/video/url/access/:accessKey`
 - ❌ **旧路径**：`/api/list/getfilterstags?channeid=1`
-- ✅ **新路径**：`/api/home/getfilterstags?channeid=1`
+- ✅ **新路径**：`/api/list/getfilterstags?channeid=1`
 
 #### **3. 请求参数格式更新**
 - ❌ **旧格式**：`ids=1,2,0,0,0`（5位）
@@ -75,7 +75,15 @@
 - 支持三种交互类型：点赞(`like`)、不喜欢(`dislike`)、收藏(`favorite`)
 - 交互计数会实时反映在 `likeCount`、`dislikeCount`、`favoriteCount` 字段中
 
-#### **7. 文档导航**
+#### **7. 新增认证和账号绑定功能**
+- 新增邮箱注册接口：`POST /api/auth/register`
+- 新增邮箱登录接口：`POST /api/auth/email-login`
+- 新增Telegram WebApp登录：`POST /api/auth/telegram/webapp-login`
+- 新增Telegram Bot登录：`POST /api/auth/telegram/bot-login`
+- 新增账号绑定功能：`POST /api/user/bind-telegram` 和 `POST /api/user/bind-email`
+- 支持邮箱和Telegram双登录方式，用户信息完全共享
+
+#### **8. 文档导航**
 - 📖 [VideoItem 接口定义](#videoitem)
 - 📖 [SeriesInfo 接口定义](#seriesinfo)
 - 📖 [EpisodeItem 接口定义](#episodeitem)
@@ -295,27 +303,137 @@ const headers = {
 
 ### 1. 用户注册/登录流程
 
-#### **Telegram OAuth 登录**
+#### **邮箱注册**
 ```typescript
 // 接口地址
-POST /api/user/telegram-login
+POST /api/auth/register
 
 // 请求参数
-interface LoginRequest {
-  id: number;           // Telegram用户ID
-  first_name: string;   // 用户名
-  username?: string;    // 用户名（可选）
-  auth_date: number;    // 认证时间戳
-  hash: string;         // 验证哈希
+interface RegisterRequest {
+  email: string;           // 邮箱地址（必需）
+  password: string;        // 密码（必需，6-20位，包含字母和数字）
+  confirmPassword: string; // 确认密码（必需，必须与密码一致）
+  username: string;       // 用户名（必需，唯一）
+  firstName: string;      // 名字（必需）
+  lastName?: string;       // 姓氏（可选）
 }
 
 // 响应格式
-interface LoginResponse {
-  access_token: string;   // 访问令牌（7天有效）
+interface RegisterResponse {
+  id: string;             // 用户ID
+  shortId: string;        // 短ID
+  email: string;          // 邮箱
+  username: string;       // 用户名
+  firstName: string;      // 名字
+  lastName: string;       // 姓氏
+  isActive: number;       // 激活状态
+  createdAt: string;     // 创建时间
+}
+
+// 使用示例
+const registerUser = async (userData: RegisterRequest) => {
+  const response = await fetch('/api/auth/register', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(userData)
+  });
+  return await response.json();
+};
+```
+
+#### **邮箱登录**
+```typescript
+// 接口地址
+POST /api/auth/email-login
+
+// 请求参数
+interface EmailLoginRequest {
+  email: string;           // 邮箱地址
+  password: string;       // 密码
+  deviceInfo?: string;    // 设备信息（可选）
+}
+
+// 响应格式
+interface EmailLoginResponse {
+  access_token: string;   // 访问令牌
   refresh_token: string;  // 刷新令牌
   expires_in: number;     // 过期时间（秒）
-  token_type: "Bearer";   // 令牌类型
+  token_type: string;     // 令牌类型
 }
+
+// 使用示例
+const emailLogin = async (credentials: EmailLoginRequest) => {
+  const response = await fetch('/api/auth/email-login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(credentials)
+  });
+  return await response.json();
+};
+```
+
+#### **Telegram WebApp 登录**
+```typescript
+// 接口地址
+POST /api/auth/telegram/webapp-login
+
+// 请求参数
+interface TelegramWebAppLoginRequest {
+  initData: string;       // Telegram WebApp的initData
+  deviceInfo?: string;     // 设备信息（可选）
+}
+
+// 响应格式
+interface TelegramWebAppLoginResponse {
+  access_token: string;   // 访问令牌
+  refresh_token: string;  // 刷新令牌
+  expires_in: number;     // 过期时间（秒）
+  token_type: string;     // 令牌类型
+}
+
+// 使用示例
+const telegramWebAppLogin = async (initData: string) => {
+  const response = await fetch('/api/auth/telegram/webapp-login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ initData })
+  });
+  return await response.json();
+};
+```
+
+#### **Telegram Bot 登录**
+```typescript
+// 接口地址
+POST /api/auth/telegram/bot-login
+
+// 请求参数
+interface TelegramBotLoginRequest {
+  id: number;             // Telegram用户ID
+  first_name: string;     // 用户名
+  username?: string;      // 用户名（可选）
+  auth_date: number;      // 认证时间戳
+  hash: string;           // 验证哈希
+  deviceInfo?: string;    // 设备信息（可选）
+}
+
+// 响应格式
+interface TelegramBotLoginResponse {
+  access_token: string;   // 访问令牌
+  refresh_token: string;  // 刷新令牌
+  expires_in: number;     // 过期时间（秒）
+  token_type: string;     // 令牌类型
+}
+
+// 使用示例
+const telegramBotLogin = async (botData: TelegramBotLoginRequest) => {
+  const response = await fetch('/api/auth/telegram/bot-login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(botData)
+  });
+  return await response.json();
+};
 ```
 
 #### **获取用户信息**
@@ -326,13 +444,22 @@ Headers: Authorization: Bearer <access_token>
 
 // 响应格式
 interface UserInfo {
-  id: string;           // 用户ID
-  username: string;     // 用户名
-  firstName: string;    // 名字
-  lastName: string;     // 姓氏
-  isActive: number;     // 是否激活
-  createdAt: string;    // 创建时间
+  email: string | null;     // 邮箱地址（可能为null，如Telegram-only用户）
+  username: string;        // 用户名
+  firstName: string;       // 名字
+  lastName: string;        // 姓氏
+  hasTelegram: boolean;    // 是否绑定了Telegram（布尔值，不暴露具体ID）
+  isActive: boolean;       // 是否激活
+  createdAt: string;        // 创建时间
 }
+
+// 使用示例
+const getUserInfo = async (accessToken: string) => {
+  const response = await fetch('/api/user/me', {
+    headers: { 'Authorization': `Bearer ${accessToken}` }
+  });
+  return await response.json();
+};
 ```
 
 #### **刷新访问令牌**
@@ -821,7 +948,7 @@ interface EpisodeItem {
   watchPercentage?: number; // 观看百分比
   isWatched?: boolean;     // 是否已观看
   lastWatchTime?: string;  // 最后观看时间
-  episodeAccessKey?: string; // 剧集级 accessKey，用于 /api/video/episode-url/:accessKey 或 POST 查询
+  episodeAccessKey?: string; // 剧集级 accessKey，用于 /api/video/url/access/:accessKey 或 POST 查询
   urls: EpisodeUrl[];      // 播放地址
 }
 
@@ -849,7 +976,7 @@ echo "episodeAccessKey=$EP_ACCESS"; echo "urlAccessKey=$URL_ACCESS"
 #### **获取播放地址**
 ```typescript
 // 接口地址（推荐POST）
-POST /api/video/episode-url/query
+POST /api/video/url/query
 // 推荐请求体
 interface EpisodeUrlQuery {
   type: 'episode' | 'url';  // 'episode' = episodes.access_key, 'url' = episode_urls.access_key
@@ -859,7 +986,7 @@ interface EpisodeUrlQuery {
 // { key: 'ep:<accessKey>' } 或 { key: 'url:<accessKey>' }
 
 // 示例（使用剧集级 accessKey）
-curl -X POST "http://localhost:8080/api/video/episode-url/query" \
+curl -X POST "http://localhost:8080/api/video/url/query" \
   -H "Authorization: Bearer <access_token>" \
   -H "Content-Type: application/json" \
   -d '{
@@ -868,7 +995,7 @@ curl -X POST "http://localhost:8080/api/video/episode-url/query" \
   }'
 
 // 示例（使用地址级 accessKey）
-curl -X POST "http://localhost:8080/api/video/episode-url/query" \
+curl -X POST "http://localhost:8080/api/video/url/query" \
   -H "Authorization: Bearer <access_token>" \
   -H "Content-Type: application/json" \
   -d '{
@@ -1100,6 +1227,12 @@ interface BrowseHistoryItem {
 
 // 如需手动记录浏览行为，请使用观看进度接口：
 // POST /api/video/progress
+
+// 账号绑定功能说明：
+// 1. 邮箱注册用户可以通过绑定Telegram实现双登录方式
+// 2. Telegram用户可以通过绑定邮箱实现双登录方式
+// 3. 绑定后两种登录方式都指向同一个用户账号
+// 4. 用户信息（观看历史、收藏等）在两种登录方式间完全共享
 ```
 
 #### **实际可用的浏览历史接口**
@@ -1671,7 +1804,7 @@ class HomeDataService {
   async getFilterTags(categoryId: number): Promise<FilterTagsResponse> {
     try {
       const filterTags = await this.api.get<FilterTagsResponse>(
-        `/api/home/getfilterstags?channeid=${categoryId}`
+        `/api/list/getfilterstags?channeid=${categoryId}`
       );
       return filterTags;
     } catch (error) {

@@ -49,21 +49,21 @@ export class User {
    * 用户名字 
    * 用户的名字
    */
-  @Column({ type: 'varchar', length: 255 })
+  @Column({ type: 'varchar', length: 255, nullable: true })
   first_name: string;
 
   /** 
    * 用户姓氏 
    * 用户的姓氏
    */
-  @Column({ type: 'varchar', length: 255 })
+  @Column({ type: 'varchar', length: 255, nullable: true })
   last_name: string;
 
   /** 
    * 用户名 
    * 用户的唯一标识符，用于登录
    */
-  @Column({ type: 'varchar', length: 255, unique: true })
+  @Column({ type: 'varchar', length: 255, unique: true, nullable: true })
   username: string;
 
   /** 
