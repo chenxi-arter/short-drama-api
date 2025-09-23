@@ -6,6 +6,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from '../../user/entity/user.entity';
 import { TelegramAuthService } from '../telegram-auth.service';
+import type { Request } from 'express';
 
 @Injectable()
 export class TelegramStrategy extends PassportStrategy(Strategy, 'telegram') {
@@ -18,9 +19,25 @@ export class TelegramStrategy extends PassportStrategy(Strategy, 'telegram') {
     super();
   }
 
-  async validate(req: any): Promise<any> {
-    const initData = req.body?.initData || req.headers['x-telegram-init-data'];
-    
+  private isInitDataBody(body: unknown): body is { initData: unknown } {
+    return (
+      typeof body === 'object' &&
+      body !== null &&
+      'initData' in (body as Record<string, unknown>)
+    );
+  }
+
+  async validate(req: Request): Promise<User> {
+    const headerValue = req.headers['x-telegram-init-data'];
+    const headerInitData = Array.isArray(headerValue) ? headerValue[0] : headerValue;
+
+    const rawBody: unknown = req.body as unknown;
+    const bodyInitData = this.isInitDataBody(rawBody) && typeof (rawBody as { initData: unknown }).initData === 'string'
+      ? (rawBody as { initData: string }).initData
+      : undefined;
+
+    const initData: string | undefined = bodyInitData || (typeof headerInitData === 'string' ? headerInitData : undefined);
+
     if (!initData) {
       throw new UnauthorizedException('缺少Telegram初始化数据');
     }
@@ -32,15 +49,15 @@ export class TelegramStrategy extends PassportStrategy(Strategy, 'telegram') {
       throw new UnauthorizedException('Telegram数据验证失败');
     }
 
-    // 查找或创建用户
+    // 查找或创建用户（按 telegram_id 统一归并）
     let user = await this.userRepository.findOne({
-      where: { id: userData.id }
+      where: { telegram_id: userData.id }
     });
 
     if (!user) {
-      // 创建新用户
+      // 创建新用户（不要覆盖主键 id，使用 telegram_id 关联）
       user = this.userRepository.create({
-        id: userData.id,
+        telegram_id: userData.id,
         first_name: userData.first_name || '',
         last_name: userData.last_name || '',
         username: userData.username || `user_${userData.id}`,

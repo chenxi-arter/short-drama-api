@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -10,12 +10,14 @@ import { TelegramAuthService } from './telegram-auth.service';
 import { AuthController } from './auth.controller';
 import { RefreshToken } from './entity/refresh-token.entity';
 import { User } from '../user/entity/user.entity';
+import { UserModule } from '../user/user.module';
 
 @Module({
   imports: [
     ConfigModule,
     PassportModule,
     TypeOrmModule.forFeature([RefreshToken, User]),
+    forwardRef(() => UserModule),
     JwtModule.registerAsync({
       useFactory: (configService: ConfigService) => ({
         secret: configService.get<string>('JWT_SECRET'),

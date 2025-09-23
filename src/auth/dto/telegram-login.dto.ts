@@ -45,14 +45,6 @@ export class TelegramLoginResponseDto {
   })
   expires_in: number;
 
-  @ApiProperty({
-    description: '用户信息'
-  })
-  user: {
-    id: number;
-    shortId: string;
-    first_name: string;
-    last_name: string;
-    username: string;
-  };
+  // 移除 user 字段以保护隐私
+  // 前端可以通过 GET /api/user/me 获取用户信息
 }

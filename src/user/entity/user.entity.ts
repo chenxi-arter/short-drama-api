@@ -2,7 +2,7 @@
  * 用户实体类
  * 存储系统用户的基本信息
  */
-import { Entity, PrimaryColumn, Column, CreateDateColumn, OneToMany, BeforeInsert } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, OneToMany, BeforeInsert } from 'typeorm';
 import { Comment } from '../../video/entity/comment.entity';
 import { WatchProgress } from '../../video/entity/watch-progress.entity';
 // import { BrowseHistory } from '../../video/entity/browse-history.entity';
@@ -12,10 +12,31 @@ import { ShortIdUtil } from '../../shared/utils/short-id.util';
 export class User {
   /** 
    * 用户主键ID 
-   * 使用大整数类型，可能来自外部系统如Telegram
+   * 使用自增ID，统一标识用户
    */
-  @PrimaryColumn({ type: 'bigint' })
+  @PrimaryGeneratedColumn({ type: 'bigint' })
   id: number;
+
+  /** 
+   * 邮箱地址
+   * 用于账号密码登录，可为空
+   */
+  @Column({ type: 'varchar', length: 255, unique: true, nullable: true })
+  email: string;
+
+  /** 
+   * 密码哈希
+   * 存储加密后的密码，用于账号密码登录
+   */
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  password_hash: string;
+
+  /** 
+   * Telegram用户ID
+   * 用于Telegram登录，可为空
+   */
+  @Column({ type: 'bigint', unique: true, nullable: true })
+  telegram_id: number;
 
   /** 
    * 短ID标识符（防枚举攻击）

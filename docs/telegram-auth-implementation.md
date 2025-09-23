@@ -35,6 +35,15 @@
 
 ## API 接口
 
+> 说明
+- Telegram 登录推荐统一入口：`POST /api/auth/telegram/login`
+- Telegram Bot 登录：`POST /api/auth/telegram/bot-login`
+
+### 登录来源说明
+
+- Web App 登录：使用统一入口 `/api/auth/telegram/login`，传 `initData`
+- Bot 登录：使用 `/api/auth/telegram/bot-login`，传 `id/auth_date/hash` 等字段
+
 ### 1. Telegram 登录
 ```http
 POST /api/auth/telegram/login
@@ -62,6 +71,27 @@ Content-Type: application/json
   }
 }
 ```
+
+#### 1.1 Telegram Bot 登录（统一归口到 auth）
+
+当不使用 Web App，而是直接通过 Bot 的 `id/first_name/auth_date/hash` 方式登录时，请使用：
+
+```http
+POST /api/auth/telegram/bot-login
+Content-Type: application/json
+
+{
+  "id": 6702079700,
+  "first_name": "随风",
+  "last_name": "李",
+  "username": "seo99991",
+  "auth_date": 1754642628,
+  "hash": "cd671f60a4...ae93c07",
+  "deviceInfo": "iPhone, iOS 16"
+}
+```
+
+> 说明：Bot 登录不再使用 `/api/user/telegram-login`，全部统一到 `auth` 模块下，避免接口分散。
 
 ### 2. 刷新令牌
 ```http
@@ -95,6 +125,105 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 GET /api/auth/profile
 Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 ```
+
+### 6. 账号绑定与互通（邮箱 ⇄ Telegram）
+
+系统采用“单用户单记录”的设计，`users` 表中的一条记录可同时具备邮箱登录能力与 Telegram 登录能力：
+- 邮箱字段：`email`、`password_hash`
+- Telegram 字段：`telegram_id`
+
+当执行绑定时，是在同一条用户记录上写入缺失的登录字段，确保数据互通、行为一致。
+
+#### 6.1 邮箱账号绑定 Telegram（需用户登录）
+
+```http
+POST /api/user/bind-telegram
+Authorization: Bearer <access_token>
+Content-Type: application/json
+
+{
+  "id": 6702079700,
+  "first_name": "随风",
+  "last_name": "李",
+  "username": "seo99991",
+  "auth_date": 1754642628,
+  "hash": "cd671f60a4...ae93c07"
+}
+```
+
+请求体字段说明（全部来自 Telegram 登录小部件/机器人验证数据）：
+- `id`：Telegram 用户 ID（必填）
+- `first_name`：名（必填）
+- `last_name`：姓（可选）
+- `username`：用户名（可选）
+- `auth_date`：认证时间戳（必填）
+- `hash`：签名（必填，基于 `TELEGRAM_BOT_TOKEN` 验证）
+
+成功响应（示例）：
+```json
+{
+  "success": true,
+  "message": "Telegram账号绑定成功，现在可以使用邮箱或Telegram登录",
+  "user": {
+    "id": 1234567890,
+    "shortId": "Ab3Cd4Ef5G6",
+    "email": "user@example.com",
+    "username": "username123",
+    "firstName": "张",
+    "lastName": "三",
+    "telegramId": 6702079700,
+    "isActive": true
+  }
+}
+```
+
+失败场景（示例）：
+- 401 `Telegram数据验证失败`（hash 无效或过期）
+- 409 `该账号已经绑定了Telegram`（当前用户已有关联）
+- 409 `该Telegram账号已被其他用户绑定`（要绑定的 `telegram_id` 被占用）
+
+#### 6.2 Telegram 账号绑定邮箱（需用户登录）
+
+```http
+POST /api/user/bind-email
+Authorization: Bearer <access_token>
+Content-Type: application/json
+
+{
+  "email": "user@example.com",
+  "password": "P@ssw0rd",
+  "confirmPassword": "P@ssw0rd"
+}
+```
+
+校验规则：
+- `email` 有效且未被其他账号占用
+- `password` 与 `confirmPassword` 一致
+- 密码强度：长度 6-20，且包含至少一个字母与一个数字
+
+成功响应（示例）：
+```json
+{
+  "success": true,
+  "message": "邮箱绑定成功，现在可以使用邮箱或Telegram登录",
+  "user": {
+    "id": 1234567890,
+    "shortId": "Ab3Cd4Ef5G6",
+    "email": "user@example.com",
+    "username": "user_6702079700",
+    "firstName": "随风",
+    "lastName": "李",
+    "telegramId": 6702079700,
+    "isActive": true
+  }
+}
+```
+
+失败场景（示例）：
+- 400 `密码和确认密码不匹配` / 密码强度不满足
+- 401 `用户不存在`（token 无效）
+- 409 `该账号已绑定邮箱`（当前用户已有关联邮箱）
+- 409 `该邮箱已被其他账号使用`
 
 ## 环境配置
 

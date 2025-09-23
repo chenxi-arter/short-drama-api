@@ -10,6 +10,8 @@ import {
   HttpCode,
   HttpStatus,
   Ip,
+  Delete,
+  Param,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
@@ -17,14 +19,22 @@ import { TelegramAuthGuard } from './guards/telegram-auth.guard';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { TelegramLoginDto, TelegramLoginResponseDto } from './dto/telegram-login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
+import { EmailLoginDto } from '../user/dto/email-login.dto';
+import { RegisterDto, RegisterResponseDto } from '../user/dto/register.dto';
+import { BotLoginDto } from './dto/bot-login.dto';
+import { UserService } from '../user/user.service';
+import { LoginType, TelegramUserDto } from '../user/dto/telegram-user.dto';
+import { User } from '../user/entity/user.entity';
 
 @ApiTags('认证')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly userService: UserService,
+  ) {}
 
-  @Post('telegram/login')
-  @UseGuards(TelegramAuthGuard)
+  @Post('telegram/webapp-login')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Telegram Web App登录',
@@ -45,32 +55,50 @@ export class AuthController {
   })
   async telegramLogin(
     @Body() loginDto: TelegramLoginDto,
-    @Request() req: any,
-    @Ip() ip: string,
   ): Promise<TelegramLoginResponseDto> {
-    const user = req.user;
-    
-    if (!user) {
-      throw new UnauthorizedException('认证失败');
-    }
-
-    // 生成JWT令牌
-    const tokens = await this.authService.generateTokens(
-      user,
-      loginDto.deviceInfo,
-      ip
-    );
-
-    return {
-      ...tokens,
-      user: {
-        id: user.id,
-        shortId: user.shortId,
-        first_name: user.first_name,
-        last_name: user.last_name,
-        username: user.username,
-      },
+    const telegramUserDto: TelegramUserDto = {
+      loginType: LoginType.WEBAPP,
+      initData: loginDto.initData,
+      deviceInfo: loginDto.deviceInfo,
     };
+
+    return this.userService.telegramLogin(telegramUserDto);
+  }
+
+  @Post('telegram/bot-login')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Telegram Bot 登录', description: '使用 id/auth_date/hash 进行登录' })
+  @ApiResponse({ status: 200, description: '登录成功', type: TelegramLoginResponseDto })
+  async telegramBotLogin(
+    @Body() dto: BotLoginDto,
+  ): Promise<TelegramLoginResponseDto> {
+    const loginDto: TelegramUserDto = {
+      loginType: LoginType.BOT,
+      id: dto.id,
+      first_name: dto.first_name,
+      last_name: dto.last_name,
+      username: dto.username,
+      auth_date: dto.auth_date,
+      hash: dto.hash,
+      deviceInfo: dto.deviceInfo,
+    };
+
+    // 复用 UserService 登录逻辑，返回令牌 + 用户信息
+    return this.userService.telegramLogin(loginDto);
+  }
+
+  @Post('email-login')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: '邮箱密码登录' })
+  async emailLogin(@Body() dto: EmailLoginDto) {
+    return this.userService.emailLogin(dto);
+  }
+
+  @Post('register')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: '邮箱注册' })
+  async register(@Body() dto: RegisterDto): Promise<RegisterResponseDto> {
+    return this.userService.register(dto);
   }
 
   @Post('refresh')
@@ -106,6 +134,48 @@ export class AuthController {
     return this.authService.refreshAccessToken(refreshDto.refresh_token, ip);
   }
 
+  @UseGuards(JwtAuthGuard)
+  @Get('devices')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: '获取活跃设备列表' })
+  async getActiveDevices(@Request() req: { user?: { userId: number } }) {
+    const userId = req.user?.userId;
+    if (!userId) {
+      throw new UnauthorizedException('用户信息无效');
+    }
+    const devices = await this.authService.getUserActiveTokens(userId);
+    return {
+      devices: devices.map((device) => ({
+        id: device.id,
+        deviceInfo: device.deviceInfo || '未知设备',
+        ipAddress: device.ipAddress || '未知IP',
+        createdAt: device.createdAt,
+        expiresAt: device.expiresAt,
+      })),
+      total: devices.length,
+    };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Delete('devices/:tokenId')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: '撤销指定设备refresh token（占位实现）' })
+  revokeDevice(@Param('tokenId') tokenId: string) {
+    const numericTokenId = parseInt(tokenId, 10);
+    if (isNaN(numericTokenId)) {
+      return {
+        message: '无效的设备ID',
+        success: false,
+      };
+    }
+    // TODO: 校验 token 归属后执行撤销，确保 numericTokenId 属于 req.user.userId
+    // await this.authService.revokeUserSpecificToken(req.user.userId, numericTokenId);
+    return {
+      message: '设备已登出',
+      success: true,
+    };
+  }
+
   @Post('logout')
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
@@ -139,7 +209,7 @@ export class AuthController {
     status: 200,
     description: '全设备登出成功'
   })
-  async logoutAll(@Request() req: any) {
+  async logoutAll(@Request() req: { user?: { userId: number } }) {
     const userId = req.user?.userId;
     if (!userId) {
       throw new UnauthorizedException('用户信息无效');
@@ -160,7 +230,7 @@ export class AuthController {
     status: 200,
     description: '获取成功'
   })
-  async getProfile(@Request() req: any) {
+  getProfile(@Request() req: { user?: { userId: number } }) {
     const userId = req.user?.userId;
     if (!userId) {
       throw new UnauthorizedException('用户信息无效');

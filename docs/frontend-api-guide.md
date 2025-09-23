@@ -1086,76 +1086,56 @@ interface BrowseHistoryItem {
 }
 ```
 
-#### **获取最近浏览**
+#### **浏览历史说明**
 ```typescript
-// 接口地址
-GET /api/video/browse-history/recent
-Headers: Authorization: Bearer <access_token>
+// ⚠️ 注意：高级浏览历史功能（recent、sync、stats等）当前不可用
+// 只有基础的浏览历史查看功能可用，数据基于用户观看进度自动聚合生成
 
-// 响应格式
-interface RecentBrowseItem {
-  seriesId: number;
-  seriesTitle: string;
-  seriesShortId: string;
-  seriesCoverUrl: string;
-  lastEpisodeNumber: number;
-  lastVisitTime: string;
-  visitCount: number;
-}
+// 浏览记录自动生成规则：
+// 1. 基于用户的观看进度记录（WatchProgress）自动聚合
+// 2. 按系列分组，显示最后观看的集数和时间
+// 3. visitCount = 该系列下有观看进度的不同集数
+// 4. durationSeconds = 最后观看集数的观看时长
+// 5. 无需手动同步，观看时自动更新
+
+// 如需手动记录浏览行为，请使用观看进度接口：
+// POST /api/video/progress
 ```
 
-#### **同步浏览记录**
+#### **实际可用的浏览历史接口**
 ```typescript
-// 接口地址
-GET /api/video/browse-history/sync?seriesShortId=fpcxnnFA6m9&browseType=episode_list&lastEpisodeNumber=5
+// ✅ 唯一可用的浏览历史接口
+GET /api/video/browse-history?page=1&size=20
 Headers: Authorization: Bearer <access_token>
 
-// 请求参数
-interface SyncRequest {
-  seriesShortId: string;      // 系列ShortID（推荐使用）
-  seriesId?: string;          // 系列ID（向后兼容）
-  browseType?: string;        // 浏览类型
-  lastEpisodeNumber?: string; // 最后访问集数
-}
-
-// browseType 可选值说明
-type BrowseType = 
-  | 'episode_list'      // 浏览剧集列表页面
-  | 'series_detail'     // 浏览系列详情页面
-  | 'episode_play'      // 播放剧集页面
-  | 'search_result'     // 搜索结果页面
-  | 'category_list'     // 分类列表页面
-  | 'home_page'         // 首页浏览
-  | 'favorite_list'     // 收藏列表页面
-  | 'watch_history'     // 观看历史页面
-
-// 使用示例
-// 1. 用户浏览剧集列表
-await fetch('/api/video/browse-history/sync?seriesShortId=fpcxnnFA6m9&browseType=episode_list&lastEpisodeNumber=3');
-
-// 2. 用户播放剧集
-await fetch('/api/video/browse-history/sync?seriesShortId=fpcxnnFA6m9&browseType=episode_play&lastEpisodeNumber=5');
-
-// 3. 用户查看系列详情
-await fetch('/api/video/browse-history/sync?seriesShortId=fpcxnnFA6m9&browseType=series_detail');
-```
-
-#### **获取系统统计**
-```typescript
-// 接口地址
-GET /api/video/browse-history/stats
-Headers: Authorization: Bearer <access_token>
-
-// 响应格式
-interface SystemStatsResponse {
+// 完整的响应数据结构
+interface BrowseHistoryResponse {
   code: number;
+  message: string;
   data: {
-    totalUsers: number;       // 总用户数
-    totalRecords: number;     // 总记录数
-    activeUsers: number;      // 活跃用户数
-    totalStorage: number;     // 总存储量
-    averageSessionTime: number; // 平均会话时间
+    list: BrowseHistoryItem[];
+    total: number;
+    page: number;
+    size: number;
+    hasMore: boolean;
   };
+}
+
+interface BrowseHistoryItem {
+  id: number;                    // 系列ID（兼容字段）
+  seriesId: number;              // 系列ID
+  seriesTitle: string;           // 系列标题
+  seriesShortId: string;         // 系列ShortID
+  seriesCoverUrl: string;        // 系列封面
+  categoryName: string;          // 分类名称
+  browseType: "episode_watch";   // 浏览类型（固定值）
+  browseTypeDesc: "观看剧集";     // 浏览类型描述
+  lastEpisodeNumber: number;     // 最后观看集数
+  lastEpisodeTitle: string;      // 最后观看集数标题
+  visitCount: number;            // 访问次数（观看过的不同集数）
+  durationSeconds: number;       // 最后观看集的观看时长（秒）
+  lastVisitTime: string;         // 最后访问时间（格式：YYYY-MM-DD HH:mm）
+  watchStatus: string;           // 观看状态（如："观看至第52集"）
 }
 ```
 
@@ -1730,9 +1710,9 @@ class HomeDataService {
   const homeService = new HomeDataService(api);
 ```
 
-#### **浏览记录同步服务**
+#### **浏览历史服务**
 ```typescript
-// 浏览记录同步服务
+// 浏览历史服务（基于观看进度自动生成）
 class BrowseHistoryService {
   private api: ApiClient;
   
@@ -1740,62 +1720,43 @@ class BrowseHistoryService {
     this.api = api;
   }
   
-  // 同步浏览记录
-  async syncBrowseHistory(
-    seriesShortId: string,
-    browseType: BrowseType,
-    lastEpisodeNumber?: number
-  ): Promise<void> {
+  // 获取浏览历史
+  async getBrowseHistory(page: number = 1, size: number = 20): Promise<BrowseHistoryResponse> {
     try {
-      const params = new URLSearchParams({
-        seriesShortId,
-        browseType
-      });
-      
-      if (lastEpisodeNumber !== undefined) {
-        params.append('lastEpisodeNumber', lastEpisodeNumber.toString());
-      }
-      
-      await this.api.get(`/api/video/browse-history/sync?${params}`);
-      console.log('浏览记录同步成功');
+      const response = await this.api.get<BrowseHistoryResponse>(
+        `/api/video/browse-history?page=${page}&size=${size}`
+      );
+      return response;
     } catch (error) {
-      console.error('浏览记录同步失败:', error);
+      console.error('获取浏览历史失败:', error);
+      throw error;
+    }
+  }
+  
+  // 记录观看进度（会自动更新浏览历史）
+  async recordWatchProgress(episodeIdentifier: string | number, stopAtSecond: number): Promise<void> {
+    try {
+      await this.api.post('/api/video/progress', {
+        episodeIdentifier,
+        stopAtSecond
+      });
+      console.log('观看进度记录成功，浏览历史已自动更新');
+    } catch (error) {
+      console.error('观看进度记录失败:', error);
       // 不抛出错误，避免影响主要业务逻辑
     }
   }
   
-  // 自动记录页面浏览
-  recordPageView(seriesShortId: string, browseType: BrowseType): void {
-    // 使用 sendBeacon 在页面卸载时发送数据
-    const data = new URLSearchParams({
-      seriesShortId,
-      browseType
-    });
-    
-    if ('sendBeacon' in navigator) {
-      navigator.sendBeacon(
-        `/api/video/browse-history/sync?${data.toString()}`,
-        ''
-      );
-    } else {
-      // 降级方案：使用 fetch
-      this.syncBrowseHistory(seriesShortId, browseType);
-    }
+  // 获取分页浏览历史
+  async loadBrowseHistoryPage(page: number, size: number = 10): Promise<BrowseHistoryItem[]> {
+    const response = await this.getBrowseHistory(page, size);
+    return response.data.list;
   }
   
-  // 记录剧集播放进度
-  recordEpisodePlay(seriesShortId: string, episodeNumber: number): void {
-    this.syncBrowseHistory(seriesShortId, 'episode_play', episodeNumber);
-  }
-  
-  // 记录剧集列表浏览
-  recordEpisodeList(seriesShortId: string, lastEpisodeNumber?: number): void {
-    this.syncBrowseHistory(seriesShortId, 'episode_list', lastEpisodeNumber);
-  }
-  
-  // 记录系列详情浏览
-  recordSeriesDetail(seriesShortId: string): void {
-    this.syncBrowseHistory(seriesShortId, 'series_detail');
+  // 检查是否还有更多数据
+  async hasMoreHistory(page: number, size: number = 10): Promise<boolean> {
+    const response = await this.getBrowseHistory(page, size);
+    return response.data.hasMore;
   }
 }
 
@@ -1803,37 +1764,71 @@ class BrowseHistoryService {
 const browseHistoryService = new BrowseHistoryService(api);
 
 // 在React组件中使用
-const SeriesDetailPage = ({ seriesShortId }: { seriesShortId: string }) => {
-  useEffect(() => {
-    // 记录用户浏览系列详情页面
-    browseHistoryService.recordSeriesDetail(seriesShortId);
-  }, [seriesShortId]);
+const BrowseHistoryPage = () => {
+  const [historyData, setHistoryData] = useState<BrowseHistoryItem[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
   
-  // ... 其他逻辑
+  const loadHistory = async (pageNum: number, append: boolean = false) => {
+    setLoading(true);
+    try {
+      const response = await browseHistoryService.getBrowseHistory(pageNum, 20);
+      if (append) {
+        setHistoryData(prev => [...prev, ...response.data.list]);
+      } else {
+        setHistoryData(response.data.list);
+      }
+      setHasMore(response.data.hasMore);
+    } catch (error) {
+      console.error('加载浏览历史失败:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  useEffect(() => {
+    loadHistory(1);
+  }, []);
+  
+  const loadMore = () => {
+    if (!loading && hasMore) {
+      const nextPage = page + 1;
+      setPage(nextPage);
+      loadHistory(nextPage, true);
+    }
+  };
+  
+  return (
+    <div>
+      {historyData.map(item => (
+        <div key={item.seriesId} className="history-item">
+          <img src={item.seriesCoverUrl} alt={item.seriesTitle} />
+          <div>
+            <h3>{item.seriesTitle}</h3>
+            <p>{item.watchStatus}</p>
+            <p>最后观看：{item.lastVisitTime}</p>
+            <p>观看了 {item.visitCount} 集</p>
+          </div>
+        </div>
+      ))}
+      {hasMore && (
+        <button onClick={loadMore} disabled={loading}>
+          {loading ? '加载中...' : '加载更多'}
+        </button>
+      )}
+    </div>
+  );
 };
 
-const EpisodeListPage = ({ seriesShortId }: { seriesShortId: string }) => {
-  useEffect(() => {
-    // 记录用户浏览剧集列表页面
-    browseHistoryService.recordEpisodeList(seriesShortId);
-  }, [seriesShortId]);
+// 在视频播放器中记录观看进度
+const VideoPlayer = ({ episodeId, onProgressUpdate }: VideoPlayerProps) => {
+  const recordProgress = (currentTime: number) => {
+    // 每30秒记录一次观看进度
+    browseHistoryService.recordWatchProgress(episodeId, Math.floor(currentTime));
+  };
   
-  // ... 其他逻辑
-};
-
-const VideoPlayer = ({ 
-  seriesShortId, 
-  episodeNumber 
-}: { 
-  seriesShortId: string; 
-  episodeNumber: number; 
-}) => {
-  useEffect(() => {
-    // 记录用户播放剧集
-    browseHistoryService.recordEpisodePlay(seriesShortId, episodeNumber);
-  }, [seriesShortId, episodeNumber]);
-  
-  // ... 其他逻辑
+  // ... 视频播放器逻辑
 };
 ```
 
@@ -2356,3 +2351,4 @@ function handleLoginSuccess(response: LoginResponse) {
 **文档版本**: v1.1
 **最后更新**: 2025年9月12日
 **维护团队**: 短剧系统开发团队
+

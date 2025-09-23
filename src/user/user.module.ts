@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
@@ -14,7 +14,7 @@ import { TelegramAuthService } from '../auth/telegram-auth.service';
     TypeOrmModule.forFeature([User]),
     PassportModule,
     JwtModule.register({}),
-    AuthModule, // 导入AuthModule以使用AuthService
+    forwardRef(() => AuthModule), // 导入AuthModule以使用AuthService
   ],
   controllers: [UserController],
   providers: [UserService, JwtStrategy, TelegramAuthService],

@@ -1,18 +1,39 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, ConflictException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
 import { User } from './entity/user.entity';
 import { TelegramUserDto, LoginType } from './dto/telegram-user.dto';
+import { RegisterDto, RegisterResponseDto } from './dto/register.dto';
+import { EmailLoginDto, EmailLoginResponseDto } from './dto/email-login.dto';
+import { BindTelegramDto, BindTelegramResponseDto } from './dto/bind-telegram.dto';
+import { BindEmailDto } from './dto/bind-email.dto';
 import { verifyTelegramHash } from './telegram.validator';
 import { AuthService } from '../auth/auth.service';
 import { TelegramAuthService } from '../auth/telegram-auth.service';
+import { PasswordUtil } from '../common/utils/password.util';
 
 interface TelegramUserData {
   id: number;
   first_name: string;
   last_name?: string;
   username?: string;
+}
+
+interface TokenResult {
+  access_token: string;
+  refresh_token: string;
+  token_type: string;
+  expires_in: number;
+  // 移除 user 字段以保护隐私
+  // 前端可以通过 GET /api/user/me 获取用户信息
+}
+
+interface TokensOnly {
+  access_token: string;
+  refresh_token: string;
+  token_type: string;
+  expires_in: number;
 }
 
 @Injectable()
@@ -24,7 +45,7 @@ export class UserService {
     private readonly telegramAuthService: TelegramAuthService,
   ) {}
 
-  async telegramLogin(dto: TelegramUserDto) {
+  async telegramLogin(dto: TelegramUserDto): Promise<TokenResult> {
     // 1. 验证Bot Token配置
     this.validateBotToken();
 
@@ -34,8 +55,15 @@ export class UserService {
     // 3. 查找或创建用户
     const user = await this.findOrCreateUser(userData);
 
-    // 4. 生成并返回JWT令牌
-    return this.generateUserTokens(user, dto.deviceInfo);
+    // 4. 生成令牌
+    const tokens = await this.generateUserTokens(user, dto.deviceInfo);
+
+    // 5. 返回令牌（不包含用户信息以保护隐私）
+    return {
+      ...tokens,
+      // 移除用户信息以保护隐私
+      // 前端可以使用 GET /api/user/me 获取用户信息
+    };
   }
 
   /**
@@ -46,6 +74,61 @@ export class UserService {
     if (!botToken) {
       throw new Error('缺少 TELEGRAM_BOT_TOKEN，请检查 .env');
     }
+  }
+
+  /**
+   * 绑定邮箱/密码到当前（可能为 TG-only）账号
+   */
+  async bindEmail(userId: number, dto: BindEmailDto) {
+    // 1) 校验确认密码
+    if (dto.password !== dto.confirmPassword) {
+      throw new BadRequestException('密码和确认密码不匹配');
+    }
+
+    // 2) 校验密码强度
+    const validation = PasswordUtil.validatePasswordStrength(dto.password);
+    if (!validation.valid) {
+      throw new BadRequestException(validation.message);
+    }
+
+    // 3) 当前用户存在性
+    const user = await this.userRepo.findOneBy({ id: userId });
+    if (!user) {
+      throw new UnauthorizedException('用户不存在');
+    }
+
+    // 4) 如果当前用户已经有邮箱，则不允许重复绑定（也可改为合并策略）
+    if (user.email) {
+      throw new ConflictException('该账号已绑定邮箱');
+    }
+
+    // 5) 邮箱是否被其他用户占用
+    const occupied = await this.userRepo.findOneBy({ email: dto.email });
+    if (occupied) {
+      throw new ConflictException('该邮箱已被其他账号使用');
+    }
+
+    // 6) 写入邮箱与密码哈希
+    const passwordHash = await PasswordUtil.hashPassword(dto.password);
+    user.email = dto.email;
+    user.password_hash = passwordHash;
+
+    const updated = await this.userRepo.save(user);
+
+    return {
+      success: true,
+      message: '邮箱绑定成功，现在可以使用邮箱或Telegram登录',
+      user: {
+        id: updated.id,
+        shortId: updated.shortId,
+        email: updated.email,
+        username: updated.username,
+        firstName: updated.first_name,
+        lastName: updated.last_name,
+        telegramId: updated.telegram_id,
+        isActive: updated.is_active,
+      },
+    };
   }
 
   /**
@@ -116,7 +199,8 @@ export class UserService {
    * 查找或创建用户
    */
   private async findOrCreateUser(userData: TelegramUserData): Promise<User> {
-    let user = await this.userRepo.findOneBy({ id: userData.id });
+    // 先通过Telegram ID查找用户
+    let user = await this.userRepo.findOneBy({ telegram_id: userData.id });
     
     if (!user) {
       user = await this.createNewUser(userData);
@@ -132,7 +216,7 @@ export class UserService {
    */
   private async createNewUser(userData: TelegramUserData): Promise<User> {
     const user = this.userRepo.create({
-      id: userData.id,
+      telegram_id: userData.id, // 使用Telegram ID
       first_name: userData.first_name,
       last_name: userData.last_name || '',
       username: userData.username || `user_${userData.id}`,
@@ -163,7 +247,7 @@ export class UserService {
   /**
    * 生成用户令牌
    */
-  private generateUserTokens(user: User, deviceInfo?: string): any {
+  private generateUserTokens(user: User, deviceInfo?: string): Promise<TokensOnly> {
     return this.authService.generateTokens(
       user,
       deviceInfo || user.username || 'Telegram User',
@@ -172,5 +256,194 @@ export class UserService {
   // src/user/user.service.ts
   async findUserById(id: number): Promise<User | null> {
     return this.userRepo.findOneBy({ id });
+  }
+
+  /**
+   * 邮箱注册
+   * @param dto 注册信息
+   * @returns 注册结果
+   */
+  async register(dto: RegisterDto): Promise<RegisterResponseDto> {
+    // 验证密码确认
+    if (dto.password !== dto.confirmPassword) {
+      throw new BadRequestException('密码和确认密码不匹配');
+    }
+
+    // 验证密码强度
+    const passwordValidation = PasswordUtil.validatePasswordStrength(dto.password);
+    if (!passwordValidation.valid) {
+      throw new BadRequestException(passwordValidation.message);
+    }
+
+    // 检查邮箱是否已存在
+    const existingUserByEmail = await this.userRepo.findOneBy({ email: dto.email });
+    if (existingUserByEmail) {
+      throw new ConflictException('该邮箱已被注册');
+    }
+
+    // 检查用户名是否已存在
+    const existingUserByUsername = await this.userRepo.findOneBy({ username: dto.username });
+    if (existingUserByUsername) {
+      throw new ConflictException('该用户名已被使用');
+    }
+
+    // 生成用户ID（使用时间戳 + 随机数）
+    const userId = Date.now() + Math.floor(Math.random() * 1000);
+
+    // 加密密码
+    const passwordHash = await PasswordUtil.hashPassword(dto.password);
+
+    // 创建用户
+    const user = this.userRepo.create({
+      id: userId,
+      email: dto.email,
+      password_hash: passwordHash,
+      username: dto.username,
+      first_name: dto.firstName,
+      last_name: dto.lastName || '',
+      is_active: true,
+    });
+
+    const savedUser = await this.userRepo.save(user);
+
+    return {
+      id: savedUser.id,
+      shortId: savedUser.shortId,
+      email: savedUser.email,
+      username: savedUser.username,
+      firstName: savedUser.first_name,
+      lastName: savedUser.last_name,
+      isActive: savedUser.is_active,
+      createdAt: savedUser.created_at,
+    };
+  }
+
+  /**
+   * 邮箱密码登录
+   * @param dto 登录信息
+   * @returns 登录结果
+   */
+  async emailLogin(dto: EmailLoginDto): Promise<EmailLoginResponseDto> {
+    // 查找用户
+    const user = await this.userRepo.findOneBy({ email: dto.email });
+    if (!user) {
+      throw new UnauthorizedException('邮箱或密码错误');
+    }
+
+    // 验证密码
+    if (!user.password_hash) {
+      throw new UnauthorizedException('该账号不支持密码登录');
+    }
+
+    const isPasswordValid = await PasswordUtil.comparePassword(dto.password, user.password_hash);
+    if (!isPasswordValid) {
+      throw new UnauthorizedException('邮箱或密码错误');
+    }
+
+    // 检查账号状态
+    if (!user.is_active) {
+      throw new UnauthorizedException('账号已被禁用');
+    }
+
+    // 生成令牌
+    const tokens = await this.authService.generateTokens(
+      user,
+      dto.deviceInfo || 'Email Login',
+    );
+
+    return {
+      ...tokens,
+      // 移除用户信息以保护隐私
+      // 前端可以使用 GET /api/user/me 获取用户信息
+    };
+  }
+
+  /**
+   * 绑定Telegram账号到现有邮箱账号
+   * @param userId 用户ID
+   * @param dto Telegram信息
+   * @returns 绑定结果
+   */
+  async bindTelegram(userId: number, dto: BindTelegramDto): Promise<BindTelegramResponseDto> {
+    // 验证Telegram数据
+    const botToken = process.env.TELEGRAM_BOT_TOKEN;
+    if (!botToken) {
+      throw new BadRequestException('Telegram Bot Token未配置');
+    }
+
+    // 创建TelegramUserDto格式的数据进行验证
+    const telegramData: TelegramUserDto = {
+      loginType: 'bot' as LoginType,
+      id: dto.id,
+      first_name: dto.first_name,
+      last_name: dto.last_name,
+      username: dto.username,
+      auth_date: dto.auth_date,
+      hash: dto.hash,
+    };
+
+    const isValid = verifyTelegramHash(botToken, telegramData);
+    if (!isValid) {
+      throw new UnauthorizedException('Telegram数据验证失败');
+    }
+
+    // 查找当前用户
+    const user = await this.userRepo.findOneBy({ id: userId });
+    if (!user) {
+      throw new UnauthorizedException('用户不存在');
+    }
+
+    // 检查是否已经绑定了Telegram
+    if (user.telegram_id) {
+      throw new ConflictException('该账号已经绑定了Telegram');
+    }
+
+    // 检查Telegram ID是否已被其他用户使用
+    const existingTelegramUser = await this.userRepo.findOneBy({ telegram_id: dto.id });
+    if (existingTelegramUser) {
+      throw new ConflictException('该Telegram账号已被其他用户绑定');
+    }
+
+    // 直接绑定Telegram
+    user.telegram_id = dto.id;
+    user.first_name = dto.first_name;
+    user.last_name = dto.last_name || user.last_name;
+    user.username = dto.username || user.username;
+
+    const updatedUser = await this.userRepo.save(user);
+
+    return {
+      success: true,
+      message: 'Telegram账号绑定成功，现在可以使用邮箱或Telegram登录',
+      user: {
+        id: updatedUser.id,
+        shortId: updatedUser.shortId,
+        email: updatedUser.email,
+        username: updatedUser.username,
+        firstName: updatedUser.first_name,
+        lastName: updatedUser.last_name,
+        telegramId: updatedUser.telegram_id,
+        isActive: updatedUser.is_active,
+      },
+    };
+  }
+
+
+  /**
+   * 根据邮箱查找用户
+   * @param email 邮箱地址
+   * @returns 用户信息
+   */
+  async findUserByEmail(email: string): Promise<User | null> {
+    return this.userRepo.findOneBy({ email });
+  }
+
+  /**
+   * 根据Telegram ID查找用户
+   * @param telegramId Telegram ID
+   * @returns 用户信息
+   */
+  async findUserByTelegramId(telegramId: number): Promise<User | null> {
+    return this.userRepo.findOneBy({ telegram_id: telegramId });
   }
 }
