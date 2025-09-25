@@ -20,6 +20,7 @@ interface TelegramUserData {
   first_name: string;
   last_name?: string;
   username?: string;
+  photo_url?: string;
 }
 
 interface TokenResult {
@@ -205,6 +206,7 @@ export class UserService {
       first_name: dto.first_name,
       last_name: dto.last_name || '',
       username: dto.username || '',
+      photo_url: dto.photo_url, // 包含头像URL
     };
   }
 
@@ -231,15 +233,25 @@ export class UserService {
     // Telegram注册用户的username格式: tg + Telegram用户ID
     const telegramUsername = `tg${userData.id}`;
     
+    console.log('=== createNewUser 调试信息 ===');
+    console.log('userData:', userData);
+    console.log('photo_url:', userData.photo_url);
+    
     const user = this.userRepo.create({
       telegram_id: userData.id, // 使用Telegram ID
       first_name: userData.first_name,
       last_name: userData.last_name || '',
       username: userData.username || telegramUsername, // 使用tg+用户ID格式
+      photo_url: userData.photo_url || null, // 保存Telegram头像URL
       is_active: true,
     });
     
-    return await this.userRepo.save(user);
+    console.log('创建的user对象:', user);
+    
+    const savedUser = await this.userRepo.save(user);
+    console.log('保存后的user对象:', savedUser);
+    
+    return savedUser;
   }
 
   /**
@@ -250,6 +262,11 @@ export class UserService {
     user.first_name = userData.first_name || user.first_name;
     user.last_name = userData.last_name || user.last_name;
     user.username = userData.username || user.username;
+    
+    // 更新头像URL（如果提供了新的）
+    if (userData.photo_url) {
+      user.photo_url = userData.photo_url;
+    }
     
     // 如果短ID为空，生成新的短ID
     if (!user.shortId) {

@@ -74,6 +74,13 @@ export class User {
   nickname: string;
 
   /** 
+   * Telegram头像URL 
+   * 用户的Telegram头像链接
+   */
+  @Column({ type: 'text', nullable: true })
+  photo_url: string | null;
+
+  /** 
    * 是否激活 
    * 标识用户账号是否处于激活状态
    */

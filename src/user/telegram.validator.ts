@@ -8,6 +8,7 @@ export function verifyTelegramHash(
   const { hash, loginType, deviceInfo, ...userData } = data;
   
   // 忽略loginType和deviceInfo，它们不参与hash验证
+  // photo_url现在参与hash验证
   void loginType;
   void deviceInfo;
 

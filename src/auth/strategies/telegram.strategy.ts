@@ -64,6 +64,7 @@ export class TelegramStrategy extends PassportStrategy(Strategy, 'telegram') {
         first_name: userData.first_name || '',
         last_name: userData.last_name || '',
         username: userData.username || telegramUsername,
+        photo_url: userData.photo_url || null, // 保存头像URL
         is_active: true,
       });
       await this.userRepository.save(user);
@@ -72,6 +73,11 @@ export class TelegramStrategy extends PassportStrategy(Strategy, 'telegram') {
       user.first_name = userData.first_name || user.first_name;
       user.last_name = userData.last_name || user.last_name;
       user.username = userData.username || user.username;
+      
+      // 更新头像URL（如果提供了新的）
+      if (userData.photo_url) {
+        user.photo_url = userData.photo_url;
+      }
       
       // 如果短ID为空，生成新的短ID
       if (!user.shortId) {
