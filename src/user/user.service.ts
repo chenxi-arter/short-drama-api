@@ -8,6 +8,8 @@ import { RegisterDto, RegisterResponseDto } from './dto/register.dto';
 import { EmailLoginDto, EmailLoginResponseDto } from './dto/email-login.dto';
 import { BindTelegramDto, BindTelegramResponseDto } from './dto/bind-telegram.dto';
 import { BindEmailDto } from './dto/bind-email.dto';
+import { UpdateNicknameDto, UpdateNicknameResponseDto } from './dto/update-nickname.dto';
+import { UpdatePasswordDto, UpdatePasswordResponseDto } from './dto/update-password.dto';
 import { verifyTelegramHash } from './telegram.validator';
 import { AuthService } from '../auth/auth.service';
 import { TelegramAuthService } from '../auth/telegram-auth.service';
@@ -226,11 +228,14 @@ export class UserService {
    * 创建新用户
    */
   private async createNewUser(userData: TelegramUserData): Promise<User> {
+    // Telegram注册用户的username格式: tg + Telegram用户ID
+    const telegramUsername = `tg${userData.id}`;
+    
     const user = this.userRepo.create({
       telegram_id: userData.id, // 使用Telegram ID
       first_name: userData.first_name,
       last_name: userData.last_name || '',
-      username: userData.username || `tg_${userData.id}`, // 使用tg_前缀避免与邮箱注册冲突
+      username: userData.username || telegramUsername, // 使用tg+用户ID格式
       is_active: true,
     });
     
@@ -303,6 +308,10 @@ export class UserService {
     // 生成用户ID（使用时间戳 + 随机数）
     const userId = Date.now() + Math.floor(Math.random() * 1000);
 
+    // 生成邮箱注册用户的username格式: e + 随机数
+    const randomSuffix = Math.floor(Math.random() * 1000000);
+    const emailUsername = `e${randomSuffix}`;
+
     // 加密密码
     const passwordHash = await PasswordUtil.hashPassword(dto.password);
 
@@ -311,7 +320,7 @@ export class UserService {
       id: userId,
       email: dto.email,
       password_hash: passwordHash,
-      username: dto.username || `user_${userId}`, // 如果没有提供用户名，生成默认用户名
+      username: dto.username || emailUsername, // 邮箱注册用户使用 e+随机数 格式
       first_name: dto.firstName || '', // 如果没有提供名字，使用空字符串
       last_name: dto.lastName || '', // 如果没有提供姓氏，使用空字符串
       is_active: true,
@@ -458,5 +467,67 @@ export class UserService {
    */
   async findUserByTelegramId(telegramId: number): Promise<User | null> {
     return this.userRepo.findOneBy({ telegram_id: telegramId });
+  }
+
+  /**
+   * 更新用户昵称
+   * @param userId 用户ID
+   * @param dto 更新昵称DTO
+   * @returns 更新结果
+   */
+  async updateNickname(userId: number, dto: UpdateNicknameDto): Promise<UpdateNicknameResponseDto> {
+    const user = await this.userRepo.findOneBy({ id: userId });
+    if (!user) {
+      throw new BadRequestException('用户不存在');
+    }
+
+    // 昵称可以重复，不需要唯一性检查
+    // 直接更新昵称字段
+    await this.userRepo.update(userId, { nickname: dto.nickname });
+
+    return {
+      success: true,
+      message: '昵称修改成功'
+    };
+  }
+
+  /**
+   * 更新用户密码
+   * @param userId 用户ID
+   * @param dto 更新密码DTO
+   * @returns 更新结果
+   */
+  async updatePassword(userId: number, dto: UpdatePasswordDto): Promise<UpdatePasswordResponseDto> {
+    const user = await this.userRepo.findOneBy({ id: userId });
+    if (!user) {
+      throw new BadRequestException('用户不存在');
+    }
+
+    // 检查用户是否有邮箱账号（只有邮箱用户可以修改密码）
+    if (!user.email || !user.password_hash) {
+      throw new BadRequestException('只有邮箱注册用户可以修改密码');
+    }
+
+    // 验证新密码和确认密码是否一致
+    if (dto.newPassword !== dto.confirmPassword) {
+      throw new BadRequestException('新密码和确认密码不一致');
+    }
+
+    // 验证旧密码
+    const isOldPasswordValid = await PasswordUtil.comparePassword(dto.oldPassword, user.password_hash);
+    if (!isOldPasswordValid) {
+      throw new BadRequestException('旧密码错误');
+    }
+
+    // 加密新密码
+    const newPasswordHash = await PasswordUtil.hashPassword(dto.newPassword);
+
+    // 更新密码
+    await this.userRepo.update(userId, { password_hash: newPasswordHash });
+
+    return {
+      success: true,
+      message: '密码修改成功'
+    };
   }
 }

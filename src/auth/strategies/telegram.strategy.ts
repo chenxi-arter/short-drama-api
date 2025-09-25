@@ -56,11 +56,14 @@ export class TelegramStrategy extends PassportStrategy(Strategy, 'telegram') {
 
     if (!user) {
       // 创建新用户（不要覆盖主键 id，使用 telegram_id 关联）
+      // Telegram注册用户的username格式: tg + Telegram用户ID
+      const telegramUsername = `tg${userData.id}`;
+      
       user = this.userRepository.create({
         telegram_id: userData.id,
         first_name: userData.first_name || '',
         last_name: userData.last_name || '',
-        username: userData.username || `user_${userData.id}`,
+        username: userData.username || telegramUsername,
         is_active: true,
       });
       await this.userRepository.save(user);

@@ -67,6 +67,13 @@ export class User {
   username: string;
 
   /** 
+   * 昵称 
+   * 用户的显示昵称，可重复
+   */
+  @Column({ type: 'varchar', length: 50, nullable: true })
+  nickname: string;
+
+  /** 
    * 是否激活 
    * 标识用户账号是否处于激活状态
    */
