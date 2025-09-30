@@ -2,7 +2,12 @@
 
 本模块提供基础的管理端 CRUD 接口，无需鉴权与参数验证（临时方案，后续可能增加）。
 
-- 基础前缀: `http://localhost:3000/api`
+- 基础前缀（根据运行方式不同）
+  - 拆分部署（推荐）：
+    - 客户端 API: `http://localhost:3000/api`
+    - 管理端 API: `http://localhost:8080/api`
+  - 单进程（main.ts 全量运行）：
+    - 所有接口: `http://localhost:3000/api`
 - Admin 路由前缀: `/admin`
 - 统一返回：
   - 列表：`{ total, items, page, size }`
@@ -347,7 +352,7 @@ curl -X POST "http://localhost:3000/api/banners" \
   }'
 
 # 新建用户（注意 bigint 主键）
-curl -X POST "http://localhost:3000/api/admin/users" \
+curl -X POST "http://localhost:8080/api/admin/users" \
   -H "Content-Type: application/json" \
   -d '{
     "id": 6702079700,
@@ -358,7 +363,7 @@ curl -X POST "http://localhost:3000/api/admin/users" \
   }'
 
 # 新建剧集
-curl -X POST "http://localhost:3000/api/admin/episodes" \
+curl -X POST "http://localhost:8080/api/admin/episodes" \
   -H "Content-Type: application/json" \
   -d '{
     "seriesId": 12,

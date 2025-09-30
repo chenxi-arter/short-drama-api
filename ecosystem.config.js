@@ -17,7 +17,7 @@ module.exports = {
       exec_mode: 'cluster', // cluster=负载均衡；单实例可改为 'fork'
       env: {
         NODE_ENV: 'production',
-        CLIENT_PORT: 3000 // 客户端 API 监听端口（main.client.ts 读取）
+        CLIENT_PORT: 8080 // 客户端 API 监听端口（main.client.ts 读取）
       },
       // 日志配置
       log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
@@ -36,7 +36,7 @@ module.exports = {
       exec_mode: 'cluster',
       env: {
         NODE_ENV: 'production',
-        ADMIN_PORT: 8080 // 管理端 API 监听端口（main.admin.ts 读取）
+        ADMIN_PORT: 9090 // 管理端 API 监听端口（main.admin.ts 读取）
       },
       log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
       log_file: './logs/combined.log',
