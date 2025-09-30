@@ -14,10 +14,10 @@ import { WatchProgress } from '../../video/entity/watch-progress.entity';
 import { Category } from '../../video/entity/category.entity';
 import { ShortVideo } from '../../video/entity/short-video.entity';
 
-
 /**
- * 全局实体模块
- * 统一管理所有数据库实体，避免重复注册
+ * 全局实体模块（Deprecated）
+ * 建议：各业务模块使用 `TypeOrmModule.forFeature([...])` 就地注册实体；
+ * 本模块仅为兼容历史引用保留，后续版本将逐步下线。
  */
 @Global()
 @Module({

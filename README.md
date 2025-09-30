@@ -107,11 +107,13 @@ npm install
 # 配置环境变量
 cp .env.example .env
 
-# 开发模式启动
-PORT=8080 npm run start:dev
+# 开发模式启动（拆分端口推荐）
+ADMIN_PORT=8080 npm run start:admin
+CLIENT_PORT=3000 npm run start:client
 
 # 健康检查（可选）
 curl -s http://localhost:8080/api/health | jq .
+curl -s http://localhost:3000/api/health | jq .
 
 # 一键验证 Ingest 接口（使用内置示例数据）
 node scripts/test-ingest-api.js
@@ -141,8 +143,9 @@ REDIS_HOST=localhost
 REDIS_PORT=6379
 REDIS_PASSWORD=
 
-# 应用配置
-PORT=8080
+# 应用配置（端口拆分）
+CLIENT_PORT=3000
+ADMIN_PORT=8080
 NODE_ENV=development
 APP_SECRET=your_app_secret_for_access_key
 ```

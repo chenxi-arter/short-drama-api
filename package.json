@@ -7,9 +7,13 @@
   "license": "UNLICENSED",
   "scripts": {
     "build": "nest build",
+    "build:client": "nest build && cp dist/src/main.client.js dist/client.js || true",
+    "build:admin": "nest build && cp dist/src/main.admin.js dist/admin.js || true",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",
     "start:dev": "nest start --watch",
+    "start:client": "node dist/src/main.client.js",
+    "start:admin": "node dist/src/main.admin.js",
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/main",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",

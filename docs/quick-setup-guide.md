@@ -51,9 +51,10 @@ REDIS_USERNAME=your_redis_username
 REDIS_PASSWORD=your_redis_password
 ```
 
-#### 应用配置
+#### 应用配置（端口拆分）
 ```bash
-PORT=3000
+CLIENT_PORT=3000
+ADMIN_PORT=8080
 NODE_ENV=development
 ```
 
@@ -72,7 +73,7 @@ REDIS_PORT=6379
 # 开发环境通常不需要Redis认证
 ```
 
-### 生产环境
+### 生产环境（端口示例）
 ```bash
 NODE_ENV=production
 DB_HOST=your_production_db_host
@@ -83,7 +84,8 @@ DB_LOGGING=false
 REDIS_HOST=your_production_redis_host
 REDIS_USERNAME=your_redis_username
 REDIS_PASSWORD=Drama@456
-PORT=8080
+CLIENT_PORT=3000
+ADMIN_PORT=8080
 ```
 
 ## ⚠️ 重要注意事项

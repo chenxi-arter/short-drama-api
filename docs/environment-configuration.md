@@ -57,8 +57,9 @@ REDIS_MAX=100
 ### 3. 应用配置
 
 ```bash
-# 应用端口
-PORT=3000
+# 应用端口（拆分）
+CLIENT_PORT=3000
+ADMIN_PORT=8080
 
 # JWT配置
 JWT_SECRET=your_jwt_secret_key_here
@@ -96,7 +97,8 @@ REDIS_DB=0
 # REDIS_PASSWORD=
 
 # 应用配置
-PORT=3000
+CLIENT_PORT=3000
+ADMIN_PORT=8080
 JWT_SECRET=dev_jwt_secret_key_change_in_production
 JWT_EXPIRES_IN=7d
 JWT_REFRESH_EXPIRES_IN=30d
@@ -137,7 +139,8 @@ REDIS_TTL=600
 REDIS_MAX=200
 
 # 应用配置
-PORT=8080
+CLIENT_PORT=3000
+ADMIN_PORT=8080
 JWT_SECRET=your_very_strong_production_jwt_secret
 JWT_EXPIRES_IN=1d
 JWT_REFRESH_EXPIRES_IN=7d
@@ -169,7 +172,8 @@ REDIS_DB=1
 # 测试环境使用不同的数据库
 
 # 应用配置
-PORT=3001
+CLIENT_PORT=3001
+ADMIN_PORT=38080
 JWT_SECRET=test_jwt_secret
 JWT_EXPIRES_IN=1h
 JWT_REFRESH_EXPIRES_IN=1d
@@ -322,7 +326,8 @@ metadata:
   name: short-drama-api-config
 data:
   NODE_ENV: "production"
-  PORT: "3000"
+  CLIENT_PORT: "3000"
+  ADMIN_PORT: "8080"
   DB_HOST: "mysql-service"
   DB_PORT: "3306"
   REDIS_HOST: "redis-service"

@@ -1,0 +1,56 @@
+version: '3.9'
+
+services:
+  client-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: short-drama-client-api:latest
+    container_name: short-drama-client-api
+    environment:
+      - NODE_ENV=production
+      - CLIENT_PORT=3000
+      - PORT=3000
+      - DB_TYPE=${DB_TYPE}
+      - DATABASE_HOST=${DATABASE_HOST}
+      - DATABASE_PORT=${DATABASE_PORT}
+      - DATABASE_USERNAME=${DATABASE_USERNAME}
+      - DATABASE_PASSWORD=${DATABASE_PASSWORD}
+      - DATABASE_NAME=${DATABASE_NAME}
+      - REDIS_HOST=${REDIS_HOST}
+      - REDIS_PORT=${REDIS_PORT}
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - REDIS_DB=${REDIS_DB}
+      - JWT_SECRET=${JWT_SECRET}
+    ports:
+      - "3000:3000"
+    command: ["node", "dist/src/main.client.js"]
+    restart: unless-stopped
+
+  admin-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: short-drama-admin-api:latest
+    container_name: short-drama-admin-api
+    environment:
+      - NODE_ENV=production
+      - ADMIN_PORT=8080
+      - PORT=8080
+      - DB_TYPE=${DB_TYPE}
+      - DATABASE_HOST=${DATABASE_HOST}
+      - DATABASE_PORT=${DATABASE_PORT}
+      - DATABASE_USERNAME=${DATABASE_USERNAME}
+      - DATABASE_PASSWORD=${DATABASE_PASSWORD}
+      - DATABASE_NAME=${DATABASE_NAME}
+      - REDIS_HOST=${REDIS_HOST}
+      - REDIS_PORT=${REDIS_PORT}
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - REDIS_DB=${REDIS_DB}
+      - JWT_SECRET=${JWT_SECRET}
+    ports:
+      - "8080:8080"
+    command: ["node", "dist/src/main.admin.js"]
+    restart: unless-stopped
+
+

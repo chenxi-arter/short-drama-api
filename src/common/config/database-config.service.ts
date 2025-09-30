@@ -1,5 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { TypeOrmModuleOptions } from '@nestjs/typeorm';
+/**
+ * Deprecated: 请使用 core/config/database.config.ts + core/database/database.module.ts
+ * 作为唯一的数据库配置来源。本服务暂保留以兼容旧引用，不再作为新代码依赖。
+ */
 import { AppConfigService } from './app-config.service';
 import { AppLoggerService } from '../logger/app-logger.service';
 

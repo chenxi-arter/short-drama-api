@@ -595,3 +595,66 @@ pm2 start ecosystem.config.js
 - [数据库设计文档](./database-schema-documentation.md)
 - [Redis缓存指南](./redis-cache-guide.md)
 - [健壮性实现指南](./robustness-implementation-guide.md)
+
+## 分离运行：客户端 API 与 管理端 API
+
+- 开发环境
+
+```bash
+# 启动客户端 API（默认端口 3000 或 CLIENT_PORT）
+npm run build && npm run start:client
+
+# 启动管理端 API（默认端口 8080 或 ADMIN_PORT）
+npm run build && npm run start:admin
+```
+
+- 生产环境（PM2）
+
+```bash
+# 按 ecosystem.config.js 启动两个进程
+pm2 start ecosystem.config.js
+
+# 进程名
+# short-drama-client-api  -> dist/src/main.client.js  (PORT=3000)
+# short-drama-admin-api   -> dist/src/main.admin.js   (PORT=8080)
+```
+
+### 使用 Docker 运行（两容器）
+
+```bash
+# 预置 .env（数据库、Redis、JWT、端口等）
+
+# 构建并启动（默认 3000/8080）
+docker compose up -d --build
+
+# 访问
+# 客户端 API: http://localhost:3000/api
+# 管理端 API:  http://localhost:8080/api
+
+# 查看日志
+docker compose logs -f client-api
+docker compose logs -f admin-api
+
+# 覆盖端口（示例）
+# CLIENT_PORT=3100 ADMIN_PORT=8180 docker compose up -d
+
+# 停止
+docker compose down
+```
+
+说明：
+- 端口读取优先级：Client → `CLIENT_PORT`（默认 3000）；Admin → `ADMIN_PORT`（默认 8080）。
+- `Dockerfile` 为多阶段构建，`builder` 进行编译，`runner` 仅包含生产依赖与 `dist/`。
+- `docker-compose.yml` 定义了 `client-api` 与 `admin-api` 两个服务，分别覆盖启动命令到 `dist/src/main.client.js` 与 `dist/src/main.admin.js`。
+- 如需拆分镜像仓库，可在 compose 中改用 `image:` 推送到各自 Registry。
+
+- 常用环境变量
+
+```bash
+CLIENT_PORT=3000
+ADMIN_PORT=8080
+```
+
+- 兼容性
+  - 原路由不变：客户端仍使用 `/api/...`，管理端使用 `/api/admin/...`（或各控制器内定义的前缀）
+  - 仅进程与端口拆分，保证零侵入迁移

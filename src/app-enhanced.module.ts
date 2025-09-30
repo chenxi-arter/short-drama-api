@@ -19,8 +19,9 @@ import {
 } from './common/middleware/logger.middleware';
 
 /**
- * 增强版应用模块
- * 集成了所有健壮性改进功能
+ * 增强版应用模块（Deprecated）
+ * 说明：当前项目已采用 `ClientAppModule` / `AdminAppModule` 双入口装配。
+ * 本模块仅保留以兼容历史引用，不建议在新代码中继续使用。
  */
 @Module({
   imports: [

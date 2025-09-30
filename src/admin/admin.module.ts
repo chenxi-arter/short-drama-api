@@ -14,6 +14,8 @@ import { BrowseHistory } from '../video/entity/browse-history.entity';
 
 // Controllers
 import { AdminUsersController, AdminBannersController, AdminEpisodesController } from './controllers';
+import { IngestController } from './controllers/ingest.controller';
+import { TestIngestController } from './controllers/test-ingest.controller';
 import { AdminSeriesController } from './controllers/admin-series.controller';
 import { AdminDashboardController } from './controllers/admin-dashboard.controller';
 
@@ -41,6 +43,9 @@ import { VideoModule } from '../video/video.module';
     AdminEpisodesController,
     AdminSeriesController,
     AdminDashboardController,
+    // 从 video/controllers 归并的管理端路由
+    IngestController,
+    TestIngestController,
   ],
 })
 export class AdminModule {}
