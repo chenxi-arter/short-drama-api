@@ -109,6 +109,34 @@
 
 ---
 
+### 分类管理 Categories
+
+资源路径: `/admin/categories`
+
+- 列表
+  - `GET /api/admin/categories?page=1&size=20`
+  - 响应：`{ total, items, page, size }`
+  - Category 字段：`id, categoryId, name, routeName, isEnabled, createdAt, updatedAt`
+
+- 新增
+  - `POST /api/admin/categories`
+  - 请求示例：
+```json
+{
+  "categoryId": "test-cat",
+  "name": "测试分类",
+  "routeName": "test",
+  "isEnabled": true
+}
+```
+
+- 删除
+  - `DELETE /api/admin/categories/:id`
+
+说明：`isEnabled` 支持 `true/false`、`"true"/"false"`、`1/0`、`"1"/"0"` 的输入，服务端会做归一化。
+
+---
+
 ### 系列管理 Series
 
 资源路径: `/admin/series`

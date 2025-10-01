@@ -4,6 +4,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 // Entities
 import { User } from '../user/entity/user.entity';
 import { Banner } from '../video/entity/banner.entity';
+import { Category } from '../video/entity/category.entity';
 import { Series } from '../video/entity/series.entity';
 import { Episode } from '../video/entity/episode.entity';
 import { EpisodeUrl } from '../video/entity/episode-url.entity';
@@ -14,6 +15,7 @@ import { BrowseHistory } from '../video/entity/browse-history.entity';
 
 // Controllers
 import { AdminUsersController, AdminBannersController, AdminEpisodesController } from './controllers';
+import { AdminCategoriesController } from './controllers/admin-categories.controller';
 import { IngestController } from './controllers/ingest.controller';
 import { TestIngestController } from './controllers/test-ingest.controller';
 import { AdminSeriesController } from './controllers/admin-series.controller';
@@ -35,11 +37,13 @@ import { VideoModule } from '../video/video.module';
       Comment,
       WatchProgress,
       BrowseHistory,
+      Category,
     ])
   ],
   controllers: [
     AdminUsersController,
     AdminBannersController,
+    AdminCategoriesController,
     AdminEpisodesController,
     AdminSeriesController,
     AdminDashboardController,

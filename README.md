@@ -121,6 +121,26 @@ node scripts/test-ingest-api.js
 API_BASE=http://localhost:8080/api/admin/ingest node scripts/test-ingest-api.js
 ```
 
+### Admin API 速查（分类管理）
+
+```bash
+# 列出分类（分页）
+curl -s "http://localhost:8080/api/admin/categories?page=1&size=10" | jq .
+
+# 新增分类
+curl -s -X POST "http://localhost:8080/api/admin/categories" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "categoryId": "test-cat",
+    "name": "测试分类",
+    "routeName": "test",
+    "isEnabled": true
+  }' | jq .
+
+# 删除分类（将 :id 替换为实际ID）
+curl -s -X DELETE "http://localhost:8080/api/admin/categories/:id" | jq .
+```
+
 ## 环境配置
 
 创建 `.env` 文件并配置以下参数：

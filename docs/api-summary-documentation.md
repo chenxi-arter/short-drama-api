@@ -1749,6 +1749,36 @@ curl -X DELETE "http://localhost:8080/api/cache/clear-all"
 
 ---
 
+## 管理端 分类管理（Categories）
+
+用于维护 `categories` 表，提供基础的列表/新增/删除能力。
+
+- 列表
+  - 方法：GET
+  - 路径：`/api/admin/categories?page=1&size=20`
+  - 返回：`{ total, items, page, size }`
+  - 字段：`id, categoryId, name, routeName, isEnabled, createdAt, updatedAt`
+
+- 新增
+  - 方法：POST
+  - 路径：`/api/admin/categories`
+  - 请求体（示例）：
+    ```json
+    {
+      "categoryId": "test-cat",
+      "name": "测试分类",
+      "routeName": "test",
+      "isEnabled": true
+    }
+    ```
+
+- 删除
+  - 方法：DELETE
+  - 路径：`/api/admin/categories/:id`
+  - 返回：`{ success: true }`
+
+备注：`isEnabled` 支持 true/false、"true"/"false"、1/0、"1"/"0" 的输入，服务端会做归一化。
+
 ## 📞 技术支持
 
 如有接口使用问题，请联系开发团队或查看项目文档。
