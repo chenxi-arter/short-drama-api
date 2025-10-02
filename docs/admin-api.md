@@ -16,6 +16,38 @@
 
 ---
 
+### 关于环境不允许 PUT/DELETE 的兼容说明
+
+部分前端运行环境或中间层会拦截或屏蔽 `PUT/DELETE` 方法，导致无法直接调用管理端的更新、删除接口。为兼容这类场景，服务端已在管理端入口启用“方法覆盖（method override）”能力：
+
+- 支持使用 `POST` 发起请求，并通过以下任一方式声明真实意图：
+  - 请求头：`X-HTTP-Method-Override: PUT`（或 `DELETE`/`PATCH`）
+  - 查询参数：`?_method=PUT`（或 `DELETE`/`PATCH`）
+
+示例：
+
+```bash
+# 用 POST 替代原本的 PUT /api/admin/categories/:id
+curl -X POST "http://localhost:8080/api/admin/categories/123" \
+  -H "Content-Type: application/json" \
+  -H "X-HTTP-Method-Override: PUT" \
+  -d '{ "name": "新名称" }'
+
+# 用 POST + 查询参数替代原本的 DELETE /api/admin/categories/:id
+curl -X POST "http://localhost:8080/api/admin/categories/123?_method=DELETE"
+```
+
+同时，服务端已开启 CORS，允许以下特性以满足浏览器预检：
+
+- 回显来源（`origin: true`），允许携带凭据（`credentials: true`）
+- 允许方法：`GET, HEAD, PUT, PATCH, POST, DELETE, OPTIONS`
+- 允许请求头：`Content-Type, Authorization, Accept, X-Requested-With, X-HTTP-Method-Override`
+- 预检成功码：`204`
+
+前端如果仍遇到仅能 `GET` 的情况，请在浏览器控制台检查预检请求是否成功，以及响应头是否包含上述允许的字段。
+
+---
+
 ### 用户管理 Users
 
 资源路径: `/admin/users`
