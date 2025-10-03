@@ -23,10 +23,12 @@ import { AdminDashboardController } from './controllers/admin-dashboard.controll
 
 // Modules
 import { VideoModule } from '../video/video.module';
+import { CoreModule } from '../core/core.module';
 
 @Module({
   imports: [
     VideoModule,
+    CoreModule,
     TypeOrmModule.forFeature([
       User,
       Banner,

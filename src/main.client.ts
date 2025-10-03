@@ -6,11 +6,27 @@ import { BadRequestException, ValidationPipe } from '@nestjs/common';
 import { ValidationError } from 'class-validator';
 import { ClientAppModule } from './app.client.module';
 import { DateUtil } from './common/utils/date.util';
+import { Request, Response, NextFunction } from 'express';
 
 async function bootstrap() {
   const app = await NestFactory.create(ClientAppModule);
 
   app.setGlobalPrefix('api');
+
+  // 兼容环境不允许 PUT/DELETE 的情况：
+  // 允许通过 POST + X-HTTP-Method-Override 或 _method=? 模拟 PUT/DELETE/PATCH
+  app.use((req: Request, _res: Response, next: NextFunction) => {
+    const headerOverride = req.header('x-http-method-override');
+    const queryOverride = typeof req.query._method === 'string' ? req.query._method : undefined;
+    const override = headerOverride || queryOverride;
+    if (override) {
+      const upper = override.toUpperCase();
+      if (upper === 'PUT' || upper === 'DELETE' || upper === 'PATCH') {
+        req.method = upper;
+      }
+    }
+    next();
+  });
 
   app.useGlobalPipes(new ValidationPipe({
     transform: true,
@@ -27,9 +43,11 @@ async function bootstrap() {
   }));
 
   app.enableCors({
-    origin: '*',
-    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+    origin: true,
+    methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
     credentials: true,
+    allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'X-Requested-With', 'X-HTTP-Method-Override'],
+    optionsSuccessStatus: 204,
   });
 
   const appTimezone = process.env.APP_TIMEZONE || process.env.DB_TIMEZONE || 'Asia/Shanghai';

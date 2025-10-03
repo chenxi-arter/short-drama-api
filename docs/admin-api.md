@@ -139,7 +139,72 @@ curl -X POST "http://localhost:8080/api/admin/categories/123?_method=DELETE"
   - `GET /api/banners/:id/stats?from=YYYY-MM-DD&to=YYYY-MM-DD`
   - 示例：`[{ "date": "2025-09-01", "impressions": 2300, "clicks": 80 }]`
 
+#### 用途区分：广告位 vs 剧集轮播
+
+- 广告位（Ad Banner）
+  - 关键字段：`isAd=true`
+  - 建议：`title,imageUrl,linkUrl,isActive,weight,categoryId`；可选 `startTime,endTime,impressions,clicks`
+  - 通常不需要 `seriesId`
+  - 示例（创建）：
+```bash
+curl -X POST "http://localhost:8080/api/admin/banners" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "title": "首页顶部广告",
+    "imageUrl": "https://static.656932.com/banners/ad_top.jpg",
+    "linkUrl": "https://example.com/promo",
+    "isAd": true,
+    "isActive": true,
+    "weight": 100,
+    "categoryId": 1
+  }'
+```
+
+- 剧集轮播（Series Banner）
+  - 关键字段：`isAd=false`、`seriesId`（必填）
+  - 建议：`title,imageUrl,seriesId,isActive,weight,categoryId`；可选 `linkUrl`
+  - 示例（创建）：
+```bash
+curl -X POST "http://localhost:8080/api/admin/banners" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "title": "热播 · 朱雀堂",
+    "imageUrl": "https://static.656932.com/banners/series_zhuquetang.jpg",
+    "seriesId": 2455,
+    "isAd": false,
+    "isActive": true,
+    "weight": 200,
+    "categoryId": 1
+  }'
+```
+
+#### 图片上传并更新（直接绑定到某个 Banner）
+
+- 直传文件（multipart/form-data）
+  - `POST /api/admin/banners/:id/image`
+  - 表单字段：`file`（图片文件）
+  - 说明：服务端将图片存入 R2，并把生成的 URL（或 key）写回该 Banner 的 `imageUrl` 字段
+  - cURL 示例：
+```bash
+curl -X POST "http://localhost:8080/api/admin/banners/123/image" \
+  -H "Accept: application/json" \
+  -F "file=@/path/to/banner.jpg"
+```
+
+- 通过 URL 抓取并更新图片
+  - `POST /api/admin/banners/:id/image-from-url`
+  - Body：`{ "url": "https://example.com/image.jpg" }`
+  - 说明：后端从该 URL 抓取图片，上传到 R2，并更新 `imageUrl`
+  - cURL 示例：
+```bash
+curl -X POST "http://localhost:8080/api/admin/banners/123/image-from-url" \
+  -H "Content-Type: application/json" \
+  -d '{ "url": "https://example.com/image.jpg" }'
+```
+
 ---
+
+<!-- 已移除通用上传接口，改为仅保留按 Banner 绑定的上传接口（见上文“图片上传并更新”） -->
 
 ### 分类管理 Categories
 

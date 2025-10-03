@@ -11,7 +11,6 @@
 
 ---
 
-## ⚠️ 🚨 前端对接更新提醒
 
 ### 🎯 重要更新内容（2025-09-12）
 
@@ -71,9 +70,9 @@
 - 所有接口返回的数据结构更加完整和一致
 
 #### **6. 新增交互功能**
-- 新增剧集交互接口：`POST /api/video/episode/:id/reaction`
-- 支持三种交互类型：点赞(`like`)、不喜欢(`dislike`)、收藏(`favorite`)
-- 交互计数会实时反映在 `likeCount`、`dislikeCount`、`favoriteCount` 字段中
+- 新增统一交互接口：`POST /api/video/episode/activity`
+- 参数 `type` 支持：`play` | `like` | `dislike` | `favorite`
+- 使用 `shortId` 指定剧集；计数实时反映在 `playCount`、`likeCount`、`dislikeCount`、`favoriteCount`
 
 #### **7. 新增认证和账号绑定功能**
 - 新增邮箱注册接口：`POST /api/auth/register`
@@ -656,6 +655,41 @@ interface ContentBlock {
 }
 ```
 
+
+
+返回字段说明（HomeResponse）：
+- `code` number：业务状态码（200 表示成功）
+- `data.list` ContentBlock[]：首页模块数组（按顺序渲染）
+
+字段说明（ContentBlock）：
+- `type` number：模块类型
+  - 0：轮播图模块（banners 有值）
+  - 1001：搜索过滤器模块（filters 有值）
+  - -1：广告模块（banners 或自定义广告数据）
+  - 3：视频列表模块（list 有值）
+- `name` string：模块标题（如“热门推荐”）
+- `banners` Banner[]：轮播数据（结构同“获取活跃轮播图”的 BannerItem）
+- `filters` Filter[]：筛选器数据（用于前端构建筛选 UI）
+- `list` VideoItem[]：视频卡片列表（用于网格/横滑渲染）
+
+字段说明（VideoItem 主要字段）：
+- `id` number：系列 ID
+- `shortId` string：系列 ShortID（用于前端路由/分享）
+- `coverUrl` string：封面 URL
+- `title` string：标题
+- `score` string：评分字符串（如 "9.2"）
+- `playCount` number：系列累计播放量
+- `url` string：访问用 URL/ID（通常为系列 ID 字符串，便于兼容旧前端逻辑）
+- `type` string：内容类型文本（例如“短剧”）
+- `isSerial` boolean：是否为系列内容（true=系列）
+- `upStatus` string：更新状态文案（示例“更新至第15集”/“已完结”）
+- `upCount` number：当天新增集数（用于角标）
+- `isRecommend` boolean：是否推荐（用于角标/排序）
+- `createdAt` string：创建时间（ISO）
+- `cidMapper` string：分类/频道映射 ID（用于埋点/分组）
+- `author` string：主演/主创
+- `description` string：简介
+
 #### **获取筛选标签**
 ```typescript
 // 接口地址
@@ -917,7 +951,7 @@ interface SeriesInfo {
   playCount: number;       // 播放次数
   isHot: boolean;          // 是否热门
   isVip: boolean;          // 是否VIP
-  tags?: string[];         // 系列标签（题材/地区/语言/年份/状态）
+  tags?: string[];         // 系列题材标签（最多 5 个）
 }
 
 interface UserProgress {
@@ -1050,6 +1084,22 @@ interface ProgressResponse {
 
 ### 6. 评论互动流程
 
+#### 剧集交互（播放/点赞/不喜欢/收藏）
+- 接口：`POST /api/video/episode/activity`
+- Headers：`Authorization: Bearer <access_token>`（可选）
+- 请求体：
+  - `shortId` string（必填）：剧集 ShortID
+  - `type` 'play' | 'like' | 'dislike' | 'favorite'（必填）
+- 返回（data）：
+  - `episodeId` number
+  - `shortId` string
+  - `type` string（同入参）
+- 说明：
+  - `play` → 自增该集 `playCount`
+  - `like` → 自增该集 `likeCount`
+  - `dislike` → 自增该集 `dislikeCount`
+  - `favorite` → 自增该集 `favoriteCount`
+
 #### **发表评论**
 ```typescript
 // 接口地址
@@ -1065,85 +1115,21 @@ interface CommentRequest {
 ```
 
 <a id="剧集交互"></a>
-#### **剧集交互（点赞/不喜欢/收藏）**
-```typescript
-// 接口地址
-POST /api/video/episode/:id/reaction
-Headers: Authorization: Bearer <access_token>
-
-// 请求参数
-interface EpisodeReactionRequest {
-  type: 'like' | 'dislike' | 'favorite';  // 交互类型
-}
-
-// 响应格式
-interface EpisodeReactionResponse {
-  code: number;
-  data: {
-    id: number;      // 剧集ID
-    type: string;    // 交互类型
-  };
-  message: string;
-  success: boolean;
-}
-
-// TypeScript 类型定义（建议添加到项目中）
-export type EpisodeReactionType = 'like' | 'dislike' | 'favorite';
-
-export interface EpisodeReactionRequest {
-  type: EpisodeReactionType;
-}
-
-export interface EpisodeReactionResponse {
-  code: number;
-  data: {
-    id: number;
-    type: EpisodeReactionType;
-  };
-  message: string;
-  success: boolean;
-}
-```
-
-##### 交互类型说明
-- **`like`**: 点赞剧集，会增加剧集的 `likeCount`
-- **`dislike`**: 不喜欢剧集，会增加剧集的 `dislikeCount`
-- **`favorite`**: 收藏剧集，会增加剧集的 `favoriteCount`
-
-##### 使用示例
-```typescript
-// 点赞剧集
-const likeEpisode = async (episodeId: number) => {
-  const response = await fetch(`/api/video/episode/${episodeId}/reaction`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${accessToken}`
-    },
-    body: JSON.stringify({
-      type: 'like'
-    })
-  });
-  const result = await response.json();
-  return result;
-};
-
-// 收藏剧集
-const favoriteEpisode = async (episodeId: number) => {
-  const response = await fetch(`/api/video/episode/${episodeId}/reaction`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${accessToken}`
-    },
-    body: JSON.stringify({
-      type: 'favorite'
-    })
-  });
-  const result = await response.json();
-  return result;
-};
-```
+#### 剧集交互（播放/点赞/不喜欢/收藏）
+- 接口：`POST /api/video/episode/activity`
+- Headers：`Authorization: Bearer <access_token>`（可选）
+- 请求体：
+  - `shortId` string（必填）：剧集 ShortID
+  - `type` 'play' | 'like' | 'dislike' | 'favorite'（必填）
+- 返回（data）：
+  - `episodeId` number
+  - `shortId` string
+  - `type` string（同入参）
+- 说明：
+  - `play` → 自增该集 `playCount`
+  - `like` → 自增该集 `likeCount`
+  - `dislike` → 自增该集 `dislikeCount`
+  - `favorite` → 自增该集 `favoriteCount`
 
 ##### curl 示例
 ```bash
@@ -2485,3 +2471,55 @@ function handleLoginSuccess(response: LoginResponse) {
 **最后更新**: 2025年9月12日
 **维护团队**: 短剧系统开发团队
 
+
+---
+
+## 📘 前端接口速查（仅参数与返回）
+
+### 1) 获取剧集列表
+- 接口（需要认证，返回用户进度）：`GET /api/video/episodes`
+- 接口（公开）：`GET /api/public/video/episodes`
+- Query 参数：
+  - `seriesShortId` string（二选一）：系列 ShortID
+  - `seriesId` string（二选一）：系列 ID（兼容）
+  - `page` number：页码，默认 1
+  - `size` number：每页数量，默认 20，最大 200（超出按 200 处理）
+- 返回 data：
+  - `seriesInfo` SeriesInfo
+  - `userProgress?` UserProgress（仅认证时返回）
+  - `list` EpisodeItem[]（每项含 `likeCount`/`dislikeCount`/`favoriteCount`、`episodeAccessKey`、`urls[]`）
+  - `total` number，`page` number，`size` number，`hasMore` boolean，`currentEpisode` string
+
+主要字段说明：
+- EpisodeItem.urls[]：`{ quality, accessKey, cdnUrl?, ossUrl?, subtitleUrl? }`
+- EpisodeItem.episodeAccessKey：用于按“剧集级”获取整集所有地址
+
+### 2) 获取播放地址
+- 接口：`POST /api/video/url/query`
+- Body：
+  - `type` 'episode' | 'url'：accessKey 类型（剧集级或地址级）
+  - `accessKey` string：对应类型的 accessKey
+- 返回 data：
+  - `episodeId` number，`episodeShortId` string，`episodeTitle` string
+  - `seriesId?` number，`seriesShortId?` string
+  - `urls`：`{ id, quality, cdnUrl, ossUrl, subtitleUrl?, accessKey, createdAt, updatedAt }[]`
+  - `accessKeySource` 'episode' | 'url'
+
+### 3) 剧集交互（播放/点赞/不喜欢/收藏）
+- 接口：`POST /api/video/episode/activity`
+- Body：
+  - `shortId` string（必填）：剧集 ShortID
+  - `type` 'play' | 'like' | 'dislike' | 'favorite'（必填）
+- 返回 data：`{ episodeId, shortId, type }`
+
+交互含义：
+- `play` → 自增 `playCount`
+- `like` → 自增 `likeCount`
+- `dislike` → 自增 `dislikeCount`
+- `favorite` → 自增 `favoriteCount`
+
+### 4) 其他说明
+- `size` 上限为 200，建议分页拉取并根据 `hasMore` 判断是否继续加载
+- accessKey 获取：
+  - 剧集级：`/api/video(或/public/video)/episodes` 的 `data.list[i].episodeAccessKey`
+  - 地址级：同接口 `data.list[i].urls[j].accessKey`

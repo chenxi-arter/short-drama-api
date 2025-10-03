@@ -49,7 +49,7 @@ export class ContentController extends BaseController {
   @Get('episodes')
   async getEpisodeList(@Query() dto: EpisodeListDto, @Req() req) {
     try {
-      const { page, size } = this.normalizePagination(dto.page, dto.size, 50);
+      const { page, size } = this.normalizePagination(dto.page, dto.size, 200);
 
       // 优先使用shortId，如果没有则使用ID
       if (dto.seriesShortId) {
