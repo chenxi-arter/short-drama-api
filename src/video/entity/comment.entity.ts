@@ -5,7 +5,6 @@
  */
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, CreateDateColumn, JoinColumn } from 'typeorm';
 import { User } from '../../user/entity/user.entity';
-import { Episode } from './episode.entity';
 
 @Entity('comments')
 export class Comment {
@@ -24,11 +23,48 @@ export class Comment {
   userId: number;
 
   /** 
-   * 评论所属的剧集ID 
-   * 外键，关联到episodes表的id字段
+   * 评论所属的剧集 ShortID
+   * 使用 ShortID 避免剧集删除后评论对应关系错误
    */
-  @Column({ name: 'episode_id' })
-  episodeId: number;
+  @Column({ name: 'episode_short_id', type: 'varchar', length: 20 })
+  episodeShortId: string;
+
+  /** 
+   * 父评论ID（盖楼功能）
+   * null: 主楼评论
+   * 非null: 回复某条评论
+   */
+  @Column({ name: 'parent_id', type: 'int', nullable: true })
+  parentId?: number;
+
+  /** 
+   * 根评论ID（主楼ID）
+   * null: 自己是主楼
+   * 非null: 属于某个主楼的回复
+   */
+  @Column({ name: 'root_id', type: 'int', nullable: true })
+  rootId?: number;
+
+  /** 
+   * 回复目标用户ID
+   * 用于@提醒功能
+   */
+  @Column({ name: 'reply_to_user_id', type: 'bigint', nullable: true })
+  replyToUserId?: number;
+
+  /** 
+   * 楼层号
+   * 同一主楼下的序号，主楼为0
+   */
+  @Column({ name: 'floor_number', type: 'int', default: 0 })
+  floorNumber: number;
+
+  /** 
+   * 回复数量
+   * 仅主楼统计，子回复为0
+   */
+  @Column({ name: 'reply_count', type: 'int', default: 0 })
+  replyCount: number;
 
   /** 
    * 评论/弹幕文字内容 
@@ -58,12 +94,4 @@ export class Comment {
   @ManyToOne(() => User, u => u.comments)
   @JoinColumn({ name: 'user_id' })
   user: User;
-
-  /** 
-   * 多对一关系：所属剧集 
-   * 关联到评论所属的剧集
-   */
-  @ManyToOne(() => Episode, ep => ep.comments)
-  @JoinColumn({ name: 'episode_id' })
-  episode: Episode;
 }

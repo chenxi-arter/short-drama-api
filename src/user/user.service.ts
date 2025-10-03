@@ -1,7 +1,6 @@
 import { Injectable, UnauthorizedException, ConflictException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { JwtService } from '@nestjs/jwt';
 import { User } from './entity/user.entity';
 import { TelegramUserDto, LoginType } from './dto/telegram-user.dto';
 import { RegisterDto, RegisterResponseDto } from './dto/register.dto';
@@ -43,7 +42,6 @@ interface TokensOnly {
 export class UserService {
   constructor(
     @InjectRepository(User) private readonly userRepo: Repository<User>,
-    private readonly jwtService: JwtService,
     private readonly authService: AuthService,
     private readonly telegramAuthService: TelegramAuthService,
   ) {}

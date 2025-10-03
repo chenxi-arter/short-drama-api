@@ -22,6 +22,8 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     if (!payload?.sub) {
       throw new UnauthorizedException('登录信息无效或已过期');
     }
-    return { userId: payload.sub };
+    // 将 sub 从字符串转为数字（兼容之前的 snowflake ID 字符串格式）
+    const userId = typeof payload.sub === 'string' ? parseInt(payload.sub, 10) : payload.sub;
+    return { userId };
   }
 }

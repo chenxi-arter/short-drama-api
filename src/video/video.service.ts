@@ -195,11 +195,11 @@ export class VideoService {
   
   async addComment(
     userId: number,
-    episodeId: number,
+    episodeShortId: string,
     content: string,
     appearSecond?: number
   ) {
-    return this.commentService.addComment(userId, episodeId, content, appearSecond);
+    return this.commentService.addComment(userId, episodeShortId, content, appearSecond);
   }
 
   // ==================== 系列管理方法 ====================

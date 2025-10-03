@@ -30,6 +30,6 @@ import { UserModule } from '../user/user.module';
   ],
   controllers: [AuthController],
   providers: [JwtStrategy, TelegramStrategy, AuthService, TelegramAuthService],
-  exports: [PassportModule, AuthService, TelegramAuthService],
+  exports: [PassportModule, JwtModule, AuthService, TelegramAuthService],
 })
 export class AuthModule {}

@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { VideoController } from '../video.controller';
 import { PublicVideoController } from '../public-video.controller';
@@ -13,6 +13,7 @@ import { CommentController } from '../controllers/comment.controller';
 import { UrlController } from '../controllers/url.controller';
 import { ContentController } from '../controllers/content.controller';
 import { InteractionController } from '../controllers/interaction.controller';
+import { CommentsController } from '../controllers/comments.controller';
 import { CompatBrowseHistoryController } from '../controllers/compat-browse-history.controller';
 import { VideoService } from '../video.service';
 import { CommentService } from '../services/comment.service';
@@ -60,7 +61,8 @@ import { SeriesGenreOption } from '../entity/series-genre-option.entity';
     TypeOrmModule.forFeature([
       Series, Episode, EpisodeUrl, Comment, WatchProgress, Category, ShortVideo, Banner, FilterType, FilterOption,
       SeriesGenreOption
-    ])
+    ]),
+    forwardRef(() => import('../../user/user.module').then(m => m.UserModule)),
   ],
   controllers: [
     // 原始控制器（保持兼容）
@@ -80,6 +82,7 @@ import { SeriesGenreOption } from '../entity/series-genre-option.entity';
     ContentController,
     // PublicBrowseHistoryController,
     InteractionController,
+    CommentsController,
   ],
   providers: [
     VideoService,

@@ -92,11 +92,11 @@ export class Episode {
   watchProgresses: WatchProgress[];
 
   /** 
-   * 一对多关系：该集的所有评论/弹幕 
-   * 一个剧集可以有多条评论或弹幕
+   * 注意：评论现在通过 episodeShortId 关联，不再使用 TypeORM 关系
+   * 需要通过 CommentService.getCommentsByEpisodeShortId(episode.shortId) 查询
    */
-  @OneToMany(() => Comment, c => c.episode)
-  comments: Comment[];
+  // @OneToMany(() => Comment, c => c.episode)
+  // comments: Comment[];
   /** 
    * 播放次数
    * 记录剧集的播放次数，默认为0

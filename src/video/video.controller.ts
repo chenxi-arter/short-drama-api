@@ -134,27 +134,22 @@ export class VideoController extends BaseController {
         episodeIdentifier.length === 11 &&
         !/^\d+$/.test(episodeIdentifier);
 
-      if (isShortId) {
-        const episode = await this.videoService.getEpisodeByShortId(episodeIdentifier);
-        if (!episode) {
-          return this.error('剧集不存在', 404);
-        }
-        const result = await this.videoService.addComment(
-          req.user.userId,
-          episode.id,
-          content.trim(),
-          appearSecond
-        );
-        return this.success(result, '评论发表成功');
-      } else {
-        const result = await this.videoService.addComment(
-          req.user.userId,
-          Number(episodeIdentifier),
-          content.trim(),
-          appearSecond
-        );
-        return this.success(result, '评论发表成功');
+      // 获取episode并验证存在性
+      const episode = await this.videoService.getEpisodeByShortId(
+        isShortId ? episodeIdentifier : String(episodeIdentifier)
+      );
+      if (!episode) {
+        return this.error('剧集不存在', 404);
       }
+
+      // 使用 shortId 存储评论
+      const result = await this.videoService.addComment(
+        req.user.userId,
+        episode.shortId,
+        content.trim(),
+        appearSecond
+      );
+      return this.success(result, '评论发表成功');
     } catch (error) {
       return this.handleServiceError(error, '发表评论失败');
     }

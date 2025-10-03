@@ -74,7 +74,14 @@
 - 参数 `type` 支持：`play` | `like` | `dislike` | `favorite`
 - 使用 `shortId` 指定剧集；计数实时反映在 `playCount`、`likeCount`、`dislikeCount`、`favoriteCount`
 
-#### **7. 新增认证和账号绑定功能**
+#### **7. 新增收藏管理功能**
+- 收藏接口：`POST /api/video/episode/activity`（type: 'favorite'）
+- 收藏列表：`GET /api/user/favorites`（按系列聚合显示）
+- 取消收藏：`POST /api/user/favorites/remove`
+- 收藏统计：`GET /api/user/favorites/stats`
+- 特色功能：支持按系列聚合，显示 `upCount` 更新角标
+
+#### **8. 新增认证和账号绑定功能**
 - 新增邮箱注册接口：`POST /api/auth/register`
 - 新增邮箱登录接口：`POST /api/auth/email-login`
 - 新增Telegram WebApp登录：`POST /api/auth/telegram/webapp-login`
@@ -82,12 +89,13 @@
 - 新增账号绑定功能：`POST /api/user/bind-telegram` 和 `POST /api/user/bind-email`
 - 支持邮箱和Telegram双登录方式，用户信息完全共享
 
-#### **8. 文档导航**
+#### **9. 文档导航**
 - 📖 [VideoItem 接口定义](#videoitem)
 - 📖 [SeriesInfo 接口定义](#seriesinfo)
 - 📖 [EpisodeItem 接口定义](#episodeitem)
 - 📖 [筛选参数说明](#筛选参数)
 - 📖 [剧集交互接口](#剧集交互)
+- 📖 [收藏管理功能](#7-收藏管理流程)
 
 ### 🔄 迁移指南
 
@@ -1100,74 +1108,763 @@ interface ProgressResponse {
   - `dislike` → 自增该集 `dislikeCount`
   - `favorite` → 自增该集 `favoriteCount`
 
-#### **发表评论**
-```typescript
-// 接口地址
-POST /api/video/comment
-Headers: Authorization: Bearer <access_token>
+---
 
-// 请求参数
-interface CommentRequest {
-  episodeIdentifier: string;  // 剧集ShortID或ID
-  content: string;            // 评论内容
-  appearSecond?: number;      // 弹幕出现时间（秒）
+#### **评论盖楼功能（完整版）**
+
+评论系统支持多级嵌套回复（楼中楼），类似微信朋友圈或知乎的回复机制。
+
+##### **1. 发表主楼评论**
+
+**接口**: `POST /api/video/episode/comment`
+
+**Headers**: 
+```
+Authorization: Bearer <access_token>
+```
+
+**Request Body**:
+```typescript
+{
+  shortId: string;    // 剧集 ShortID（必填）
+  content: string;    // 评论内容（≤500字）
 }
 ```
 
-<a id="剧集交互"></a>
-#### 剧集交互（播放/点赞/不喜欢/收藏）
-- 接口：`POST /api/video/episode/activity`
-- Headers：`Authorization: Bearer <access_token>`（可选）
-- 请求体：
-  - `shortId` string（必填）：剧集 ShortID
-  - `type` 'play' | 'like' | 'dislike' | 'favorite'（必填）
-- 返回（data）：
-  - `episodeId` number
-  - `shortId` string
-  - `type` string（同入参）
-- 说明：
-  - `play` → 自增该集 `playCount`
-  - `like` → 自增该集 `likeCount`
-  - `dislike` → 自增该集 `dislikeCount`
-  - `favorite` → 自增该集 `favoriteCount`
-
-##### curl 示例
-```bash
-# 点赞剧集ID为123的剧集
-curl -X POST "http://localhost:8080/api/video/episode/123/reaction" \
-  -H "Authorization: Bearer <access_token>" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "type": "like"
-  }'
-
-# 收藏剧集
-curl -X POST "http://localhost:8080/api/video/episode/123/reaction" \
-  -H "Authorization: Bearer <access_token>" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "type": "favorite"
-  }'
-
-# 标记不喜欢
-curl -X POST "http://localhost:8080/api/video/episode/123/reaction" \
-  -H "Authorization: Bearer <access_token>" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "type": "dislike"
-  }'
+**Response**:
+```typescript
+{
+  code: 200,
+  message: "评论发表成功",
+  data: {
+    id: number;           // 评论ID
+    content: string;      // 评论内容
+    createdAt: string;    // 创建时间
+  }
+}
 ```
 
-##### 注意事项
-- **需要认证**: 必须在请求头中携带有效的 `Authorization: Bearer <access_token>`
-- **单向操作**: 目前只支持增加计数，不支持取消操作
-- **实时更新**: 操作后会立即更新剧集的对应计数器
-- **数据统计**: 这些计数会反映在系列列表和剧集列表中
-- **并发安全**: 系统会处理并发请求，确保计数准确性
+**说明**: 主楼评论的 `parentId` 和 `rootId` 为 `null`，`floorNumber` 为 `0`。
 
 ---
 
-### 7. 个人中心流程
+##### **2. 回复评论（盖楼）**🆕
+
+**接口**: `POST /api/video/episode/comment/reply`
+
+**Headers**: 
+```
+Authorization: Bearer <access_token>
+```
+
+**Request Body**:
+```typescript
+{
+  episodeShortId: string;  // 剧集 ShortID（必填）
+  parentId: number;        // 要回复的评论ID（必填）
+  content: string;         // 回复内容（≤500字）
+}
+```
+
+**Response**:
+```typescript
+{
+  code: 200,
+  message: "回复成功",
+  data: {
+    id: number;                    // 回复ID
+    parentId: number;              // 父评论ID（回复谁）
+    rootId: number;                // 主楼ID
+    floorNumber: number;           // 楼层号（1, 2, 3...）
+    content: string;               // 回复内容
+    createdAt: string;             // 创建时间
+    username: string | null;       // 回复者用户名
+    nickname: string | null;       // 回复者昵称
+    photoUrl: string | null;       // 回复者头像
+    replyToUsername: string | null; // 被回复者用户名
+    replyToNickname: string | null; // 被回复者昵称
+  }
+}
+```
+
+**说明**: 
+- 可以回复主楼（`parentId` = 主楼ID）
+- 可以回复某条回复（`parentId` = 回复ID），实现多级嵌套
+- `rootId` 自动继承，所有回复都属于同一个主楼
+- `floorNumber` 自动递增，同一主楼下的回复按发表顺序编号
+
+---
+
+##### **3. 获取主楼评论列表（带回复预览）**⬆️
+
+**接口**: `GET /api/video/comments?episodeShortId=xxx&page=1&size=20`
+
+**Query Parameters**:
+```typescript
+{
+  episodeShortId: string;  // 剧集 ShortID（必填）
+  page?: number;           // 页码（默认1）
+  size?: number;           // 每页数量（默认20）
+}
+```
+
+**Response**:
+```typescript
+{
+  code: 200,
+  message: "获取评论成功",
+  data: {
+    comments: [
+      {
+        id: number;                // 主楼ID
+        content: string;           // 主楼内容
+        appearSecond: number;      // 弹幕时间（普通评论为0）
+        replyCount: number;        // 回复数量
+        createdAt: string;         // 创建时间
+        username: string | null;   // 评论者用户名
+        nickname: string | null;   // 评论者昵称
+        photoUrl: string | null;   // 评论者头像
+        recentReplies: [           // 最新2条回复预览
+          {
+            id: number;            // 回复ID
+            content: string;       // 回复内容
+            floorNumber: number;   // 楼层号
+            createdAt: string;     // 回复时间
+            username: string | null;
+            nickname: string | null;
+          }
+        ]
+      }
+    ],
+    total: number;        // 主楼评论总数
+    page: number;
+    size: number;
+    totalPages: number;
+  }
+}
+```
+
+**说明**: 
+- 只返回主楼评论（`rootId` 为 `null`）
+- 每条主楼附带 `replyCount` 和最新 2 条 `recentReplies`
+- 点击"查看更多回复"时调用下一个接口
+
+---
+
+##### **4. 获取某条评论的所有回复**🆕
+
+**接口**: `GET /api/video/episode/comments/:commentId/replies?page=1&size=20`
+
+**Path Parameters**:
+```typescript
+{
+  commentId: number;  // 主楼评论ID
+}
+```
+
+**Query Parameters**:
+```typescript
+{
+  page?: number;   // 页码（默认1）
+  size?: number;   // 每页数量（默认20）
+}
+```
+
+**Response**:
+```typescript
+{
+  code: 200,
+  message: "获取成功",
+  data: {
+    rootComment: {               // 主楼信息
+      id: number;
+      content: string;
+      username: string | null;
+      nickname: string | null;
+      photoUrl: string | null;
+      replyCount: number;        // 总回复数
+      createdAt: string;
+    },
+    replies: [                   // 回复列表（按楼层号升序）
+      {
+        id: number;              // 回复ID
+        parentId: number;        // 父评论ID
+        floorNumber: number;     // 楼层号（1, 2, 3...）
+        content: string;         // 回复内容
+        createdAt: string;       // 回复时间
+        username: string | null;
+        nickname: string | null;
+        photoUrl: string | null;
+      }
+    ],
+    total: number;               // 回复总数
+    page: number;
+    size: number;
+    totalPages: number;
+  }
+}
+```
+
+**说明**: 
+- 返回主楼的所有回复，按 `floorNumber` 升序排列
+- 包括回复的回复（多级嵌套）
+- 通过 `parentId` 可以判断回复关系
+
+---
+
+##### **5. 评论层级关系说明**
+
+```
+主楼 (id=1, parentId=null, rootId=null, floor=0, replyCount=4)
+  ├─ 1楼 (id=2, parentId=1, rootId=1, floor=1)
+  ├─ 2楼 (id=3, parentId=1, rootId=1, floor=2)
+  ├─ 3楼 (id=4, parentId=1, rootId=1, floor=3)
+  └─ 4楼 (id=5, parentId=2, rootId=1, floor=4)  ← 这是回复1楼的
+```
+
+**字段关系**:
+- `parentId`: 直接回复的评论ID
+  - `null` → 这是主楼
+  - `1` → 回复主楼
+  - `2` → 回复1楼
+- `rootId`: 所属主楼ID
+  - `null` → 自己是主楼
+  - `1` → 属于ID为1的主楼
+- `floorNumber`: 楼层号
+  - `0` → 主楼
+  - `1, 2, 3...` → 回复楼层（按发表顺序）
+- `replyCount`: 回复数量
+  - 仅主楼统计
+  - 包含所有层级的回复
+
+---
+
+##### **6. 前端展示建议**
+
+**方案A: 朋友圈式（推荐）**
+
+```
+┌──────────────────────────────────┐
+│ 👤 张三  2小时前                │
+│ 这部剧太好看了！                 │
+│ ❤️ 12  💬 3条回复              │
+│                                  │
+│ [展开回复]                       │
+└──────────────────────────────────┘
+
+点击后：
+┌──────────────────────────────────┐
+│ 👤 张三  2小时前                │
+│ 这部剧太好看了！                 │
+│ ❤️ 12  💬 3条回复              │
+│                                  │
+│ ┌────────────────────────────┐ │
+│ │ 👤 李四 #1楼               │ │
+│ │ 同意！                     │ │
+│ │ [回复]                     │ │
+│ └────────────────────────────┘ │
+└──────────────────────────────────┘
+```
+
+**方案B: 知乎式（支持多级缩进）**
+
+```
+主楼：这部剧太好看了！
+  ├─ #1楼 李四：同意！
+  │   └─ #4楼 王五 回复 李四：+1
+  ├─ #2楼 赵六：我也觉得
+  └─ #3楼 孙七：确实不错
+```
+
+---
+
+##### **7. 完整使用示例**
+
+```typescript
+// 1. 用户发表主楼评论
+const mainComment = await fetch('/api/video/episode/comment', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${token}`,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    shortId: '6JswefD4QXK',
+    content: '这部剧太好看了！'
+  })
+}).then(r => r.json());
+
+const mainCommentId = mainComment.data.id;
+
+// 2. 用户回复主楼
+await fetch('/api/video/episode/comment/reply', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${token}`,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    episodeShortId: '6JswefD4QXK',
+    parentId: mainCommentId,
+    content: '我也觉得！'
+  })
+});
+
+// 3. 获取主楼列表（带回复预览）
+const comments = await fetch(
+  '/api/video/comments?episodeShortId=6JswefD4QXK&page=1&size=20'
+).then(r => r.json());
+
+// 4. 用户点击"查看更多回复"，获取所有回复
+const replies = await fetch(
+  `/api/video/episode/comments/${mainCommentId}/replies?page=1&size=20`
+).then(r => r.json());
+
+// 5. 回复某条回复（多级嵌套）
+const firstReplyId = replies.data.replies[0].id;
+await fetch('/api/video/episode/comment/reply', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${token}`,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    episodeShortId: '6JswefD4QXK',
+    parentId: firstReplyId,  // 回复某条回复
+    content: '@1楼 同意你的观点！'
+  })
+});
+```
+
+---
+
+##### **8. 注意事项**
+
+1. **权限控制**:
+   - 发表评论和回复需要登录（JWT认证）
+   - 查看评论列表无需登录
+
+2. **性能优化**:
+   - 主楼列表只返回最新2条回复预览
+   - 点击"查看更多"时才加载全部回复
+   - 建议每页20条主楼，50条回复
+
+3. **删除逻辑**:
+   - 删除主楼会级联删除所有回复
+   - 删除某条回复不影响其他回复
+
+4. **回复计数**:
+   - 只有主楼的 `replyCount` 有值
+   - 包含所有层级的回复总数
+   - 自动实时更新
+
+---
+
+#### **旧版评论接口（已弃用）**
+
+以下接口已被新的盖楼功能替代，但仍保持兼容：
+
+- `POST /api/video/comment` → 建议使用 `POST /api/video/episode/comment`
+  - Headers：`Authorization: Bearer <access_token>`
+  - Body：
+    - `episodeIdentifier` string | number：剧集 ShortID 或 ID
+    - `content` string：评论内容（≤500 字）
+    - `appearSecond?` number：可选，弹幕出现时间（秒）
+
+---
+
+### 7. 收藏管理流程
+
+#### **收藏功能概述**
+
+收藏功能允许用户收藏喜欢的剧集，支持按系列聚合显示。即使用户收藏了同一系列的多集，收藏列表也只显示一个系列条目，并显示用户收藏了该系列的多少集。
+
+#### **1. 添加收藏（推荐方式）**
+
+**接口**: `POST /api/video/episode/activity`
+
+**Headers**: 
+```
+Authorization: Bearer <access_token>
+```
+
+**Request Body**:
+```typescript
+{
+  shortId: string;    // 剧集 ShortID（必填）
+  type: 'favorite';   // 固定值：favorite
+}
+```
+
+**Response**:
+```typescript
+{
+  code: 200,
+  message: "收藏成功",
+  data: {
+    episodeId: number;    // 剧集ID
+    shortId: string;      // 剧集ShortID
+    type: "favorite"      // 操作类型
+  }
+}
+```
+
+**说明**: 
+- 这是推荐的收藏方式，通过统一的交互接口实现
+- 收藏操作会自动存储到收藏表中
+- 支持重复收藏（不会重复添加）
+
+---
+
+#### **2. 获取收藏列表**
+
+**接口**: `GET /api/user/favorites`
+
+**Headers**: 
+```
+Authorization: Bearer <access_token>
+```
+
+**Query Parameters**:
+```typescript
+{
+  page?: number;   // 页码（默认1）
+  size?: number;   // 每页数量（默认20）
+}
+```
+
+**Response**:
+```typescript
+{
+  code: 200,
+  message: "获取收藏列表成功",
+  data: {
+    list: [
+      {
+        seriesId: number;              // 系列ID
+        seriesShortId: string;         // 系列ShortID
+        seriesTitle: string;          // 系列标题
+        seriesCoverUrl: string;       // 系列封面
+        categoryName: string;          // 分类名称
+        description: string;           // 系列描述
+        score: string;                 // 评分（如 "9.2"）
+        playCount: number;             // 播放次数
+        totalEpisodeCount: number;     // 系列总集数
+        favoritedEpisodeCount: number;  // 用户收藏了该系列的多少集
+        upCount: number;               // 当天新增集数（用于角标）
+        isCompleted: boolean;          // 是否完结
+        favoriteTime: string;          // 最后收藏时间（格式：YYYY-MM-DD HH:mm）
+      }
+    ],
+    total: number;        // 收藏系列总数
+    page: number;
+    size: number;
+    hasMore: boolean;     // 是否还有更多数据
+  }
+}
+```
+
+**说明**: 
+- 按系列聚合显示，即使用户收藏了同一系列的多集，也只显示一个系列条目
+- `favoritedEpisodeCount`：用户收藏了该系列的多少集
+- `upCount`：当天新增集数，用于显示"更新X集"角标
+- `favoriteTime`：最后一次收藏该系列的时间
+
+---
+
+#### **3. 取消收藏**
+
+**接口**: `POST /api/user/favorites/remove`
+
+**Headers**: 
+```
+Authorization: Bearer <access_token>
+```
+
+**Request Body**:
+```typescript
+{
+  shortId: string;    // 剧集 ShortID（必填）
+}
+```
+
+**Response**:
+```typescript
+{
+  code: 200,
+  message: "取消收藏成功",
+  data: {
+    removed: boolean;           // 是否成功移除
+    shortId: string;            // 剧集ShortID
+    seriesId: number;           // 系列ID
+    episodeId: number;          // 剧集ID
+    favoriteType: "episode";    // 收藏类型
+  }
+}
+```
+
+**说明**: 
+- 使用剧集 `shortId` 取消收藏
+- 系统会自动查找对应的系列和剧集信息
+- 如果未找到对应收藏记录，返回 `removed: false`
+
+---
+
+#### **4. 获取收藏统计**
+
+**接口**: `GET /api/user/favorites/stats`
+
+**Headers**: 
+```
+Authorization: Bearer <access_token>
+```
+
+**Response**:
+```typescript
+{
+  code: 200,
+  message: "获取收藏统计成功",
+  data: {
+    total: number;        // 总收藏数（所有剧集）
+    seriesCount: number;  // 收藏系列数
+    episodeCount: number; // 收藏剧集数
+  }
+}
+```
+
+---
+
+#### **5. 完整使用示例**
+
+```typescript
+// 收藏服务类
+class FavoriteService {
+  private api: ApiClient;
+  
+  constructor(api: ApiClient) {
+    this.api = api;
+  }
+  
+  // 1. 收藏剧集
+  async addFavorite(episodeShortId: string): Promise<boolean> {
+    try {
+      const response = await this.api.post('/api/video/episode/activity', {
+        shortId: episodeShortId,
+        type: 'favorite'
+      });
+      
+      console.log('收藏成功:', response.data);
+      return true;
+    } catch (error) {
+      console.error('收藏失败:', error);
+      return false;
+    }
+  }
+  
+  // 2. 获取收藏列表
+  async getFavorites(page: number = 1, size: number = 20): Promise<FavoriteListResponse> {
+    try {
+      const response = await this.api.get(
+        `/api/user/favorites?page=${page}&size=${size}`
+      );
+      return response;
+    } catch (error) {
+      console.error('获取收藏列表失败:', error);
+      throw error;
+    }
+  }
+  
+  // 3. 取消收藏
+  async removeFavorite(episodeShortId: string): Promise<boolean> {
+    try {
+      const response = await this.api.post('/api/user/favorites/remove', {
+        shortId: episodeShortId
+      });
+      
+      console.log('取消收藏成功:', response.data);
+      return response.data.removed;
+    } catch (error) {
+      console.error('取消收藏失败:', error);
+      return false;
+    }
+  }
+  
+  // 4. 获取收藏统计
+  async getFavoriteStats(): Promise<FavoriteStatsResponse> {
+    try {
+      const response = await this.api.get('/api/user/favorites/stats');
+      return response;
+    } catch (error) {
+      console.error('获取收藏统计失败:', error);
+      throw error;
+    }
+  }
+  
+  // 5. 检查是否已收藏
+  async isFavorited(episodeShortId: string): Promise<boolean> {
+    try {
+      // 通过收藏列表检查（简单方式）
+      const favorites = await this.getFavorites(1, 1000); // 获取所有收藏
+      return favorites.data.list.some(item => 
+        // 这里需要根据实际数据结构判断
+        // 如果收藏列表包含该剧集所属的系列，则认为已收藏
+        true // 简化示例
+      );
+    } catch (error) {
+      console.error('检查收藏状态失败:', error);
+      return false;
+    }
+  }
+}
+
+// 使用示例
+const favoriteService = new FavoriteService(api);
+
+// 在React组件中使用
+const EpisodeCard = ({ episode }: { episode: EpisodeItem }) => {
+  const [isFavorited, setIsFavorited] = useState(false);
+  const [loading, setLoading] = useState(false);
+  
+  // 检查收藏状态
+  useEffect(() => {
+    const checkFavoriteStatus = async () => {
+      const favorited = await favoriteService.isFavorited(episode.shortId);
+      setIsFavorited(favorited);
+    };
+    checkFavoriteStatus();
+  }, [episode.shortId]);
+  
+  // 切换收藏状态
+  const toggleFavorite = async () => {
+    setLoading(true);
+    try {
+      if (isFavorited) {
+        await favoriteService.removeFavorite(episode.shortId);
+        setIsFavorited(false);
+        showToast('已取消收藏');
+      } else {
+        await favoriteService.addFavorite(episode.shortId);
+        setIsFavorited(true);
+        showToast('收藏成功');
+      }
+    } catch (error) {
+      showToast('操作失败，请重试');
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  return (
+    <div className="episode-card">
+      <img src={episode.coverUrl} alt={episode.title} />
+      <h3>{episode.title}</h3>
+      <button 
+        onClick={toggleFavorite}
+        disabled={loading}
+        className={`favorite-btn ${isFavorited ? 'favorited' : ''}`}
+      >
+        {loading ? '...' : (isFavorited ? '❤️' : '🤍')}
+      </button>
+    </div>
+  );
+};
+
+// 收藏列表页面
+const FavoritesPage = () => {
+  const [favorites, setFavorites] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  
+  const loadFavorites = async (pageNum: number, append: boolean = false) => {
+    setLoading(true);
+    try {
+      const response = await favoriteService.getFavorites(pageNum, 20);
+      if (append) {
+        setFavorites(prev => [...prev, ...response.data.list]);
+      } else {
+        setFavorites(response.data.list);
+      }
+      setHasMore(response.data.hasMore);
+    } catch (error) {
+      console.error('加载收藏列表失败:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  useEffect(() => {
+    loadFavorites(1);
+  }, []);
+  
+  const loadMore = () => {
+    if (!loading && hasMore) {
+      const nextPage = page + 1;
+      setPage(nextPage);
+      loadFavorites(nextPage, true);
+    }
+  };
+  
+  return (
+    <div className="favorites-page">
+      <h2>我的收藏</h2>
+      <div className="favorites-grid">
+        {favorites.map(series => (
+          <div key={series.seriesId} className="favorite-item">
+            <img src={series.seriesCoverUrl} alt={series.seriesTitle} />
+            <div className="series-info">
+              <h3>{series.seriesTitle}</h3>
+              <p className="category">{series.categoryName}</p>
+              <p className="description">{series.description}</p>
+              <div className="stats">
+                <span>评分: {series.score}</span>
+                <span>播放: {series.playCount}</span>
+                <span>收藏: {series.favoritedEpisodeCount}/{series.totalEpisodeCount}集</span>
+                {series.upCount > 0 && (
+                  <span className="update-badge">更新{series.upCount}集</span>
+                )}
+              </div>
+              <p className="favorite-time">收藏于: {series.favoriteTime}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+      {hasMore && (
+        <button onClick={loadMore} disabled={loading}>
+          {loading ? '加载中...' : '加载更多'}
+        </button>
+      )}
+    </div>
+  );
+};
+```
+
+---
+
+#### **6. 注意事项**
+
+1. **权限控制**:
+   - 所有收藏相关接口都需要登录（JWT认证）
+   - 未登录用户无法进行收藏操作
+
+2. **数据一致性**:
+   - 收藏操作通过 `POST /api/video/episode/activity` 实现
+   - 取消收藏通过 `POST /api/user/favorites/remove` 实现
+   - 两种操作都使用 `shortId` 保持一致性
+
+3. **性能优化**:
+   - 收藏列表按系列聚合，减少数据量
+   - 支持分页加载，避免一次性加载大量数据
+   - `upCount` 字段用于显示更新角标，提升用户体验
+
+4. **用户体验**:
+   - 支持重复收藏（不会报错）
+   - 取消收藏时如果记录不存在，返回友好提示
+   - 收藏列表显示最后收藏时间，便于用户管理
+
+---
+
+### 8. 个人中心流程
 
 #### **获取浏览历史**
 ```typescript
@@ -2518,8 +3215,24 @@ function handleLoginSuccess(response: LoginResponse) {
 - `dislike` → 自增 `dislikeCount`
 - `favorite` → 自增 `favoriteCount`
 
-### 4) 其他说明
+### 4) 收藏管理
+- 添加收藏：`POST /api/video/episode/activity`
+  - Body：`{ shortId: string, type: 'favorite' }`
+  - 返回：`{ episodeId, shortId, type }`
+- 获取收藏列表：`GET /api/user/favorites?page=1&size=20`
+  - 返回：按系列聚合的收藏列表，包含 `favoritedEpisodeCount`、`upCount` 等字段
+- 取消收藏：`POST /api/user/favorites/remove`
+  - Body：`{ shortId: string }`
+  - 返回：`{ removed, shortId, seriesId, episodeId, favoriteType }`
+- 收藏统计：`GET /api/user/favorites/stats`
+  - 返回：`{ total, seriesCount, episodeCount }`
+
+### 5) 其他说明
 - `size` 上限为 200，建议分页拉取并根据 `hasMore` 判断是否继续加载
 - accessKey 获取：
   - 剧集级：`/api/video(或/public/video)/episodes` 的 `data.list[i].episodeAccessKey`
   - 地址级：同接口 `data.list[i].urls[j].accessKey`
+- 收藏功能特点：
+  - 按系列聚合显示，多集收藏只显示一个系列条目
+  - `upCount` 字段用于显示"更新X集"角标
+  - 所有收藏操作都需要 JWT 认证
