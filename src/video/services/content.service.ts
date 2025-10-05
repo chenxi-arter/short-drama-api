@@ -209,6 +209,7 @@ export class ContentService {
           title: ep.title,
           duration: ep.duration,
           status: ep.status,
+          isVertical: Boolean(ep.isVertical),
           createdAt: DateUtil.formatDateTime(ep.createdAt),
           updatedAt: DateUtil.formatDateTime(ep.updatedAt),
           seriesId: ep.seriesId,

@@ -15,6 +15,7 @@ import { ContentController } from '../controllers/content.controller';
 import { InteractionController } from '../controllers/interaction.controller';
 import { CommentsController } from '../controllers/comments.controller';
 import { CompatBrowseHistoryController } from '../controllers/compat-browse-history.controller';
+import { RecommendController } from '../controllers/recommend.controller';
 import { VideoService } from '../video.service';
 import { CommentService } from '../services/comment.service';
 import { PlaybackService } from '../services/playback.service';
@@ -29,6 +30,7 @@ import { WatchProgressService } from '../services/watch-progress.service';
 import { BannerService } from '../services/banner.service';
 import { CategoryService } from '../services/category.service';
 import { IngestService } from '../services/ingest.service';
+import { RecommendService } from '../services/recommend.service';
 import { AppLoggerService } from '../../common/logger/app-logger.service';
 import { AppConfigService } from '../../common/config/app-config.service';
 import { PlayCountService } from '../services/play-count.service';
@@ -83,6 +85,7 @@ import { SeriesGenreOption } from '../entity/series-genre-option.entity';
     // PublicBrowseHistoryController,
     InteractionController,
     CommentsController,
+    RecommendController,
   ],
   providers: [
     VideoService,
@@ -103,6 +106,7 @@ import { SeriesGenreOption } from '../entity/series-genre-option.entity';
     CategoryService,
     IngestService,
     CommentService,
+    RecommendService,
     AppLoggerService,
     AppConfigService,
   ],

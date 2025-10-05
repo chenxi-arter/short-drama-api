@@ -46,6 +46,10 @@ export class EpisodeInputDto {
   @IsIn(['published', 'hidden', 'draft'])
   status: string;
 
+  @IsOptional()
+  @IsBoolean()
+  isVertical?: boolean; // 是否竖屏播放（false=横屏，true=竖屏），默认 false
+
   @IsArray()
   @ArrayMinSize(1)
   @ValidateNested({ each: true })

@@ -49,6 +49,10 @@ export class EpisodeUpdateDto {
   status?: string;
 
   @IsOptional()
+  @IsBoolean()
+  isVertical?: boolean; // 是否竖屏播放（false=横屏，true=竖屏）
+
+  @IsOptional()
   @IsArray()
   @ArrayMinSize(1)
   @ValidateNested({ each: true })

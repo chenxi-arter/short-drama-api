@@ -70,6 +70,13 @@ export class Episode {
   status: string;
 
   /** 
+   * 是否竖屏播放
+   * false（0）= 横屏播放（默认），true（1）= 竖屏播放
+   */
+  @Column({ type: 'boolean', default: false, name: 'is_vertical' })
+  isVertical: boolean;
+
+  /** 
    * 多对一关系：所属电视剧 
    * 一个剧集属于一个系列
    */

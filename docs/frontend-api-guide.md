@@ -40,6 +40,7 @@
 
 **EpisodeItem 接口新增字段：**
 - `status`: string - 剧集状态
+- `isVertical`: boolean - **是否竖屏播放（false=横屏，true=竖屏）** ⭐ 新增
 - `createdAt`: string - 创建时间
 - `updatedAt`: string - 更新时间
 - `seriesId`: number - 所属系列ID
@@ -49,6 +50,12 @@
 - `dislikeCount`: number - 点踩数
 - `favoriteCount`: number - 收藏数
 - `lastWatchTime`: string - 最后观看时间
+
+> **💡 `isVertical` 字段说明**：
+> - 用于前端播放器自动适配播放方向
+> - `false`（默认）：横屏播放，适用于 16:9 比例视频
+> - `true`：竖屏播放，适用于 9:16 比例视频（如短视频、竖屏剧）
+> - 所有剧集列表接口（`/api/video/episodes` 和 `/api/public/video/episodes`）均返回此字段
 
 #### **2. API路径修正**
 - ❌ **旧路径**：`/api/video/episode-url/query` 和 `/api/video/episode-url/:accessKey`
@@ -978,6 +985,7 @@ interface EpisodeItem {
   title: string;           // 标题
   duration: number;        // 时长（秒）
   status: string;          // 剧集状态
+  isVertical: boolean;     // 是否竖屏播放（false=横屏，true=竖屏）
   createdAt: string;       // 创建时间
   updatedAt: string;       // 更新时间
   seriesId: number;        // 所属系列ID
@@ -1459,17 +1467,6 @@ await fetch('/api/video/episode/comment/reply', {
    - 自动实时更新
 
 ---
-
-#### **旧版评论接口（已弃用）**
-
-以下接口已被新的盖楼功能替代，但仍保持兼容：
-
-- `POST /api/video/comment` → 建议使用 `POST /api/video/episode/comment`
-  - Headers：`Authorization: Bearer <access_token>`
-  - Body：
-    - `episodeIdentifier` string | number：剧集 ShortID 或 ID
-    - `content` string：评论内容（≤500 字）
-    - `appearSecond?` number：可选，弹幕出现时间（秒）
 
 ---
 

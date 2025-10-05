@@ -44,6 +44,7 @@
   - `title` string ≤255 必填
   - `duration` int ≥1 必填（秒）
   - `status` enum 必填：`published` | `hidden` | `draft`
+  - `isVertical` boolean 可选：是否竖屏播放（false=横屏，true=竖屏），默认 false
   - `urls` 数组（至少1项）：
     - `quality` enum 必填：`360p` | `480p` | `720p` | `1080p` | `4K`
     - `ossUrl` string ≤255 必填
@@ -79,8 +80,9 @@
       "title": "第1集",
       "duration": 900,
       "status": "published",
+      "isVertical": false,
       "urls": [
-        { "quality": "720p", "ossUrl": "https://oss/ep1-720.m3u8", "cdnUrl": "https://cdn/ep1-720.m3u8" }
+        { "quality": "720p", "ossUrl": "https://oss/ep1-720.m3u8", "cdnUrl": "https://cdn/ep1-720.m3u8", "originUrl": "https://origin/ep1-720.m3u8" }
       ]
     }
   ]
@@ -121,7 +123,7 @@
 - `externalId` string 必填：定位系列
 - 其他系列字段均可选；仅在传递时更新
 - `episodes` 数组可选：
-  - `episodeNumber` 用于定位；`title/duration/status` 可选更新
+  - `episodeNumber` 用于定位；`title/duration/status/isVertical` 可选更新
   - `urls` 可选：按 `quality` 定位；`ossUrl/cdnUrl/subtitleUrl` 可选更新
 - `removeMissingEpisodes` boolean 可选：为 true 时删除此次未出现的剧集（及其URL）
 - `removeMissingUrls` boolean 可选：为 true 时删除每集中此次未出现的URL
@@ -136,8 +138,9 @@
   "episodes": [
     {
       "episodeNumber": 1,
+      "isVertical": true,
       "urls": [
-        { "quality": "720p", "cdnUrl": "https://cdn/new-ep1-720.m3u8" }
+        { "quality": "720p", "cdnUrl": "https://cdn/new-ep1-720.m3u8", "originUrl": "https://origin/new-ep1-720.m3u8" }
       ]
     }
   ],

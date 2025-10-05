@@ -35,6 +35,7 @@ export interface EpisodeBasicInfo {
   title: string;                 // 剧集标题
   duration: number;              // 时长（秒）
   status: string;                // 状态
+  isVertical: boolean;           // 是否竖屏播放（false=横屏，true=竖屏）
   createdAt: string;             // 创建时间
   updatedAt: string;             // 更新时间
   seriesId: number;              // 所属剧集ID

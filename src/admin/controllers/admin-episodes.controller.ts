@@ -16,12 +16,20 @@ export class AdminEpisodesController {
   private normalize(raw: Record<string, unknown>): Partial<Episode> {
     const toInt = (v: unknown): number | undefined => (typeof v === 'string' || typeof v === 'number') ? Number(v) : undefined;
     const toStr = (v: unknown): string | undefined => (typeof v === 'string') ? v : undefined;
+    const toBool = (v: unknown): boolean | undefined => {
+      if (v === undefined || v === null) return undefined;
+      if (typeof v === 'boolean') return v;
+      if (v === 'true' || v === '1' || v === 1) return true;
+      if (v === 'false' || v === '0' || v === 0) return false;
+      return undefined;
+    };
     const payload: Partial<Episode> = {};
     const seriesId = toInt(raw.seriesId); if (seriesId !== undefined) payload.seriesId = seriesId;
     const episodeNumber = toInt(raw.episodeNumber); if (episodeNumber !== undefined) payload.episodeNumber = episodeNumber;
     const duration = toInt(raw.duration); if (duration !== undefined) payload.duration = duration;
     const status = toStr(raw.status); if (status !== undefined) payload.status = status;
     const title = toStr(raw.title); if (title !== undefined) payload.title = title;
+    const isVertical = toBool(raw.isVertical); if (isVertical !== undefined) payload.isVertical = isVertical;
     const playCount = toInt(raw.playCount); if (playCount !== undefined) payload.playCount = playCount;
     const likeCount = toInt(raw.likeCount); if (likeCount !== undefined) payload.likeCount = likeCount;
     const dislikeCount = toInt(raw.dislikeCount); if (dislikeCount !== undefined) payload.dislikeCount = dislikeCount;
