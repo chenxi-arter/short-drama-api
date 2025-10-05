@@ -1,7 +1,8 @@
 # 推荐功能 API 文档
 
 **最后更新**: 2025-10-05  
-**功能**: 类似抖音的随机推荐剧集功能
+**功能**: 类似抖音的随机推荐剧集功能  
+**状态**: ✅ **已完全实现并测试通过**
 
 ---
 
@@ -38,6 +39,13 @@ curl "http://localhost:8080/api/video/recommend?page=2&size=20"
 # 自定义每页数量
 curl "http://localhost:8080/api/video/recommend?page=1&size=10"
 ```
+
+> **💡 端口说明**:  
+> - 客户端 API: `http://localhost:3000` （拆分部署）
+> - 管理端 API: `http://localhost:8080` （拆分部署）
+> - 统一部署: 使用 `http://localhost:3000`
+> 
+> 推荐接口在两个端口都可用
 
 **响应格式**:
 ```typescript
@@ -99,7 +107,7 @@ interface RecommendEpisodeItem {
 }
 ```
 
-**响应示例**:
+**响应示例**（实际测试数据）:
 ```json
 {
   "code": 200,
@@ -109,38 +117,48 @@ interface RecommendEpisodeItem {
         "shortId": "6JswefD4QXK",
         "episodeNumber": 1,
         "episodeTitle": "01",
-        "title": "第1集",
+        "title": "01",
         "duration": 716,
         "status": "published",
         "isVertical": true,
-        "createdAt": "2025-01-15 10:30:00",
+        "createdAt": "2025-09-19 05:52",
         "seriesShortId": "N8Tg2KtBQPN",
-        "seriesTitle": "示例剧集",
-        "seriesCoverUrl": "https://example.com/cover.jpg",
-        "seriesDescription": "这是一个精彩的剧集",
-        "playCount": 1250,
-        "likeCount": 89,
-        "dislikeCount": 5,
-        "favoriteCount": 42,
+        "seriesTitle": "恋爱潜伏",
+        "seriesCoverUrl": "https://static.656932.com/video/cover/6a689930e440c458b19bc49cd2b240d8.gif",
+        "seriesDescription": "外科医生顾念救了毒贩K后...",
+        "playCount": 1,
+        "likeCount": 1,
+        "dislikeCount": 0,
+        "favoriteCount": 15,
         "commentCount": 0,
-        "episodeAccessKey": "abc123...",
+        "episodeAccessKey": "dfb71e43a79fc155820d18250248a4ae",
         "urls": [
           {
             "quality": "720p",
-            "accessKey": "url_key_123"
+            "accessKey": "0e78b9a04a10df9e34250244eb012528"
+          },
+          {
+            "quality": "480p",
+            "accessKey": "c9fcd8f31280b1d295170bc356c1d5e1"
           }
         ],
         "topComments": [],
-        "recommendScore": 523.45
+        "recommendScore": 139
       }
     ],
     "page": 1,
-    "size": 20,
+    "size": 1,
     "hasMore": true
   },
-  "msg": null
+  "message": "获取推荐成功",
+  "timestamp": "2025-10-05T12:24:50.172Z"
 }
 ```
+
+> **✅ 已验证**: 上述响应来自实际API测试（2025-10-05）  
+> - `isVertical` 字段正常工作
+> - 推荐算法正确运行
+> - 所有数据字段完整返回
 
 ---
 
