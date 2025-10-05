@@ -1098,7 +1098,304 @@ interface ProgressResponse {
 
 ---
 
-### 6. 评论互动流程
+### 6. 推荐功能流程（类抖音列表）
+
+#### **推荐功能概述**
+
+推荐功能提供智能的剧集推荐，类似抖音的推荐流：
+- **智能推荐算法**：基于点赞、收藏、评论数
+- **随机因子**：每次刷新都有新内容
+- **完整信息**：剧集信息、系列信息、互动数据、评论预览
+- **一键跳转**：返回系列 shortId，可直接跳转到系列详情
+
+#### **获取推荐剧集列表**
+
+**接口地址**: `GET /api/video/recommend`
+
+**请求参数**:
+| 参数 | 类型 | 必填 | 默认值 | 说明 |
+|------|------|------|--------|------|
+| `page` | number | 否 | 1 | 页码 |
+| `size` | number | 否 | 20 | 每页数量 |
+
+**请求示例**:
+```bash
+# 获取第一页（20条）
+curl "http://localhost:3000/api/video/recommend"
+
+# 获取第二页
+curl "http://localhost:3000/api/video/recommend?page=2&size=20"
+
+# 自定义每页数量
+curl "http://localhost:3000/api/video/recommend?page=1&size=10"
+```
+
+**响应格式**:
+```typescript
+interface RecommendResponse {
+  code: number;
+  data: {
+    list: RecommendEpisodeItem[];
+    page: number;
+    size: number;
+    hasMore: boolean;
+  };
+  msg: string | null;
+}
+
+interface RecommendEpisodeItem {
+  // 剧集基本信息
+  shortId: string;                 // 剧集 shortId
+  episodeNumber: number;           // 集数
+  episodeTitle: string;            // 集数标题（如 "01"）
+  title: string;                   // 剧集标题
+  duration: number;                // 时长（秒）
+  status: string;                  // 状态
+  isVertical: boolean;             // 是否竖屏播放
+  createdAt: string;               // 创建时间
+  
+  // 系列信息
+  seriesShortId: string;           // 系列 shortId（用于跳转）
+  seriesTitle: string;             // 系列标题
+  seriesCoverUrl: string;          // 系列封面
+  seriesDescription: string;       // 系列简介
+  
+  // 互动数据
+  playCount: number;               // 播放次数
+  likeCount: number;               // 点赞数
+  dislikeCount: number;            // 不喜欢数
+  favoriteCount: number;           // 收藏数
+  commentCount: number;            // 评论数
+  
+  // 播放地址
+  episodeAccessKey: string;        // 剧集访问密钥
+  urls: {
+    quality: string;               // 清晰度
+    accessKey: string;             // 地址访问密钥
+  }[];
+  
+  // 评论预览（最新3条）
+  topComments: {
+    id: number;
+    shortId: string;
+    content: string;
+    username: string;
+    avatar: string;
+    createdAt: string;
+    likeCount: number;
+  }[];
+  
+  // 推荐分数（调试用）
+  recommendScore?: number;
+}
+```
+
+**响应示例**（实际测试数据）:
+```json
+{
+  "code": 200,
+  "data": {
+    "list": [
+      {
+        "shortId": "6JswefD4QXK",
+        "episodeNumber": 1,
+        "episodeTitle": "01",
+        "title": "01",
+        "duration": 716,
+        "status": "published",
+        "isVertical": true,
+        "createdAt": "2025-09-19 05:52",
+        "seriesShortId": "N8Tg2KtBQPN",
+        "seriesTitle": "恋爱潜伏",
+        "seriesCoverUrl": "https://static.656932.com/video/cover/6a689930e440c458b19bc49cd2b240d8.gif",
+        "seriesDescription": "外科医生顾念救了毒贩K后...",
+        "playCount": 1,
+        "likeCount": 1,
+        "dislikeCount": 0,
+        "favoriteCount": 15,
+        "commentCount": 0,
+        "episodeAccessKey": "dfb71e43a79fc155820d18250248a4ae",
+        "urls": [
+          {
+            "quality": "720p",
+            "accessKey": "0e78b9a04a10df9e34250244eb012528"
+          },
+          {
+            "quality": "480p",
+            "accessKey": "c9fcd8f31280b1d295170bc356c1d5e1"
+          }
+        ],
+        "topComments": [],
+        "recommendScore": 139
+      }
+    ],
+    "page": 1,
+    "size": 1,
+    "hasMore": true
+  },
+  "message": "获取推荐成功",
+  "timestamp": "2025-10-05T12:24:50.172Z"
+}
+```
+
+> **✅ 已验证**: 上述响应来自实际API测试（2025-10-05）  
+> - `isVertical` 字段正常工作
+> - 推荐算法正确运行
+> - 所有数据字段完整返回
+
+#### **推荐算法**
+
+**推荐分数计算公式**:
+```
+推荐分数 = (点赞数 × 3 + 收藏数 × 5 + 评论数 × 2) + 随机因子(0-100)
+```
+
+**权重说明**:
+- **点赞数 × 3**: 点赞是最基础的互动
+- **收藏数 × 5**: 收藏表示更强的喜爱
+- **评论数 × 2**: 评论表示用户参与度
+- **随机因子**: 保证内容多样性，避免推荐固化
+
+**筛选条件**:
+- 只推荐 `status = 'published'` 的剧集
+- 只推荐 `series.is_active = 1` 的系列
+- 按推荐分数降序排列
+- 加入随机排序，保证每次刷新都有不同内容
+
+#### **前端集成示例**
+
+**React 推荐流组件**:
+```typescript
+import React, { useState, useEffect } from 'react';
+
+interface Episode {
+  shortId: string;
+  seriesShortId: string;
+  seriesTitle: string;
+  episodeTitle: string;
+  seriesCoverUrl: string;
+  likeCount: number;
+  favoriteCount: number;
+  commentCount: number;
+  isVertical: boolean;
+}
+
+export function RecommendFeed() {
+  const [episodes, setEpisodes] = useState<Episode[]>([]);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+
+  useEffect(() => {
+    loadRecommend();
+  }, [page]);
+
+  async function loadRecommend() {
+    const res = await fetch(`/api/video/recommend?page=${page}&size=20`);
+    const data = await res.json();
+    
+    setEpisodes(prev => [...prev, ...data.data.list]);
+    setHasMore(data.data.hasMore);
+  }
+
+  async function handleLike(shortId: string) {
+    await fetch('/api/video/episode/activity', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${getToken()}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ shortId, type: 'like' }),
+    });
+  }
+
+  return (
+    <div className="recommend-feed">
+      {episodes.map(ep => (
+        <div key={ep.shortId} className={`episode-card ${ep.isVertical ? 'vertical' : ''}`}>
+          <img src={ep.seriesCoverUrl} alt={ep.seriesTitle} />
+          <h3>{ep.seriesTitle} - {ep.episodeTitle}</h3>
+          <div className="actions">
+            <button onClick={() => handleLike(ep.shortId)}>
+              👍 {ep.likeCount}
+            </button>
+            <button>⭐ {ep.favoriteCount}</button>
+            <button>💬 {ep.commentCount}</button>
+          </div>
+          <button onClick={() => navigate(`/series/${ep.seriesShortId}`)}>
+            查看系列
+          </button>
+        </div>
+      ))}
+      {hasMore && <button onClick={() => setPage(p => p + 1)}>加载更多</button>}
+    </div>
+  );
+}
+```
+
+**无限滚动加载**:
+```typescript
+let currentPage = 1;
+
+async function loadMore() {
+  const response = await fetch(`/api/video/recommend?page=${currentPage}&size=20`);
+  const data = await response.json();
+  
+  if (data.data.hasMore) {
+    currentPage++;
+    appendEpisodes(data.data.list);
+  } else {
+    showNoMoreContent();
+  }
+}
+
+// 监听滚动事件
+window.addEventListener('scroll', () => {
+  if (isNearBottom()) {
+    loadMore();
+  }
+});
+```
+
+**跳转到系列详情**:
+```typescript
+// 使用返回的 seriesShortId 跳转
+function jumpToSeries(seriesShortId) {
+  // 方式1：跳转到系列详情页
+  window.location.href = `/series/${seriesShortId}`;
+  
+  // 方式2：获取系列的所有剧集
+  fetch(`/api/video/episodes?seriesShortId=${seriesShortId}`)
+    .then(res => res.json())
+    .then(data => {
+      showSeriesDetail(data);
+    });
+}
+```
+
+#### **注意事项**
+
+1. **认证要求**:
+   - 推荐接口无需认证，可公开访问
+   - 互动接口（点赞、收藏、评论）需要 JWT token
+
+2. **性能优化**:
+   - 推荐结果包含随机因子，不建议缓存
+   - 建议使用无限滚动而不是传统分页
+   - 前端可以预加载下一页数据
+
+3. **数据更新**:
+   - 互动数据（点赞、收藏、评论）实时更新
+   - 推荐分数每次请求重新计算
+   - 评论预览只显示最新3条
+
+4. **播放器适配**:
+   - 使用 `isVertical` 字段判断播放器方向
+   - `true`: 竖屏播放器（9:16）
+   - `false`: 横屏播放器（16:9）
+
+---
+
+### 7. 评论互动流程
 
 #### 剧集交互（播放/点赞/不喜欢/收藏）
 - 接口：`POST /api/video/episode/activity`
@@ -1470,7 +1767,7 @@ await fetch('/api/video/episode/comment/reply', {
 
 ---
 
-### 7. 收藏管理流程
+### 8. 收藏管理流程
 
 #### **收藏功能概述**
 
@@ -1861,7 +2158,7 @@ const FavoritesPage = () => {
 
 ---
 
-### 8. 个人中心流程
+### 9. 个人中心流程
 
 #### **获取浏览历史**
 ```typescript
@@ -1954,7 +2251,7 @@ interface BrowseHistoryItem {
 
 ---
 
-### 8. 缓存管理流程
+### 10. 缓存管理流程
 
 #### **获取缓存统计**
 ```typescript
@@ -2038,7 +2335,7 @@ interface WarmupResponse {
 
 ---
 
-### 9. 健康检查流程
+### 11. 健康检查流程
 
 #### **基础健康检查**
 ```typescript
@@ -2126,7 +2423,7 @@ interface SystemStatsResponse {
 
 ---
 
-### 8. 缓存管理流程
+### 10. 缓存管理流程
 
 #### **获取缓存统计**
 ```typescript
@@ -2210,7 +2507,7 @@ interface WarmupResponse {
 
 ---
 
-### 9. 健康检查流程
+### 11. 健康检查流程
 
 #### **基础健康检查**
 ```typescript
