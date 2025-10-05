@@ -9,12 +9,25 @@ export interface R2UploadOptions {
 
 @Injectable()
 export class R2StorageService {
-  private readonly s3: any;
-  private readonly bucketName: string;
-  private readonly publicBaseUrl?: string;
-  private readonly endpointBucketBase: string;
+  private s3: any;
+  private bucketName: string;
+  private publicBaseUrl?: string;
+  private endpointBucketBase: string;
+  private initialized = false;
 
   constructor() {
+    // 不在构造函数中初始化，延迟到实际使用时
+  }
+
+  /**
+   * 延迟初始化 R2 客户端
+   * 只在第一次使用时检查环境变量并初始化
+   */
+  private ensureInitialized() {
+    if (this.initialized) {
+      return;
+    }
+
     const endpoint = process.env.R2_ENDPOINT_URL;
     const accessKeyId = process.env.R2_ACCESS_KEY_ID;
     const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY;
@@ -22,8 +35,10 @@ export class R2StorageService {
     const publicBaseUrl = process.env.R2_PUBLIC_BASE_URL; // e.g. https://static.example.com
 
     if (!endpoint || !accessKeyId || !secretAccessKey || !bucketName) {
-      // 延迟到运行期报错，以便在未使用上传功能时不影响其他功能
-      throw new Error('R2 storage env missing. Required: R2_ENDPOINT_URL, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET_NAME');
+      throw new Error(
+        'R2 storage not configured. Required environment variables: ' +
+        'R2_ENDPOINT_URL, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET_NAME'
+      );
     }
 
     this.bucketName = bucketName;
@@ -38,9 +53,15 @@ export class R2StorageService {
 
     // 默认公开访问前缀（基于 Endpoint + Bucket），当未配置 R2_PUBLIC_BASE_URL 时使用
     this.endpointBucketBase = `${String(endpoint).replace(/\/$/, '')}/${this.bucketName}`;
+    
+    this.initialized = true;
+    console.log('✅ R2 Storage initialized');
   }
 
   async uploadBuffer(buffer: Buffer, originalName?: string, opts?: R2UploadOptions): Promise<{ key: string; url?: string }> {
+    // 延迟初始化：只在实际使用时才检查配置
+    this.ensureInitialized();
+
     const keyPrefix = opts?.keyPrefix ?? 'uploads/';
     const safeExt = (originalName && originalName.includes('.')) ? originalName.split('.').pop() : undefined;
     const key = `${keyPrefix}${randomUUID()}${safeExt ? '.' + safeExt.toLowerCase() : ''}`;
