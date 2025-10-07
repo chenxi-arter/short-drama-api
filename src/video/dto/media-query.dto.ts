@@ -1,5 +1,5 @@
 // src/video/dto/media-query.dto.ts
-import { IsOptional, IsNumberString, IsIn, IsPositive, Min, Max } from 'class-validator';
+import { IsOptional, IsIn, IsPositive, Min } from 'class-validator';
 import { Transform, TransformFnParams, Type } from 'class-transformer';
 import { NumberRange } from '../../common/validators/enhanced-validation.decorator';
 
@@ -25,7 +25,7 @@ export class MediaQueryDto {
 
   @IsOptional()
   @Type(() => Number)
-  @NumberRange(1, 50, { message: '每页数量必须在1到50之间' })
-  @Transform(({ value }: TransformFnParams) => Math.min(50, Math.max(1, Number(value) || 20)))
+  @NumberRange(1, 200, { message: '每页数量必须在1到200之间' })
+  @Transform(({ value }: TransformFnParams) => Math.min(200, Math.max(1, Number(value) || 20)))
   size = 20;
 }

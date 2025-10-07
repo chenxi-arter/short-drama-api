@@ -34,7 +34,7 @@ export class BrowseHistoryController extends BaseController {
     @Query('size') size: string = '10'  // ✅ 修改默认值为10
   ) {
     try {
-      const { page: pageNum, size: sizeNum } = this.normalizePagination(page, size, 50);
+      const { page: pageNum, size: sizeNum } = this.normalizePagination(page, size, 200);
 
       const result = await this.browseHistoryService.getUserBrowseHistory(
         Number((req.user as any)?.userId),

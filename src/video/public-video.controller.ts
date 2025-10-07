@@ -29,8 +29,8 @@ async listMedia(@Query() dto: MediaQueryDto) {
 
 @Get('episodes')
 async getPublicEpisodeList(@Query() dto: EpisodeListDto) {
-  const page = parseInt(dto.page || '1', 10);
-  const size = parseInt(dto.size || '20', 10);
+  const page = Math.max(1, parseInt(dto.page || '1', 10));
+  const size = Math.min(200, Math.max(1, parseInt(dto.size || '20', 10)));
   
   // 优先使用shortId，如果没有则使用ID
   if (dto.seriesShortId) {

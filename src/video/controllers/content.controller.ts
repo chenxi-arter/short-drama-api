@@ -25,7 +25,7 @@ export class ContentController extends BaseController {
     @Query() dto: MediaQueryDto,
   ) {
     try {
-      const { page, size } = this.normalizePagination(dto.page, dto.size, 50);
+      const { page, size } = this.normalizePagination(dto.page, dto.size, 200);
 
       const result = await this.videoService.listMedia(
         dto.categoryId,

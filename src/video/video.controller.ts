@@ -162,7 +162,7 @@ export class VideoController extends BaseController {
   @Get('media')
   async listMediaUser(@Req() req, @Query() dto: MediaQueryDto) {
     try {
-      const { page, size } = this.normalizePagination(dto.page, dto.size, 50);
+      const { page, size } = this.normalizePagination(dto.page, dto.size, 200);
 
       const result = await this.videoService.listMedia(
         dto.categoryId,
@@ -317,7 +317,7 @@ export class VideoController extends BaseController {
   @Get('episodes')
   async getEpisodeList(@Query() dto: EpisodeListDto, @Req() req) {
     try {
-      const { page, size } = this.normalizePagination(dto.page, dto.size, 50);
+      const { page, size } = this.normalizePagination(dto.page, dto.size, 200);
 
       if (dto.seriesShortId) {
         const result = await this.videoService.getEpisodeList(

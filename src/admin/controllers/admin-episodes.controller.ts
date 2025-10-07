@@ -39,7 +39,7 @@ export class AdminEpisodesController {
 
   @Get()
   async list(@Query('page') page = 1, @Query('size') size = 20, @Query('seriesId') seriesId?: string) {
-    const take = Math.max(Number(size) || 20, 1);
+    const take = Math.min(200, Math.max(Number(size) || 20, 1));
     const skip = (Math.max(Number(page) || 1, 1) - 1) * take;
     const whereClause = seriesId ? { seriesId: Number(seriesId) } : undefined;
     const [items, total] = await this.episodeRepo.findAndCount({
