@@ -51,7 +51,18 @@ export class InteractionController extends BaseController {
     if (type === 'favorite' && req && typeof req === 'object' && 'user' in req) {
       const user = (req as { user?: { userId?: number } }).user;
       if (user && typeof user.userId === 'number') {
-        await this.favoriteService.addFavorite(user.userId, episode.seriesId, episode.id);
+        try {
+          await this.favoriteService.addFavorite(user.userId, episode.seriesId, episode.id);
+        } catch (error: any) {
+          console.error('收藏操作失败:', error);
+          // 如果是重复收藏错误，不抛出异常，继续执行
+          if (error && typeof error === 'object' && 'code' in error && (error as { code: string }).code === 'ER_DUP_ENTRY') {
+            console.log('用户已收藏该剧集，跳过重复收藏');
+          } else {
+            // 其他错误继续抛出
+            throw error;
+          }
+        }
       }
     }
 
