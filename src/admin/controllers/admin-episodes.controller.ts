@@ -75,6 +75,44 @@ export class AdminEpisodesController {
     await this.episodeRepo.delete({ id: Number(id) });
     return { success: true };
   }
+
+  /**
+   * 获取剧集下载地址
+   * 返回指定剧集的所有清晰度播放地址，用于下载
+   */
+  @Get(':id/download-urls')
+  async getDownloadUrls(@Param('id') id: string) {
+    const episode = await this.episodeRepo.findOne({ 
+      where: { id: Number(id) }, 
+      relations: ['series', 'urls'] 
+    });
+    
+    if (!episode) {
+      return { success: false, message: '剧集不存在' };
+    }
+
+    const downloadUrls = episode.urls?.map(url => ({
+      id: url.id,
+      quality: url.quality,
+      cdnUrl: url.cdnUrl,
+      ossUrl: url.ossUrl,
+      originUrl: url.originUrl,
+      subtitleUrl: url.subtitleUrl,
+      accessKey: url.accessKey,
+    })) || [];
+
+    return {
+      success: true,
+      episodeId: episode.id,
+      episodeShortId: episode.shortId,
+      episodeTitle: episode.title,
+      episodeNumber: episode.episodeNumber,
+      seriesId: episode.seriesId,
+      seriesTitle: episode.series?.title || '',
+      duration: episode.duration,
+      downloadUrls
+    };
+  }
 }
 
 

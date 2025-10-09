@@ -349,6 +349,43 @@ curl -X POST "http://localhost:8080/api/admin/banners/123/image-from-url" \
 - 删除
   - `DELETE /api/admin/episodes/:id`
 
+- 获取下载地址
+  - `GET /api/admin/episodes/:id/download-urls`
+  - 说明：获取指定剧集的所有清晰度播放地址，用于下载功能
+  - 响应示例：
+```json
+{
+  "success": true,
+  "episodeId": 2136,
+  "episodeShortId": "CcPcMmtTAHa",
+  "episodeTitle": "第1集：初次相遇",
+  "episodeNumber": 1,
+  "seriesId": 2003,
+  "seriesTitle": "朱雀堂",
+  "duration": 1500,
+  "downloadUrls": [
+    {
+      "id": 592,
+      "quality": "720p",
+      "cdnUrl": "https://cdn.example.com/video/720p.m3u8",
+      "ossUrl": "https://oss.example.com/video/720p.mp4",
+      "originUrl": "https://origin.example.com/video.mp4",
+      "subtitleUrl": null,
+      "accessKey": "FE27A9CA890D9B196E211D783C622716"
+    },
+    {
+      "id": 593,
+      "quality": "1080p",
+      "cdnUrl": "https://cdn.example.com/video/1080p.m3u8",
+      "ossUrl": "https://oss.example.com/video/1080p.mp4",
+      "originUrl": "https://origin.example.com/video.mp4",
+      "subtitleUrl": "https://cdn.example.com/subtitles/cn.srt",
+      "accessKey": "AB12CD34EF56GH78IJ90KL12MN34OP56"
+    }
+  ]
+}
+```
+
 ### 播放地址管理 EpisodeUrl（某一集的播放源）
 ---
 
@@ -497,6 +534,10 @@ curl -X POST "http://localhost:8080/api/admin/episodes" \
     "duration": 1500
   }'
 
+# 获取剧集下载地址
+curl -X GET "http://localhost:8080/api/admin/episodes/2136/download-urls" \
+  -H "Content-Type: application/json"
+
 # 系列管理 - 软删除功能示例
 
 # 获取所有系列（仅未删除）
@@ -524,6 +565,22 @@ curl -X POST "http://localhost:8080/api/admin/series/2455/restore" \
 - 当前接口未做鉴权与验证，前端需自行保证传参正确性。
 - 所有时间字段请使用 ISO 8601 字符串（如 `2025-09-05T12:00:00Z`）。
 - `users` 的 `id` 为 bigint，若前端使用 JavaScript，请注意大整数精度问题（建议在 UI 层以字符串管理；传输时可用数字或字符串，按后端实际配置调整）。
+
+#### 视频下载功能说明
+
+- **下载接口**：`GET /api/admin/episodes/:id/download-urls`
+  - 返回指定剧集的所有清晰度播放地址
+  - 包含 CDN 地址、OSS 地址、原始地址和字幕地址
+  - 不包含下载统计功能（按需求无需统计）
+- **地址说明**：
+  - `cdnUrl`: CDN 加速地址，适合在线播放（可能是 m3u8 流媒体格式）
+  - `ossUrl`: 对象存储直链，适合直接下载（通常是 mp4 格式）
+  - `originUrl`: 原始来源地址，用于追溯或回源
+  - `subtitleUrl`: 外挂字幕文件地址（可选）
+- **使用建议**：
+  - 推荐使用 `ossUrl` 进行文件下载，速度更快且格式通用
+  - 如果需要字幕，可同时下载 `subtitleUrl` 指向的字幕文件
+  - 下载时可根据 `quality` 字段让用户选择清晰度
 
 #### 软删除机制说明
 
