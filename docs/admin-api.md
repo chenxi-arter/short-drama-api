@@ -326,8 +326,16 @@ curl -X POST "http://localhost:8080/api/admin/banners/123/image-from-url" \
 资源路径: `/admin/episodes`
 
 - 列表
-  - `GET /api/admin/episodes?page=1&size=20&seriesId=<系列ID>`
+  - `GET /api/admin/episodes?page=1&size=20&seriesId=<系列ID>&minDuration=<最小时长>&maxDuration=<最大时长>`
   - 支持按 `seriesId` 过滤；返回包含 `series` 关系
+  - 支持按时长筛选：
+    - `minDuration` number（可选）：最小时长（秒），返回大于等于该时长的剧集
+    - `maxDuration` number（可选）：最大时长（秒），返回小于等于该时长的剧集
+    - 可以同时使用 `minDuration` 和 `maxDuration` 进行范围筛选
+  - 示例：
+    - 获取时长大于等于600秒的剧集：`/api/admin/episodes?minDuration=600`
+    - 获取时长小于等于1800秒的剧集：`/api/admin/episodes?maxDuration=1800`
+    - 获取时长在600-1800秒之间的剧集：`/api/admin/episodes?minDuration=600&maxDuration=1800`
 
 - 详情
   - `GET /api/admin/episodes/:id`

@@ -1,6 +1,6 @@
 import { Controller, Get, Post, Put, Delete, Param, Body, Query } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, FindOptionsWhere, LessThanOrEqual, MoreThanOrEqual, Between } from 'typeorm';
 import { Episode } from '../../video/entity/episode.entity';
 import { EpisodeUrl } from '../../video/entity/episode-url.entity';
 
@@ -38,16 +38,45 @@ export class AdminEpisodesController {
   }
 
   @Get()
-  async list(@Query('page') page = 1, @Query('size') size = 20, @Query('seriesId') seriesId?: string) {
+  async list(
+    @Query('page') page = 1, 
+    @Query('size') size = 20, 
+    @Query('seriesId') seriesId?: string,
+    @Query('minDuration') minDuration?: string,
+    @Query('maxDuration') maxDuration?: string
+  ) {
     const take = Math.min(200, Math.max(Number(size) || 20, 1));
     const skip = (Math.max(Number(page) || 1, 1) - 1) * take;
-    const whereClause = seriesId ? { seriesId: Number(seriesId) } : undefined;
+    
+    // 构建查询条件
+    const whereClause: FindOptionsWhere<Episode> = {};
+    
+    // 系列ID筛选
+    if (seriesId) {
+      whereClause.seriesId = Number(seriesId);
+    }
+    
+    // 时长筛选
+    const minDur = minDuration ? Number(minDuration) : undefined;
+    const maxDur = maxDuration ? Number(maxDuration) : undefined;
+    
+    if (minDur !== undefined && !isNaN(minDur) && maxDur !== undefined && !isNaN(maxDur)) {
+      // 同时指定最小和最大时长，使用Between
+      whereClause.duration = Between(minDur, maxDur);
+    } else if (minDur !== undefined && !isNaN(minDur)) {
+      // 只指定最小时长，返回大于等于该时长的剧集
+      whereClause.duration = MoreThanOrEqual(minDur);
+    } else if (maxDur !== undefined && !isNaN(maxDur)) {
+      // 只指定最大时长，返回小于等于该时长的剧集
+      whereClause.duration = LessThanOrEqual(maxDur);
+    }
+    
     const [items, total] = await this.episodeRepo.findAndCount({
       skip,
       take,
       order: { id: 'DESC' },
       relations: ['series'],
-      where: whereClause,
+      where: Object.keys(whereClause).length > 0 ? whereClause : undefined,
     });
     return { total, items, page: Number(page) || 1, size: take };
   }

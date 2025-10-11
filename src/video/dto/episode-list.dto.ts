@@ -41,7 +41,7 @@ export interface EpisodeBasicInfo {
   seriesId: number;              // 所属剧集ID
   seriesTitle: string;           // 所属剧集标题
   seriesShortId: string;         // 所属剧集shortId
-  seriesScore?: number;          // 系列评分（0-10分）
+  score?: number;                // 系列评分（0-10分）
   episodeAccessKey?: string;     // 剧集级访问密钥（用于 /api/video/episode-url/:accessKey）
   likeCount?: number;            // 点赞数
   dislikeCount?: number;         // 点踩数
