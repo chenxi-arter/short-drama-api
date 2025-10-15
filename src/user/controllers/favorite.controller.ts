@@ -41,7 +41,9 @@ export class FavoriteController {
    * 取消收藏
    * POST /api/user/favorites/remove
    * 
-   * 说明：添加收藏请使用 POST /api/video/episode/activity 接口（type: 'favorite'）
+   * 说明：
+   * - 添加收藏请使用 POST /api/video/episode/activity 接口（type: 'favorite'）
+   * - 收藏是针对系列的，通过任意一集的 shortId 都可以取消该系列的收藏
    */
   @Post('remove')
   async removeFavorite(
@@ -71,10 +73,10 @@ export class FavoriteController {
       };
     }
 
+    // 取消收藏系列（不传 episodeId）
     const removed = await this.favoriteService.removeFavorite(
       userId,
       episode.seriesId,
-      episode.id,
     );
 
     return {
@@ -84,8 +86,7 @@ export class FavoriteController {
         removed,
         shortId,
         seriesId: episode.seriesId,
-        episodeId: episode.id,
-        favoriteType: 'episode',
+        favoriteType: 'series',  // 收藏类型为系列
       },
     };
   }

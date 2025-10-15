@@ -87,6 +87,53 @@ export class FavoriteService {
   }
 
   /**
+   * 批量检查用户收藏的系列
+   * 返回用户收藏的所有系列ID集合
+   * 
+   * 说明：由于收藏是针对系列的，这里返回用户收藏的系列ID
+   */
+  async getUserFavoritedSeries(userId: number): Promise<Set<number>> {
+    const favorites = await this.favoriteRepo
+      .createQueryBuilder('f')
+      .select('DISTINCT f.seriesId', 'seriesId')
+      .where('f.userId = :userId', { userId })
+      .andWhere('f.episodeId IS NULL')  // 只查询系列收藏
+      .getRawMany<{ seriesId: number }>();
+
+    return new Set(favorites.map(f => f.seriesId));
+  }
+
+  /**
+   * 批量检查用户对多个剧集的收藏状态
+   * 由于收藏是针对系列的，这里检查剧集所属系列是否被收藏
+   */
+  async getUserFavoritedEpisodes(userId: number, episodeIds: number[], seriesIds: number[]): Promise<Set<number>> {
+    if (seriesIds.length === 0) {
+      return new Set();
+    }
+
+    // 查询用户收藏的系列
+    const favorites = await this.favoriteRepo
+      .createQueryBuilder('f')
+      .where('f.userId = :userId', { userId })
+      .andWhere('f.seriesId IN (:...seriesIds)', { seriesIds })
+      .andWhere('f.episodeId IS NULL')  // 只查询系列收藏
+      .getMany();
+
+    const favoritedSeriesIds = new Set(favorites.map(f => f.seriesId));
+    
+    // 返回所有属于收藏系列的剧集ID
+    const favoritedEpisodeIds = new Set<number>();
+    episodeIds.forEach((episodeId, index) => {
+      if (favoritedSeriesIds.has(seriesIds[index])) {
+        favoritedEpisodeIds.add(episodeId);
+      }
+    });
+
+    return favoritedEpisodeIds;
+  }
+
+  /**
    * 获取用户的收藏列表（按系列聚合显示）
    * 即使用户收藏了同一系列的多集，也只显示一个系列条目
    * 
@@ -133,12 +180,12 @@ export class FavoriteService {
       .createQueryBuilder('f')
       .where('f.userId = :userId', { userId })
       .select('COUNT(DISTINCT f.seriesId)', 'total')
-      .getRawOne();
+      .getRawOne<{ total: string }>();
 
-    const total = totalCount?.total || 0;
+    const total = parseInt(totalCount?.total || '0', 10);
 
     // 执行主查询
-    const seriesList = await this.favoriteRepo.query(query, [userId, size, skip]) as Array<{
+    const seriesList: Array<{
       seriesId: number;
       latestFavoriteTime: Date;
       favoritedEpisodeCount: number;
@@ -152,7 +199,7 @@ export class FavoriteService {
       categoryName: string;
       totalEpisodeCount: number;
       upCount: number;
-    }>;
+    }> = await this.favoriteRepo.query(query, [userId, size, skip]);
 
     // 组合数据
     const list = seriesList.map(series => ({
@@ -202,7 +249,7 @@ export class FavoriteService {
         seriesType: 'series',
         episodeType: 'episode',
       })
-      .getRawOne();
+      .getRawOne<{ total: string; seriesCount: string; episodeCount: string }>();
 
     return {
       total: parseInt(stats?.total || '0', 10),

@@ -61,6 +61,9 @@ export class RecommendService {
           s.title as seriesTitle,
           s.cover_url as seriesCoverUrl,
           s.description as seriesDescription,
+          s.score as seriesScore,
+          s.starring as seriesStarring,
+          s.actor as seriesActor,
           (
             COALESCE(e.like_count, 0) * 3 + 
             COALESCE(e.favorite_count, 0) * 5 +
@@ -105,6 +108,9 @@ export class RecommendService {
             seriesTitle: episode.seriesTitle,
             seriesCoverUrl: episode.seriesCoverUrl || '',
             seriesDescription: episode.seriesDescription || '',
+            seriesScore: episode.seriesScore || '0.0',
+            seriesStarring: episode.seriesStarring || '',
+            seriesActor: episode.seriesActor || '',
             playCount: episode.playCount || 0,
             likeCount: episode.likeCount || 0,
             dislikeCount: episode.dislikeCount || 0,

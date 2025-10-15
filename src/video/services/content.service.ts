@@ -1,4 +1,4 @@
-import { Injectable, Inject, BadRequestException } from '@nestjs/common';
+import { Injectable, Inject, BadRequestException, forwardRef } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
@@ -9,6 +9,8 @@ import { Episode } from '../entity/episode.entity';
 import { EpisodeUrl } from '../entity/episode-url.entity';
 import { Category } from '../entity/category.entity';
 import { WatchProgressService } from './watch-progress.service';
+import { EpisodeInteractionService } from './episode-interaction.service';
+import { FavoriteService } from '../../user/services/favorite.service';
 import { CacheKeys } from '../utils/cache-keys.util';
 import { EpisodeListResponse, SeriesBasicInfo, UserWatchProgress } from '../dto/episode-list.dto';
 
@@ -28,6 +30,9 @@ export class ContentService {
     @InjectRepository(Category)
     private readonly categoryRepo: Repository<Category>,
     private readonly watchProgressService: WatchProgressService,
+    private readonly episodeInteractionService: EpisodeInteractionService,
+    @Inject(forwardRef(() => FavoriteService))
+    private readonly favoriteService: FavoriteService,
     @Inject(CACHE_MANAGER)
     private readonly cacheManager: Cache,
   ) {}
@@ -192,6 +197,38 @@ export class ContentService {
         });
       }
 
+      // 获取用户交互状态（只在用户登录时查询）
+      let userInteractions: Record<number, {
+        liked: boolean;
+        disliked: boolean;
+        favorited: boolean;
+      }> = {};
+
+      if (userId && episodes.length > 0) {
+        // 批量查询用户的点赞/点踩状态
+        const episodeReactionsMap = await this.episodeInteractionService.getUserReactions(
+          userId, 
+          episodes.map(ep => ep.id)
+        );
+
+        // 批量查询用户的收藏状态（收藏是针对系列的）
+        const favoritedEpisodesSet = await this.favoriteService.getUserFavoritedEpisodes(
+          userId, 
+          episodes.map(ep => ep.id),
+          episodes.map(ep => ep.seriesId)
+        );
+
+        // 组装用户交互状态
+        episodes.forEach(ep => {
+          const userReaction = episodeReactionsMap.get(ep.id) || null;
+          userInteractions[ep.id] = {
+            liked: userReaction === 'like',
+            disliked: userReaction === 'dislike',
+            favorited: favoritedEpisodesSet.has(ep.id),
+          };
+        });
+      }
+
       // 构建剧集列表
       const episodeList = episodes.map((ep: Episode) => {
         const progress: EpisodeProgressMapValue = episodeProgressMap[ep.id] || {
@@ -201,7 +238,8 @@ export class ContentService {
           lastWatchTime: ''
         };
 
-        return {
+        // 基础剧集信息（不含用户状态）
+        const baseEpisode = {
           id: ep.id,
           shortId: ep.shortId,
           episodeNumber: ep.episodeNumber,
@@ -229,6 +267,16 @@ export class ContentService {
             accessKey: url.accessKey
           })) || [],
         };
+
+        // 如果用户已登录，添加用户交互状态
+        if (userId && userInteractions[ep.id]) {
+          return {
+            ...baseEpisode,
+            userInteraction: userInteractions[ep.id],
+          };
+        }
+
+        return baseEpisode;
       });
 
       // 不再记录 browse_history（播放/浏览相关一律依赖 watch_progress）

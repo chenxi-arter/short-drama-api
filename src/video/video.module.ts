@@ -4,6 +4,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { Series } from './entity/series.entity';               // 系列/剧集实体
 import { Episode } from './entity/episode.entity';             // 单集视频实体
 import { EpisodeUrl } from './entity/episode-url.entity';      // 视频播放地址实体
+import { EpisodeReaction } from './entity/episode-reaction.entity'; // 剧集点赞点踩实体
 import { Comment } from './entity/comment.entity';             // 用户评论实体
 import { WatchProgress } from './entity/watch-progress.entity';// 观看进度记录实体
 import { BrowseHistory } from './entity/browse-history.entity';// 浏览记录实体
@@ -58,6 +59,7 @@ import { PlayCountService } from './services/play-count.service';
       Series,         // 系列/剧集数据表
       Episode,        // 单集视频数据表
       EpisodeUrl,     // 视频播放地址数据表
+      EpisodeReaction,// 剧集点赞点踩数据表
       Comment,        // 评论数据表
       WatchProgress,  // 用户观看进度数据表
       Category,       // 分类目录数据表

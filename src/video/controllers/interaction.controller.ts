@@ -38,6 +38,9 @@ export class InteractionController extends BaseController {
     const type = body?.type;
     if (!type) return this.error('type 必填', 400);
 
+    const userId = req.user?.userId;
+    if (!userId) return this.error('未认证', 401);
+
     if (type === 'play') {
       await this.episodeService.incrementPlayCount(episode.id);
       return this.success({ episodeId: episode.id, shortId, type: 'play' }, '已更新');
@@ -47,27 +50,80 @@ export class InteractionController extends BaseController {
       return this.error('type 必须是 play|like|dislike|favorite', 400);
     }
 
-    // 如果是收藏操作，且用户已登录，则同时存储到收藏表
-    if (type === 'favorite' && req && typeof req === 'object' && 'user' in req) {
-      const user = (req as { user?: { userId?: number } }).user;
-      if (user && typeof user.userId === 'number') {
-        try {
-          await this.favoriteService.addFavorite(user.userId, episode.seriesId, episode.id);
-        } catch (error: any) {
-          console.error('收藏操作失败:', error);
-          // 如果是重复收藏错误，不抛出异常，继续执行
-          if (error && typeof error === 'object' && 'code' in error && (error as { code: string }).code === 'ER_DUP_ENTRY') {
-            console.log('用户已收藏该剧集，跳过重复收藏');
-          } else {
-            // 其他错误继续抛出
-            throw error;
-          }
-        }
-      }
+    // 处理点赞/点踩操作
+    if (type === 'like' || type === 'dislike') {
+      const result = await this.interactionService.recordReaction(userId, episode.id, type);
+      return this.success({ 
+        episodeId: episode.id, 
+        shortId, 
+        type,
+        changed: result.changed,
+        previousType: result.previousType 
+      }, result.changed ? '已更新' : '已是该状态');
     }
 
-    await this.interactionService.increment(episode.id, type);
-    return this.success({ episodeId: episode.id, shortId, type }, '已更新');
+    // 如果是收藏操作，且用户已登录，则同时存储到收藏表
+    // 收藏整个系列，不收藏单集
+    if (type === 'favorite') {
+      try {
+        await this.favoriteService.addFavorite(userId, episode.seriesId);  // 不传 episodeId，收藏整个系列
+      } catch (error: any) {
+        console.error('收藏操作失败:', error);
+        // 如果是重复收藏错误，不抛出异常，继续执行
+        if (error && typeof error === 'object' && 'code' in error && (error as { code: string }).code === 'ER_DUP_ENTRY') {
+          console.log('用户已收藏该系列，跳过重复收藏');
+        } else {
+          // 其他错误继续抛出
+          throw error;
+        }
+      }
+      await this.interactionService.increment(episode.id, type);
+      return this.success({ 
+        episodeId: episode.id, 
+        shortId, 
+        type,
+        seriesId: episode.seriesId 
+      }, '已收藏系列');
+    }
+
+    return this.error('未知操作类型', 400);
+  }
+
+  /**
+   * 取消点赞/点踩
+   * POST /api/video/episode/reaction/remove
+   * Body: { shortId: string }
+   */
+  @UseGuards(JwtAuthGuard)
+  @Post('reaction/remove')
+  async removeReaction(
+    @Body() body: { shortId: string },
+    @Req() req: { user?: { userId?: number } },
+  ) {
+    const shortId = body?.shortId?.trim();
+    if (!shortId) throw new BadRequestException('shortId 必填');
+
+    const userId = req.user?.userId;
+    if (!userId) return this.error('未认证', 401);
+
+    const episode = await this.episodeService.getEpisodeByShortId(shortId);
+    if (!episode) return this.error('剧集不存在', 404);
+
+    const removed = await this.interactionService.removeReaction(userId, episode.id);
+    
+    if (removed) {
+      return this.success({ 
+        episodeId: episode.id, 
+        shortId,
+        removed: true 
+      }, '已取消');
+    } else {
+      return this.success({ 
+        episodeId: episode.id, 
+        shortId,
+        removed: false 
+      }, '未找到反应记录');
+    }
   }
 
   @UseGuards(JwtAuthGuard)

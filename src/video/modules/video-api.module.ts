@@ -43,6 +43,7 @@ import { BannerModule } from './banner.module';
 import { Series } from '../entity/series.entity';
 import { Episode } from '../entity/episode.entity';
 import { EpisodeUrl } from '../entity/episode-url.entity';
+import { EpisodeReaction } from '../entity/episode-reaction.entity';
 import { Comment } from '../entity/comment.entity';
 import { WatchProgress } from '../entity/watch-progress.entity';
 import { Category } from '../entity/category.entity';
@@ -61,7 +62,7 @@ import { SeriesGenreOption } from '../entity/series-genre-option.entity';
     BannerModule,
     // HistoryModule,
     TypeOrmModule.forFeature([
-      Series, Episode, EpisodeUrl, Comment, WatchProgress, Category, ShortVideo, Banner, FilterType, FilterOption,
+      Series, Episode, EpisodeUrl, EpisodeReaction, Comment, WatchProgress, Category, ShortVideo, Banner, FilterType, FilterOption,
       SeriesGenreOption
     ]),
     forwardRef(() => import('../../user/user.module').then(m => m.UserModule)),

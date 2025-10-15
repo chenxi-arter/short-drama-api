@@ -7,12 +7,13 @@
 ## 功能特点
 
 - ✅ 使用统一的 Activity 接口添加收藏（推荐）
-- ✅ 支持收藏单个剧集
+- ✅ **收藏是针对系列的**，通过任意一集收藏整个系列
 - ✅ 使用 `shortId` 进行操作，更符合前端习惯
 - ✅ 防止重复收藏
 - ✅ 提供分页查询收藏列表
-- ✅ 返回完整的剧集信息（封面、标题、简介、评分等）
+- ✅ 返回完整的系列信息（封面、标题、简介、评分等）
 - ✅ 自动更新收藏计数
+- ✅ 收藏后该系列的所有剧集都显示为已收藏状态
 
 ## 接口总览
 
@@ -70,8 +71,10 @@ CREATE TABLE `favorites` (
 
 **说明**: 
 - 这是**推荐的收藏方式**，与播放、点赞等操作统一
+- ⭐ **收藏是针对系列的**，传入任意一集的 `shortId` 会收藏整个系列
 - 使用剧集的 `shortId` 进行操作，更符合前端使用习惯
-- 会自动增加剧集的收藏计数，并在 `favorites` 表中创建收藏记录
+- 会自动增加该集的收藏计数，并在 `favorites` 表中创建系列收藏记录
+- 收藏后，该系列的所有剧集都显示为已收藏状态（`userFavorited: true`）
 
 **请求参数**:
 
@@ -123,7 +126,10 @@ curl -X POST http://localhost:3000/api/video/episode/activity \
 
 **认证方式**: JWT Token (Bearer)
 
-**说明**: 使用 `shortId` 取消收藏，与添加收藏保持一致的参数格式
+**说明**: 
+- ⭐ **取消收藏是针对系列的**，传入该系列任意一集的 `shortId` 即可取消整个系列的收藏
+- 取消后，该系列的所有剧集都显示为未收藏状态（`userFavorited: false`）
+- 与添加收藏保持一致的参数格式
 
 **请求参数**:
 
@@ -152,8 +158,7 @@ curl -X POST http://localhost:3000/api/user/favorites/remove \
     "removed": true,
     "shortId": "6JswefD4QXK",
     "seriesId": 2448,
-    "episodeId": 12328,
-    "favoriteType": "episode"
+    "favoriteType": "series"
   }
 }
 ```
@@ -163,10 +168,9 @@ curl -X POST http://localhost:3000/api/user/favorites/remove \
 | 字段 | 类型 | 说明 |
 |------|------|------|
 | `removed` | boolean | 是否成功删除 |
-| `shortId` | string | 剧集短ID |
-| `seriesId` | number | 剧集系列ID |
-| `episodeId` | number | 剧集ID |
-| `favoriteType` | string | 收藏类型（固定为 `"episode"`） |
+| `shortId` | string | 剧集短ID（用于定位系列） |
+| `seriesId` | number | 被取消收藏的系列ID |
+| `favoriteType` | string | 收藏类型（固定为 `"series"`） |
 
 ---
 
