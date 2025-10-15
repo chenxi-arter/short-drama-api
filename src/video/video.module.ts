@@ -1,5 +1,5 @@
 // src/video/video.module.ts
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Series } from './entity/series.entity';               // 系列/剧集实体
 import { Episode } from './entity/episode.entity';             // 单集视频实体
@@ -46,6 +46,7 @@ import { HistoryModule } from './modules/history.module';
 import { IsValidChannelExistsConstraint } from './validators/channel-exists.validator';
 import { IngestService } from './services/ingest.service';
 import { PlayCountService } from './services/play-count.service';
+import { EpisodeInteractionService } from './services/episode-interaction.service';
 @Module({
   imports: [
     // 子模块装载（在不改变现有路由前提下分层）
@@ -71,8 +72,10 @@ import { PlayCountService } from './services/play-count.service';
       FilterOption,   // 筛选器选项数据表
       SeriesGenreOption, // 系列题材中间表
       BrowseHistory   // 浏览记录数据表
-    ])
-  , VideoApiModule],
+    ]),
+    VideoApiModule,
+    forwardRef(() => import('../user/user.module').then(m => m.UserModule)), // 导入UserModule以访问FavoriteService
+  ],
   providers: [
     // ✅ 重构后的协调器服务
     VideoService,
@@ -89,6 +92,7 @@ import { PlayCountService } from './services/play-count.service';
     WatchProgressService,
     CommentService,
     EpisodeService,
+    EpisodeInteractionService,
     CategoryService,
     IngestService,
     FilterService,
