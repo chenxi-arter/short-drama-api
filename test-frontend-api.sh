@@ -3,13 +3,15 @@ set -e
 
 BASE="http://127.0.0.1:8080"
 EMAIL="smoke_test_$(date +%s)@example.com"
+USERNAME="smoke_$(date +%s | tail -c 6)"
 PASS="Test123456"
 
 echo "========================================="
-echo "前端API文档冒烟测试"
+echo "前端API文档冒烟测试 (v2.0 - 包含点赞点踩、收藏功能)"
 echo "========================================="
 echo "BASE: $BASE"
 echo "EMAIL: $EMAIL"
+echo "USERNAME: $USERNAME"
 echo ""
 
 # 1. 用户注册
@@ -20,7 +22,7 @@ REG_RESP=$(curl -s -X POST "$BASE/api/auth/register" \
     \"email\": \"$EMAIL\",
     \"password\": \"$PASS\",
     \"confirmPassword\": \"$PASS\",
-    \"username\": \"smoke_user\"
+    \"username\": \"$USERNAME\"
   }")
 echo "$REG_RESP" | jq -C '.' || echo "$REG_RESP"
 echo ""
@@ -147,24 +149,98 @@ if [ -n "$SERIES_SHORT_ID" ]; then
       -H "Authorization: Bearer $TOKEN")
     echo "$PROGRESS_GET" | jq -C '.' || echo "$PROGRESS_GET"
     echo ""
+    
+    # 14. 点赞功能测试
+    echo ">>> 14. 点赞功能 (POST /api/video/episode/activity)"
+    LIKE_RESP=$(curl -s -X POST "$BASE/api/video/episode/activity" \
+      -H "Authorization: Bearer $TOKEN" \
+      -H 'Content-Type: application/json' \
+      -d "{
+        \"shortId\": \"$EP_SHORT_ID\",
+        \"type\": \"like\"
+      }")
+    echo "$LIKE_RESP" | jq -C '.' || echo "$LIKE_RESP"
+    echo ""
+    
+    # 15. 点踩功能测试（切换）
+    echo ">>> 15. 点踩功能 (POST /api/video/episode/activity)"
+    DISLIKE_RESP=$(curl -s -X POST "$BASE/api/video/episode/activity" \
+      -H "Authorization: Bearer $TOKEN" \
+      -H 'Content-Type: application/json' \
+      -d "{
+        \"shortId\": \"$EP_SHORT_ID\",
+        \"type\": \"dislike\"
+      }")
+    echo "$DISLIKE_RESP" | jq -C '.' || echo "$DISLIKE_RESP"
+    echo ""
+    
+    # 16. 取消反应
+    echo ">>> 16. 取消反应 (POST /api/video/episode/reaction/remove)"
+    REMOVE_REACTION_RESP=$(curl -s -X POST "$BASE/api/video/episode/reaction/remove" \
+      -H "Authorization: Bearer $TOKEN" \
+      -H 'Content-Type: application/json' \
+      -d "{
+        \"shortId\": \"$EP_SHORT_ID\"
+      }")
+    echo "$REMOVE_REACTION_RESP" | jq -C '.' || echo "$REMOVE_REACTION_RESP"
+    echo ""
+    
+    # 17. 收藏功能测试
+    echo ">>> 17. 收藏功能 (POST /api/video/episode/activity)"
+    FAVORITE_RESP=$(curl -s -X POST "$BASE/api/video/episode/activity" \
+      -H "Authorization: Bearer $TOKEN" \
+      -H 'Content-Type: application/json' \
+      -d "{
+        \"shortId\": \"$EP_SHORT_ID\",
+        \"type\": \"favorite\"
+      }")
+    echo "$FAVORITE_RESP" | jq -C '.' || echo "$FAVORITE_RESP"
+    echo ""
   fi
 fi
 
-# 14. 获取浏览历史
-echo ">>> 14. 获取浏览历史 (GET /api/video/browse-history)"
+# 18. 获取收藏列表
+echo ">>> 18. 获取收藏列表 (GET /api/user/favorites)"
+FAVORITES_LIST=$(curl -s "$BASE/api/user/favorites?page=1&size=5" \
+  -H "Authorization: Bearer $TOKEN")
+echo "$FAVORITES_LIST" | jq -C '.data | {total, page, size, itemCount: (.list | length), firstItem: .list[0]}' || echo "$FAVORITES_LIST" | head -30
+echo ""
+
+# 19. 获取收藏统计
+echo ">>> 19. 获取收藏统计 (GET /api/user/favorites/stats)"
+FAVORITES_STATS=$(curl -s "$BASE/api/user/favorites/stats" \
+  -H "Authorization: Bearer $TOKEN")
+echo "$FAVORITES_STATS" | jq -C '.' || echo "$FAVORITES_STATS"
+echo ""
+
+# 20. 取消收藏测试
+if [ -n "$EP_SHORT_ID" ]; then
+  echo ">>> 20. 取消收藏 (POST /api/user/favorites/remove)"
+  REMOVE_FAVORITE_RESP=$(curl -s -X POST "$BASE/api/user/favorites/remove" \
+    -H "Authorization: Bearer $TOKEN" \
+    -H 'Content-Type: application/json' \
+    -d "{
+      \"shortId\": \"$EP_SHORT_ID\"
+    }")
+  echo "$REMOVE_FAVORITE_RESP" | jq -C '.' || echo "$REMOVE_FAVORITE_RESP"
+  echo ""
+fi
+
+# 21. 获取浏览历史
+echo ">>> 21. 获取浏览历史 (GET /api/video/browse-history)"
 BROWSE_HISTORY=$(curl -s "$BASE/api/video/browse-history?page=1&size=5" \
   -H "Authorization: Bearer $TOKEN")
 echo "$BROWSE_HISTORY" | jq -C '.data | {total, page, size, itemCount: (.list | length), firstItem: .list[0]}' || echo "$BROWSE_HISTORY" | head -30
 echo ""
 
-# 15. 模糊搜索
-echo ">>> 15. 模糊搜索 (GET /api/list/fuzzysearch)"
+# 22. 模糊搜索
+echo ">>> 22. 模糊搜索 (GET /api/list/fuzzysearch)"
 SEARCH_RESP=$(curl -s "$BASE/api/list/fuzzysearch?keyword=总裁&page=1&size=5")
 echo "$SEARCH_RESP" | jq -C '.data | {total, page, size, hasMore, itemCount: (.list | length)}' || echo "$SEARCH_RESP" | head -20
 echo ""
 
-# 16. 获取用户信息
-echo ">>> 16. 获取用户信息 (GET /api/user/me)"
+# 23. 获取用户信息
+echo ">>> 23. 获取用户信息 (GET /api/user/me)"
 USER_INFO=$(curl -s "$BASE/api/user/me" \
   -H "Authorization: Bearer $TOKEN")
 echo "$USER_INFO" | jq -C '.' || echo "$USER_INFO"

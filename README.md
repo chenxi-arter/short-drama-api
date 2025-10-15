@@ -6,8 +6,10 @@
 
 - 🔐 **用户认证系统** - 支持Telegram登录、JWT认证、Refresh Token机制
 - 📺 **视频管理** - 系列剧集、短视频、分类标签管理
-- 💬 **评论系统** - 支持普通评论和弹幕评论
+- 💬 **评论系统** - 支持普通评论和弹幕评论，支持回复功能
 - 📊 **观看进度** - 记录用户观看进度，支持断点续播
+- ⭐ **用户交互** - 点赞点踩、收藏功能、浏览历史记录
+- 🎯 **智能推荐** - 基于用户行为的个性化推荐算法
 - 🏷️ **标签系统** - 灵活的内容标签分类
 - 🔄 **缓存支持** - Redis缓存提升性能，支持用户名密码认证
 - 🛡️ **安全防护** - 请求限流、JWT认证、防爬虫机制
@@ -24,11 +26,18 @@
 - **验证**: class-validator
 - **文档**: 内置API文档
 
-## 📋 最新更新 (v2.1 - 2025年9月13日)
+## 📋 最新更新 (v2.0 - 2025年10月15日)
 
-### 🎯 播放地址接口优化
-- 播放地址数据直接返回在 `data` 字段中，前端无需访问 `data.data`
-- 统一返回格式，包含完整的剧集和系列信息
+### ✨ 用户交互功能 (v2.0 核心更新)
+- **点赞点踩系统** - 用户可对剧集进行点赞/点踩，支持互斥操作和实时统计
+- **收藏功能** - 收藏针对系列而非单集，收藏系列后该系列所有集都显示已收藏状态
+- **浏览历史** - 记录用户浏览行为，支持访问次数统计，优化推荐算法
+- **用户状态封装** - 在API响应中统一封装用户交互状态（`userInteraction`对象）
+
+### 🎯 推荐系统增强
+- **推荐接口优化** - 新增系列评分、主演、演员信息字段
+- **智能推荐算法** - 基于点赞数、收藏数、评论数和随机因子的综合推荐
+- **用户个性化** - 根据用户交互行为提供个性化推荐内容
 
 ### 🔍 搜索功能改进
 - 修复搜索 "test1" 时返回 "test1999" 的问题
@@ -190,9 +199,10 @@ mysql -h host -u user -p database < migrations/insert-test-data.sql
 
 ### 主要模块
 
-- **用户认证** (`/api/user`) - Telegram登录、用户信息
-- **认证管理** (`/api/user`) - Token刷新、登出、设备管理
-- **视频模块** (`/api/video`) - 视频列表、详情、进度、评论
+- **用户认证** (`/api/user`) - Telegram登录、用户信息、Token管理
+- **视频模块** (`/api/video`) - 视频列表、详情、进度、评论、推荐
+- **用户交互** (`/api/video/episode/activity`) - 点赞点踩、收藏、播放统计
+- **收藏管理** (`/api/user/favorites`) - 收藏列表、统计、移除
 - **首页模块** (`/api/home`) - 推荐内容、分类浏览
 - **列表模块** (`/api/list`) - 筛选标签、分类数据
 
@@ -214,7 +224,10 @@ POST /api/user/refresh
 详细的技术文档和使用指南请查看：
 - 📖 [文档中心](./docs/README.md) - 完整的项目文档索引
 - 🚀 [快速开始](./docs/development-guide.md) - 开发环境搭建指南
-- 📋 [API接口文档](./docs/api-summary-documentation.md) - 详细的接口说明
+- 📋 [前端API文档](./docs/frontend-api-guide.md) - 前端接口完整指南（v2.0）
+- 🎯 [点赞点踩API](./docs/episode-reactions-api-guide.md) - 用户交互功能文档
+- ⭐ [收藏功能API](./docs/favorites-api-guide.md) - 收藏管理功能文档
+- 💬 [评论功能API](./docs/comment-reply-usage-guide.md) - 评论回复功能文档
 - 🛠️ [部署指南](./docs/deployment-guide.md) - 生产环境部署方案
 - 🧪 [测试指南](./docs/api-testing-guide.md) - API测试和验证方法
 
@@ -298,9 +311,19 @@ migrations/              # 数据库迁移
 ├── complete-setup.sql   # 完整初始化脚本
 ├── init-database.sql    # 基础表结构
 ├── create-refresh-tokens-table.sql
+├── add_episode_reactions.sql  # 点赞点踩表
+├── add_favorites_table.sql    # 收藏表
+├── browse_history.sql         # 浏览历史表
 └── insert-test-data.sql # 测试数据
 
 docs/                    # 项目文档
+├── frontend-api-guide.md      # 前端API完整指南（v2.0）
+├── episode-reactions-api-guide.md  # 点赞点踩API
+├── favorites-api-guide.md     # 收藏功能API
+├── comment-reply-usage-guide.md    # 评论回复API
+├── API快速参考.md             # 接口速查
+├── 前端接口总览.md            # 接口分类汇总
+├── API文档说明.md             # 文档导航
 ├── api-test-examples.md
 ├── token-expiration-guide.md
 └── redis-cache-guide.md
@@ -316,16 +339,19 @@ docs/                    # 项目文档
 - IP地址安全监控
 
 ### 📺 内容管理
-- 系列剧集管理
+- 系列剧集管理（支持评分、主演、演员信息）
 - 短视频内容
 - 分类标签系统
-- 内容推荐算法
+- 智能推荐算法（基于用户行为）
 - 观看进度记录
+- 用户交互状态管理
 
 ### 💬 互动功能
-- 评论系统
+- 评论系统（支持回复功能）
 - 弹幕功能
-- 点赞统计
+- 点赞点踩系统（互斥操作）
+- 收藏功能（系列级别）
+- 浏览历史记录
 - 用户活跃度分析
 
 ### 🛡️ 安全防护

@@ -8,6 +8,31 @@ import { EpisodeUrl } from '../entity/episode-url.entity';
 import { DateUtil } from '../../common/utils/date.util';
 import { RecommendEpisodeItem } from '../dto/recommend.dto';
 
+// 定义查询结果的类型
+interface RecommendQueryResult {
+  id: number;
+  shortId: string;
+  episodeNumber: number;
+  title: string;
+  duration: number;
+  status: string;
+  isVertical: boolean;
+  createdAt: string;
+  playCount: number;
+  likeCount: number;
+  dislikeCount: number;
+  favoriteCount: number;
+  episodeAccessKey: string;
+  seriesShortId: string;
+  seriesTitle: string;
+  seriesCoverUrl: string;
+  seriesDescription: string;
+  seriesScore: string;
+  seriesStarring: string;
+  seriesActor: string;
+  recommendScore: string;
+}
+
 /**
  * 推荐服务
  * 实现类似抖音的随机推荐功能
@@ -39,6 +64,21 @@ export class RecommendService {
   }> {
     try {
       const offset = (page - 1) * size;
+      
+      // 生成缓存键
+      const cacheKey = `recommend:list:${page}:${size}`;
+      
+      // 尝试从缓存获取数据
+      const cachedData = await this.cacheManager.get<{
+        list: RecommendEpisodeItem[];
+        page: number;
+        size: number;
+        hasMore: boolean;
+      }>(cacheKey);
+      
+      if (cachedData) {
+        return cachedData;
+      }
 
       // 构建推荐查询
       // 推荐分数 = (点赞数 × 3 + 收藏数 × 5 + 评论数 × 2) + 随机因子(0-100)
@@ -77,15 +117,15 @@ export class RecommendService {
         LIMIT ? OFFSET ?
       `;
 
-      const episodes = await this.episodeRepo.query(query, [size + 1, offset]);
+      const episodes: RecommendQueryResult[] = await this.episodeRepo.query(query, [size + 1, offset]);
 
       // 判断是否还有更多数据
       const hasMore = episodes.length > size;
       const list = hasMore ? episodes.slice(0, size) : episodes;
 
       // 获取每个剧集的播放地址
-      const enrichedList = await Promise.all(
-        list.map(async (episode) => {
+      const enrichedList: RecommendEpisodeItem[] = await Promise.all(
+        list.map(async (episode: RecommendQueryResult): Promise<RecommendEpisodeItem> => {
           // 获取剧集的播放地址
           const urls = await this.episodeUrlRepo.find({
             where: { episodeId: episode.id },
@@ -93,7 +133,7 @@ export class RecommendService {
           });
 
           // 格式化创建时间
-          const createdAt = DateUtil.formatDateTime(new Date(episode.createdAt));
+          const createdAt = DateUtil.formatDateTime(episode.createdAt);
 
           return {
             shortId: episode.shortId,
@@ -127,12 +167,17 @@ export class RecommendService {
         })
       );
 
-      return {
+      const result = {
         list: enrichedList,
         page,
         size,
         hasMore,
       };
+      
+      // 缓存结果，缓存5分钟
+      await this.cacheManager.set(cacheKey, result, 5 * 60 * 1000);
+      
+      return result;
     } catch (error) {
       console.error('获取推荐列表失败:', error);
       throw new Error('获取推荐列表失败');
