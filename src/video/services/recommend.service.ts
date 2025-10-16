@@ -5,6 +5,7 @@ import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
 import { Episode } from '../entity/episode.entity';
 import { EpisodeUrl } from '../entity/episode-url.entity';
+import { Comment } from '../entity/comment.entity';
 import { DateUtil } from '../../common/utils/date.util';
 import { RecommendEpisodeItem } from '../dto/recommend.dto';
 import { EpisodeInteractionService } from './episode-interaction.service';
@@ -48,6 +49,8 @@ export class RecommendService {
     private readonly episodeRepo: Repository<Episode>,
     @InjectRepository(EpisodeUrl)
     private readonly episodeUrlRepo: Repository<EpisodeUrl>,
+    @InjectRepository(Comment)
+    private readonly commentRepo: Repository<Comment>,
     @Inject(CACHE_MANAGER)
     private readonly cacheManager: Cache,
     private readonly episodeInteractionService: EpisodeInteractionService,
@@ -171,6 +174,23 @@ export class RecommendService {
         });
       }
 
+      // 批量查询评论数（通过 episodeShortId）
+      const commentCountMap: Record<string, number> = {};
+      if (list.length > 0) {
+        const shortIds = list.map(ep => ep.shortId);
+        const commentCounts = await this.commentRepo
+          .createQueryBuilder('comment')
+          .select('comment.episodeShortId', 'episodeShortId')
+          .addSelect('COUNT(*)', 'count')
+          .where('comment.episodeShortId IN (:...shortIds)', { shortIds })
+          .groupBy('comment.episodeShortId')
+          .getRawMany();
+        
+        commentCounts.forEach(item => {
+          commentCountMap[item.episodeShortId] = parseInt(item.count, 10);
+        });
+      }
+
       // 获取每个剧集的播放地址
       const enrichedList: RecommendEpisodeItem[] = await Promise.all(
         list.map(async (episode: RecommendQueryResult): Promise<RecommendEpisodeItem> => {
@@ -204,7 +224,7 @@ export class RecommendService {
             likeCount: episode.likeCount || 0,
             dislikeCount: episode.dislikeCount || 0,
             favoriteCount: episode.favoriteCount || 0,
-            commentCount: 0, // 暂时返回0，避免性能问题
+            commentCount: commentCountMap[episode.shortId] || 0,
             episodeAccessKey: episode.episodeAccessKey,
             urls: urls.map(url => ({
               quality: url.quality,
