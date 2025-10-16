@@ -38,6 +38,7 @@ export interface RecommendEpisodeItem {
   seriesScore: string;
   seriesStarring: string;
   seriesActor: string;
+  updateStatus: string;
   
   // 互动数据
   playCount: number;
@@ -63,6 +64,13 @@ export interface RecommendEpisodeItem {
     createdAt: string;
     likeCount: number;
   }[];
+  
+  // 用户交互状态（仅登录用户返回）
+  userInteraction?: {
+    liked: boolean;
+    disliked: boolean;
+    favorited: boolean;
+  };
   
   // 推荐分数（调试用）
   recommendScore?: number;
