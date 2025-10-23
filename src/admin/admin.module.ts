@@ -20,6 +20,7 @@ import { IngestController } from './controllers/ingest.controller';
 import { TestIngestController } from './controllers/test-ingest.controller';
 import { AdminSeriesController } from './controllers/admin-series.controller';
 import { AdminDashboardController } from './controllers/admin-dashboard.controller';
+import { SeriesValidationController } from './controllers/series-validation.controller';
 
 // Modules
 import { VideoModule } from '../video/video.module';
@@ -49,6 +50,7 @@ import { CoreModule } from '../core/core.module';
     AdminEpisodesController,
     AdminSeriesController,
     AdminDashboardController,
+    SeriesValidationController,
     // 从 video/controllers 归并的管理端路由
     IngestController,
     TestIngestController,

@@ -436,6 +436,177 @@ curl -X POST "http://localhost:8080/api/admin/banners/123/image-from-url" \
 ### 播放地址管理 EpisodeUrl（某一集的播放源）
 ---
 
+### 系列数据验证 Series Validation ⭐ 新增
+
+资源路径: `/admin/series/validation`
+
+**功能说明**: 检测系列数据完整性和唯一性问题
+
+- 获取统计
+  - `GET /api/admin/series/validation/stats`
+  - 快速了解数据质量概览
+  - 响应示例：
+```json
+{
+  "success": true,
+  "data": {
+    "totalSeries": 1127,
+    "seriesWithoutEpisodes": 0,
+    "sampleSize": 100,
+    "issuesInSample": 2,
+    "estimatedTotalIssues": 23,
+    "estimatedIssueRate": "2.0%"
+  }
+}
+```
+
+- 检查缺集（集数不连续）
+  - `GET /api/admin/series/validation/check-missing-episodes`
+  - 默认检查全部系列（⭐ 无需参数）
+  - 检测系列内集数是否连续（如：有1,2,4,5集，缺第3集）
+  - 参数：
+    - `seriesId` number 可选：检查指定系列
+    - `limit` number 可选：限制检查数量（最大10000）
+    - `checkAll` boolean 可选：false时只检查前100个
+  - 示例：
+```bash
+# 检查全部系列（默认）
+curl "http://localhost:9090/api/admin/series/validation/check-missing-episodes"
+
+# 只检查前100个
+curl "http://localhost:9090/api/admin/series/validation/check-missing-episodes?limit=100"
+
+# 检查指定系列
+curl "http://localhost:9090/api/admin/series/validation/check-missing-episodes?seriesId=2455"
+```
+
+  - 响应示例：
+```json
+{
+  "success": true,
+  "data": {
+    "total": 1,
+    "checkedSeries": 1127,
+    "items": [
+      {
+        "seriesId": 2455,
+        "seriesTitle": "朱雀堂",
+        "seriesShortId": "kK22TBWdV7q",
+        "totalEpisodes": 20,
+        "expectedEpisodes": 21,
+        "missingEpisodes": [3, 15],
+        "duplicateEpisodes": [],
+        "status": "HAS_ISSUES",
+        "issues": {
+          "hasMissing": true,
+          "hasDuplicates": false,
+          "missingCount": 2,
+          "duplicateCount": 0
+        }
+      }
+    ]
+  },
+  "message": "发现 1 个系列存在集数问题"
+}
+```
+
+- 检查重复系列名 ⭐
+  - `GET /api/admin/series/validation/check-duplicate-names`
+  - 默认检查全部系列（⭐ 无需参数）
+  - 检测多个系列使用相同标题的情况
+  - 参数：同上
+  - 示例：
+```bash
+# 检查全部系列（默认）
+curl "http://localhost:9090/api/admin/series/validation/check-duplicate-names"
+```
+
+  - 响应示例：
+```json
+{
+  "success": true,
+  "data": {
+    "total": 1,
+    "checkedSeries": 1127,
+    "totalDuplicateCount": 3,
+    "items": [
+      {
+        "title": "朱雀堂",
+        "count": 3,
+        "series": [
+          {
+            "id": 2001,
+            "shortId": "abc123",
+            "title": "朱雀堂",
+            "externalId": "source-1",
+            "createdAt": "2024-01-01T00:00:00.000Z"
+          },
+          {
+            "id": 2455,
+            "shortId": "xyz789",
+            "title": "朱雀堂",
+            "externalId": "source-2",
+            "createdAt": "2024-06-01T00:00:00.000Z"
+          }
+        ]
+      }
+    ]
+  },
+  "message": "发现 1 个重复的系列名"
+}
+```
+
+- 检查重复外部ID ⭐
+  - `GET /api/admin/series/validation/check-duplicate-external-ids`
+  - 默认检查全部系列（⭐ 无需参数）
+  - 检测externalId冲突（数据一致性问题）
+  - 响应格式同上
+
+- 查看系列详细集数信息
+  - `GET /api/admin/series/validation/episodes/:seriesId`
+  - 查看指定系列的完整集数信息和问题详情
+  - 响应示例：
+```json
+{
+  "success": true,
+  "data": {
+    "series": {
+      "id": 2455,
+      "shortId": "kK22TBWdV7q",
+      "title": "朱雀堂",
+      "totalEpisodes": 20,
+      "isCompleted": true
+    },
+    "episodes": [
+      {
+        "id": 12328,
+        "shortId": "6JswefD4QXK",
+        "episodeNumber": 1,
+        "title": "第1集",
+        "status": "published",
+        "duration": 300
+      }
+    ],
+    "validation": {
+      "expectedCount": 21,
+      "actualCount": 20,
+      "isContinuous": false,
+      "missingEpisodes": [3, 15],
+      "duplicates": []
+    }
+  }
+}
+```
+
+**使用建议**：
+- 建议每周定期检查数据质量
+- 采集新内容后及时验证
+- 所有接口默认检查全部系列，性能优秀（< 1秒）
+
+**详细文档**: 参见 `admin-series-validation-api.md`
+
+---
+
 ### 模糊搜索 Fuzzy Search
 
 资源路径：`/list/fuzzysearch`
@@ -603,6 +774,23 @@ curl -X DELETE "http://localhost:8080/api/admin/series/2455" \
 # 恢复已删除的系列
 curl -X POST "http://localhost:8080/api/admin/series/2455/restore" \
   -H "Content-Type: application/json"
+
+# 系列数据验证 ⭐
+
+# 检查缺集（默认检查全部）
+curl -X GET "http://localhost:9090/api/admin/series/validation/check-missing-episodes"
+
+# 检查重复系列名（默认检查全部）
+curl -X GET "http://localhost:9090/api/admin/series/validation/check-duplicate-names"
+
+# 检查重复外部ID（默认检查全部）
+curl -X GET "http://localhost:9090/api/admin/series/validation/check-duplicate-external-ids"
+
+# 获取数据质量统计
+curl -X GET "http://localhost:9090/api/admin/series/validation/stats"
+
+# 查看指定系列的集数详情
+curl -X GET "http://localhost:9090/api/admin/series/validation/episodes/2455"
 ```
 
 ---
