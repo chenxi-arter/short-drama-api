@@ -256,13 +256,18 @@ curl -X POST "http://localhost:8080/api/admin/banners/123/image-from-url" \
       "coverUrl": "https://cdn.example.com/cover.jpg",
       "isActive": 1,
       "deletedAt": null,
-      "created_at": "2025-09-01T12:00:00.000Z"
+      "createdAt": "2025-09-01T12:00:00.000Z",
+      "updatedAt": "2025-10-11T08:25:28.000Z"
     }
   ],
   "page": 1,
   "size": 20
 }
 ```
+
+**字段说明**：
+- `createdAt`: 创建时间（ISO 8601 格式，UTC时区）
+- `updatedAt`: 最后更新时间（ISO 8601 格式，UTC时区）
 
 - 已删除系列列表
   - `GET /api/admin/series/deleted?page=1&size=20`
@@ -336,6 +341,40 @@ curl -X POST "http://localhost:8080/api/admin/banners/123/image-from-url" \
     - 获取时长大于等于600秒的剧集：`/api/admin/episodes?minDuration=600`
     - 获取时长小于等于1800秒的剧集：`/api/admin/episodes?maxDuration=1800`
     - 获取时长在600-1800秒之间的剧集：`/api/admin/episodes?minDuration=600&maxDuration=1800`
+  - 响应示例：
+```json
+{
+  "total": 28808,
+  "items": [
+    {
+      "id": 28808,
+      "shortId": "Ry876Buxoxrc",
+      "episodeNumber": 69,
+      "title": "69",
+      "duration": 528,
+      "status": "published",
+      "isVertical": false,
+      "likeCount": 32,
+      "dislikeCount": 0,
+      "favoriteCount": 0,
+      "playCount": 36,
+      "seriesId": 3143,
+      "createdAt": "2025-10-06T16:00:01.078Z",
+      "updatedAt": "2025-10-06T16:00:01.078Z",
+      "series": {
+        "id": 3143,
+        "title": "今天的她们112"
+      }
+    }
+  ],
+  "page": 1,
+  "size": 20
+}
+```
+
+**时间字段说明**：
+- `createdAt`: 剧集创建时间（ISO 8601 格式，UTC时区）
+- `updatedAt`: 剧集最后更新时间（ISO 8601 格式，UTC时区）
 
 - 详情
   - `GET /api/admin/episodes/:id`
@@ -573,6 +612,41 @@ curl -X POST "http://localhost:8080/api/admin/series/2455/restore" \
 - 当前接口未做鉴权与验证，前端需自行保证传参正确性。
 - 所有时间字段请使用 ISO 8601 字符串（如 `2025-09-05T12:00:00Z`）。
 - `users` 的 `id` 为 bigint，若前端使用 JavaScript，请注意大整数精度问题（建议在 UI 层以字符串管理；传输时可用数字或字符串，按后端实际配置调整）。
+
+#### 时间字段说明
+
+所有接口返回的时间字段（`createdAt`、`updatedAt`、`deletedAt` 等）均采用 **ISO 8601 格式（UTC 时区）**。
+
+**示例**：`"2025-10-06T15:53:30.250Z"`
+
+**前端时间格式转换**：
+
+```javascript
+// 方法1：转换为本地时间字符串
+const createdAt = "2025-10-06T15:53:30.250Z";
+const date = new Date(createdAt);
+const localTime = date.toLocaleString('zh-CN', {
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit'
+});
+// 输出：2025/10/06 23:53:30 (北京时间 UTC+8)
+
+// 方法2：使用 Day.js 格式化
+import dayjs from 'dayjs';
+const formatted = dayjs(createdAt).format('YYYY-MM-DD HH:mm:ss');
+// 输出：2025-10-06 23:53:30
+
+// 方法3：相对时间（如"2天前"）
+import dayjs from 'dayjs';
+import relativeTime from 'dayjs/plugin/relativeTime';
+dayjs.extend(relativeTime);
+const relative = dayjs(createdAt).fromNow();
+// 输出：2天前
+```
 
 #### 视频下载功能说明
 
