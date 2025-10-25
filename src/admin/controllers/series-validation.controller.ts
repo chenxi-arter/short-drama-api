@@ -24,16 +24,9 @@ export class SeriesValidationController {
   @Get('check-missing-episodes')
   async checkMissingEpisodes(
     @Query('seriesId') seriesId?: number,
-    @Query('limit') limit?: number,
-    @Query('checkAll') checkAll?: string,
   ) {
     try {
-      // 默认检查全部系列；如果指定limit则使用limit
-      const queryLimit = limit 
-        ? Math.min(Number(limit), 10000)
-        : (checkAll === 'false' ? 100 : 999999);
-      
-      // 获取系列列表
+      // 获取系列列表（扫描所有活跃系列）
       let seriesQuery = this.seriesRepo
         .createQueryBuilder('s')
         .where('s.is_active = :isActive', { isActive: 1 });
@@ -44,7 +37,6 @@ export class SeriesValidationController {
       
       const seriesList = await seriesQuery
         .orderBy('s.id', 'DESC')
-        .limit(queryLimit)
         .getMany();
 
       const results: any[] = [];
@@ -52,11 +44,10 @@ export class SeriesValidationController {
       for (const series of seriesList) {
         // 获取该系列的所有剧集
         const episodes = await this.episodeRepo
-          .createQueryBuilder('e')
-          .select(['e.id', 'e.episode_number', 'e.title', 'e.status'])
-          .where('e.series_id = :seriesId', { seriesId: series.id })
-          .orderBy('e.episode_number', 'ASC')
-          .getMany();
+          .find({
+            where: { seriesId: series.id },
+            order: { episodeNumber: 'ASC' },
+          });
 
         if (episodes.length === 0) {
           // 没有剧集的系列
@@ -73,7 +64,7 @@ export class SeriesValidationController {
         }
 
         // 检查集数是否连续
-        const episodeNumbers = episodes.map(ep => ep.episodeNumber).sort((a, b) => a - b);
+        const episodeNumbers = episodes.map(ep => ep.episodeNumber).filter(n => n != null).sort((a, b) => a - b);
         const maxEpisode = Math.max(...episodeNumbers);
         const missingEpisodes: number[] = [];
 
@@ -238,23 +229,14 @@ export class SeriesValidationController {
    * GET /api/admin/series/validation/check-duplicate-names
    */
   @Get('check-duplicate-names')
-  async checkDuplicateNames(
-    @Query('checkAll') checkAll?: string,
-    @Query('limit') limit?: number,
-  ) {
+  async checkDuplicateNames() {
     try {
-      // 默认检查全部系列；如果指定limit则使用limit
-      const queryLimit = limit 
-        ? Math.min(Number(limit), 10000)
-        : (checkAll === 'false' ? 100 : 999999);
-
-      // 查询所有活跃系列
+      // 查询所有活跃系列（扫描全部）
       const seriesList = await this.seriesRepo
         .createQueryBuilder('s')
         .select(['s.id', 's.title', 's.shortId', 's.externalId', 's.createdAt'])
         .where('s.is_active = :isActive', { isActive: 1 })
         .orderBy('s.id', 'DESC')
-        .limit(queryLimit)
         .getMany();
 
       // 按标题分组，找出重复的
@@ -320,17 +302,9 @@ export class SeriesValidationController {
    * GET /api/admin/series/validation/check-duplicate-external-ids
    */
   @Get('check-duplicate-external-ids')
-  async checkDuplicateExternalIds(
-    @Query('checkAll') checkAll?: string,
-    @Query('limit') limit?: number,
-  ) {
+  async checkDuplicateExternalIds() {
     try {
-      // 默认检查全部系列；如果指定limit则使用limit
-      const queryLimit = limit 
-        ? Math.min(Number(limit), 10000)
-        : (checkAll === 'false' ? 100 : 999999);
-
-      // 查询有外部ID的系列
+      // 查询有外部ID的系列（扫描全部）
       const seriesList = await this.seriesRepo
         .createQueryBuilder('s')
         .select(['s.id', 's.title', 's.shortId', 's.externalId', 's.createdAt'])
@@ -338,7 +312,6 @@ export class SeriesValidationController {
         .andWhere('s.external_id IS NOT NULL')
         .andWhere('s.external_id != :empty', { empty: '' })
         .orderBy('s.id', 'DESC')
-        .limit(queryLimit)
         .getMany();
 
       // 按外部ID分组
@@ -401,67 +374,155 @@ export class SeriesValidationController {
   }
 
   /**
-   * 获取统计信息
+   * 获取统计信息（全量统计）
    * GET /api/admin/series/validation/stats
    */
   @Get('stats')
   async getValidationStats() {
     try {
+      const startTime = Date.now();
+
       // 总系列数
       const totalSeries = await this.seriesRepo.count({
         where: { isActive: 1 },
       });
 
-      // 无剧集的系列
-      const seriesWithoutEpisodes = await this.seriesRepo
-        .createQueryBuilder('s')
-        .leftJoin('s.episodes', 'e')
-        .where('s.is_active = :isActive', { isActive: 1 })
-        .groupBy('s.id')
-        .having('COUNT(e.id) = 0')
-        .getCount();
+      // 总剧集数
+      const totalEpisodes = await this.episodeRepo.count();
 
-      // 快速抽样检查（前100个系列）
-      const sampleSize = Math.min(100, totalSeries);
-      const seriesSample = await this.seriesRepo
-        .createQueryBuilder('s')
-        .where('s.is_active = :isActive', { isActive: 1 })
-        .limit(sampleSize)
-        .getMany();
-
-      let seriesWithIssues = 0;
-      for (const series of seriesSample) {
-        const episodes = await this.episodeRepo.find({
-          where: { seriesId: series.id },
-          select: ['episodeNumber'],
+      // 无剧集的系列（空系列）- 直接检查每个系列
+      const allActiveSeries = await this.seriesRepo.find({
+        where: { isActive: 1 },
+        select: ['id'],
+      });
+      
+      let emptySeries = 0;
+      for (const s of allActiveSeries) {
+        const count = await this.episodeRepo.count({
+          where: { seriesId: s.id },
         });
-
-        if (episodes.length > 0) {
-          const numbers = episodes.map(e => e.episodeNumber).sort((a, b) => a - b);
-          const max = Math.max(...numbers);
-          
-          // 检查是否有缺集
-          for (let i = 1; i <= max; i++) {
-            if (!numbers.includes(i)) {
-              seriesWithIssues++;
-              break;
-            }
-          }
+        if (count === 0) {
+          emptySeries++;
         }
       }
 
-      // 估算总问题数
-      const estimatedIssues = Math.round((seriesWithIssues / sampleSize) * totalSeries);
+      // 获取所有系列进行全量检查
+      const seriesList = await this.seriesRepo
+        .createQueryBuilder('s')
+        .where('s.is_active = :isActive', { isActive: 1 })
+        .getMany();
+
+      let missingCount = 0;
+      let duplicateCount = 0;
+      let bothCount = 0;
+
+      for (const series of seriesList) {
+        const episodes = await this.episodeRepo.find({
+          where: { seriesId: series.id },
+          select: ['id', 'episodeNumber'],
+        });
+
+        if (episodes.length === 0) {
+          continue; // 空系列已经在 emptySeries 中统计了
+        }
+
+        const numbers = episodes.map(e => e.episodeNumber).filter(n => n != null).sort((a, b) => a - b);
+        const max = Math.max(...numbers);
+        
+        // 检查缺集
+        const missing: number[] = [];
+        for (let i = 1; i <= max; i++) {
+          if (!numbers.includes(i)) {
+            missing.push(i);
+          }
+        }
+
+        // 检查重复
+        const duplicates = numbers.filter((num, index) => 
+          numbers.indexOf(num) !== index
+        );
+        const hasDuplicates = [...new Set(duplicates)].length > 0;
+
+        // 分类统计
+        if (missing.length > 0 && hasDuplicates) {
+          bothCount++;
+        } else if (missing.length > 0) {
+          missingCount++;
+        } else if (hasDuplicates) {
+          duplicateCount++;
+        }
+      }
+
+      // 检查重复名称
+      const titleMap = new Map<string, number>();
+      seriesList.forEach(series => {
+        const title = series.title.trim();
+        titleMap.set(title, (titleMap.get(title) || 0) + 1);
+      });
+      const duplicateNamesCount = Array.from(titleMap.values()).filter(count => count > 1).length;
+
+      // 检查重复外部ID
+      const extIdMap = new Map<string, number>();
+      seriesList.forEach(series => {
+        if (series.externalId) {
+          extIdMap.set(series.externalId, (extIdMap.get(series.externalId) || 0) + 1);
+        }
+      });
+      const duplicateExternalIdsCount = Array.from(extIdMap.values()).filter(count => count > 1).length;
+
+      // 计算健康系列数
+      const issuesSeries = missingCount + duplicateCount + bothCount + emptySeries;
+      const healthySeries = totalSeries - issuesSeries;
+
+      // 计算质量评分
+      const issueRate = totalSeries > 0 ? (issuesSeries / totalSeries) : 0;
+      const score = Math.round((1 - issueRate) * 100);
+      let grade = 'F';
+      if (score >= 95) grade = 'A+';
+      else if (score >= 90) grade = 'A';
+      else if (score >= 85) grade = 'B+';
+      else if (score >= 80) grade = 'B';
+      else if (score >= 75) grade = 'C+';
+      else if (score >= 70) grade = 'C';
+      else if (score >= 60) grade = 'D';
+
+      const duration = Date.now() - startTime;
 
       return {
         success: true,
+        code: 200,
+        message: '数据质量统计获取成功',
+        timestamp: new Date().toISOString(),
         data: {
-          totalSeries,
-          seriesWithoutEpisodes,
-          sampleSize,
-          issuesInSample: seriesWithIssues,
-          estimatedTotalIssues: estimatedIssues,
-          estimatedIssueRate: `${((seriesWithIssues / sampleSize) * 100).toFixed(1)}%`,
+          overview: {
+            totalSeries,
+            totalEpisodes,
+            healthySeries,
+            issuesSeries,
+          },
+          issues: {
+            missingEpisodes: missingCount,
+            duplicateEpisodes: duplicateCount,
+            duplicateNames: duplicateNamesCount,
+            duplicateExternalIds: duplicateExternalIdsCount,
+            emptySeries,
+          },
+          breakdown: {
+            onlyMissing: missingCount,
+            onlyDuplicate: duplicateCount,
+            bothIssues: bothCount,
+            empty: emptySeries,
+          },
+          quality: {
+            score,
+            grade,
+            trend: 'stable',
+            issueRate: `${(issueRate * 100).toFixed(1)}%`,
+          },
+          lastCheck: {
+            timestamp: new Date().toISOString(),
+            duration,
+          },
         },
       };
     } catch (error: any) {

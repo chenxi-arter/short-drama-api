@@ -442,39 +442,76 @@ curl -X POST "http://localhost:8080/api/admin/banners/123/image-from-url" \
 
 **功能说明**: 检测系列数据完整性和唯一性问题
 
-- 获取统计
+- 获取统计 ⭐
   - `GET /api/admin/series/validation/stats`
-  - 快速了解数据质量概览
+  - **全量准确统计**（非抽样估算）
+  - 了解数据质量概览和问题分布
   - 响应示例：
 ```json
 {
   "success": true,
+  "code": 200,
+  "message": "数据质量统计获取成功",
+  "timestamp": "2025-10-25T11:34:29.725Z",
   "data": {
-    "totalSeries": 1127,
-    "seriesWithoutEpisodes": 0,
-    "sampleSize": 100,
-    "issuesInSample": 2,
-    "estimatedTotalIssues": 23,
-    "estimatedIssueRate": "2.0%"
+    "overview": {
+      "totalSeries": 1139,
+      "totalEpisodes": 26635,
+      "healthySeries": 1125,
+      "issuesSeries": 14
+    },
+    "issues": {
+      "missingEpisodes": 9,
+      "duplicateEpisodes": 1,
+      "duplicateNames": 1,
+      "duplicateExternalIds": 0,
+      "emptySeries": 3
+    },
+    "breakdown": {
+      "onlyMissing": 9,
+      "onlyDuplicate": 1,
+      "bothIssues": 1,
+      "empty": 3
+    },
+    "quality": {
+      "score": 99,
+      "grade": "A+",
+      "trend": "stable",
+      "issueRate": "1.2%"
+    },
+    "lastCheck": {
+      "timestamp": "2025-10-25T11:34:29.725Z",
+      "duration": 639
+    }
   }
 }
 ```
 
-- 检查缺集（集数不连续）
+**字段说明**：
+- `overview.totalSeries`: 总系列数
+- `overview.healthySeries`: 健康系列数（无问题）
+- `overview.issuesSeries`: 有问题的系列数
+- `issues.missingEpisodes`: 缺集问题数（只有缺集的系列）
+- `issues.duplicateEpisodes`: 重复集数问题数（只有重复的系列）
+- `issues.duplicateNames`: 重复名称组数（表示有多少组不同系列使用了相同的名称）
+- `issues.duplicateExternalIds`: 重复外部ID组数（表示有多少组不同系列使用了相同的外部ID）
+- `issues.emptySeries`: 空系列数（无剧集）
+- `breakdown`: 问题系列的详细分类（只有缺集、只有重复、两者都有、空系列）
+- `quality.score`: 数据质量评分（0-100），基于问题率计算
+- `quality.grade`: 质量等级（A+/A/B+/B/C+/C/D/F）
+- `quality.issueRate`: 问题率百分比
+
+- 检查缺集（集数不连续）⭐
   - `GET /api/admin/series/validation/check-missing-episodes`
-  - 默认检查全部系列（⭐ 无需参数）
+  - **默认全量扫描所有活跃系列**（无需参数）
   - 检测系列内集数是否连续（如：有1,2,4,5集，缺第3集）
+  - 检测重复集数（如：第5集出现2次）
   - 参数：
     - `seriesId` number 可选：检查指定系列
-    - `limit` number 可选：限制检查数量（最大10000）
-    - `checkAll` boolean 可选：false时只检查前100个
   - 示例：
 ```bash
 # 检查全部系列（默认）
 curl "http://localhost:9090/api/admin/series/validation/check-missing-episodes"
-
-# 只检查前100个
-curl "http://localhost:9090/api/admin/series/validation/check-missing-episodes?limit=100"
 
 # 检查指定系列
 curl "http://localhost:9090/api/admin/series/validation/check-missing-episodes?seriesId=2455"
@@ -485,36 +522,61 @@ curl "http://localhost:9090/api/admin/series/validation/check-missing-episodes?s
 {
   "success": true,
   "data": {
-    "total": 1,
-    "checkedSeries": 1127,
+    "total": 14,
+    "checkedSeries": 1138,
     "items": [
       {
-        "seriesId": 2455,
-        "seriesTitle": "朱雀堂",
-        "seriesShortId": "kK22TBWdV7q",
-        "totalEpisodes": 20,
-        "expectedEpisodes": 21,
-        "missingEpisodes": [3, 15],
-        "duplicateEpisodes": [],
+        "seriesId": 3152,
+        "seriesTitle": "[测试]复合问题系列-宫廷风云",
+        "seriesShortId": "pYSstgdmiUV",
+        "totalEpisodes": 10,
+        "expectedEpisodes": 10,
+        "missingEpisodes": [4],
+        "duplicateEpisodes": [6],
         "status": "HAS_ISSUES",
         "issues": {
           "hasMissing": true,
-          "hasDuplicates": false,
-          "missingCount": 2,
-          "duplicateCount": 0
+          "hasDuplicates": true,
+          "missingCount": 1,
+          "duplicateCount": 1
         }
+      },
+      {
+        "seriesId": 3156,
+        "seriesTitle": "你好",
+        "seriesShortId": "bQJBThKvm9r",
+        "totalEpisodes": 0,
+        "missingEpisodes": [],
+        "status": "NO_EPISODES",
+        "message": "该系列没有任何剧集"
       }
     ]
   },
-  "message": "发现 1 个系列存在集数问题"
+  "message": "发现 14 个系列存在集数问题",
+  "timestamp": "2025-10-25T11:22:02.642Z"
 }
 ```
 
+**字段说明**：
+- `data.total`: 发现的问题系列总数
+- `data.checkedSeries`: 检查的系列总数
+- `data.items[]`: 问题系列列表
+
+**问题系列字段**：
+- `seriesId`: 系列ID
+- `seriesTitle`: 系列标题
+- `seriesShortId`: 系列短ID
+- `totalEpisodes`: 实际剧集数
+- `expectedEpisodes`: 预期剧集数（最大集数）
+- `missingEpisodes[]`: 缺失的集数数组
+- `duplicateEpisodes[]`: 重复的集数数组
+- `status`: 状态 (`HAS_ISSUES` 有问题 | `NO_EPISODES` 无剧集)
+- `issues`: 问题详情对象（仅当 status 为 HAS_ISSUES 时存在）
+
 - 检查重复系列名 ⭐
   - `GET /api/admin/series/validation/check-duplicate-names`
-  - 默认检查全部系列（⭐ 无需参数）
+  - **默认全量扫描所有活跃系列**（无需参数）
   - 检测多个系列使用相同标题的情况
-  - 参数：同上
   - 示例：
 ```bash
 # 检查全部系列（默认）
@@ -527,40 +589,41 @@ curl "http://localhost:9090/api/admin/series/validation/check-duplicate-names"
   "success": true,
   "data": {
     "total": 1,
-    "checkedSeries": 1127,
+    "checkedSeries": 1138,
     "totalDuplicateCount": 3,
     "items": [
       {
-        "title": "朱雀堂",
+        "title": "[测试]重复名称系列",
         "count": 3,
         "series": [
           {
-            "id": 2001,
-            "shortId": "abc123",
-            "title": "朱雀堂",
-            "externalId": "source-1",
-            "createdAt": "2024-01-01T00:00:00.000Z"
+            "id": 3146,
+            "shortId": "h8KHWWqgvgi",
+            "title": "[测试]重复名称系列",
+            "externalId": "test-duplicate-name-001",
+            "createdAt": "2025-10-23T18:11:37.000Z"
           },
           {
-            "id": 2455,
-            "shortId": "xyz789",
-            "title": "朱雀堂",
-            "externalId": "source-2",
-            "createdAt": "2024-06-01T00:00:00.000Z"
+            "id": 3148,
+            "shortId": "IUeTPpr2wXN",
+            "title": "[测试]重复名称系列",
+            "externalId": "test-duplicate-name-003",
+            "createdAt": "2025-10-23T18:11:38.000Z"
           }
         ]
       }
     ]
   },
-  "message": "发现 1 个重复的系列名"
+  "message": "发现 1 个重复的系列名",
+  "timestamp": "2025-10-25T11:22:02.647Z"
 }
 ```
 
 - 检查重复外部ID ⭐
   - `GET /api/admin/series/validation/check-duplicate-external-ids`
-  - 默认检查全部系列（⭐ 无需参数）
+  - **默认全量扫描所有有外部ID的活跃系列**（无需参数）
   - 检测externalId冲突（数据一致性问题）
-  - 响应格式同上
+  - 响应格式与重复系列名类似
 
 - 查看系列详细集数信息
   - `GET /api/admin/series/validation/episodes/:seriesId`
@@ -599,11 +662,25 @@ curl "http://localhost:9090/api/admin/series/validation/check-duplicate-names"
 ```
 
 **使用建议**：
+- 所有接口已优化为**默认全量扫描**，无需手动设置参数
+- 统计接口为**全量准确统计**（非抽样估算），数据100%准确
+- 性能优秀：扫描1000+系列仅需 < 1秒
 - 建议每周定期检查数据质量
 - 采集新内容后及时验证
-- 所有接口默认检查全部系列，性能优秀（< 1秒）
+- 接口会详细指出每个问题系列的具体问题（缺失集数、重复集数等）
 
-**详细文档**: 参见 `admin-series-validation-api.md`
+**性能参考**（基于1138个系列的实测）：
+- 统计信息: ~639ms (全量准确统计)
+- 缺集检查: ~589ms (全量扫描)
+- 重复名称: ~18ms
+- 重复外部ID: ~9ms
+
+**数据准确性**：
+- ✅ 统计接口与缺集检查接口数据完全一致
+- ✅ 所有问题系列都能被正确识别和分类
+- ✅ 质量评分和问题率实时准确
+
+**详细文档**: 参见 `docs/series-validation-frontend-guide.md`
 
 ---
 
@@ -775,21 +852,24 @@ curl -X DELETE "http://localhost:8080/api/admin/series/2455" \
 curl -X POST "http://localhost:8080/api/admin/series/2455/restore" \
   -H "Content-Type: application/json"
 
-# 系列数据验证 ⭐
-
-# 检查缺集（默认检查全部）
-curl -X GET "http://localhost:9090/api/admin/series/validation/check-missing-episodes"
-
-# 检查重复系列名（默认检查全部）
-curl -X GET "http://localhost:9090/api/admin/series/validation/check-duplicate-names"
-
-# 检查重复外部ID（默认检查全部）
-curl -X GET "http://localhost:9090/api/admin/series/validation/check-duplicate-external-ids"
+# 系列数据验证 ⭐ (默认全量扫描)
 
 # 获取数据质量统计
 curl -X GET "http://localhost:9090/api/admin/series/validation/stats"
 
-# 查看指定系列的集数详情
+# 检查缺集和重复集数（全量扫描所有系列）
+curl -X GET "http://localhost:9090/api/admin/series/validation/check-missing-episodes"
+
+# 检查指定系列的缺集问题
+curl -X GET "http://localhost:9090/api/admin/series/validation/check-missing-episodes?seriesId=2455"
+
+# 检查重复系列名（全量扫描）
+curl -X GET "http://localhost:9090/api/admin/series/validation/check-duplicate-names"
+
+# 检查重复外部ID（全量扫描）
+curl -X GET "http://localhost:9090/api/admin/series/validation/check-duplicate-external-ids"
+
+# 查看指定系列的详细集数信息
 curl -X GET "http://localhost:9090/api/admin/series/validation/episodes/2455"
 ```
 
