@@ -330,9 +330,10 @@ curl -X POST "http://localhost:8080/api/admin/banners/123/image-from-url" \
 
 资源路径: `/admin/episodes`
 
-- 列表
+- 列表 ⭐ 已优化
   - `GET /api/admin/episodes?page=1&size=20&seriesId=<系列ID>&minDuration=<最小时长>&maxDuration=<最大时长>`
   - 支持按 `seriesId` 过滤；返回包含 `series` 关系
+  - **✨ 新增 `seriesTitle` 字段**：直接返回系列标题，前端无需再访问嵌套对象
   - 支持按时长筛选：
     - `minDuration` number（可选）：最小时长（秒），返回大于等于该时长的剧集
     - `maxDuration` number（可选）：最大时长（秒），返回小于等于该时长的剧集
@@ -349,6 +350,8 @@ curl -X POST "http://localhost:8080/api/admin/banners/123/image-from-url" \
     {
       "id": 28808,
       "shortId": "Ry876Buxoxrc",
+      "seriesId": 3143,
+      "seriesTitle": "今天的她们112",
       "episodeNumber": 69,
       "title": "69",
       "duration": 528,
@@ -358,12 +361,13 @@ curl -X POST "http://localhost:8080/api/admin/banners/123/image-from-url" \
       "dislikeCount": 0,
       "favoriteCount": 0,
       "playCount": 36,
-      "seriesId": 3143,
       "createdAt": "2025-10-06T16:00:01.078Z",
       "updatedAt": "2025-10-06T16:00:01.078Z",
       "series": {
         "id": 3143,
-        "title": "今天的她们112"
+        "title": "今天的她们112",
+        "description": "...",
+        "coverUrl": "..."
       }
     }
   ],
@@ -372,9 +376,22 @@ curl -X POST "http://localhost:8080/api/admin/banners/123/image-from-url" \
 }
 ```
 
-**时间字段说明**：
+**字段说明**：
+- `seriesId`: 系列ID（数字）
+- `seriesTitle`: ✨ 系列标题（字符串，新增字段，方便前端直接访问）
+- `series`: 完整系列对象（保留，向后兼容）
 - `createdAt`: 剧集创建时间（ISO 8601 格式，UTC时区）
 - `updatedAt`: 剧集最后更新时间（ISO 8601 格式，UTC时区）
+
+**前端使用建议**：
+```typescript
+// ✅ 推荐：直接使用 seriesTitle
+const title = episode.seriesTitle;
+
+// ✅ 也支持：访问完整 series 对象（向后兼容）
+const title = episode.series?.title;
+const description = episode.series?.description;
+```
 
 - 详情
   - `GET /api/admin/episodes/:id`
@@ -829,6 +846,10 @@ curl -X POST "http://localhost:8080/api/admin/episodes" \
     "duration": 1500
   }'
 
+# 获取剧集列表（返回包含 seriesTitle 字段）
+curl -X GET "http://localhost:8080/api/admin/episodes?page=1&size=5" \
+  -H "Content-Type: application/json"
+
 # 获取剧集下载地址
 curl -X GET "http://localhost:8080/api/admin/episodes/2136/download-urls" \
   -H "Content-Type: application/json"
@@ -949,5 +970,56 @@ const relative = dayjs(createdAt).fromNow();
   - 可通过 `includeDeleted=true` 查看所有项
   - 使用专门的 `/deleted` 端点查看回收站
   - 删除操作返回成功消息而非简单的 `{success: true}`
+
+---
+
+## 📝 更新日志
+
+### v1.1.0 (2025-10-27)
+
+#### ✨ 新增功能
+
+**剧集列表接口优化**
+- ✅ 剧集列表（`GET /api/admin/episodes`）新增 `seriesTitle` 字段
+- ✅ 前端可直接访问 `item.seriesTitle` 获取系列标题
+- ✅ 无需再通过 `item.series.title` 嵌套访问
+- ✅ 完全向后兼容，保留原有 `series` 对象
+
+**使用示例**：
+```typescript
+// ❌ 旧方式（仍然支持）
+const title = episode.series?.title || `系列 #${episode.seriesId}`;
+
+// ✅ 新方式（推荐）
+const title = episode.seriesTitle;
+
+// Ant Design Table 直接绑定
+{
+  title: '系列',
+  dataIndex: 'seriesTitle',  // 直接绑定
+  key: 'seriesTitle',
+}
+```
+
+**详细文档**：
+- [剧集列表 API 增强说明](./episode-list-api-enhancement.md)
+- 测试脚本：`scripts/test-episode-list-api.js`
+
+**受影响的接口**：
+- `GET /api/admin/episodes` - 列表接口（已优化）
+
+**不受影响的接口**：
+- `GET /api/admin/episodes/:id` - 详情接口（保持不变）
+- `POST /api/admin/episodes` - 创建接口（保持不变）
+- `PUT /api/admin/episodes/:id` - 更新接口（保持不变）
+- `DELETE /api/admin/episodes/:id` - 删除接口（保持不变）
+
+---
+
+## 📚 相关文档
+
+- [剧集列表 API 增强说明](./episode-list-api-enhancement.md) - `seriesTitle` 字段详细说明
+- [系列验证接口使用指南](./series-validation-frontend-guide.md) - 数据质量检查
+- [API 变更文档](./api-changes-documentation.md) - 完整的 API 变更历史
 
 

@@ -78,7 +78,14 @@ export class AdminEpisodesController {
       relations: ['series'],
       where: Object.keys(whereClause).length > 0 ? whereClause : undefined,
     });
-    return { total, items, page: Number(page) || 1, size: take };
+    
+    // 映射数据，添加 seriesTitle 字段以便前端直接访问
+    const mappedItems = items.map(item => ({
+      ...item,
+      seriesTitle: item.series?.title || '',
+    }));
+    
+    return { total, items: mappedItems, page: Number(page) || 1, size: take };
   }
 
   @Get(':id')
