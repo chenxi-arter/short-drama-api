@@ -230,7 +230,13 @@ export class IngestService {
     // 3) episodes upsert by (seriesId, episodeNumber)
     for (const ep of payload.episodes || []) {
       let episode = await this.episodeRepo.findOne({ where: { seriesId: series.id, episodeNumber: ep.episodeNumber } });
+      
       if (!episode) {
+        // 生成初始互动数据（让新剧集看起来有人气）
+        const initialLikeCount = this.generateInitialLikeCount();
+        const initialFavoriteCount = this.generateInitialFavoriteCount(initialLikeCount);
+        const initialPlayCount = this.generateInitialPlayCount(initialLikeCount);
+        
         episode = this.episodeRepo.create({
           seriesId: series.id,
           episodeNumber: ep.episodeNumber,
@@ -238,6 +244,10 @@ export class IngestService {
           duration: ep.duration ?? 0,
           status: ep.status ?? 'published',
           isVertical: ep.isVertical ?? false,
+          likeCount: initialLikeCount,
+          favoriteCount: initialFavoriteCount,
+          playCount: initialPlayCount,
+          dislikeCount: Math.floor(Math.random() * 20), // 0-20个点踩
         });
       } else {
         if (ep.title !== undefined) episode.title = ep.title;
@@ -356,6 +366,11 @@ export class IngestService {
         seenEpisodeNumbers.add(ep.episodeNumber);
         let episode = await this.episodeRepo.findOne({ where: { seriesId: series.id, episodeNumber: ep.episodeNumber } });
         if (!episode) {
+          // 生成初始互动数据（让新剧集看起来有人气）
+          const initialLikeCount = this.generateInitialLikeCount();
+          const initialFavoriteCount = this.generateInitialFavoriteCount(initialLikeCount);
+          const initialPlayCount = this.generateInitialPlayCount(initialLikeCount);
+          
           episode = this.episodeRepo.create({
             seriesId: series.id,
             episodeNumber: ep.episodeNumber,
@@ -363,6 +378,10 @@ export class IngestService {
             duration: ep.duration ?? 0,
             status: ep.status ?? 'published',
             isVertical: ep.isVertical ?? false,
+            likeCount: initialLikeCount,
+            favoriteCount: initialFavoriteCount,
+            playCount: initialPlayCount,
+            dislikeCount: Math.floor(Math.random() * 20), // 0-20个点踩
           });
         } else {
           if (ep.title !== undefined) episode.title = ep.title;
@@ -462,6 +481,43 @@ export class IngestService {
       totalEpisodes: refreshed!.totalEpisodes,
       isCompleted: !!refreshed!.isCompleted,
     };
+  }
+
+  /**
+   * 生成初始点赞数（适配推荐算法）
+   * 20% 热门：800-1500
+   * 30% 中等：200-800
+   * 50% 普通：20-200
+   */
+  private generateInitialLikeCount(): number {
+    const rand = Math.random();
+    if (rand > 0.8) {
+      // 20% 热门剧
+      return Math.floor(800 + Math.random() * 700); // 800-1500
+    } else if (rand > 0.5) {
+      // 30% 中等
+      return Math.floor(200 + Math.random() * 600); // 200-800
+    } else {
+      // 50% 普通
+      return Math.floor(20 + Math.random() * 180); // 20-200
+    }
+  }
+
+  /**
+   * 生成初始收藏数（点赞数的8%-15%，最高200）
+   */
+  private generateInitialFavoriteCount(likeCount: number): number {
+    const percentage = 0.08 + Math.random() * 0.07; // 8%-15%
+    const favoriteCount = Math.floor(likeCount * percentage);
+    return Math.min(favoriteCount, 200); // 最高不超过200
+  }
+
+  /**
+   * 生成初始播放数（点赞数的3-8倍）
+   */
+  private generateInitialPlayCount(likeCount: number): number {
+    const multiplier = 3 + Math.random() * 5; // 3-8倍
+    return Math.floor(likeCount * multiplier);
   }
 }
 
