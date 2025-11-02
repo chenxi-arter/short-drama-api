@@ -98,7 +98,7 @@ export class RecommendService {
       // 推荐分数 = (点赞数 × 3 + 收藏数 × 5) × 随机权重(0.5-1.5) + 大随机因子(0-500) + 新鲜度分数(0-300)
       // 新鲜度分数：越新的内容分数越高，30天后归零
       // 优化点：预计算NOW()，减少函数调用，使用索引
-      // 筛选条件：只推荐短剧的第一集
+      // 筛选条件：只推荐短剧（category_id=1）的第一集
       const query = `
         SELECT 
           e.id,
@@ -134,6 +134,7 @@ export class RecommendService {
         WHERE e.status = 'published'
           AND s.is_active = 1
           AND e.episode_number = 1
+          AND s.category_id = 1
         ORDER BY recommendScore DESC, RAND()
         LIMIT ? OFFSET ?
       `;
