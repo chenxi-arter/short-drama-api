@@ -13,8 +13,8 @@ const API_CONFIG = {
 
 // ==================== 配置参数 ====================
 const CONFIG = {
-  USER_COUNT: 5000,              // 生成用户数量（44922个剧集，需要大量用户）
-  AVG_COMMENTS_PER_USER: 100,    // 每用户平均评论数（5000×100=500000条）
+  USER_COUNT: 500,               // 生成用户数量（500个用户足够）
+  AVG_COMMENTS_PER_USER: 900,    // 每用户平均评论数（500×900=450000条）
   MIN_COMMENTS_PER_EPISODE: 10,  // 每个剧集最少评论数（44922×10=449220条）
   USER_PASSWORD: 'test123456',   // 统一密码（必须包含字母和数字，6-20位）
   DISTRIBUTE_EVENLY: false,      // 保证最小值后随机分配（确保每个剧集都有评论）
@@ -640,28 +640,40 @@ function generateDramaNickname() {
 }
 
 function generateUsername(index) {
-  const prefixes = ['drama', 'video', 'fan', 'viewer', 'user', 'vip', 'member'];
-  const middles = ['lover', 'hunter', 'fan', 'master', 'king', 'star'];
-  const random = Math.floor(Math.random() * 9000) + 1000; // 4位随机数
+  const prefixes = ['drama', 'video', 'fan', 'viewer', 'user', 'vip', 'member', 'short', 'series', 'watch'];
+  const middles = ['lover', 'hunter', 'fan', 'master', 'king', 'star', 'pro', 'max', 'cool', 'happy'];
+  const suffixes = ['2024', '2023', '888', '666', '520', '999', '123', 'abc', 'vip', 'pro'];
+  const random = Math.floor(Math.random() * 999) + 1; // 1-999的随机数
   
   // 用户名限制：3-20个字符，只能包含字母、数字和下划线
-  if (Math.random() < 0.5) {
-    // 格式：prefix + index + random (例如：drama1_5678)
+  const rand = Math.random();
+  if (rand < 0.3) {
+    // 格式1：prefix + 随机数 (例如：drama123)
     const prefix = randomChoice(prefixes);
-    return `${prefix}${index}_${random}`;
-  } else {
-    // 格式：prefix + middle + random (例如：fan_king5678)
+    return `${prefix}${random}`;
+  } else if (rand < 0.6) {
+    // 格式2：prefix_middle随机数 (例如：fan_lover456)
     const prefix = randomChoice(prefixes);
     const middle = randomChoice(middles);
     return `${prefix}_${middle}${random}`;
+  } else if (rand < 0.8) {
+    // 格式3：prefix + suffix (例如：drama2024)
+    const prefix = randomChoice(prefixes);
+    const suffix = randomChoice(suffixes);
+    return `${prefix}${suffix}`;
+  } else {
+    // 格式4：prefix + 随机数 + suffix (例如：video123vip)
+    const prefix = randomChoice(prefixes);
+    const suffix = randomChoice(suffixes);
+    return `${prefix}${random}${suffix}`;
   }
 }
 
 function generateEmail(username) {
-  // 添加时间戳确保邮箱唯一
-  const timestamp = Date.now();
+  // 使用随机数确保邮箱唯一，更自然
+  const randomSuffix = Math.floor(Math.random() * 10000); // 0-9999的随机数
   const domains = ['gmail.com', '163.com', 'qq.com', 'hotmail.com', 'outlook.com', 'yahoo.com'];
-  return `${username}_${timestamp}@${randomChoice(domains)}`;
+  return `${username}${randomSuffix}@${randomChoice(domains)}`;
 }
 
 function generateNameFields(nickname) {
@@ -1280,20 +1292,43 @@ async function main() {
           await saveUsersToFile(users);
         }
       } else {
-        console.log(`⚠️  已有用户数量(${existingUsers.length})不足需求(${CONFIG.USER_COUNT})`);
+        console.log(`\n📊 已有用户数量(${existingUsers.length})少于配置(${CONFIG.USER_COUNT})`);
         console.log(`✅ 密码验证通过: ${CONFIG.USER_PASSWORD}`);
-        const choice = await askConfirmation('是否补充生成不足的用户？(y=补充/n=重新生成全部): ');
+        console.log(`\n💡 提示：`);
+        console.log(`   - 选项1：直接使用现有 ${existingUsers.length} 个用户（推荐）`);
+        console.log(`     每个用户会发表多条评论，无需注册新用户`);
+        console.log(`   - 选项2：补充生成 ${CONFIG.USER_COUNT - existingUsers.length} 个新用户`);
+        console.log(`   - 选项3：重新生成全部 ${CONFIG.USER_COUNT} 个用户`);
         
-        if (choice) {
+        const rl = readline.createInterface({
+          input: process.stdin,
+          output: process.stdout
+        });
+        
+        const choice = await new Promise(resolve => {
+          rl.question('\n请选择 (1=使用现有/2=补充生成/3=重新生成全部): ', answer => {
+            rl.close();
+            resolve(answer.trim());
+          });
+        });
+        
+        if (choice === '1') {
+          users = existingUsers;
+          console.log(`✅ 使用现有的 ${users.length} 个用户`);
+          console.log(`   每个用户将发表约 ${Math.ceil(CONFIG.USER_COUNT * CONFIG.AVG_COMMENTS_PER_USER / users.length)} 条评论`);
+        } else if (choice === '2') {
           const needCount = CONFIG.USER_COUNT - existingUsers.length;
-          console.log(`补充生成 ${needCount} 个用户...`);
+          console.log(`📝 补充生成 ${needCount} 个用户...`);
           const newUsers = await registerUsers(needCount);
           users = [...existingUsers, ...newUsers];
           await saveUsersToFile(users);
-        } else {
-          console.log('重新生成全部用户...');
+        } else if (choice === '3') {
+          console.log('🔄 重新生成全部用户...');
           users = await registerUsers(CONFIG.USER_COUNT);
           await saveUsersToFile(users);
+        } else {
+          console.log('❌ 无效选择，使用现有用户');
+          users = existingUsers;
         }
       }
     } else {
