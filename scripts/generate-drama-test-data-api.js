@@ -26,11 +26,7 @@ const dbConfig = {
 const CONFIG = {
   USER_COUNT: 100,               // 生成用户数量
   AVG_COMMENTS_PER_USER: 5,      // 每用户平均评论数
-  AVG_LIKES_PER_USER: 8,         // 每用户平均点赞数
-  AVG_FAVORITES_PER_USER: 3,     // 每用户平均收藏数
-  MIN_COMMENTS_PER_EPISODE: 3,   // 每个剧集最少评论数（减少避免API压力）
-  MIN_LIKES_PER_EPISODE: 5,      // 每个剧集最少点赞数
-  MIN_FAVORITES_PER_SERIES: 2,   // 每个系列最少收藏数
+  MIN_COMMENTS_PER_EPISODE: 3,   // 每个剧集最少评论数
   VERBOSE: true,
 };
 
@@ -314,55 +310,6 @@ async function postComment(token, episodeShortId, content) {
   }
 }
 
-/**
- * 点赞剧集
- */
-async function likeEpisode(token, episodeShortId) {
-  try {
-    const response = await fetch(`${API_CONFIG.BASE_URL}/video/episode/activity`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-      body: JSON.stringify({
-        shortId: episodeShortId,
-        type: 'like'
-      })
-    });
-
-    const result = await response.json();
-    return response.ok;
-  } catch (error) {
-    console.error(`点赞请求失败:`, error.message);
-    return false;
-  }
-}
-
-/**
- * 收藏系列
- */
-async function favoriteSeries(token, episodeShortId) {
-  try {
-    const response = await fetch(`${API_CONFIG.BASE_URL}/video/episode/activity`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-      body: JSON.stringify({
-        shortId: episodeShortId,
-        type: 'favorite'
-      })
-    });
-
-    const result = await response.json();
-    return response.ok;
-  } catch (error) {
-    console.error(`收藏请求失败:`, error.message);
-    return false;
-  }
-}
 
 /**
  * 批量处理任务（支持并发控制）
@@ -525,141 +472,6 @@ async function generateComments(users, episodes) {
   return result.succeeded;
 }
 
-/**
- * 生成点赞（通过API）
- */
-async function generateLikes(users, episodes) {
-  console.log(`\n❤️  开始通过API生成点赞...`);
-  
-  if (episodes.length === 0) {
-    console.log('⚠️  跳过点赞生成');
-    return 0;
-  }
-
-  const tasks = [];
-  
-  console.log(`📋 策略：确保每个剧集都有点赞，然后随机分配额外点赞`);
-  
-  // 阶段1：确保每个剧集至少有点赞
-  const minLikesPerEpisode = CONFIG.MIN_LIKES_PER_EPISODE;
-  console.log(`  阶段1: 为每个剧集至少生成 ${minLikesPerEpisode} 个点赞`);
-  
-  for (const episode of episodes) {
-    const shuffledUsers = shuffleArray(users);
-    const likersCount = Math.min(minLikesPerEpisode, users.length);
-    
-    for (let i = 0; i < likersCount; i++) {
-      const user = shuffledUsers[i];
-      
-      tasks.push(async () => {
-        const token = await loginUser(user.email, user.password);
-        if (!token) return false;
-        return await likeEpisode(token, episode.short_id);
-      });
-    }
-  }
-  
-  // 阶段2：随机分配额外点赞
-  const targetTotal = Math.floor(users.length * CONFIG.AVG_LIKES_PER_USER);
-  const remaining = targetTotal - tasks.length;
-  
-  if (remaining > 0) {
-    console.log(`  阶段2: 随机分配额外的 ${remaining} 个点赞`);
-    
-    for (let i = 0; i < remaining; i++) {
-      const user = randomChoice(users);
-      const episode = randomChoice(episodes);
-      
-      tasks.push(async () => {
-        const token = await loginUser(user.email, user.password);
-        if (!token) return false;
-        return await likeEpisode(token, episode.short_id);
-      });
-    }
-  }
-  
-  const result = await processBatch(tasks, API_CONFIG.CONCURRENT_REQUESTS, '点赞进度');
-  
-  console.log(`✅ 点赞生成完成！总计: ${result.total}, 成功: ${result.succeeded}, 失败: ${result.failed}`);
-  console.log(`   平均每剧集 ${Math.floor(result.succeeded / episodes.length)} 个点赞`);
-  
-  return result.succeeded;
-}
-
-/**
- * 生成收藏（通过API）
- */
-async function generateFavorites(users, episodes) {
-  console.log(`\n⭐ 开始通过API生成收藏...`);
-  
-  if (episodes.length === 0) {
-    console.log('⚠️  跳过收藏生成');
-    return 0;
-  }
-
-  const tasks = [];
-  
-  // 按系列分组
-  const seriesMap = new Map();
-  for (const episode of episodes) {
-    if (!seriesMap.has(episode.series_id)) {
-      seriesMap.set(episode.series_id, []);
-    }
-    seriesMap.get(episode.series_id).push(episode);
-  }
-  
-  const seriesIds = Array.from(seriesMap.keys());
-  console.log(`📋 策略：确保每个系列都有收藏，然后随机分配额外收藏`);
-  
-  // 阶段1：确保每个系列至少有收藏
-  const minFavoritesPerSeries = CONFIG.MIN_FAVORITES_PER_SERIES;
-  console.log(`  阶段1: 为每个系列至少生成 ${minFavoritesPerSeries} 个收藏`);
-  
-  for (const seriesId of seriesIds) {
-    const seriesEpisodes = seriesMap.get(seriesId);
-    const firstEpisode = seriesEpisodes[0];
-    const shuffledUsers = shuffleArray(users);
-    const favoritersCount = Math.min(minFavoritesPerSeries, users.length);
-    
-    for (let i = 0; i < favoritersCount; i++) {
-      const user = shuffledUsers[i];
-      
-      tasks.push(async () => {
-        const token = await loginUser(user.email, user.password);
-        if (!token) return false;
-        return await favoriteSeries(token, firstEpisode.short_id);
-      });
-    }
-  }
-  
-  // 阶段2：随机分配额外收藏
-  const targetTotal = Math.floor(users.length * CONFIG.AVG_FAVORITES_PER_USER);
-  const remaining = targetTotal - tasks.length;
-  
-  if (remaining > 0) {
-    console.log(`  阶段2: 随机分配额外的 ${remaining} 个收藏`);
-    
-    for (let i = 0; i < remaining; i++) {
-      const user = randomChoice(users);
-      const seriesId = randomChoice(seriesIds);
-      const seriesEpisodes = seriesMap.get(seriesId);
-      const firstEpisode = seriesEpisodes[0];
-      
-      tasks.push(async () => {
-        const token = await loginUser(user.email, user.password);
-        if (!token) return false;
-        return await favoriteSeries(token, firstEpisode.short_id);
-      });
-    }
-  }
-  
-  const result = await processBatch(tasks, API_CONFIG.CONCURRENT_REQUESTS, '收藏进度');
-  
-  console.log(`✅ 收藏生成完成！总计: ${result.total}, 成功: ${result.succeeded}, 失败: ${result.failed}`);
-  console.log(`   平均每系列 ${Math.floor(result.succeeded / seriesIds.length)} 个收藏`);
-  
-  return result.succeeded;
-}
 
 /**
  * 显示统计
@@ -673,21 +485,20 @@ async function showStatistics(connection) {
   console.log(`👥 总用户数: ${userCount[0].count}`);
   
   const [commentCount] = await connection.execute('SELECT COUNT(*) as count FROM comments');
-  console.log(`💬 总评论数: ${commentCount[0].count}`);
-  
-  const [likeCount] = await connection.execute("SELECT COUNT(*) as count FROM episode_reactions WHERE reaction_type = 'like'");
-  console.log(`❤️  总点赞数: ${likeCount[0].count}`);
-  
-  const [favoriteCount] = await connection.execute('SELECT COUNT(*) as count FROM favorites');
-  console.log(`⭐ 总收藏数: ${favoriteCount[0].count}`);
+  console.log(`💬 总评论数: ${commentCount[0].count} (通过API生成)`);
   
   const [dramaEpisodes] = await connection.execute(`
-    SELECT COUNT(*) as count 
+    SELECT 
+      COUNT(*) as count,
+      FLOOR(AVG(e.like_count)) as avg_likes,
+      FLOOR(AVG(e.favorite_count)) as avg_favorites
     FROM episodes e
     INNER JOIN series s ON e.series_id = s.id
     WHERE s.category_id = 1 AND e.status = 'published'
   `);
   console.log(`📺 短剧剧集数: ${dramaEpisodes[0].count}`);
+  console.log(`❤️  平均点赞数: ${dramaEpisodes[0].avg_likes} (SQL更新的虚拟数据)`);
+  console.log(`⭐ 平均收藏数: ${dramaEpisodes[0].avg_favorites} (SQL更新的虚拟数据)`);
   
   console.log('='.repeat(80) + '\n');
 }
@@ -697,15 +508,13 @@ async function showStatistics(connection) {
  */
 function displayConfig() {
   console.log('\n' + '='.repeat(80));
-  console.log('📊 短剧数据生成配置（API版本）');
+  console.log('📊 短剧评论生成配置');
   console.log('='.repeat(80));
   console.log(`🌐 API地址: ${API_CONFIG.BASE_URL}`);
   console.log(`🏢 数据库地址: ${dbConfig.host}:${dbConfig.port}`);
   console.log(`📚 数据库名称: ${dbConfig.database}`);
   console.log(`👥 用户数量: ${CONFIG.USER_COUNT}`);
   console.log(`💬 每用户平均评论数: ${CONFIG.AVG_COMMENTS_PER_USER}`);
-  console.log(`❤️  每用户平均点赞数: ${CONFIG.AVG_LIKES_PER_USER}`);
-  console.log(`⭐ 每用户平均收藏数: ${CONFIG.AVG_FAVORITES_PER_USER}`);
   console.log(`🔄 并发请求数: ${API_CONFIG.CONCURRENT_REQUESTS}`);
   console.log(`⏱️  请求延迟: ${API_CONFIG.REQUEST_DELAY}ms`);
   console.log('='.repeat(80) + '\n');
@@ -717,12 +526,13 @@ async function main() {
   let connection;
   
   try {
-    console.log('\n🎬 短剧测试数据生成工具（API版本）');
+    console.log('\n🎬 短剧评论数据生成工具（API版本）');
     
     displayConfig();
     
-    console.log('⚠️  警告：此操作将通过API向数据库插入大量测试数据！');
+    console.log('⚠️  警告：此操作将通过API生成评论数据！');
     console.log('⚠️  只针对短剧（category_id=1）生成数据');
+    console.log('⚠️  点赞和收藏数据已通过SQL更新，无需再生成');
     console.log('⚠️  请确保API服务正在运行（http://localhost:8080）');
     const confirmed = await askConfirmation('是否继续？(y/n): ');
     
@@ -753,16 +563,11 @@ async function main() {
     // 通过API生成评论
     await generateComments(users, episodes);
     
-    // 通过API生成点赞
-    await generateLikes(users, episodes);
-    
-    // 通过API生成收藏
-    await generateFavorites(users, episodes);
-    
     // 显示统计
     await showStatistics(connection);
     
-    console.log('🎉 所有数据生成完成！\n');
+    console.log('🎉 评论数据生成完成！\n');
+    console.log('💡 提示：点赞和收藏数据已通过SQL更新（虚拟数据，只用于展示）\n');
     
   } catch (error) {
     console.error('\n❌ 发生错误:', error.message);
@@ -804,18 +609,12 @@ for (let i = 0; i < args.length; i++) {
     case '--comments':
       CONFIG.AVG_COMMENTS_PER_USER = parseInt(args[++i]);
       break;
-    case '--likes':
-      CONFIG.AVG_LIKES_PER_USER = parseInt(args[++i]);
-      break;
-    case '--favorites':
-      CONFIG.AVG_FAVORITES_PER_USER = parseInt(args[++i]);
-      break;
     case '--concurrent':
       API_CONFIG.CONCURRENT_REQUESTS = parseInt(args[++i]);
       break;
     case '--help':
       console.log(`
-短剧测试数据生成工具（API版本）
+短剧评论数据生成工具（API版本）
 
 使用方法:
   node generate-drama-test-data-api.js [选项]
@@ -829,8 +628,6 @@ for (let i = 0; i < args.length; i++) {
   --database <数据库名>  数据库名称 (默认: short_drama)
   --users <数量>         生成用户数量 (默认: 100)
   --comments <数量>      每用户平均评论数 (默认: 5)
-  --likes <数量>         每用户平均点赞数 (默认: 8)
-  --favorites <数量>     每用户平均收藏数 (默认: 3)
   --concurrent <数量>    并发请求数 (默认: 5)
   --help                显示此帮助信息
 
@@ -838,16 +635,16 @@ for (let i = 0; i < args.length; i++) {
   # 使用默认配置
   node generate-drama-test-data-api.js
 
-  # 生成50个用户
-  node generate-drama-test-data-api.js --users 50
+  # 生成50个用户，每用户10条评论
+  node generate-drama-test-data-api.js --users 50 --comments 10
 
-  # 自定义API地址和并发数
-  node generate-drama-test-data-api.js --api-url http://api.example.com/api --concurrent 10
+  # 自定义并发数
+  node generate-drama-test-data-api.js --users 20 --concurrent 10
 
-注意:
-  - 此脚本通过API接口生成数据，更接近真实使用场景
+说明:
+  - 此脚本只生成评论数据（通过API）
+  - 点赞和收藏数据通过SQL更新（虚拟数据，只用于展示）
   - 请确保API服务正在运行
-  - 可以通过 --concurrent 调整并发数以控制API压力
       `);
       process.exit(0);
   }
