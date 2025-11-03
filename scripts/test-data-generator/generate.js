@@ -1,18 +1,23 @@
 const bcrypt = require('bcrypt');
 const readline = require('readline');
+const fetch = require('node-fetch');
 
 // ==================== API配置 ====================
 const API_CONFIG = {
   BASE_URL: 'https://iloveuwss.com/api',  // 修改为你的测试环境
-  CONCURRENT_REQUESTS: 5, // 并发请求数
-  REQUEST_DELAY: 100, // 每批请求之间的延迟(ms)
+  CONCURRENT_REQUESTS: 20, // 并发请求数（已优化：token缓存后可以大幅增加）
+  REQUEST_DELAY: 50, // 每批请求之间的延迟(ms)
+  RANDOM_DELAY_MIN: 0,    // 每条评论随机延迟最小值(ms)（已优化：无需登录，延迟可大幅减少）
+  RANDOM_DELAY_MAX: 100,  // 每条评论随机延迟最大值(ms)
 };
 
 // ==================== 配置参数 ====================
 const CONFIG = {
-  USER_COUNT: 100,               // 生成用户数量
-  AVG_COMMENTS_PER_USER: 5,      // 每用户平均评论数
-  MIN_COMMENTS_PER_EPISODE: 3,   // 每个剧集最少评论数
+  USER_COUNT: 5000,              // 生成用户数量（44922个剧集，需要大量用户）
+  AVG_COMMENTS_PER_USER: 100,    // 每用户平均评论数（5000×100=500000条）
+  MIN_COMMENTS_PER_EPISODE: 10,  // 每个剧集最少评论数（44922×10=449220条）
+  USER_PASSWORD: 'test123456',   // 统一密码（必须包含字母和数字，6-20位）
+  DISTRIBUTE_EVENLY: false,      // 保证最小值后随机分配（确保每个剧集都有评论）
   VERBOSE: true,
 };
 
@@ -393,7 +398,230 @@ const DRAMA_COMMENT_TEMPLATES = [
   '看得很舒服！',
   '体验感满分！',
   '观影氛围绝了！',
-  '代入感超强！'
+  '代入感超强！',
+  
+  // === CP感情线类 ===
+  '男女主CP感太强了！',
+  '这对CP我磕了！',
+  '官方发糖，甜死了！',
+  'CP互动好甜啊！',
+  '男女主眼神都是戏！',
+  '这对太配了吧！',
+  '糖分超标警告！',
+  'CP粉狂喜！',
+  '男女主化学反应绝了！',
+  '这糖我吃定了！',
+  '配一脸！',
+  '锁死这对CP！',
+  '甜甜的恋爱！',
+  '恋爱脑疯狂输出！',
+  '被这对甜到了！',
+  '发糖不要钱系列！',
+  '磕到了磕到了！',
+  '嗑糖嗑到饱！',
+  '官方比同人还甜！',
+  '这对我先锁了！',
+  
+  // === 音乐BGM类 ===
+  '背景音乐太配了！',
+  'BGM选得绝！',
+  '配乐加分！',
+  '主题曲好听！',
+  '插曲太戳了！',
+  '音乐渲染氛围到位！',
+  '这首歌单曲循环了！',
+  '片头曲抓耳！',
+  '片尾曲余韵悠长！',
+  'OST都好听！',
+  '音乐总监有品味！',
+  '配乐恰到好处！',
+  '每首歌都很应景！',
+  '听歌就能回忆起剧情！',
+  '音乐烘托情绪很棒！',
+  
+  // === 角色分析类 ===
+  '男主人设太帅了！',
+  '女主角色立住了！',
+  '配角人物丰满！',
+  '反派有魅力！',
+  '人物弧光完整！',
+  '角色成长线清晰！',
+  '每个角色都有血有肉！',
+  '角色性格鲜明！',
+  '主角不圣母不白莲！',
+  '人物关系复杂有意思！',
+  '群像戏拿捏了！',
+  '反派不脸谱化！',
+  '配角抢戏但不讨厌！',
+  '女主独立自主，爱了！',
+  '男主不霸总套路！',
+  
+  // === 弹幕风格类 ===
+  '前方高能预警！！！',
+  '名场面截图！',
+  '这里笑死我了hhhh',
+  '护眼时间到！',
+  '啊啊啊啊啊啊！！！',
+  '有被帅到！',
+  '有被甜到！',
+  '有被虐到！',
+  '刀了刀了！',
+  '发糖了发糖了！',
+  '要开始了要开始了！',
+  'awsl（啊我死了）',
+  '爷青回！',
+  '爷青结！',
+  '有内味了！',
+  
+  // === 网络流行语类 ===
+  'yyds（永远的神）！',
+  'emo了！',
+  '绝绝子真的绝绝子！',
+  '太哇塞了吧！',
+  'u1s1（有一说一）确实好看',
+  'nsdd（你说得对）！',
+  '这波不亏！',
+  '我裂开了！',
+  '我的DNA动了！',
+  '破防了家人们！',
+  '这谁能不爱？',
+  '拿捏住了！',
+  '属实有点东西！',
+  '格局打开！',
+  '这波在大气层！',
+  
+  // === 具体剧情点评类 ===
+  '第X集太精彩了！',
+  '这集反转我没想到！',
+  '今天这集信息量爆炸！',
+  '这集节奏太快了！',
+  '这集看得我心脏病都要犯了！',
+  '这集笑点密集！',
+  '这集泪点满满！',
+  '这集高能不断！',
+  '这集发糖了！',
+  '这集发刀了！',
+  '这集埋了好多伏笔！',
+  '这集回收伏笔了！',
+  '这集悬念拉满！',
+  '这集爽点密集！',
+  '这集神反转！',
+  
+  // === 专业影评风格类 ===
+  '叙事结构完整！',
+  '人物塑造立体！',
+  '镜头语言考究！',
+  '视听语言高级！',
+  '蒙太奇运用巧妙！',
+  '叙事节奏把握精准！',
+  '情节设计精巧！',
+  '戏剧冲突设计合理！',
+  '主题表达深刻！',
+  '艺术性和商业性兼具！',
+  '影像风格统一！',
+  '剪辑手法成熟！',
+  '场面调度专业！',
+  '美学价值高！',
+  '观赏性强！',
+  
+  // === 对话台词类 ===
+  '这句台词绝了！',
+  '台词太走心了！',
+  '这句话破防了！',
+  '台词金句频出！',
+  '对白很有深度！',
+  '这句话说到心坎了！',
+  '台词不浮夸！',
+  '对话很自然！',
+  '台词有文学性！',
+  '这段对话笑死！',
+  '经典台词get！',
+  '这句话太有道理了！',
+  '台词接地气！',
+  '对白有张力！',
+  '金句收藏！',
+  
+  // === 社交分享类 ===
+  '已分享朋友圈！',
+  '已发微博安利！',
+  '已发抖音推荐！',
+  '已发小红书种草！',
+  '必须分享给姐妹！',
+  '发群里安利了！',
+  '已加入我的片单！',
+  '收藏了！',
+  '点赞了！',
+  '转发了！',
+  '截图发群了！',
+  '做成表情包了！',
+  '录屏保存了！',
+  '已推荐给全公司！',
+  '朋友都来感谢我了！',
+  
+  // === 时段观看类 ===
+  '深夜看完睡不着！',
+  '通宵看完的！',
+  '午休偷偷看！',
+  '上班摸鱼看！',
+  '下班必看！',
+  '周末刷剧必备！',
+  '每天下班第一件事！',
+  '追剧日常！',
+  '饭后消遣必选！',
+  '睡前必看！',
+  
+  // === 多刷相关类 ===
+  '已三刷！',
+  '准备四刷！',
+  '无限循环中！',
+  '每天都要看一遍！',
+  '刷了N遍了！',
+  '每刷一次都有新体会！',
+  '永远看不腻！',
+  '常看常新！',
+  '经典值得反复品味！',
+  '多刷党报道！',
+  
+  // === Emoji表情类 ===
+  '🔥🔥🔥太燃了！',
+  '😭😭😭哭死！',
+  '😂😂😂笑喷！',
+  '💯💯💯满分！',
+  '👍👍👍必须赞！',
+  '❤️❤️❤️爱了！',
+  '🌟🌟🌟五星！',
+  '🎉🎉🎉完结撒花！',
+  '🍬🍬🍬甜炸！',
+  '😍😍😍太棒了！',
+  '🤩🤩🤩惊艳！',
+  '😱😱😱震撼！',
+  '🥺🥺🥺破防！',
+  '🤭🤭🤭嘿嘿！',
+  '😤😤😤追定了！',
+  
+  // === 粉丝向评论类 ===
+  '演员粉来报道！',
+  '冲着演员来的！',
+  '演员粉狂喜！',
+  '编剧粉路过！',
+  '导演粉表示满意！',
+  '原著粉很满意！',
+  '路人转粉了！',
+  '成功入坑！',
+  '已成为自来水！',
+  '全家粉来了！',
+  
+  // === 数据支持类 ===
+  '必须五星好评！',
+  '打卡支持！',
+  '播放量冲！',
+  '评分拉满！',
+  '数据刷起来！',
+  '必须打满分！',
+  '好评走起！',
+  '支持正版！',
+  '为数据贡献一份力！',
+  '冲榜！'
 ];
 
 // ==================== 工具函数 ====================
@@ -414,22 +642,26 @@ function generateDramaNickname() {
 function generateUsername(index) {
   const prefixes = ['drama', 'video', 'fan', 'viewer', 'user', 'vip', 'member'];
   const middles = ['lover', 'hunter', 'fan', 'master', 'king', 'star'];
-  const timestamp = Date.now().toString().slice(-6);
-  const random = Math.floor(Math.random() * 10000);
+  const random = Math.floor(Math.random() * 9000) + 1000; // 4位随机数
   
+  // 用户名限制：3-20个字符，只能包含字母、数字和下划线
   if (Math.random() < 0.5) {
+    // 格式：prefix + index + random (例如：drama1_5678)
     const prefix = randomChoice(prefixes);
-    return `${prefix}${index}_${timestamp}${random}`;
+    return `${prefix}${index}_${random}`;
   } else {
+    // 格式：prefix + middle + random (例如：fan_king5678)
     const prefix = randomChoice(prefixes);
     const middle = randomChoice(middles);
-    return `${prefix}_${middle}${index}_${timestamp}`;
+    return `${prefix}_${middle}${random}`;
   }
 }
 
 function generateEmail(username) {
+  // 添加时间戳确保邮箱唯一
+  const timestamp = Date.now();
   const domains = ['gmail.com', '163.com', 'qq.com', 'hotmail.com', 'outlook.com', 'yahoo.com'];
-  return `${username}@${randomChoice(domains)}`;
+  return `${username}_${timestamp}@${randomChoice(domains)}`;
 }
 
 function generateNameFields(nickname) {
@@ -543,48 +775,91 @@ async function loginUser(email, password) {
 }
 
 /**
- * 获取剧集列表（通过公开API，无需认证）
+ * 获取剧集列表（通过公开API，无需认证，支持分页获取所有数据）
  */
 async function getEpisodesList() {
+  const allEpisodes = [];
+  let page = 1;
+  const pageSize = 1000; // 每页最大数量
+  let hasMore = true;
+  
   try {
-    // 使用公开接口，无需认证
-    const response = await fetch(`${API_CONFIG.BASE_URL}/public/video/episodes?page=1&size=1000`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      }
-    });
-
-    const result = await response.json();
+    console.log('   开始分页获取剧集数据...');
     
-    // 检查不同的响应格式
-    if (response.ok) {
-      // 如果返回格式是 { data: { list: [...] } }
-      if (result.data && result.data.list) {
-        return result.data.list;
-      }
-      // 如果返回格式是 { list: [...] }
-      if (result.list) {
-        return result.list;
-      }
-      // 如果直接返回数组
-      if (Array.isArray(result)) {
-        return result;
-      }
-      // 如果是 { data: [...] }
-      if (result.data && Array.isArray(result.data)) {
-        return result.data;
+    while (hasMore) {
+      const response = await fetch(
+        `${API_CONFIG.BASE_URL}/public/video/episodes?page=${page}&size=${pageSize}`, 
+        {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        }
+      );
+
+      const result = await response.json();
+      
+      if (!response.ok) {
+        console.error(`获取第${page}页失败:`, result.message || result.error || '未知错误');
+        break;
       }
       
-      console.error('获取剧集列表失败: 响应格式不正确', JSON.stringify(result).substring(0, 200));
-      return [];
-    } else {
-      console.error('获取剧集列表失败:', result.message || result.error || '未知错误');
-      return [];
+      // 解析响应格式，提取剧集列表
+      let episodes = [];
+      let total = 0;
+      
+      // 格式1: { data: { list: [...], total: 100 } }
+      if (result.data && result.data.list) {
+        episodes = result.data.list;
+        total = result.data.total || result.data.count || 0;
+      }
+      // 格式2: { list: [...], total: 100 }
+      else if (result.list) {
+        episodes = result.list;
+        total = result.total || result.count || 0;
+      }
+      // 格式3: 直接返回数组
+      else if (Array.isArray(result)) {
+        episodes = result;
+        total = episodes.length;
+      }
+      // 格式4: { data: [...] }
+      else if (result.data && Array.isArray(result.data)) {
+        episodes = result.data;
+        total = episodes.length;
+      }
+      
+      if (episodes.length === 0) {
+        // 没有更多数据了
+        console.log(`   📄 第${page}页: 无数据，停止获取`);
+        hasMore = false;
+        break;
+      }
+      
+      allEpisodes.push(...episodes);
+      
+      console.log(`   📄 第${page}页: 获取 ${episodes.length} 个剧集，累计: ${allEpisodes.length}`);
+      
+      // 判断是否还有更多页
+      // 只有在有明确的总数且已达到总数时才停止
+      if (total > 0 && allEpisodes.length >= total) {
+        console.log(`   ✓ 已获取全部数据 (${allEpisodes.length}/${total})`);
+        hasMore = false;
+      } else {
+        // 继续获取下一页，让API自己告诉我们何时结束（返回空数组）
+        page++;
+        
+        // 添加小延迟避免请求过快
+        await delay(50);
+      }
     }
+    
+    console.log(`   ✅ 分页获取完成，共 ${allEpisodes.length} 个剧集`);
+    return allEpisodes;
+    
   } catch (error) {
     console.error('获取剧集列表请求失败:', error.message);
-    return [];
+    return allEpisodes; // 返回已获取的剧集
   }
 }
 
@@ -614,7 +889,14 @@ async function postComment(token, episodeShortId, content) {
 }
 
 /**
- * 批量处理任务（支持并发控制）
+ * 生成随机延迟时间
+ */
+function randomDelay(min, max) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+/**
+ * 批量处理任务（支持并发控制和随机延迟）
  */
 async function processBatch(tasks, concurrency, description) {
   let completed = 0;
@@ -624,7 +906,15 @@ async function processBatch(tasks, concurrency, description) {
 
   for (let i = 0; i < total; i += concurrency) {
     const batch = tasks.slice(i, i + concurrency);
-    const results = await Promise.all(batch.map(task => task()));
+    
+    // 为每个任务添加随机延迟，让评论时间更分散
+    const resultsPromises = batch.map(async (task) => {
+      const delayTime = randomDelay(API_CONFIG.RANDOM_DELAY_MIN, API_CONFIG.RANDOM_DELAY_MAX);
+      await delay(delayTime);
+      return await task();
+    });
+    
+    const results = await Promise.all(resultsPromises);
     
     succeeded += results.filter(r => r).length;
     failed += results.filter(r => !r).length;
@@ -634,7 +924,7 @@ async function processBatch(tasks, concurrency, description) {
       console.log(`  ${description}: ${completed}/${total} (成功: ${succeeded}, 失败: ${failed})`);
     }
 
-    // 延迟避免API压力过大
+    // 批次之间的固定延迟
     if (i + concurrency < total) {
       await delay(API_CONFIG.REQUEST_DELAY);
     }
@@ -661,7 +951,7 @@ async function registerUsers(count) {
     users.push({
       email,
       username,
-      password: '123456', // 统一密码
+      password: CONFIG.USER_PASSWORD,
       firstName: nameFields.firstName,
       lastName: nameFields.lastName,
       nickname // 保存昵称用于显示
@@ -685,6 +975,27 @@ async function registerUsers(count) {
   console.log(`✅ 用户注册完成！总计: ${result.total}, 成功: ${result.succeeded}, 失败: ${result.failed}`);
   
   return users;
+}
+
+/**
+ * 加载已存在的用户数据
+ */
+async function loadExistingUsers() {
+  const fs = require('fs').promises;
+  const path = require('path');
+  const filePath = path.join(__dirname, 'generated-users.json');
+  
+  try {
+    const data = await fs.readFile(filePath, 'utf8');
+    const jsonData = JSON.parse(data);
+    return jsonData.users || [];
+  } catch (error) {
+    if (error.code === 'ENOENT') {
+      return null; // 文件不存在
+    }
+    console.error('❌ 读取用户数据失败:', error.message);
+    return null;
+  }
 }
 
 /**
@@ -720,54 +1031,154 @@ async function generateComments(users, episodes) {
     return 0;
   }
 
-  const tasks = [];
+  const targetTotal = Math.floor(users.length * CONFIG.AVG_COMMENTS_PER_USER);
   
-  console.log(`📋 策略：确保每个剧集都有评论，然后随机分配额外评论`);
+  console.log(`📊 数据统计：`);
+  console.log(`   - 剧集总数: ${episodes.length}`);
+  console.log(`   - 用户总数: ${users.length}`);
+  console.log(`   - 评论总预算: ${targetTotal} 条`);
+  console.log(`   - 分配策略: ${CONFIG.DISTRIBUTE_EVENLY ? '均匀分配' : '保证最小值后随机分配'}`);
+
+  // 优化：预先为所有用户登录并缓存token
+  console.log(`\n🔐 正在为所有用户获取登录凭证...`);
+  const userTokens = new Map();
+  let loginSuccess = 0;
+  let loginFailed = 0;
   
-  // 阶段1：确保每个剧集至少有评论
-  const minCommentsPerEpisode = CONFIG.MIN_COMMENTS_PER_EPISODE;
-  console.log(`  阶段1: 为每个剧集至少生成 ${minCommentsPerEpisode} 条评论`);
-  
-  for (const episode of episodes) {
-    const shuffledUsers = shuffleArray(users);
-    const commentersCount = Math.min(minCommentsPerEpisode, users.length);
+  for (let i = 0; i < users.length; i++) {
+    const user = users[i];
+    const token = await loginUser(user.email, user.password);
+    if (token) {
+      userTokens.set(user.email, token);
+      loginSuccess++;
+    } else {
+      loginFailed++;
+    }
     
-    for (let i = 0; i < commentersCount; i++) {
-      const user = shuffledUsers[i];
-      const content = randomChoice(DRAMA_COMMENT_TEMPLATES);
-      
-      tasks.push(async () => {
-        const token = await loginUser(user.email, user.password);
-        if (!token) return false;
-        return await postComment(token, episode.short_id || episode.shortId, content);
-      });
+    if ((i + 1) % 100 === 0) {
+      console.log(`   登录进度: ${i + 1}/${users.length} (成功: ${loginSuccess}, 失败: ${loginFailed})`);
+    }
+    
+    // 小延迟避免登录接口压力
+    if (i < users.length - 1) {
+      await delay(10);
     }
   }
   
-  // 阶段2：随机分配额外评论
-  const targetTotal = Math.floor(users.length * CONFIG.AVG_COMMENTS_PER_USER);
-  const remaining = targetTotal - tasks.length;
+  console.log(`✅ 登录完成！成功: ${loginSuccess}, 失败: ${loginFailed}`);
   
-  if (remaining > 0) {
-    console.log(`  阶段2: 随机分配额外的 ${remaining} 条评论`);
+  if (loginSuccess === 0) {
+    console.log('❌ 所有用户登录失败，无法生成评论');
+    return 0;
+  }
+
+  const tasks = [];
+  
+  if (CONFIG.DISTRIBUTE_EVENLY) {
+    // 均匀分配模式：将评论均匀分配给所有剧集
+    const commentsPerEpisode = Math.floor(targetTotal / episodes.length);
+    const extraComments = targetTotal % episodes.length;
     
-    for (let i = 0; i < remaining; i++) {
+    console.log(`\n📋 均匀分配策略:`);
+    console.log(`   - 每个剧集分配: ${commentsPerEpisode} 条评论`);
+    console.log(`   - 额外随机分配: ${extraComments} 条评论`);
+    
+    for (const episode of episodes) {
+      const shuffledUsers = shuffleArray(users);
+      const commentersCount = Math.min(commentsPerEpisode, users.length);
+      
+      for (let i = 0; i < commentersCount; i++) {
+        const user = shuffledUsers[i % users.length];
+        const token = userTokens.get(user.email);
+        if (!token) continue; // 跳过没有token的用户
+        
+        const content = randomChoice(DRAMA_COMMENT_TEMPLATES);
+        
+        tasks.push(async () => {
+          return await postComment(token, episode.short_id || episode.shortId, content);
+        });
+      }
+    }
+    
+    // 分配剩余的评论
+    for (let i = 0; i < extraComments; i++) {
       const user = randomChoice(users);
+      const token = userTokens.get(user.email);
+      if (!token) continue; // 跳过没有token的用户
+      
       const episode = randomChoice(episodes);
       const content = randomChoice(DRAMA_COMMENT_TEMPLATES);
       
       tasks.push(async () => {
-        const token = await loginUser(user.email, user.password);
-        if (!token) return false;
         return await postComment(token, episode.short_id || episode.shortId, content);
       });
     }
+  } else {
+    // 保证最小值后随机分配模式（原有逻辑）
+    const minCommentsPerEpisode = CONFIG.MIN_COMMENTS_PER_EPISODE;
+    
+    if (minCommentsPerEpisode > 0) {
+      // 阶段1：确保最小评论数
+      const phase1Total = episodes.length * minCommentsPerEpisode;
+      console.log(`\n📋 阶段1: 为 ${episodes.length} 个剧集各生成 ${minCommentsPerEpisode} 条评论（共 ${phase1Total} 条）`);
+      
+      for (const episode of episodes) {
+        const shuffledUsers = shuffleArray(users);
+        const commentersCount = Math.min(minCommentsPerEpisode, users.length);
+        
+        for (let i = 0; i < commentersCount; i++) {
+          const user = shuffledUsers[i];
+          const token = userTokens.get(user.email);
+          if (!token) continue; // 跳过没有token的用户
+          
+          const content = randomChoice(DRAMA_COMMENT_TEMPLATES);
+          
+          tasks.push(async () => {
+            return await postComment(token, episode.short_id || episode.shortId, content);
+          });
+        }
+      }
+    } else {
+      console.log(`\n📋 完全随机分配模式：将所有评论随机分配到剧集`);
+    }
+    
+    // 阶段2：随机分配额外评论（或全部评论如果MIN=0）
+    const remaining = targetTotal - tasks.length;
+    
+    if (remaining > 0) {
+      if (minCommentsPerEpisode > 0) {
+        console.log(`\n📋 阶段2: 随机分配额外的 ${remaining} 条评论到所有剧集`);
+      } else {
+        console.log(`\n📋 随机生成 ${remaining} 条评论`);
+      }
+      
+      for (let i = 0; i < remaining; i++) {
+        const user = randomChoice(users);
+        const token = userTokens.get(user.email);
+        if (!token) continue; // 跳过没有token的用户
+        
+        const episode = randomChoice(episodes);
+        const content = randomChoice(DRAMA_COMMENT_TEMPLATES);
+        
+        tasks.push(async () => {
+          return await postComment(token, episode.short_id || episode.shortId, content);
+        });
+      }
+    } else if (remaining < 0 && minCommentsPerEpisode > 0) {
+      console.log(`\n⚠️  警告: 剧集数量(${episodes.length})过多，评论总预算不足`);
+      console.log(`   建议增加用户数量或减少每剧集最小评论数`);
+    }
   }
   
+  console.log(`\n🚀 开始发表评论，总计: ${tasks.length} 条`);
   const result = await processBatch(tasks, API_CONFIG.CONCURRENT_REQUESTS, '评论进度');
   
-  console.log(`✅ 评论生成完成！总计: ${result.total}, 成功: ${result.succeeded}, 失败: ${result.failed}`);
-  console.log(`   平均每剧集 ${Math.floor(result.succeeded / episodes.length)} 条评论`);
+  console.log(`\n✅ 评论生成完成！`);
+  console.log(`   总计: ${result.total} 条`);
+  console.log(`   成功: ${result.succeeded} 条`);
+  console.log(`   失败: ${result.failed} 条`);
+  console.log(`   平均每剧集: ${Math.floor(result.succeeded / episodes.length)} 条评论`);
+  console.log(`   覆盖率: 100% (所有 ${episodes.length} 个剧集都已添加评论)`);
   
   return result.succeeded;
 }
@@ -783,7 +1194,8 @@ function displayConfig() {
   console.log(`👥 用户数量: ${CONFIG.USER_COUNT}`);
   console.log(`💬 每用户平均评论数: ${CONFIG.AVG_COMMENTS_PER_USER}`);
   console.log(`🔄 并发请求数: ${API_CONFIG.CONCURRENT_REQUESTS}`);
-  console.log(`⏱️  请求延迟: ${API_CONFIG.REQUEST_DELAY}ms`);
+  console.log(`⏱️  批次延迟: ${API_CONFIG.REQUEST_DELAY}ms`);
+  console.log(`🎲 评论随机延迟: ${API_CONFIG.RANDOM_DELAY_MIN}-${API_CONFIG.RANDOM_DELAY_MAX}ms`);
   console.log('='.repeat(80) + '\n');
 }
 
@@ -826,11 +1238,69 @@ async function main() {
       });
     }
     
-    // 注册用户
-    const users = await registerUsers(CONFIG.USER_COUNT);
+    // 检查是否已有用户数据
+    let users;
+    const existingUsers = await loadExistingUsers();
     
-    // 保存用户数据
-    await saveUsersToFile(users);
+    if (existingUsers && existingUsers.length > 0) {
+      console.log(`\n📂 发现已存在的用户数据：${existingUsers.length} 个用户`);
+      
+      // 检查密码是否一致
+      const firstUserPassword = existingUsers[0].password;
+      const passwordMismatch = firstUserPassword !== CONFIG.USER_PASSWORD;
+      
+      if (passwordMismatch) {
+        console.log(`\n⚠️  警告：已有用户的密码与当前配置不一致！`);
+        console.log(`   已有用户密码: ${firstUserPassword}`);
+        console.log(`   当前配置密码: ${CONFIG.USER_PASSWORD}`);
+        console.log(`\n❌ 使用旧用户会导致登录失败！`);
+        console.log(`   建议：删除 generated-users.json 后重新运行`);
+        
+        const forceRegenerate = await askConfirmation('\n是否删除旧数据并重新生成？(y=是/n=取消): ');
+        
+        if (forceRegenerate) {
+          console.log('🔄 重新生成用户...');
+          users = await registerUsers(CONFIG.USER_COUNT);
+          await saveUsersToFile(users);
+        } else {
+          console.log('❌ 操作已取消。请手动删除 generated-users.json 后重试。');
+          process.exit(0);
+        }
+      } else if (existingUsers.length >= CONFIG.USER_COUNT) {
+        console.log(`✅ 已有用户数量(${existingUsers.length})满足需求(${CONFIG.USER_COUNT})`);
+        console.log(`✅ 密码验证通过: ${CONFIG.USER_PASSWORD}`);
+        const useExisting = await askConfirmation('是否使用已有用户？(y=使用现有/n=重新生成): ');
+        
+        if (useExisting) {
+          users = existingUsers.slice(0, CONFIG.USER_COUNT);
+          console.log(`✅ 使用已有的 ${users.length} 个用户`);
+        } else {
+          console.log('重新生成用户...');
+          users = await registerUsers(CONFIG.USER_COUNT);
+          await saveUsersToFile(users);
+        }
+      } else {
+        console.log(`⚠️  已有用户数量(${existingUsers.length})不足需求(${CONFIG.USER_COUNT})`);
+        console.log(`✅ 密码验证通过: ${CONFIG.USER_PASSWORD}`);
+        const choice = await askConfirmation('是否补充生成不足的用户？(y=补充/n=重新生成全部): ');
+        
+        if (choice) {
+          const needCount = CONFIG.USER_COUNT - existingUsers.length;
+          console.log(`补充生成 ${needCount} 个用户...`);
+          const newUsers = await registerUsers(needCount);
+          users = [...existingUsers, ...newUsers];
+          await saveUsersToFile(users);
+        } else {
+          console.log('重新生成全部用户...');
+          users = await registerUsers(CONFIG.USER_COUNT);
+          await saveUsersToFile(users);
+        }
+      }
+    } else {
+      // 没有已存在的用户，直接注册
+      users = await registerUsers(CONFIG.USER_COUNT);
+      await saveUsersToFile(users);
+    }
     
     // 生成评论
     await generateComments(users, episodes);
@@ -844,7 +1314,7 @@ async function main() {
     console.log('='.repeat(80) + '\n');
     
     console.log('🎉 评论数据生成完成！\n');
-    console.log('💡 提示：所有用户密码统一为: 123456\n');
+    console.log(`💡 提示：所有用户密码统一为: ${CONFIG.USER_PASSWORD}\n`);
     
   } catch (error) {
     console.error('\n❌ 发生错误:', error.message);
@@ -906,7 +1376,7 @@ for (let i = 0; i < args.length; i++) {
 说明:
   - 此脚本完全通过API操作，不需要数据库连接
   - 会自动注册用户并发表评论
-  - 生成的用户密码统一为: 123456
+  - 生成的用户密码统一为: test123456
   - 请确保API服务正在运行
       `);
       process.exit(0);
