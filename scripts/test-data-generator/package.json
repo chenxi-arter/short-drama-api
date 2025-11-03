@@ -1,0 +1,14 @@
+{
+  "name": "short-drama-test-data-generator",
+  "version": "1.0.0",
+  "description": "短剧评论测试数据生成工具",
+  "main": "generate.js",
+  "scripts": {
+    "start": "node generate.js"
+  },
+  "dependencies": {
+    "mysql2": "^3.14.5",
+    "bcrypt": "^6.0.0"
+  }
+}
+
