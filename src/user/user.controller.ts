@@ -7,6 +7,7 @@ import { AuthService } from '../auth/auth.service';
 import { BindEmailDto } from './dto/bind-email.dto';
 import { UpdateNicknameDto, UpdateNicknameResponseDto } from './dto/update-nickname.dto';
 import { UpdatePasswordDto, UpdatePasswordResponseDto } from './dto/update-password.dto';
+import { UpdateAvatarDto, UpdateAvatarResponseDto } from './dto/update-avatar.dto';
 
 interface AuthenticatedRequest extends Request {
   user: {
@@ -137,5 +138,18 @@ export class UserController {
   @ApiResponse({ status: 400, description: '请求参数错误' })
   async updatePassword(@Body() dto: UpdatePasswordDto, @Req() req: AuthenticatedRequest): Promise<UpdatePasswordResponseDto> {
     return await this.userService.updatePassword(req.user.userId, dto);
+  }
+
+  /**
+   * 更新用户头像
+   */
+  @UseGuards(JwtAuthGuard)
+  @Post('update-avatar')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: '更新头像' })
+  @ApiResponse({ status: 200, description: '头像更新成功', type: UpdateAvatarResponseDto })
+  @ApiResponse({ status: 400, description: '请求参数错误' })
+  async updateAvatar(@Body() dto: UpdateAvatarDto, @Req() req: AuthenticatedRequest): Promise<UpdateAvatarResponseDto> {
+    return await this.userService.updateAvatar(req.user.userId, dto);
   }
 }

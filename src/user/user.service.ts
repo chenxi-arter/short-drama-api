@@ -9,6 +9,7 @@ import { BindTelegramDto, BindTelegramResponseDto } from './dto/bind-telegram.dt
 import { BindEmailDto } from './dto/bind-email.dto';
 import { UpdateNicknameDto, UpdateNicknameResponseDto } from './dto/update-nickname.dto';
 import { UpdatePasswordDto, UpdatePasswordResponseDto } from './dto/update-password.dto';
+import { UpdateAvatarDto, UpdateAvatarResponseDto } from './dto/update-avatar.dto';
 import { verifyTelegramHash } from './telegram.validator';
 import { AuthService } from '../auth/auth.service';
 import { TelegramAuthService } from '../auth/telegram-auth.service';
@@ -543,6 +544,28 @@ export class UserService {
     return {
       success: true,
       message: '密码修改成功'
+    };
+  }
+
+  /**
+   * 更新用户头像
+   * @param userId 用户ID
+   * @param dto 更新头像DTO
+   * @returns 更新结果
+   */
+  async updateAvatar(userId: number, dto: UpdateAvatarDto): Promise<UpdateAvatarResponseDto> {
+    const user = await this.userRepo.findOneBy({ id: userId });
+    if (!user) {
+      throw new BadRequestException('用户不存在');
+    }
+
+    // 更新头像URL
+    await this.userRepo.update(userId, { photo_url: dto.photo_url });
+
+    return {
+      success: true,
+      message: '头像更新成功',
+      photo_url: dto.photo_url
     };
   }
 }
