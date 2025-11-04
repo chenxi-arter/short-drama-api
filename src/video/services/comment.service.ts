@@ -47,6 +47,7 @@ export class CommentService {
 
   /**
    * 获取剧集的主楼评论列表（带回复预览）
+   * 优化版：批量查询，避免 N+1 问题
    */
   async getCommentsByEpisodeShortId(
     episodeShortId: string,
@@ -65,38 +66,74 @@ export class CommentService {
       relations: ['user'],
     });
     
-    // 批量获取每条主楼的最新N条回复
-    const formattedComments = await Promise.all(
-      comments.map(async (comment) => {
-        const recentReplies = await this.commentRepo.find({
-          where: { rootId: comment.id },
-          order: { createdAt: 'DESC' },
-          take: replyPreviewCount,
-          relations: ['user'],
-        });
-        
-        return {
-          id: comment.id,
-          content: comment.content,
-          appearSecond: comment.appearSecond,
-          replyCount: comment.replyCount,
-          createdAt: comment.createdAt,
-          // 用户信息
-          username: comment.user?.username || null,
-          nickname: comment.user?.nickname || null,
-          photoUrl: comment.user?.photo_url || null,
-          // 回复预览
-          recentReplies: recentReplies.map(reply => ({
-            id: reply.id,
-            content: reply.content,
-            floorNumber: reply.floorNumber,
-            createdAt: reply.createdAt,
-            username: reply.user?.username || null,
-            nickname: reply.user?.nickname || null,
-          })),
-        };
+    // 如果没有评论，直接返回
+    if (comments.length === 0) {
+      return {
+        comments: [],
+        total,
+        page,
+        size,
+        totalPages: 0,
+      };
+    }
+    
+    // ========== 性能优化：批量查询所有回复 ==========
+    const commentIds = comments.map(c => c.id);
+    
+    // 使用子查询批量获取每个主楼的最新N条回复（关键优化！）
+    const allReplies = await this.commentRepo
+      .createQueryBuilder('comment')
+      .leftJoinAndSelect('comment.user', 'user')
+      .where('comment.rootId IN (:...rootIds)', { rootIds: commentIds })
+      .andWhere((qb) => {
+        const subQuery = qb
+          .subQuery()
+          .select('c2.id')
+          .from('comments', 'c2')
+          .where('c2.rootId = comment.rootId')
+          .orderBy('c2.createdAt', 'DESC')
+          .limit(replyPreviewCount)
+          .getQuery();
+        return `comment.id IN ${subQuery}`;
       })
-    );
+      .orderBy('comment.rootId', 'ASC')
+      .addOrderBy('comment.createdAt', 'DESC')
+      .getMany();
+    
+    // 将回复按主楼ID分组（在内存中处理）
+    const repliesMap = new Map<number, typeof allReplies>();
+    allReplies.forEach(reply => {
+      if (!repliesMap.has(reply.rootId)) {
+        repliesMap.set(reply.rootId, []);
+      }
+      repliesMap.get(reply.rootId)!.push(reply);
+    });
+    
+    // 组装最终结果
+    const formattedComments = comments.map(comment => {
+      const recentReplies = repliesMap.get(comment.id) || [];
+      
+      return {
+        id: comment.id,
+        content: comment.content,
+        appearSecond: comment.appearSecond,
+        replyCount: comment.replyCount,
+        createdAt: comment.createdAt,
+        // 用户信息
+        username: comment.user?.username || null,
+        nickname: comment.user?.nickname || null,
+        photoUrl: comment.user?.photo_url || null,
+        // 回复预览
+        recentReplies: recentReplies.map(reply => ({
+          id: reply.id,
+          content: reply.content,
+          floorNumber: reply.floorNumber,
+          createdAt: reply.createdAt,
+          username: reply.user?.username || null,
+          nickname: reply.user?.nickname || null,
+        })),
+      };
+    });
     
     return {
       comments: formattedComments,
