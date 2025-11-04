@@ -106,6 +106,11 @@ JWT_REFRESH_EXPIRES_IN=30d
 # Telegram Bot (开发环境)
 TELEGRAM_BOT_TOKEN=your_dev_bot_token
 TELEGRAM_BOT_USERNAME=your_dev_bot_username
+
+# 假评论功能 (开发环境默认启用)
+ENABLE_FAKE_COMMENTS=true
+MIN_FAKE_COMMENTS=30
+MAX_FAKE_COMMENTS=50
 ```
 
 ### 生产环境 (.env.production)
@@ -148,6 +153,11 @@ JWT_REFRESH_EXPIRES_IN=7d
 # Telegram Bot (生产环境)
 TELEGRAM_BOT_TOKEN=your_production_bot_token
 TELEGRAM_BOT_USERNAME=your_production_bot_username
+
+# 假评论功能 (生产环境建议关闭或减少数量)
+ENABLE_FAKE_COMMENTS=false     # 或设为true但降低数量
+MIN_FAKE_COMMENTS=10           # 如果启用，建议降低数量
+MAX_FAKE_COMMENTS=20           # 如果启用，建议降低数量
 ```
 
 ### 测试环境 (.env.test)
@@ -181,6 +191,11 @@ JWT_REFRESH_EXPIRES_IN=1d
 # Telegram Bot (测试环境)
 TELEGRAM_BOT_TOKEN=your_test_bot_token
 TELEGRAM_BOT_USERNAME=your_test_bot_username
+
+# 假评论功能 (测试环境建议启用)
+ENABLE_FAKE_COMMENTS=true
+MIN_FAKE_COMMENTS=30
+MAX_FAKE_COMMENTS=50
 ```
 
 ## 🔐 安全配置建议
@@ -281,6 +296,16 @@ TELEGRAM_BOT_TOKEN=your_telegram_bot_token
 TELEGRAM_BOT_USERNAME=your_bot_username
 
 # ===========================================
+# 假评论功能配置
+# ===========================================
+# 是否启用假评论（默认：true，设为false禁用）
+ENABLE_FAKE_COMMENTS=true
+
+# 每个剧集的假评论数量范围
+MIN_FAKE_COMMENTS=30          # 最少假评论数（默认：30）
+MAX_FAKE_COMMENTS=50          # 最多假评论数（默认：50）
+
+# ===========================================
 # 其他配置
 # ===========================================
 # 日志级别
@@ -315,6 +340,9 @@ services:
       - REDIS_PASSWORD=redis_password
       - JWT_SECRET=your_jwt_secret
       - TELEGRAM_BOT_TOKEN=your_bot_token
+      - ENABLE_FAKE_COMMENTS=false
+      - MIN_FAKE_COMMENTS=30
+      - MAX_FAKE_COMMENTS=50
 ```
 
 ### Kubernetes ConfigMap
@@ -334,7 +362,70 @@ data:
   REDIS_PORT: "6379"
   REDIS_TTL: "600"
   LOG_LEVEL: "info"
+  ENABLE_FAKE_COMMENTS: "false"
+  MIN_FAKE_COMMENTS: "30"
+  MAX_FAKE_COMMENTS: "50"
 ```
+
+## 💬 假评论功能配置详解
+
+### 功能说明
+
+假评论功能用于在真实评论数据较少时，动态生成模拟评论数据，提升用户体验。
+
+**核心特性：**
+- 不占用数据库空间（动态生成）
+- 同一剧集返回固定内容（基于种子算法）
+- 性能影响极小（~1ms/50条评论）
+- 可随时启用/禁用
+
+### 配置参数
+
+| 参数名 | 类型 | 默认值 | 说明 |
+|--------|------|--------|------|
+| `ENABLE_FAKE_COMMENTS` | boolean | `true` | 是否启用假评论功能 |
+| `MIN_FAKE_COMMENTS` | number | `30` | 每个剧集最少假评论数 |
+| `MAX_FAKE_COMMENTS` | number | `50` | 每个剧集最多假评论数 |
+
+### 使用建议
+
+**开发/测试环境：**
+```bash
+ENABLE_FAKE_COMMENTS=true      # 建议启用
+MIN_FAKE_COMMENTS=30
+MAX_FAKE_COMMENTS=50
+```
+
+**生产环境（新平台）：**
+```bash
+ENABLE_FAKE_COMMENTS=true      # 可以启用
+MIN_FAKE_COMMENTS=10           # 降低数量，更真实
+MAX_FAKE_COMMENTS=20
+```
+
+**生产环境（成熟平台）：**
+```bash
+ENABLE_FAKE_COMMENTS=false     # 建议关闭
+```
+
+### 技术细节
+
+- **数据来源**: 500+条真实短剧用户评论模板
+- **昵称库**: 50+个短剧风格的用户昵称
+- **时间范围**: 最近60天（从当前时间往前推）
+- **ID范围**: 使用负数ID（-1000000开始），不与真实评论冲突
+
+### 性能数据
+
+假设25万剧集，每个30-50条假评论：
+
+| 指标 | 数值 |
+|------|------|
+| 评论总数显示 | 750万 - 1250万条 |
+| 数据库占用 | 0 MB |
+| 内存占用 | ~100 KB |
+| 生成耗时 | ~1ms/50条 |
+| API延迟增加 | < 10% |
 
 ## ⚠️ 注意事项
 
@@ -352,6 +443,12 @@ data:
 - 应用启动时会验证必需的配置项
 - 缺少必需配置会导致启动失败
 - 建议使用配置验证工具
+
+### 4. 假评论使用建议
+- 新平台可以启用假评论功能
+- 真实评论增长后建议逐步关闭
+- 生产环境使用需考虑法律合规性
+- 建议向用户说明或标注"示例评论"
 
 ## 🔧 故障排除
 
