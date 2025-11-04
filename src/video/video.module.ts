@@ -21,6 +21,7 @@ import { CacheMonitorController } from './cache-monitor.controller'; // 缓存�
 import { VideoApiModule } from './modules/video-api.module';
 import { WatchProgressService } from './services/watch-progress.service';
 import { CommentService } from './services/comment.service';
+import { FakeCommentService } from './services/fake-comment.service';
 import { EpisodeService } from './services/episode.service';
 import { CategoryService } from './services/category.service';
 
@@ -88,8 +89,9 @@ import { EpisodeInteractionService } from './services/episode-interaction.servic
     UrlService,
     PlayCountService,
     
-    // 现有服务
+    // 现有服务（注意：FakeCommentService 必须在 CommentService 之前，因为存在依赖）
     WatchProgressService,
+    FakeCommentService,  // ← 移到 CommentService 之前
     CommentService,
     EpisodeService,
     EpisodeInteractionService,

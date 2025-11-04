@@ -14,6 +14,7 @@ import { BrowseHistoryService } from '../services/browse-history.service';
 import { WatchProgressService } from '../services/watch-progress.service';
 import { BannerService } from '../services/banner.service';
 import { CommentService } from '../services/comment.service';
+import { FakeCommentService } from '../services/fake-comment.service';
 import { CatalogModule } from './catalog.module';
 
 @Module({
@@ -27,6 +28,7 @@ import { CatalogModule } from './catalog.module';
     BrowseHistoryService,
     WatchProgressService,
     BannerService,
+    FakeCommentService,  // 必须在 CommentService 之前
     CommentService,
   ],
   exports: [SeriesService, EpisodeService, CommentService, TypeOrmModule],

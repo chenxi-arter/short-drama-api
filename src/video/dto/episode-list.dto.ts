@@ -46,6 +46,7 @@ export interface EpisodeBasicInfo {
   likeCount?: number;            // 点赞数
   dislikeCount?: number;         // 点踩数
   favoriteCount?: number;        // 收藏数
+  commentCount?: number;         // 评论数（包括真实评论和模拟评论）
   // 播放进度相关字段（仅在有用户token时返回）
   watchProgress?: number;        // 观看进度（秒）
   watchPercentage?: number;      // 观看百分比（0-100）

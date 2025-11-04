@@ -11,6 +11,7 @@ import { Category } from '../entity/category.entity';
 import { WatchProgressService } from './watch-progress.service';
 import { EpisodeInteractionService } from './episode-interaction.service';
 import { FavoriteService } from '../../user/services/favorite.service';
+import { CommentService } from './comment.service';
 import { CacheKeys } from '../utils/cache-keys.util';
 import { EpisodeListResponse, SeriesBasicInfo, UserWatchProgress } from '../dto/episode-list.dto';
 
@@ -33,6 +34,7 @@ export class ContentService {
     private readonly episodeInteractionService: EpisodeInteractionService,
     @Inject(forwardRef(() => FavoriteService))
     private readonly favoriteService: FavoriteService,
+    private readonly commentService: CommentService,
     @Inject(CACHE_MANAGER)
     private readonly cacheManager: Cache,
   ) {}
@@ -198,7 +200,7 @@ export class ContentService {
       }
 
       // 获取用户交互状态（只在用户登录时查询）
-      let userInteractions: Record<number, {
+      const userInteractions: Record<number, {
         liked: boolean;
         disliked: boolean;
         favorited: boolean;
@@ -229,6 +231,10 @@ export class ContentService {
         });
       }
 
+      // 批量获取评论数（包括假评论）
+      const episodeShortIds = episodes.map(ep => ep.shortId);
+      const commentCountMap = await this.commentService.getCommentCountsByShortIds(episodeShortIds);
+
       // 构建剧集列表
       const episodeList = episodes.map((ep: Episode) => {
         const progress: EpisodeProgressMapValue = episodeProgressMap[ep.id] || {
@@ -257,6 +263,7 @@ export class ContentService {
           likeCount: ep.likeCount || 0,
           dislikeCount: ep.dislikeCount || 0,
           favoriteCount: ep.favoriteCount || 0,
+          commentCount: commentCountMap.get(ep.shortId) || 0,
           watchProgress: progress.watchProgress,
           watchPercentage: progress.watchPercentage,
           isWatched: progress.isWatched,

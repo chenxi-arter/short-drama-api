@@ -18,6 +18,7 @@ import { CompatBrowseHistoryController } from '../controllers/compat-browse-hist
 import { RecommendController } from '../controllers/recommend.controller';
 import { VideoService } from '../video.service';
 import { CommentService } from '../services/comment.service';
+import { FakeCommentService } from '../services/fake-comment.service';
 import { PlaybackService } from '../services/playback.service';
 import { ContentService } from '../services/content.service';
 import { HomeService } from '../services/home.service';
@@ -106,6 +107,7 @@ import { SeriesGenreOption } from '../entity/series-genre-option.entity';
     BannerService,
     CategoryService,
     IngestService,
+    FakeCommentService,  // 必须在 CommentService 之前
     CommentService,
     RecommendService,
     AppLoggerService,

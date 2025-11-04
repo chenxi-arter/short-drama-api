@@ -10,6 +10,7 @@ import { DateUtil } from '../../common/utils/date.util';
 import { RecommendEpisodeItem } from '../dto/recommend.dto';
 import { EpisodeInteractionService } from './episode-interaction.service';
 import { FavoriteService } from '../../user/services/favorite.service';
+import { CommentService } from './comment.service';
 
 // 定义查询结果的类型
 interface RecommendQueryResult {
@@ -56,6 +57,7 @@ export class RecommendService {
     private readonly episodeInteractionService: EpisodeInteractionService,
     @Inject(forwardRef(() => FavoriteService))
     private readonly favoriteService: FavoriteService,
+    private readonly commentService: CommentService,
   ) {}
 
   /**
@@ -146,7 +148,7 @@ export class RecommendService {
       const list = hasMore ? episodes.slice(0, size) : episodes;
 
       // 获取用户交互状态（只在用户登录时查询）
-      let userInteractions: Record<number, {
+      const userInteractions: Record<number, {
         liked: boolean;
         disliked: boolean;
         favorited: boolean;
@@ -180,22 +182,9 @@ export class RecommendService {
         });
       }
 
-      // 批量查询评论数（通过 episodeShortId）
-      const commentCountMap: Record<string, number> = {};
-      if (list.length > 0) {
-        const shortIds = list.map(ep => ep.shortId);
-        const commentCounts = await this.commentRepo
-          .createQueryBuilder('comment')
-          .select('comment.episodeShortId', 'episodeShortId')
-          .addSelect('COUNT(*)', 'count')
-          .where('comment.episodeShortId IN (:...shortIds)', { shortIds })
-          .groupBy('comment.episodeShortId')
-          .getRawMany();
-        
-        commentCounts.forEach(item => {
-          commentCountMap[item.episodeShortId] = parseInt(item.count, 10);
-        });
-      }
+      // 批量查询评论数（包括假评论）
+      const shortIds = list.map(ep => ep.shortId);
+      const commentCountMap = await this.commentService.getCommentCountsByShortIds(shortIds);
 
       // 获取每个剧集的播放地址
       const enrichedList: RecommendEpisodeItem[] = await Promise.all(
@@ -230,7 +219,7 @@ export class RecommendService {
             likeCount: episode.likeCount || 0,
             dislikeCount: episode.dislikeCount || 0,
             favoriteCount: episode.favoriteCount || 0,
-            commentCount: commentCountMap[episode.shortId] || 0,
+            commentCount: commentCountMap.get(episode.shortId) || 0,
             episodeAccessKey: episode.episodeAccessKey,
             urls: urls.map(url => ({
               quality: url.quality,

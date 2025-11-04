@@ -1,10 +1,11 @@
 import { Injectable, Inject } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, IsNull, MoreThan } from 'typeorm';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
 import { Comment } from '../entity/comment.entity';
 import { Episode } from '../entity/episode.entity';
+import { FakeCommentService } from './fake-comment.service';
 
 /**
  * 评论管理服务
@@ -19,6 +20,7 @@ export class CommentService {
     private readonly episodeRepo: Repository<Episode>,
     @Inject(CACHE_MANAGER)
     private readonly cacheManager: Cache,
+    private readonly fakeCommentService: FakeCommentService,
   ) {}
 
   /**
@@ -59,54 +61,49 @@ export class CommentService {
     
     // 只获取主楼评论（rootId为null）
     const [comments, total] = await this.commentRepo.findAndCount({
-      where: { episodeShortId, rootId: null as any },
+      where: { episodeShortId, rootId: IsNull() },
       order: { createdAt: 'DESC' },
       skip,
       take: size,
       relations: ['user'],
     });
     
-    // 如果没有评论，直接返回
+    // 如果没有真实评论，直接返回空数组并混入假评论
     if (comments.length === 0) {
-      return {
-        comments: [],
-        total,
+      return this.fakeCommentService.mixComments(
+        episodeShortId,
+        [],  // 空的真实评论数组
+        0,   // 真实评论总数为0
         page,
         size,
-        totalPages: 0,
-      };
+      );
     }
     
     // ========== 性能优化：批量查询所有回复 ==========
     const commentIds = comments.map(c => c.id);
     
-    // 使用子查询批量获取每个主楼的最新N条回复（关键优化！）
+    // 批量获取所有回复（兼容旧版MySQL，不使用子查询LIMIT）
     const allReplies = await this.commentRepo
       .createQueryBuilder('comment')
       .leftJoinAndSelect('comment.user', 'user')
       .where('comment.rootId IN (:...rootIds)', { rootIds: commentIds })
-      .andWhere((qb) => {
-        const subQuery = qb
-          .subQuery()
-          .select('c2.id')
-          .from('comments', 'c2')
-          .where('c2.rootId = comment.rootId')
-          .orderBy('c2.createdAt', 'DESC')
-          .limit(replyPreviewCount)
-          .getQuery();
-        return `comment.id IN ${subQuery}`;
-      })
       .orderBy('comment.rootId', 'ASC')
       .addOrderBy('comment.createdAt', 'DESC')
       .getMany();
     
-    // 将回复按主楼ID分组（在内存中处理）
+    // 将回复按主楼ID分组（在内存中处理，并限制每个主楼的回复预览数量）
     const repliesMap = new Map<number, typeof allReplies>();
     allReplies.forEach(reply => {
-      if (!repliesMap.has(reply.rootId)) {
-        repliesMap.set(reply.rootId, []);
+      if (reply.rootId) { // 确保 rootId 存在
+        if (!repliesMap.has(reply.rootId)) {
+          repliesMap.set(reply.rootId, []);
+        }
+        const replies = repliesMap.get(reply.rootId)!;
+        // 只保留最新的 N 条回复
+        if (replies.length < replyPreviewCount) {
+          replies.push(reply);
+        }
       }
-      repliesMap.get(reply.rootId)!.push(reply);
     });
     
     // 组装最终结果
@@ -135,13 +132,14 @@ export class CommentService {
       };
     });
     
-    return {
-      comments: formattedComments,
+    // 混入假评论（如果启用）
+    return this.fakeCommentService.mixComments(
+      episodeShortId,
+      formattedComments,
       total,
       page,
       size,
-      totalPages: Math.ceil(total / size),
-    };
+    );
   }
 
   /**
@@ -167,13 +165,13 @@ export class CommentService {
     const rootId = parentComment.rootId || parentComment.id;
     
     // 3. 计算楼层号（同一根评论下的最大楼层号+1）
-    const maxFloor = await this.commentRepo
+    const maxFloorResult = await this.commentRepo
       .createQueryBuilder('comment')
       .select('MAX(comment.floorNumber)', 'max')
       .where('comment.rootId = :rootId OR comment.id = :rootId', { rootId })
-      .getRawOne();
+      .getRawOne<{ max: string | null }>();
     
-    const floorNumber = (maxFloor?.max || 0) + 1;
+    const floorNumber = (parseInt(maxFloorResult?.max || '0', 10)) + 1;
     
     // 4. 创建回复
     const reply = this.commentRepo.create({
@@ -287,7 +285,7 @@ export class CommentService {
     return this.commentRepo.find({
       where: {
         episodeShortId,
-        appearSecond: { $gt: 0 } as any, // 弹幕有出现时间
+        appearSecond: MoreThan(0), // 弹幕有出现时间
       },
       order: { appearSecond: 'ASC' },
       relations: ['user'],
@@ -358,7 +356,7 @@ export class CommentService {
     const danmuCount = await this.commentRepo.count({
       where: {
         episodeShortId,
-        appearSecond: { $gt: 0 } as any,
+        appearSecond: MoreThan(0),
       },
     });
     
@@ -373,6 +371,9 @@ export class CommentService {
 
   /**
    * 举报评论
+   * @param commentId 评论ID
+   * @param reporterId 举报人ID（待实现）
+   * @param reason 举报原因（待实现）
    */
   async reportComment(
     commentId: number,
@@ -387,14 +388,18 @@ export class CommentService {
       throw new Error('评论不存在');
     }
     
-    // 这里可以添加举报记录到专门的举报表
+    // TODO: 添加举报记录到专门的举报表
+    // await this.reportRepo.save({ commentId, reporterId, reason });
     // 暂时只是标记评论状态
+    console.log(`Comment ${commentId} reported by user ${reporterId} for: ${reason}`);
     
     return { ok: true, message: '举报已提交' };
   }
 
   /**
    * 点赞评论
+   * @param commentId 评论ID
+   * @param userId 点赞用户ID（待实现）
    */
   async likeComment(commentId: number, userId: number) {
     const comment = await this.commentRepo.findOne({
@@ -405,8 +410,10 @@ export class CommentService {
       throw new Error('评论不存在');
     }
     
-    // 这里可以添加点赞记录到专门的点赞表
+    // TODO: 添加点赞记录到专门的点赞表
+    // await this.commentLikeRepo.save({ commentId, userId });
     // 暂时只返回成功状态，实际点赞逻辑需要单独的点赞表来实现
+    console.log(`User ${userId} liked comment ${commentId}`);
     
     // 清除相关缓存
     await this.clearCommentCache(comment.episodeShortId);
@@ -430,5 +437,55 @@ export class CommentService {
     } catch (error) {
       console.error('清除评论缓存失败:', error);
     }
+  }
+
+  /**
+   * 批量获取多个剧集的评论总数（包括假评论）
+   * @param episodeShortIds 剧集短ID数组
+   * @returns Map<episodeShortId, commentCount>
+   */
+  async getCommentCountsByShortIds(episodeShortIds: string[]): Promise<Map<string, number>> {
+    const countMap = new Map<string, number>();
+    
+    if (episodeShortIds.length === 0) {
+      return countMap;
+    }
+    
+    // 查询真实评论数（只统计主楼评论）
+    const realCommentCounts = await this.commentRepo
+      .createQueryBuilder('comment')
+      .select('comment.episodeShortId', 'episodeShortId')
+      .addSelect('COUNT(*)', 'count')
+      .where('comment.episodeShortId IN (:...shortIds)', { shortIds: episodeShortIds })
+      .andWhere('comment.rootId IS NULL') // 只统计主楼评论
+      .groupBy('comment.episodeShortId')
+      .getRawMany();
+    
+    // 将真实评论数填充到Map中
+    realCommentCounts.forEach((item: { episodeShortId: string; count: string }) => {
+      countMap.set(item.episodeShortId, parseInt(item.count, 10));
+    });
+    
+    // 批量获取假评论数（性能优化：一次性计算所有剧集）
+    const fakeCountMap = this.fakeCommentService.getFakeCommentCounts(episodeShortIds);
+    
+    // 合并真实评论数和假评论数
+    episodeShortIds.forEach(shortId => {
+      const realCount = countMap.get(shortId) || 0;
+      const fakeCount = fakeCountMap.get(shortId) || 0;
+      countMap.set(shortId, realCount + fakeCount);
+    });
+    
+    return countMap;
+  }
+  
+  /**
+   * 获取单个剧集的评论总数（包括假评论）
+   * @param episodeShortId 剧集短ID
+   * @returns 评论总数
+   */
+  async getCommentCountByShortId(episodeShortId: string): Promise<number> {
+    const countMap = await this.getCommentCountsByShortIds([episodeShortId]);
+    return countMap.get(episodeShortId) || 0;
   }
 }
