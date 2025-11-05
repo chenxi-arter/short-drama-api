@@ -236,12 +236,20 @@ export class UserService {
     console.log('userData:', userData);
     console.log('photo_url:', userData.photo_url);
     
+    // 如果Telegram没有提供头像，分配默认头像
+    let photoUrl = userData.photo_url;
+    if (!photoUrl) {
+      const { DefaultAvatarUtil } = await import('../shared/utils/default-avatar.util');
+      photoUrl = DefaultAvatarUtil.getRandomAvatar();
+      console.log('分配默认头像:', photoUrl);
+    }
+    
     const user = this.userRepo.create({
       telegram_id: userData.id, // 使用Telegram ID
       first_name: userData.first_name,
       last_name: userData.last_name || '',
       username: userData.username || telegramUsername, // 使用tg+用户ID格式
-      photo_url: userData.photo_url || null, // 保存Telegram头像URL
+      photo_url: photoUrl, // Telegram头像或默认头像
       is_active: true,
     });
     
@@ -331,6 +339,10 @@ export class UserService {
     // 加密密码
     const passwordHash = await PasswordUtil.hashPassword(dto.password);
 
+    // 分配随机默认头像
+    const { DefaultAvatarUtil } = await import('../shared/utils/default-avatar.util');
+    const defaultAvatar = DefaultAvatarUtil.getRandomAvatar();
+
     // 创建用户
     const user = this.userRepo.create({
       id: userId,
@@ -339,6 +351,7 @@ export class UserService {
       username: dto.username || emailUsername, // 邮箱注册用户使用 e+随机数 格式
       first_name: dto.firstName || '', // 如果没有提供名字，使用空字符串
       last_name: dto.lastName || '', // 如果没有提供姓氏，使用空字符串
+      photo_url: defaultAvatar, // 分配随机默认头像
       is_active: true,
     });
 

@@ -10,8 +10,8 @@
 - 开发环境: `http://localhost` (客户端API)
 - 管理后台: `http://localhost:8080` (管理API)
 
-**文档版本**: v2.0  
-**最后更新**: 2025年10月15日
+**文档版本**: v2.1  
+**最后更新**: 2025年11月5日
 
 ---
 
@@ -112,8 +112,10 @@
 {
   "email": "string | null",    // 邮箱地址
   "username": "string",        // 用户名
+  "nickname": "string",        // 显示昵称（优先级：nickname > 姓名 > username）
   "firstName": "string",       // 名字
   "lastName": "string",        // 姓氏
+  "photoUrl": "string | null", // 用户头像URL
   "hasTelegram": false,        // 是否绑定Telegram
   "isActive": true,            // 是否激活
   "createdAt": "string"        // 创建时间
@@ -813,7 +815,10 @@ size: number       // 可选，每页数量，默认20
     "floorNumber": 1,                // 楼层号
     "content": "我也觉得！",
     "username": "test_user",
+    "nickname": "测试用户",
+    "photoUrl": "string | null",
     "replyToUsername": "main_user",
+    "replyToNickname": "主楼用户",
     "createdAt": "2025-10-15T14:22:12.696Z"
   },
   "message": "回复成功"
@@ -845,7 +850,7 @@ size: number             // 可选，每页数量，默认20
         "replyCount": 3,                // 回复数量
         "username": "user123",
         "nickname": "张三",
-        "photoUrl": "string",
+        "photoUrl": "string | null",    // 用户头像URL
         "createdAt": "2025-10-15 14:22",
         "recentReplies": [              // 最新2条回复预览
           {
@@ -853,6 +858,8 @@ size: number             // 可选，每页数量，默认20
             "content": "我也觉得！",
             "floorNumber": 1,
             "username": "user456",
+            "nickname": "李四",
+            "photoUrl": "string | null",
             "createdAt": "2025-10-15 14:25"
           }
         ]
@@ -894,6 +901,8 @@ size: number         // 可选，每页数量，默认20
       "id": 501,
       "content": "这部剧太好看了！",
       "username": "user123",
+      "nickname": "张三",
+      "photoUrl": "string | null",
       "replyCount": 10,
       "createdAt": "2025-10-15 14:22"
     },
@@ -904,6 +913,8 @@ size: number         // 可选，每页数量，默认20
         "floorNumber": 1,
         "content": "我也觉得！",
         "username": "user456",
+        "nickname": "李四",
+        "photoUrl": "string | null",
         "createdAt": "2025-10-15 14:25"
       }
     ],
@@ -919,7 +930,35 @@ size: number         // 可选，每页数量，默认20
 
 ## 7. 个人中心
 
-### 7.1 获取浏览历史
+### 7.1 更新用户头像
+
+**接口**: `POST /api/user/update-avatar`  
+**认证**: 必需
+
+**请求参数**:
+```json
+{
+  "photo_url": "https://example.com/avatar.jpg"  // 必填，头像URL（≤500字符）
+}
+```
+
+**返回数据**:
+```json
+{
+  "success": true,
+  "message": "头像更新成功",
+  "photo_url": "https://example.com/avatar.jpg"
+}
+```
+
+**说明**: 
+- 仅支持URL地址，不支持文件上传
+- URL需要是有效的图片链接
+- 更新后立即生效，评论、个人信息等处都会显示新头像
+
+---
+
+### 7.2 获取浏览历史
 
 **接口**: `GET /api/video/browse-history?page=1&size=20`  
 **认证**: 必需
@@ -1008,7 +1047,8 @@ size: number       // 可选，每页数量，默认20
             "id": 501,
             "content": "太好看了！",
             "username": "user123",
-            "avatar": "https://example.com/avatar.jpg",
+            "nickname": "张三",
+            "photoUrl": "https://example.com/avatar.jpg",
             "createdAt": "2025-10-15 14:20"
           }
         ],
@@ -1477,6 +1517,12 @@ if (episode.userInteraction) {
 
 ## 📝 更新日志
 
+### v2.1 (2025-11-05)
+- ✅ 新增用户头像功能（photoUrl字段）
+- ✅ 新增更新头像接口（POST /api/user/update-avatar）
+- ✅ 评论系统支持显示用户头像和昵称
+- ✅ 用户信息接口返回头像和昵称
+
 ### v2.0 (2025-10-15)
 - ✅ 新增用户交互功能（点赞、点踩）
 - ✅ 优化收藏功能（改为系列收藏）
@@ -1497,6 +1543,8 @@ if (episode.userInteraction) {
 
 | 功能 | 接口 | 方法 | 认证 |
 |------|------|------|------|
+| 获取用户信息 | `/api/user/me` | GET | 必需 |
+| 更新头像 | `/api/user/update-avatar` | POST | 必需 |
 | 获取剧集列表 | `/api/video/episodes` | GET | 可选 |
 | 获取播放地址 | `/api/video/url/query` | POST | 可选 |
 | 点赞 | `/api/video/episode/activity` | POST | 必需 |

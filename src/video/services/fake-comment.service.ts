@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { DefaultAvatarUtil } from '../../shared/utils/default-avatar.util';
 
 /**
  * 假评论生成服务
@@ -565,7 +566,7 @@ export class FakeCommentService {
       createdAt: Date;
       username: string;
       nickname: string;
-      photoUrl: null;
+      photoUrl: string;
       recentReplies: never[];
       isFake: boolean;
     }> = [];
@@ -603,6 +604,9 @@ export class FakeCommentService {
       // 生成假的用户ID（使用负数，确保不会和真实用户ID冲突）
       const fakeUserId = -(seed + i + 1);
       
+      // 基于假用户ID分配固定的默认头像（同一假用户每次都是同一个头像）
+      const avatarUrl = DefaultAvatarUtil.getAvatarBySeed(fakeUserId);
+      
       fakeComments.push({
         id: -(seed + i + 1000000), // 使用负数ID，避免和真实评论冲突
         content: this.commentTemplates[commentIndex],
@@ -611,7 +615,7 @@ export class FakeCommentService {
         createdAt,
         username: `user_${Math.abs(fakeUserId)}`,
         nickname: this.nicknameTemplates[nicknameIndex],
-        photoUrl: null,
+        photoUrl: avatarUrl, // 分配随机默认头像
         recentReplies: [],
         isFake: true, // 标记为假评论（可选，前端可以选择不显示此字段）
       });
