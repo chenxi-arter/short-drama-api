@@ -26,6 +26,9 @@ import { SeriesValidationController } from './controllers/series-validation.cont
 import { VideoModule } from '../video/video.module';
 import { CoreModule } from '../core/core.module';
 
+// Services
+import { AnalyticsService } from './services/analytics.service';
+
 @Module({
   imports: [
     VideoModule,
@@ -54,6 +57,9 @@ import { CoreModule } from '../core/core.module';
     // 从 video/controllers 归并的管理端路由
     IngestController,
     TestIngestController,
+  ],
+  providers: [
+    AnalyticsService,
   ],
 })
 export class AdminModule {}

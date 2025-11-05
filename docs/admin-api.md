@@ -802,6 +802,192 @@ curl "http://localhost:9090/api/admin/series/validation/check-duplicate-names"
 }
 ```
 
+### 📊 高级数据分析 Analytics ⭐ 新增
+
+资源路径: `/admin/dashboard`
+
+#### 综合数据统计
+
+- **获取所有核心指标**
+  - `GET /api/admin/dashboard/stats`
+  - 返回：活跃用户、留存率、播放量、完播率、新增注册等所有核心指标
+  - 响应示例：
+```json
+{
+  "code": 200,
+  "message": "数据统计获取成功",
+  "timestamp": "2025-11-04T13:30:00.000Z",
+  "data": {
+    "activeUsers": {
+      "dau": 1250,              // 日活跃用户数
+      "wau": 5430,              // 周活跃用户数
+      "mau": 18900,             // 月活跃用户数
+      "dau7DayAvg": 1180,       // 7天平均DAU
+      "sticky": 6.61            // 粘性系数 (DAU/MAU * 100)
+    },
+    "retention": {
+      "day1": {
+        "totalUsers": 120,       // 昨天注册的用户总数
+        "retainedUsers": 45,     // 次日回访的用户数
+        "retentionRate": 37.5    // 次日留存率 (%)
+      },
+      "day7": {
+        "totalUsers": 850,       // 7天前注册的用户总数
+        "retainedUsers": 210,    // 7日后仍活跃的用户数
+        "retentionRate": 24.71   // 7日留存率 (%)
+      }
+    },
+    "content": {
+      "totalPlayCount": 1234567,           // 总播放次数
+      "uniqueWatchedEpisodes": 45000,     // 被观看的唯一剧集数
+      "averagePlayCountPerEpisode": 27    // 每剧集平均播放次数
+    },
+    "watching": {
+      "averageWatchProgress": 320,        // 平均观看进度（秒）
+      "averageWatchPercentage": 65.8,     // 平均观看百分比 (%)
+      "totalWatchTime": 45678900,         // 总观看时长（秒）
+      "completionRate": 42.5              // 完播率 (%)
+    },
+    "registration": {
+      "today": 45,              // 今日新增注册
+      "yesterday": 52,          // 昨日新增注册
+      "last7Days": 380,         // 最近7天新增
+      "last30Days": 1580        // 最近30天新增
+    }
+  }
+}
+```
+
+**字段说明**：
+- `dau`: 日活跃用户数（当天有观看行为的唯一用户数）
+- `wau`: 周活跃用户数（最近7天有观看行为的唯一用户数）
+- `mau`: 月活跃用户数（最近30天有观看行为的唯一用户数）
+- `sticky`: 粘性系数（DAU/MAU × 100），衡量用户活跃度，>20%为优秀
+- `retentionRate`: 留存率（回访用户数/注册用户数 × 100）
+- `completionRate`: 完播率（观看进度≥90%的记录数/总记录数 × 100）
+
+#### 活跃用户统计
+
+- **获取DAU/WAU/MAU详细数据**
+  - `GET /api/admin/dashboard/active-users`
+  - 响应示例：
+```json
+{
+  "code": 200,
+  "data": {
+    "dau": 1250,           // 今日活跃用户数
+    "wau": 5430,           // 本周活跃用户数
+    "mau": 18900,          // 本月活跃用户数
+    "dau7DayAvg": 1180,    // 7天平均DAU
+    "sticky": 6.61         // 粘性系数
+  }
+}
+```
+
+#### 用户留存率
+
+- **获取指定队列的留存率**
+  - `GET /api/admin/dashboard/retention?retentionDays=1&cohortDate=2025-11-03`
+  - 参数：
+    - `retentionDays`: 留存天数（1=次日留存，7=7日留存），默认1
+    - `cohortDate`: 队列日期（YYYY-MM-DD格式），默认昨天
+  - 响应示例：
+```json
+{
+  "code": 200,
+  "data": {
+    "totalUsers": 120,        // 该日注册的用户总数
+    "retainedUsers": 45,      // 留存的用户数
+    "retentionRate": 37.5     // 留存率 (%)
+  }
+}
+```
+
+- **获取留存率趋势**
+  - `GET /api/admin/dashboard/retention-trend?days=7&retentionDays=1`
+  - 参数：
+    - `days`: 统计最近N天，默认7
+    - `retentionDays`: 留存天数（1或7），默认1
+  - 响应示例：
+```json
+{
+  "code": 200,
+  "data": [
+    {
+      "date": "2025-10-28",
+      "totalUsers": 85,
+      "retainedUsers": 32,
+      "retentionRate": 37.65
+    },
+    {
+      "date": "2025-10-29",
+      "totalUsers": 92,
+      "retainedUsers": 35,
+      "retentionRate": 38.04
+    }
+  ]
+}
+```
+
+#### 内容播放统计
+
+- **获取内容播放数据**
+  - `GET /api/admin/dashboard/content-stats`
+  - 响应示例：
+```json
+{
+  "code": 200,
+  "data": {
+    "totalPlayCount": 1234567,           // 总播放次数
+    "uniqueWatchedEpisodes": 45000,      // 被观看过的剧集数
+    "averagePlayCountPerEpisode": 27,    // 每剧集平均播放次数
+    "top10Episodes": [
+      {
+        "episodeId": 12345,
+        "shortId": "6JswefD4QXK",
+        "title": "热门剧集 第01集",
+        "playCount": 89450
+      }
+    ]
+  }
+}
+```
+
+#### 观看行为统计
+
+- **获取完播率和平均观影时长**
+  - `GET /api/admin/dashboard/watch-stats`
+  - 响应示例：
+```json
+{
+  "code": 200,
+  "data": {
+    "averageWatchProgress": 320,        // 平均观看进度（秒）
+    "averageWatchPercentage": 65.8,     // 平均观看百分比 (%)
+    "totalWatchTime": 45678900,         // 总观看时长（秒）
+    "totalWatchRecords": 125000,        // 总观看记录数
+    "completedRecords": 53125,          // 完播记录数（≥90%）
+    "completionRate": 42.5              // 完播率 (%)
+  }
+}
+```
+
+**指标解释**：
+
+| 指标 | 说明 | 行业参考值 |
+|------|------|-----------|
+| DAU | 日活跃用户数 | 越高越好 |
+| 粘性系数 | DAU/MAU × 100 | >20%优秀，>10%良好 |
+| 次日留存率 | 注册次日回访的用户占比 | 30-50%优秀 |
+| 7日留存率 | 注册7天后仍活跃的用户占比 | 20-35%优秀 |
+| 完播率 | 观看进度≥90%的记录占比 | 短剧: 40-60%优秀 |
+
+**使用场景**：
+- 监控平台日常运营状况
+- 评估运营活动效果
+- 分析用户质量和内容质量
+- 识别优质内容和流失原因
+
 
 当前通过单集详情接口返回 `urls` 数组；如需单独的 CRUD，可后续补充：
 - 列表/新增/更新/删除 路由建议：`/admin/episode-urls`
@@ -892,6 +1078,29 @@ curl -X GET "http://localhost:9090/api/admin/series/validation/check-duplicate-e
 
 # 查看指定系列的详细集数信息
 curl -X GET "http://localhost:9090/api/admin/series/validation/episodes/2455"
+
+# 数据分析接口 ⭐ (高级统计)
+
+# 获取综合数据统计（包含所有核心指标）
+curl -X GET "http://localhost:8080/api/admin/dashboard/stats"
+
+# 获取活跃用户统计（DAU/WAU/MAU）
+curl -X GET "http://localhost:8080/api/admin/dashboard/active-users"
+
+# 获取昨天注册用户的次日留存率
+curl -X GET "http://localhost:8080/api/admin/dashboard/retention?retentionDays=1"
+
+# 获取7天前注册用户的7日留存率
+curl -X GET "http://localhost:8080/api/admin/dashboard/retention?retentionDays=7&cohortDate=2025-10-28"
+
+# 获取最近7天的次日留存率趋势
+curl -X GET "http://localhost:8080/api/admin/dashboard/retention-trend?days=7&retentionDays=1"
+
+# 获取内容播放统计（包含Top10热门剧集）
+curl -X GET "http://localhost:8080/api/admin/dashboard/content-stats"
+
+# 获取完播率和平均观影时长
+curl -X GET "http://localhost:8080/api/admin/dashboard/watch-stats"
 ```
 
 ---
@@ -1020,6 +1229,7 @@ const title = episode.seriesTitle;
 
 - [剧集列表 API 增强说明](./episode-list-api-enhancement.md) - `seriesTitle` 字段详细说明
 - [系列验证接口使用指南](./series-validation-frontend-guide.md) - 数据质量检查
+- [数据分析 API 详细指南](./admin-analytics-api.md) - DAU/WAU/MAU、留存率、完播率等高级统计
 - [API 变更文档](./api-changes-documentation.md) - 完整的 API 变更历史
 
 

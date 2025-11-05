@@ -9,6 +9,7 @@ import { Banner } from '../../video/entity/banner.entity';
 import { Comment } from '../../video/entity/comment.entity';
 import { WatchProgress } from '../../video/entity/watch-progress.entity';
 import { BrowseHistory } from '../../video/entity/browse-history.entity';
+import { AnalyticsService } from '../services/analytics.service';
 
 function toDateStart(d?: string): Date | undefined {
   if (!d) return undefined;
@@ -37,6 +38,7 @@ export class AdminDashboardController {
     @InjectRepository(Comment) private readonly commentRepo: Repository<Comment>,
     @InjectRepository(WatchProgress) private readonly wpRepo: Repository<WatchProgress>,
     @InjectRepository(BrowseHistory) private readonly bhRepo: Repository<BrowseHistory>,
+    private readonly analyticsService: AnalyticsService,
   ) {}
 
   @Get('overview')
@@ -90,7 +92,7 @@ export class AdminDashboardController {
     const totalPlayCount = Number(playSumRaw?.sum ?? 0);
 
     // 区间内的筛选数据（可用于同比/环比，先返回 count 供前端使用）
-    let range = undefined as any;
+    let range: { usersInRange: number; visitsInRange: number; playActiveInRange: number } | undefined;
     if (start && end) {
       const [usersInRange, visitsInRange, playActiveInRange] = await Promise.all([
         this.userRepo
@@ -129,7 +131,7 @@ export class AdminDashboardController {
   async timeseries(
     @Query('from') from?: string,
     @Query('to') to?: string,
-    @Query('granularity') granularity: 'day' | 'week' = 'day',
+    // @Query('granularity') granularity: 'day' | 'week' = 'day', // TODO: 未来可支持按周聚合
   ) {
     const start = toDateStart(from) ?? new Date(Date.now() - 14 * 24 * 3600 * 1000);
     const end = toDateEnd(to) ?? new Date();
@@ -164,17 +166,18 @@ export class AdminDashboardController {
 
     return {
       series: this.mergeSeries(['newUsers', 'visits', 'playActive'], [newUsers, visits, playActive]),
-    } as any;
+    };
   }
 
   private mergeSeries(names: string[], seriesArr: Array<Array<{ date: string; value: string }>>) {
-    const map = new Map<string, any>();
+    const map = new Map<string, Record<string, any>>();
     seriesArr.forEach((arr, idx) => {
       const name = names[idx];
       for (const row of arr) {
         const d = row.date;
         if (!map.has(d)) map.set(d, { date: d });
-        map.get(d)[name] = Number(row.value);
+        const item = map.get(d)!;
+        item[name] = Number(row.value);
       }
     });
     return Array.from(map.values()).sort((a, b) => (a.date < b.date ? -1 : 1));
@@ -197,7 +200,7 @@ export class AdminDashboardController {
       if (start && end) qb.where('bh.updated_at BETWEEN :start AND :end', { start, end });
       const rows = await qb.getRawMany<{ seriesId: number; visitCount: string }>();
       const ids = rows.map(r => r.seriesId);
-      const series = ids.length ? await this.seriesRepo.findByIds(ids as any) : [];
+      const series = ids.length ? await this.seriesRepo.findByIds(ids) : [];
       const dict = new Map(series.map(s => [s.id, s]));
       return { items: rows.map(r => ({ seriesId: r.seriesId, title: dict.get(r.seriesId)?.title || '', visitCount: Number(r.visitCount) })) };
     }
@@ -212,7 +215,7 @@ export class AdminDashboardController {
       .limit(take)
       .getRawMany<{ seriesId: number; playCount: string }>();
     const ids = rows.map(r => r.seriesId);
-    const series = ids.length ? await this.seriesRepo.findByIds(ids as any) : [];
+    const series = ids.length ? await this.seriesRepo.findByIds(ids) : [];
     const dict = new Map(series.map(s => [s.id, s]));
     return { items: rows.map(r => ({ seriesId: r.seriesId, title: dict.get(r.seriesId)?.title || '', playCount: Number(r.playCount) })) };
   }
@@ -224,9 +227,187 @@ export class AdminDashboardController {
       this.userRepo.find({ order: { created_at: 'DESC' }, take }),
       this.seriesRepo.find({ order: { id: 'DESC' }, take }),
       this.episodeRepo.find({ order: { id: 'DESC' }, take }),
-      this.commentRepo.find({ order: { createdAt: 'DESC' as any }, take } as any),
+      this.commentRepo.find({ order: { createdAt: 'DESC' }, take }),
     ]);
     return { users, series, episodes, comments };
+  }
+
+  /**
+   * 获取综合数据统计
+   * GET /api/admin/dashboard/stats
+   * 
+   * 返回：
+   * - 活跃用户数（DAU/WAU/MAU）
+   * - 留存率（1日/7日）
+   * - 内容播放量/完播率
+   * - 平均观影时长
+   * - 新增注册数
+   */
+  @Get('stats')
+  async getStats() {
+    try {
+      const stats = await this.analyticsService.getComprehensiveStats();
+      return {
+        code: 200,
+        data: stats,
+        message: '数据统计获取成功',
+        timestamp: new Date().toISOString(),
+      };
+    } catch (error) {
+      return {
+        code: 500,
+        data: null,
+        message: `获取统计数据失败: ${error instanceof Error ? error.message : String(error)}`,
+        timestamp: new Date().toISOString(),
+      };
+    }
+  }
+
+  /**
+   * 获取活跃用户统计（DAU/WAU/MAU）
+   * GET /api/admin/dashboard/active-users
+   */
+  @Get('active-users')
+  async getActiveUsers() {
+    try {
+      const stats = await this.analyticsService.getActiveUsersStats();
+      return {
+        code: 200,
+        data: stats,
+        message: '活跃用户统计获取成功',
+        timestamp: new Date().toISOString(),
+      };
+    } catch (error) {
+      return {
+        code: 500,
+        data: null,
+        message: `获取活跃用户统计失败: ${error instanceof Error ? error.message : String(error)}`,
+        timestamp: new Date().toISOString(),
+      };
+    }
+  }
+
+  /**
+   * 获取用户留存率
+   * GET /api/admin/dashboard/retention?retentionDays=1&cohortDate=2025-11-01
+   * 
+   * 参数：
+   * - retentionDays: 留存天数（1=次日留存，7=7日留存），默认1
+   * - cohortDate: 队列日期（该日注册的用户），默认昨天
+   */
+  @Get('retention')
+  async getRetention(
+    @Query('retentionDays') retentionDays?: string,
+    @Query('cohortDate') cohortDate?: string,
+  ) {
+    try {
+      const days = parseInt(retentionDays || '1', 10);
+      const date = cohortDate ? new Date(cohortDate) : undefined;
+      
+      const stats = await this.analyticsService.getRetentionRate(days, date);
+      return {
+        code: 200,
+        data: stats,
+        message: '留存率统计获取成功',
+        timestamp: new Date().toISOString(),
+      };
+    } catch (error) {
+      return {
+        code: 500,
+        data: null,
+        message: `获取留存率失败: ${error instanceof Error ? error.message : String(error)}`,
+        timestamp: new Date().toISOString(),
+      };
+    }
+  }
+
+  /**
+   * 获取留存率趋势（最近N天）
+   * GET /api/admin/dashboard/retention-trend?days=7&retentionDays=1
+   * 
+   * 参数：
+   * - days: 统计最近N天，默认7
+   * - retentionDays: 留存天数（1=次日留存，7=7日留存），默认1
+   */
+  @Get('retention-trend')
+  async getRetentionTrend(
+    @Query('days') days?: string,
+    @Query('retentionDays') retentionDays?: string,
+  ) {
+    try {
+      const daysNum = parseInt(days || '7', 10);
+      const retentionDaysNum = parseInt(retentionDays || '1', 10);
+      
+      const stats = await this.analyticsService.getRetentionTrend(daysNum, retentionDaysNum);
+      return {
+        code: 200,
+        data: stats,
+        message: '留存率趋势获取成功',
+        timestamp: new Date().toISOString(),
+      };
+    } catch (error) {
+      return {
+        code: 500,
+        data: null,
+        message: `获取留存率趋势失败: ${error instanceof Error ? error.message : String(error)}`,
+        timestamp: new Date().toISOString(),
+      };
+    }
+  }
+
+  /**
+   * 获取内容播放统计
+   * GET /api/admin/dashboard/content-stats
+   */
+  @Get('content-stats')
+  async getContentStats() {
+    try {
+      const stats = await this.analyticsService.getContentPlayStats();
+      return {
+        code: 200,
+        data: stats,
+        message: '内容播放统计获取成功',
+        timestamp: new Date().toISOString(),
+      };
+    } catch (error) {
+      return {
+        code: 500,
+        data: null,
+        message: `获取内容播放统计失败: ${error instanceof Error ? error.message : String(error)}`,
+        timestamp: new Date().toISOString(),
+      };
+    }
+  }
+
+  /**
+   * 获取完播率和平均观影时长
+   * GET /api/admin/dashboard/watch-stats
+   */
+  @Get('watch-stats')
+  async getWatchStats() {
+    try {
+      const [duration, completion] = await Promise.all([
+        this.analyticsService.getAverageWatchDuration(),
+        this.analyticsService.getCompletionRate(),
+      ]);
+
+      return {
+        code: 200,
+        data: {
+          ...duration,
+          ...completion,
+        },
+        message: '观看统计获取成功',
+        timestamp: new Date().toISOString(),
+      };
+    } catch (error) {
+      return {
+        code: 500,
+        data: null,
+        message: `获取观看统计失败: ${error instanceof Error ? error.message : String(error)}`,
+        timestamp: new Date().toISOString(),
+      };
+    }
   }
 }
 
