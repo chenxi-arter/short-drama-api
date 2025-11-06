@@ -5,6 +5,7 @@ import { RateLimitGuard, RateLimit, RateLimitConfigs } from '../common/guards/ra
 import { BrowseHistoryService } from './services/browse-history.service';
 import { BrowseHistoryCleanupService } from './services/browse-history-cleanup.service';
 import { BaseController } from './controllers/base.controller';
+import { CategoryValidator } from '../common/validators/category-validator';
 
 /**
  * 私有浏览记录控制器
@@ -15,7 +16,8 @@ import { BaseController } from './controllers/base.controller';
 export class BrowseHistoryController extends BaseController {
   constructor(
     private readonly browseHistoryService: BrowseHistoryService,
-    private readonly browseHistoryCleanupService: BrowseHistoryCleanupService
+    private readonly browseHistoryCleanupService: BrowseHistoryCleanupService,
+    private readonly categoryValidator: CategoryValidator
   ) {
     super();
   }
@@ -25,21 +27,40 @@ export class BrowseHistoryController extends BaseController {
    * @param req 请求对象
    * @param page 页码
    * @param size 每页大小（默认10条）
+   * @param categoryId 分类ID（可选，用于筛选特定分类）
    */
   @RateLimit(RateLimitConfigs.NORMAL)
   @Get()
   async getUserBrowseHistory(
     @Req() req,
     @Query('page') page: string = '1',
-    @Query('size') size: string = '10'  // ✅ 修改默认值为10
+    @Query('size') size: string = '10',  // ✅ 修改默认值为10
+    @Query('categoryId') categoryId?: string
   ) {
     try {
       const { page: pageNum, size: sizeNum } = this.normalizePagination(page, size, 200);
+      
+      // 解析并动态验证 categoryId
+      let categoryIdNum: number | undefined;
+      if (categoryId) {
+        categoryIdNum = parseInt(categoryId, 10);
+        if (isNaN(categoryIdNum) || categoryIdNum <= 0) {
+          return this.error('无效的分类ID格式', 400);
+        }
+        
+        // 动态验证分类是否存在且启用
+        const validation = await this.categoryValidator.validateCategoryId(categoryIdNum);
+        if (!validation.valid) {
+          const availableMsg = await this.categoryValidator.formatAvailableCategoriesMessage();
+          return this.error(`${validation.message}。${availableMsg}`, 400);
+        }
+      }
 
       const result = await this.browseHistoryService.getUserBrowseHistory(
         Number((req.user as any)?.userId),
         pageNum,
-        sizeNum
+        sizeNum,
+        categoryIdNum
       );
 
       return this.success(result, '获取浏览记录成功');

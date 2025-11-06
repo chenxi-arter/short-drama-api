@@ -503,5 +503,301 @@ export class AnalyticsService {
       },
     };
   }
+
+  /**
+   * 获取运营数据维度（按日期）
+   * 返回每天的运营指标：新增用户、次日留存、日活、平均观影时长等
+   * @param startDate 开始日期
+   * @param endDate 结束日期
+   */
+  async getOperationalMetrics(
+    startDate: Date,
+    endDate: Date,
+  ): Promise<Array<{
+    date: string;
+    newUsers: number;
+    nextDayRetention: number;
+    dau: number;
+    averageWatchTime: number;
+    newUserSource: string;
+  }>> {
+    const results: Array<{
+      date: string;
+      newUsers: number;
+      nextDayRetention: number;
+      dau: number;
+      averageWatchTime: number;
+      newUserSource: string;
+    }> = [];
+
+    // 遍历日期范围
+    const currentDate = new Date(startDate);
+    while (currentDate <= endDate) {
+      const dayStart = new Date(currentDate);
+      dayStart.setHours(0, 0, 0, 0);
+      const dayEnd = new Date(currentDate);
+      dayEnd.setHours(23, 59, 59, 999);
+
+      // 1. 获取当天新增用户数
+      const newUsers = await this.userRepo
+        .createQueryBuilder('u')
+        .where('u.created_at BETWEEN :start AND :end', {
+          start: dayStart,
+          end: dayEnd,
+        })
+        .getCount();
+
+      // 2. 获取当天的DAU
+      const dau = await this.getDAU(currentDate);
+
+      // 3. 获取当天的平均观影时长（秒）
+      const watchTimeResult = await this.wpRepo
+        .createQueryBuilder('wp')
+        .innerJoin('wp.episode', 'ep')
+        .select('AVG(wp.stop_at_second)', 'avgTime')
+        .where('wp.updated_at BETWEEN :start AND :end', {
+          start: dayStart,
+          end: dayEnd,
+        })
+        .getRawOne<{ avgTime: string }>();
+      
+      const averageWatchTime = Math.round(parseFloat(watchTimeResult?.avgTime || '0'));
+
+      // 4. 计算次日留存率（需要等到第二天才有数据）
+      const nextDay = new Date(currentDate);
+      nextDay.setDate(nextDay.getDate() + 1);
+      const retentionData = await this.getRetentionRate(1, currentDate);
+      const nextDayRetention = parseFloat(retentionData.retentionRate.toFixed(2));
+
+      // 5. 统计当天新增用户的来源分布（基于推广码）
+      const sourceDistribution = await this.userRepo
+        .createQueryBuilder('u')
+        .select('u.promo_code', 'promoCode')
+        .addSelect('COUNT(*)', 'count')
+        .where('u.created_at BETWEEN :start AND :end', {
+          start: dayStart,
+          end: dayEnd,
+        })
+        .groupBy('u.promo_code')
+        .orderBy('count', 'DESC')
+        .getRawMany<{ promoCode: string | null; count: string }>();
+
+      // 格式化来源数据：显示主要来源
+      let newUserSource = '自然流量';
+      if (sourceDistribution.length > 0) {
+        const topSources = sourceDistribution
+          .filter(s => s.promoCode) // 过滤掉null（自然流量）
+          .slice(0, 3) // 取前3个
+          .map(s => `${s.promoCode}(${s.count})`)
+          .join(', ');
+        newUserSource = topSources || '自然流量';
+      }
+
+      results.push({
+        date: currentDate.toISOString().split('T')[0],
+        newUsers,
+        nextDayRetention,
+        dau,
+        averageWatchTime,
+        newUserSource, // 显示来源分布，例如："tiktok(45), facebook(23), youtube(12)"
+      });
+
+      // 移动到下一天
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+
+    return results;
+  }
+
+  /**
+   * 获取内容数据维度（按日期和视频）
+   * 返回每天每个视频的表现指标：播放量、完播率、平均观看时长、点赞、收藏等
+   * @param startDate 开始日期
+   * @param endDate 结束日期
+   * @param limit 每天返回的视频数量限制（默认100）
+   */
+  async getContentMetrics(
+    startDate: Date,
+    endDate: Date,
+    limit: number = 100,
+  ): Promise<Array<{
+    date: string;
+    videoId: string;
+    videoTitle: string;
+    playCount: number;
+    completionRate: number;
+    averageWatchTime: number;
+    likeCount: number;
+    shareCount: number;
+    favoriteCount: number;
+  }>> {
+    const results: Array<{
+      date: string;
+      videoId: string;
+      videoTitle: string;
+      playCount: number;
+      completionRate: number;
+      averageWatchTime: number;
+      likeCount: number;
+      shareCount: number;
+      favoriteCount: number;
+    }> = [];
+
+    // 遍历日期范围
+    const currentDate = new Date(startDate);
+    while (currentDate <= endDate) {
+      const dayStart = new Date(currentDate);
+      dayStart.setHours(0, 0, 0, 0);
+      const dayEnd = new Date(currentDate);
+      dayEnd.setHours(23, 59, 59, 999);
+
+      // 查询当天有观看记录的视频
+      const episodeStats = await this.wpRepo
+        .createQueryBuilder('wp')
+        .innerJoin('wp.episode', 'ep')
+        .select('ep.id', 'episodeId')
+        .addSelect('ep.short_id', 'shortId')
+        .addSelect('ep.title', 'title')
+        .addSelect('COUNT(DISTINCT wp.user_id)', 'playCount')
+        .addSelect('AVG(wp.stop_at_second)', 'avgWatchTime')
+        .addSelect('ep.duration', 'duration')
+        .addSelect('ep.like_count', 'likeCount')
+        .addSelect('ep.favorite_count', 'favoriteCount')
+        .where('wp.updated_at BETWEEN :start AND :end', {
+          start: dayStart,
+          end: dayEnd,
+        })
+        .groupBy('ep.id')
+        .addGroupBy('ep.short_id')
+        .addGroupBy('ep.title')
+        .addGroupBy('ep.duration')
+        .addGroupBy('ep.like_count')
+        .addGroupBy('ep.favorite_count')
+        .orderBy('playCount', 'DESC')
+        .limit(limit)
+        .getRawMany<{
+          episodeId: number;
+          shortId: string;
+          title: string;
+          playCount: string;
+          avgWatchTime: string;
+          duration: number;
+          likeCount: number;
+          favoriteCount: number;
+        }>();
+
+      // 处理每个视频的数据
+      for (const stat of episodeStats) {
+        const playCount = parseInt(stat.playCount, 10);
+        const avgWatchTime = Math.round(parseFloat(stat.avgWatchTime || '0'));
+        
+        // 计算完播率：当天观看进度>=90%的次数 / 总播放次数
+        const completionCount = await this.wpRepo
+          .createQueryBuilder('wp')
+          .where('wp.episode_id = :episodeId', { episodeId: stat.episodeId })
+          .andWhere('wp.updated_at BETWEEN :start AND :end', {
+            start: dayStart,
+            end: dayEnd,
+          })
+          .andWhere('wp.stop_at_second >= :threshold', {
+            threshold: stat.duration * 0.9,
+          })
+          .getCount();
+        
+        const completionRate = playCount > 0 
+          ? parseFloat(((completionCount / playCount) * 100).toFixed(2))
+          : 0;
+
+        results.push({
+          date: currentDate.toISOString().split('T')[0],
+          videoId: stat.shortId || stat.episodeId.toString(),
+          videoTitle: stat.title,
+          playCount,
+          completionRate,
+          averageWatchTime: avgWatchTime,
+          likeCount: stat.likeCount || 0,
+          shareCount: 0, // 目前数据库没有分享字段
+          favoriteCount: stat.favoriteCount || 0,
+        });
+      }
+
+      // 移动到下一天
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+
+    return results;
+  }
+
+  /**
+   * 获取推广来源统计（按推广码）
+   * 返回各个推广渠道的新增用户数、活跃用户、转化率等指标
+   * @param startDate 开始日期
+   * @param endDate 结束日期
+   */
+  async getUserSourceStats(
+    startDate: Date,
+    endDate: Date,
+  ): Promise<Array<{
+    promoCode: string;
+    totalUsers: number;
+    activeUsers: number;
+    conversionRate: number;
+  }>> {
+    const dayStart = new Date(startDate);
+    dayStart.setHours(0, 0, 0, 0);
+    const dayEnd = new Date(endDate);
+    dayEnd.setHours(23, 59, 59, 999);
+
+    // 按推广码分组统计用户
+    const promoStats = await this.userRepo
+      .createQueryBuilder('u')
+      .select('COALESCE(u.promo_code, "organic")', 'promoCode')
+      .addSelect('COUNT(*)', 'totalUsers')
+      .where('u.created_at BETWEEN :start AND :end', {
+        start: dayStart,
+        end: dayEnd,
+      })
+      .groupBy('promoCode')
+      .orderBy('totalUsers', 'DESC')
+      .getRawMany<{
+        promoCode: string;
+        totalUsers: string;
+      }>();
+
+    const results: Array<{
+      promoCode: string;
+      totalUsers: number;
+      activeUsers: number;
+      conversionRate: number;
+    }> = [];
+    
+    for (const stat of promoStats) {
+      const totalUsers = parseInt(stat.totalUsers, 10);
+
+      // 计算活跃用户数（有观看行为的用户）
+      const activeUsersResult = await this.wpRepo
+        .createQueryBuilder('wp')
+        .innerJoin('wp.user', 'u')
+        .select('COUNT(DISTINCT wp.user_id)', 'count')
+        .where('u.created_at BETWEEN :start AND :end', {
+          start: dayStart,
+          end: dayEnd,
+        })
+        .andWhere('COALESCE(u.promo_code, "organic") = :promoCode', { promoCode: stat.promoCode })
+        .getRawOne<{ count: string }>();
+
+      const activeUsers = parseInt(activeUsersResult?.count || '0', 10);
+      const conversionRate = totalUsers > 0 ? parseFloat(((activeUsers / totalUsers) * 100).toFixed(2)) : 0;
+
+      results.push({
+        promoCode: stat.promoCode,
+        totalUsers,
+        activeUsers,
+        conversionRate, // 转化率：有观看行为的用户比例
+      });
+    }
+
+    return results;
+  }
 }
 

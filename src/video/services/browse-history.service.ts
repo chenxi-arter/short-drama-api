@@ -116,11 +116,13 @@ export class BrowseHistoryService {
    * @param userId 用户ID
    * @param page 页码
    * @param size 每页大小（默认10条）
+   * @param categoryId 分类ID（可选，用于筛选特定分类的浏览记录）
    */
   async getUserBrowseHistory(
     userId: number,
     page: number = 1,
-    size: number = 10  // ✅ 修改默认值为10
+    size: number = 10,  // ✅ 修改默认值为10
+    categoryId?: number
   ): Promise<{
     list: any[];
     total: number;
@@ -134,12 +136,21 @@ export class BrowseHistoryService {
       // ✅ 优化：使用子查询确保每个系列只返回最新的一条记录
       // ✅ 只保留 episode_watch 类型的记录
       // 先获取每个系列的最新浏览记录ID
-      const latestRecordIds = await this.browseHistoryRepo
+      let latestRecordQuery = this.browseHistoryRepo
         .createQueryBuilder('bh')
         .select('MAX(bh.id)', 'maxId')
         .addSelect('bh.seriesId')
         .where('bh.userId = :userId', { userId })
-        .andWhere('bh.browseType = :browseType', { browseType: 'episode_watch' })
+        .andWhere('bh.browseType = :browseType', { browseType: 'episode_watch' });
+      
+      // ✅ 添加分类筛选
+      if (categoryId) {
+        latestRecordQuery = latestRecordQuery
+          .innerJoin('bh.series', 's')
+          .andWhere('s.categoryId = :categoryId', { categoryId });
+      }
+      
+      const latestRecordIds = await latestRecordQuery
         .groupBy('bh.seriesId')
         .getRawMany();
 
@@ -174,6 +185,7 @@ export class BrowseHistoryService {
           seriesShortId: bh.series?.shortId || '', // 使用真实shortId
           seriesCoverUrl: bh.series?.coverUrl || '', // 使用真实封面URL
           categoryName: bh.series?.category?.name || '', // 使用真实分类名称
+          categoryId: bh.series?.category?.id, // ✅ 新增：返回分类ID
           browseType: bh.browseType,
           browseTypeDesc: this.getBrowseTypeDescription(bh.browseType), // ✅ 新增：浏览类型描述
           lastEpisodeNumber: bh.lastEpisodeNumber,

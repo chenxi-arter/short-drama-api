@@ -48,6 +48,7 @@ import { IsValidChannelExistsConstraint } from './validators/channel-exists.vali
 import { IngestService } from './services/ingest.service';
 import { PlayCountService } from './services/play-count.service';
 import { EpisodeInteractionService } from './services/episode-interaction.service';
+import { CategoryValidator } from '../common/validators/category-validator';
 @Module({
   imports: [
     // 子模块装载（在不改变现有路由前提下分层）
@@ -106,6 +107,7 @@ import { EpisodeInteractionService } from './services/episode-interaction.servic
     AppLoggerService,
     AppConfigService,
     IsValidChannelExistsConstraint,
+    CategoryValidator,
   ],    // 注册本模块的服务提供者（业务逻辑）
   controllers: [
     CacheMonitorController
@@ -122,6 +124,7 @@ import { EpisodeInteractionService } from './services/episode-interaction.servic
     SeriesService,
     CategoryService,
     IngestService,
+    CategoryValidator,
   ], // 导出服务供其他模块使用
 })
 export class VideoModule {}

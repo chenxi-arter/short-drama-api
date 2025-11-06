@@ -1,9 +1,10 @@
-import { Controller, Get, Post, Delete, Query, Body, UseGuards, Req, BadRequestException } from '@nestjs/common';
+import { Controller, Get, Post, Query, Body, UseGuards, Req } from '@nestjs/common';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { FavoriteService } from '../services/favorite.service';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Episode } from '../../video/entity/episode.entity';
+import { CategoryValidator } from '../../common/validators/category-validator';
 
 @Controller('user/favorites')
 @UseGuards(JwtAuthGuard)
@@ -12,23 +13,50 @@ export class FavoriteController {
     private readonly favoriteService: FavoriteService,
     @InjectRepository(Episode)
     private readonly episodeRepo: Repository<Episode>,
+    private readonly categoryValidator: CategoryValidator
   ) {}
 
   /**
    * 获取用户收藏列表
-   * GET /api/user/favorites?page=1&size=20
+   * GET /api/user/favorites?page=1&size=20&categoryId=1
+   * @param categoryId 分类ID（可选，用于筛选特定分类的收藏，支持动态验证）
    */
   @Get()
   async getFavorites(
     @Req() req: any,
     @Query('page') page?: string,
     @Query('size') size?: string,
+    @Query('categoryId') categoryId?: string,  // ✅ 支持分类筛选参数，动态验证
   ) {
     const userId: number = req.user?.userId;
     const pageNum = Math.max(parseInt(page ?? '1', 10) || 1, 1);
     const sizeNum = Math.max(parseInt(size ?? '20', 10) || 20, 1);
+    
+    // 解析并动态验证 categoryId
+    let categoryIdNum: number | undefined;
+    if (categoryId) {
+      categoryIdNum = parseInt(categoryId, 10);
+      if (isNaN(categoryIdNum) || categoryIdNum <= 0) {
+        return {
+          code: 400,
+          message: '无效的分类ID格式',
+          data: null,
+        };
+      }
+      
+      // 动态验证分类是否存在且启用
+      const validation = await this.categoryValidator.validateCategoryId(categoryIdNum);
+      if (!validation.valid) {
+        const availableMsg = await this.categoryValidator.formatAvailableCategoriesMessage();
+        return {
+          code: 400,
+          message: `${validation.message}。${availableMsg}`,
+          data: null,
+        };
+      }
+    }
 
-    const result = await this.favoriteService.getUserFavorites(userId, pageNum, sizeNum);
+    const result = await this.favoriteService.getUserFavorites(userId, pageNum, sizeNum, categoryIdNum);
 
     return {
       code: 200,

@@ -146,8 +146,11 @@ export class FavoriteService {
    * 2. 将 upCount 计算移到应用层（但会影响性能）
    * 3. 创建数据库视图（但增加了数据库复杂度）
    */
-  async getUserFavorites(userId: number, page: number = 1, size: number = 20) {
+  async getUserFavorites(userId: number, page: number = 1, size: number = 20, categoryId?: number) {
     const skip = (page - 1) * size;
+
+    // ✅ 添加分类筛选条件
+    const categoryFilter = categoryId ? `AND s.category_id = ${categoryId}` : '';
 
     // 使用原生 SQL 进行复杂的聚合查询
     // 这里的子查询（upCount）在 TypeORM QueryBuilder 中很难实现
@@ -169,18 +172,24 @@ export class FavoriteService {
       FROM favorites f
       INNER JOIN series s ON f.series_id = s.id
       LEFT JOIN categories c ON s.category_id = c.id
-      WHERE f.user_id = ?
+      WHERE f.user_id = ? ${categoryFilter}
       GROUP BY f.series_id
       ORDER BY latestFavoriteTime DESC
       LIMIT ? OFFSET ?
     `;
 
-    // 获取总数（这个可以用 QueryBuilder 优化）
-    const totalCount = await this.favoriteRepo
+    // ✅ 获取总数（带分类筛选）
+    let totalQuery = this.favoriteRepo
       .createQueryBuilder('f')
+      .innerJoin('f.series', 's')
       .where('f.userId = :userId', { userId })
-      .select('COUNT(DISTINCT f.seriesId)', 'total')
-      .getRawOne<{ total: string }>();
+      .select('COUNT(DISTINCT f.seriesId)', 'total');
+
+    if (categoryId) {
+      totalQuery = totalQuery.andWhere('s.categoryId = :categoryId', { categoryId });
+    }
+
+    const totalCount = await totalQuery.getRawOne<{ total: string }>();
 
     const total = parseInt(totalCount?.total || '0', 10);
 
