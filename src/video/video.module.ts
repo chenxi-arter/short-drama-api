@@ -49,6 +49,8 @@ import { IngestService } from './services/ingest.service';
 import { PlayCountService } from './services/play-count.service';
 import { EpisodeInteractionService } from './services/episode-interaction.service';
 import { CategoryValidator } from '../common/validators/category-validator';
+import { SearchSuggestionsService } from './services/search-suggestions.service';
+import { SearchController } from './controllers/search.controller';
 @Module({
   imports: [
     // 子模块装载（在不改变现有路由前提下分层）
@@ -102,6 +104,7 @@ import { CategoryValidator } from '../common/validators/category-validator';
     SeriesService,
     BrowseHistoryService,
     BrowseHistoryCleanupService,
+    SearchSuggestionsService,
     
     // 工具和配置服务
     AppLoggerService,
@@ -110,7 +113,8 @@ import { CategoryValidator } from '../common/validators/category-validator';
     CategoryValidator,
   ],    // 注册本模块的服务提供者（业务逻辑）
   controllers: [
-    CacheMonitorController
+    CacheMonitorController,
+    SearchController
   ], // 仅保留内部控制器；公开API控制器移至 VideoApiModule；管理端控制器收敛到 AdminModule
   exports: [
     VideoService,
@@ -125,6 +129,7 @@ import { CategoryValidator } from '../common/validators/category-validator';
     CategoryService,
     IngestService,
     CategoryValidator,
+    SearchSuggestionsService,
   ], // 导出服务供其他模块使用
 })
 export class VideoModule {}
