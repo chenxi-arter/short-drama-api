@@ -41,11 +41,11 @@ export class SearchSuggestionsService {
   }>> {
     const cacheKey = `hot_search:${limit}:${categoryId || 'all'}:${daysRange}`;
     
-    // 尝试从缓存获取（缓存5分钟）
+    // 尝试从缓存获取（缓存6小时）
     const cached = await this.cacheManager.get<any[]>(cacheKey);
     if (cached) {
-      // 返回时随机打乱顺序
-      return this.shuffleArray([...cached]).slice(0, limit);
+      // 直接返回缓存数据（按热度排序）
+      return cached.slice(0, limit);
     }
 
     try {
@@ -73,7 +73,7 @@ export class SearchSuggestionsService {
         .addSelect('(series.playCount * 0.7 + CAST(series.score AS DECIMAL(10,2)) * 1000 * 0.3)', 'hotScore')
         .orderBy('hotScore', 'DESC')
         .addOrderBy('series.updatedAt', 'DESC')
-        .limit(limit * 3); // 获取3倍数量用于随机
+        .limit(limit); // 直接按需获取
 
       const series = await queryBuilder.getMany();
 
@@ -87,11 +87,11 @@ export class SearchSuggestionsService {
         score: String(s.score || '0.0'),
       }));
 
-      // 缓存结果（5分钟）
-      await this.cacheManager.set(cacheKey, suggestions, 300000);
+      // 缓存结果（6小时）
+      await this.cacheManager.set(cacheKey, suggestions, 21600000);
 
-      // 随机打乱并返回指定数量
-      return this.shuffleArray(suggestions).slice(0, limit);
+      // 直接返回（按热度排序）
+      return suggestions;
     } catch (error) {
       console.error('获取热门搜索词失败:', error);
       return [];
@@ -106,19 +106,6 @@ export class SearchSuggestionsService {
     // TODO: 实现基于用户搜索历史的热词统计
     // 需要创建 search_history 表记录用户搜索行为
     return [];
-  }
-
-  /**
-   * 随机打乱数组
-   * Fisher-Yates 洗牌算法
-   */
-  private shuffleArray<T>(array: T[]): T[] {
-    const result = [...array];
-    for (let i = result.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [result[i], result[j]] = [result[j], result[i]];
-    }
-    return result;
   }
 }
 

@@ -366,15 +366,93 @@ categoryId: number  // 可选，分类ID（1-短剧，2-电影，3-电视剧）
 - 热门搜索标签云
 - 搜索历史推荐
 
-**完整版接口**: `GET /api/search/hot-suggestions` 
-- 返回完整信息（包含shortId、分类、播放量、评分等）
-- 适用于搜索建议下拉框
-
 **特点**:
-- ⭐ 每次请求顺序都不同（随机打乱）
-- 基于播放量和评分综合计算热度
+- ⭐ 按热度排序（播放量70% + 评分30%）
 - 默认只返回最近30天的剧集
-- 缓存5分钟，性能优秀
+- 缓存6小时，性能优秀
+- 排序稳定，每次返回相同顺序
+
+---
+
+### 2.7 热门搜索建议（完整版）⭐ 新增
+
+**接口**: `GET /api/search/hot-suggestions?limit=10&categoryId=1&daysRange=30`
+
+**说明**: 返回热门剧集的完整信息，包含ID、分类、播放量、评分等，适用于搜索建议下拉框
+
+**请求参数**:
+```
+limit: number       // 可选，返回数量，默认10（最大50）
+categoryId: number  // 可选，分类ID（1-短剧，2-电影，3-电视剧）
+daysRange: number   // 可选，时间范围（天数），默认30，0表示不限时间
+```
+
+**返回数据**:
+```json
+{
+  "code": 200,
+  "message": "获取热门搜索建议成功",
+  "data": [
+    {
+      "id": 2645,
+      "title": "我是刑警",
+      "shortId": "abc123def",
+      "categoryName": "电视剧",
+      "playCount": 9458688,
+      "score": "9.0"
+    },
+    {
+      "id": 2448,
+      "title": "长月烬明",
+      "shortId": "xyz789uvw",
+      "categoryName": "电视剧",
+      "playCount": 9875200,
+      "score": "7.0"
+    }
+  ],
+  "timestamp": "2025-11-06T14:30:00.000Z"
+}
+```
+
+**字段说明**:
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `id` | number | 剧集系列ID |
+| `title` | string | 剧集标题 |
+| `shortId` | string | 剧集短ID（可用于跳转到详情页） |
+| `categoryName` | string | 分类名称（如"短剧"、"电影"） |
+| `playCount` | number | 播放量（越高越热门） |
+| `score` | string | 评分（如"9.0"） |
+
+**使用场景**:
+- 搜索建议下拉框（可点击跳转）
+- 热门推荐区域
+- 首页热搜榜
+
+**热度计算**:
+```
+综合热度 = 播放量 × 0.7 + 评分 × 1000 × 0.3
+```
+
+**示例**:
+```bash
+# 获取10条热门剧集（所有分类）
+GET /api/search/hot-suggestions?limit=10
+
+# 只获取短剧的热门建议
+GET /api/search/hot-suggestions?limit=10&categoryId=1
+
+# 只看最近7天的热门剧
+GET /api/search/hot-suggestions?limit=5&daysRange=7
+```
+
+**性能说明**:
+- 缓存时间：6小时（21600秒）
+- 每6小时自动更新一次热门列表
+- 同一缓存周期内多次请求返回相同数据（顺序固定）
+- 按热度排序，最热的排在前面
+- 节省数据库查询，提高响应速度
 
 ---
 
