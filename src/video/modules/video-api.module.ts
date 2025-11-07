@@ -36,6 +36,7 @@ import { AppLoggerService } from '../../common/logger/app-logger.service';
 import { AppConfigService } from '../../common/config/app-config.service';
 import { PlayCountService } from '../services/play-count.service';
 import { EpisodeInteractionService } from '../services/episode-interaction.service';
+import { CategoryValidator } from '../../common/validators/category-validator';
 import { CatalogModule } from './catalog.module';
 import { SeriesModule } from './series.module';
 import { EpisodeModule } from './episode.module';
@@ -106,6 +107,7 @@ import { SeriesGenreOption } from '../entity/series-genre-option.entity';
     WatchProgressService,
     BannerService,
     CategoryService,
+    CategoryValidator,
     IngestService,
     FakeCommentService,  // 必须在 CommentService 之前
     CommentService,

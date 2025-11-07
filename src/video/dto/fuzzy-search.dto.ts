@@ -11,7 +11,7 @@ export class FuzzySearchDto {
   keyword: string; // 搜索关键词，必填
 
   @IsOptional()
-  channeid?: string; // 可选，频道ID，不传则搜索全部
+  categoryId?: string; // 可选，分类ID，不传则搜索全部
 
   @IsOptional()
   @Type(() => Number)

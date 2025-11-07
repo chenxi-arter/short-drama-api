@@ -518,17 +518,17 @@ export class FilterService {
    * 模糊搜索
    * 根据关键词在标题中进行模糊搜索
    * @param keyword 搜索关键词
-   * @param channeid 可选，频道ID，不传则搜索全部
+   * @param categoryId 可选，分类ID，不传则搜索全部
    * @param page 页码
    * @param size 每页大小
    */
   async fuzzySearch(
     keyword: string,
-    channeid?: string,
+    categoryId?: string,
     page: number = 1,
     size: number = 20
   ): Promise<FuzzySearchResponse> {
-    console.log('模糊搜索开始:', { keyword, channeid, page, size });
+    console.log('模糊搜索开始:', { keyword, categoryId, page, size });
     
     if (!keyword || keyword.trim() === '') {
       console.log('搜索关键词为空');
@@ -563,9 +563,9 @@ export class FilterService {
         .where('series.title LIKE :keyword', { keyword: `%${trimmedKeyword}%` })
         .andWhere('series.isActive = :isActive', { isActive: 1 }); // 只查询未删除的剧集
 
-      // 如果指定了频道ID，则添加频道筛选条件
-      if (channeid && channeid.trim() !== '') {
-        queryBuilder.andWhere('series.category_id = :channeid', { channeid: parseInt(channeid) });
+      // 如果指定了分类ID，则添加分类筛选条件
+      if (categoryId && categoryId.trim() !== '') {
+        queryBuilder.andWhere('series.category_id = :categoryId', { categoryId: parseInt(categoryId) });
       }
 
       // 排序：按相关性（标题匹配度）优先，然后按创建时间

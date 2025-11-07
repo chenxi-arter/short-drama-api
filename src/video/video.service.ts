@@ -167,11 +167,11 @@ export class VideoService {
 
   async fuzzySearch(
     keyword: string,
-    channelId?: string,
+    categoryId?: string,
     page: number = 1,
     size: number = 20
   ) {
-    return this.filterService.fuzzySearch(keyword, channelId, page, size);
+    return this.filterService.fuzzySearch(keyword, categoryId, page, size);
   }
 
   /**

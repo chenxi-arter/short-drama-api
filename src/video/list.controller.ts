@@ -5,13 +5,17 @@ import { FilterTagsDto } from './dto/filter-tags.dto';
 import { FilterDataDto } from './dto/filter-data.dto';
 import { ConditionFilterDto } from './dto/condition-filter.dto';
 import { FuzzySearchDto } from './dto/fuzzy-search.dto';
+import { CategoryValidator } from '../common/validators/category-validator';
 
 /**
  * 列表筛选相关控制器
  */
 @Controller('list')
 export class ListController {
-  constructor(private readonly videoService: VideoService) {}
+  constructor(
+    private readonly videoService: VideoService,
+    private readonly categoryValidator: CategoryValidator
+  ) {}
 
   /**
    * 获取筛选器标签
@@ -50,6 +54,7 @@ export class ListController {
   /**
    * 模糊搜索
    * 根据关键词在标题中进行模糊搜索
+   * GET /api/list/fuzzysearch?keyword=xxx&categoryId=1&page=1&size=20
    * @param dto 请求参数
    * @returns 模糊搜索结果
    */
@@ -60,9 +65,26 @@ export class ListController {
       return { code: resp.code, msg: '搜索关键词不能为空', data: null, success: resp.success, timestamp: resp.timestamp };
     }
     
+    // 如果指定了 categoryId，验证其有效性
+    if (dto.categoryId) {
+      const categoryIdNum = parseInt(dto.categoryId, 10);
+      if (isNaN(categoryIdNum) || categoryIdNum <= 0) {
+        const resp = AdminResponseUtil.error('无效的分类ID格式', 400);
+        return { code: resp.code, msg: '无效的分类ID格式', data: null, success: resp.success, timestamp: resp.timestamp };
+      }
+      
+      // 动态验证分类是否存在且启用
+      const validation = await this.categoryValidator.validateCategoryId(categoryIdNum);
+      if (!validation.valid) {
+        const availableMsg = await this.categoryValidator.formatAvailableCategoriesMessage();
+        const resp = AdminResponseUtil.error(`${validation.message}。${availableMsg}`, 400);
+        return { code: resp.code, msg: `${validation.message}。${availableMsg}`, data: null, success: resp.success, timestamp: resp.timestamp };
+      }
+    }
+    
     return this.videoService.fuzzySearch(
       dto.keyword,
-      dto.channeid,
+      dto.categoryId,
       dto.page || 1,
       dto.size || 20
     );
