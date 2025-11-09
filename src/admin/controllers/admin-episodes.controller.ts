@@ -1,8 +1,11 @@
-import { Controller, Get, Post, Put, Delete, Param, Body, Query } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Param, Body, Query, BadRequestException, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, FindOptionsWhere, LessThanOrEqual, MoreThanOrEqual, Between } from 'typeorm';
 import { Episode } from '../../video/entity/episode.entity';
 import { EpisodeUrl } from '../../video/entity/episode-url.entity';
+import { R2StorageService } from '../../core/storage/r2-storage.service';
+import { GetVideoPresignedUrlDto, VideoUploadCompleteDto } from '../dto/presigned-upload.dto';
+import { randomUUID } from 'crypto';
 
 @Controller('admin/episodes')
 export class AdminEpisodesController {
@@ -11,6 +14,7 @@ export class AdminEpisodesController {
     private readonly episodeRepo: Repository<Episode>,
     @InjectRepository(EpisodeUrl)
     private readonly episodeUrlRepo: Repository<EpisodeUrl>,
+    private readonly storage: R2StorageService,
   ) {}
 
   private normalize(raw: Record<string, unknown>): Partial<Episode> {
@@ -147,6 +151,129 @@ export class AdminEpisodesController {
       seriesTitle: episode.series?.title || '',
       duration: episode.duration,
       downloadUrls
+    };
+  }
+
+  /**
+   * 获取预签名上传 URL（前端直传视频）
+   * GET /api/admin/episodes/:id/presigned-upload-url?filename=video.mp4&contentType=video/mp4&quality=720p
+   */
+  @Get(':id/presigned-upload-url')
+  async getPresignedUploadUrl(
+    @Param('id') id: string,
+    @Query() query: GetVideoPresignedUrlDto,
+  ) {
+    // 验证 Episode 是否存在
+    const episode = await this.episodeRepo.findOne({ where: { id: Number(id) } });
+    if (!episode) {
+      throw new NotFoundException('Episode not found');
+    }
+
+    const { filename, contentType, quality = '720p' } = query;
+
+    // 验证文件类型
+    const allowedVideoTypes = ['video/mp4', 'video/mpeg', 'video/quicktime', 'video/x-msvideo', 'video/webm'];
+    if (!allowedVideoTypes.includes(contentType)) {
+      throw new BadRequestException('Invalid video type. Allowed: MP4, MPEG, MOV, AVI, WebM');
+    }
+
+    // 验证文件名安全性
+    if (filename.includes('..') || filename.includes('/') || filename.includes('\\')) {
+      throw new BadRequestException('Invalid filename');
+    }
+
+    // 验证文件扩展名
+    const extension = filename.split('.').pop()?.toLowerCase();
+    const allowedExtensions = ['mp4', 'mpeg', 'mpg', 'mov', 'avi', 'webm'];
+    if (!extension || !allowedExtensions.includes(extension)) {
+      throw new BadRequestException('Invalid file extension');
+    }
+
+    // 验证清晰度参数
+    const allowedQualities = ['360p', '480p', '720p', '1080p', '1440p', '2160p'];
+    if (quality && !allowedQualities.includes(quality)) {
+      throw new BadRequestException('Invalid quality parameter');
+    }
+
+    // 生成唯一文件路径
+    const fileKey = `episodes/${id}/video_${quality}_${randomUUID()}.${extension}`;
+
+    // 生成预签名 URL（有效期 2 小时，视频文件上传时间较长）
+    const uploadUrl = await this.storage.generatePresignedUploadUrl(fileKey, contentType, 7200);
+    
+    // 获取公开访问 URL
+    const publicUrl = this.storage.getPublicUrl(fileKey);
+
+    return {
+      uploadUrl,
+      fileKey,
+      publicUrl,
+      quality,
+    };
+  }
+
+  /**
+   * 通知后端视频上传完成
+   * POST /api/admin/episodes/:id/upload-complete
+   */
+  @Post(':id/upload-complete')
+  async uploadComplete(
+    @Param('id') id: string,
+    @Body() body: VideoUploadCompleteDto,
+  ) {
+    const { fileKey, publicUrl, quality, fileSize } = body;
+
+    // 验证参数
+    if (!fileKey || !publicUrl) {
+      throw new BadRequestException('fileKey and publicUrl are required');
+    }
+
+    // 验证 Episode 是否存在
+    const episode = await this.episodeRepo.findOne({ where: { id: Number(id) } });
+    if (!episode) {
+      throw new NotFoundException('Episode not found');
+    }
+
+    // 查找是否已存在相同清晰度的记录
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const whereCondition: any = {
+      episodeId: Number(id),
+      quality: quality || null,
+    };
+    
+    const existingUrl = await this.episodeUrlRepo.findOne({
+      where: whereCondition,
+    });
+
+    if (existingUrl) {
+      // 更新现有记录
+      await this.episodeUrlRepo.update(
+        { id: existingUrl.id },
+        {
+          cdnUrl: publicUrl,
+          ossUrl: publicUrl,
+          originUrl: publicUrl,
+          updatedAt: new Date(),
+        },
+      );
+    } else {
+      // 创建新记录
+      const episodeUrl = this.episodeUrlRepo.create({
+        episodeId: Number(id),
+        quality: quality || undefined,
+        cdnUrl: publicUrl,
+        ossUrl: publicUrl,
+        originUrl: publicUrl,
+      });
+      await this.episodeUrlRepo.save(episodeUrl);
+    }
+
+    return {
+      success: true,
+      message: 'Video upload completed',
+      publicUrl,
+      quality,
+      fileSize,
     };
   }
 }

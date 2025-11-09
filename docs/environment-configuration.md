@@ -107,6 +107,13 @@ JWT_REFRESH_EXPIRES_IN=30d
 TELEGRAM_BOT_TOKEN=your_dev_bot_token
 TELEGRAM_BOT_USERNAME=your_dev_bot_username
 
+# R2 存储配置 (开发环境)
+R2_ENDPOINT_URL=https://your_account_id.r2.cloudflarestorage.com
+R2_ACCESS_KEY_ID=your_dev_r2_access_key
+R2_SECRET_ACCESS_KEY=your_dev_r2_secret_key
+R2_BUCKET_NAME=admin
+R2_PUBLIC_BASE_URL=https://pub-xxxxx.r2.dev
+
 # 假评论功能 (开发环境默认启用)
 ENABLE_FAKE_COMMENTS=true
 MIN_FAKE_COMMENTS=30
@@ -153,6 +160,13 @@ JWT_REFRESH_EXPIRES_IN=7d
 # Telegram Bot (生产环境)
 TELEGRAM_BOT_TOKEN=your_production_bot_token
 TELEGRAM_BOT_USERNAME=your_production_bot_username
+
+# R2 存储配置 (生产环境)
+R2_ENDPOINT_URL=https://your_account_id.r2.cloudflarestorage.com
+R2_ACCESS_KEY_ID=your_prod_r2_access_key
+R2_SECRET_ACCESS_KEY=your_prod_r2_secret_key
+R2_BUCKET_NAME=static-storage
+R2_PUBLIC_BASE_URL=https://static.656932.com
 
 # 假评论功能 (生产环境建议关闭或减少数量)
 ENABLE_FAKE_COMMENTS=false     # 或设为true但降低数量
@@ -294,6 +308,22 @@ JWT_REFRESH_EXPIRES_IN=30d
 # ===========================================
 TELEGRAM_BOT_TOKEN=your_telegram_bot_token
 TELEGRAM_BOT_USERNAME=your_bot_username
+
+# ===========================================
+# Cloudflare R2 存储配置
+# ===========================================
+# R2 S3 兼容端点
+R2_ENDPOINT_URL=https://your_account_id.r2.cloudflarestorage.com
+
+# R2 访问凭证
+R2_ACCESS_KEY_ID=your_r2_access_key_id
+R2_SECRET_ACCESS_KEY=your_r2_secret_access_key
+
+# R2 存储桶名称
+R2_BUCKET_NAME=your_bucket_name
+
+# R2 公开访问 URL（可选，用于生成公开访问链接）
+R2_PUBLIC_BASE_URL=https://static.yourdomain.com
 
 # ===========================================
 # 假评论功能配置

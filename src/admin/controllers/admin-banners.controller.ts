@@ -1,9 +1,11 @@
-import { Controller, Get, Post, Put, Delete, Param, Body, Query, UseInterceptors, UploadedFile, BadRequestException } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Param, Body, Query, UseInterceptors, UploadedFile, BadRequestException, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Banner } from '../../video/entity/banner.entity';
 import { R2StorageService } from '../../core/storage/r2-storage.service';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { GetPresignedUrlDto, UploadCompleteDto } from '../dto/presigned-upload.dto';
+import { randomUUID } from 'crypto';
 import axios from 'axios';
 import * as https from 'https';
 
@@ -116,6 +118,95 @@ export class AdminBannersController {
     const imageUrl = url ?? key;
     await this.bannerRepo.update({ id: Number(id) }, { imageUrl });
     return this.bannerRepo.findOne({ where: { id: Number(id) } });
+  }
+
+  /**
+   * 获取预签名上传 URL（前端直传）
+   * GET /api/admin/banners/:id/presigned-upload-url?filename=banner.jpg&contentType=image/jpeg
+   */
+  @Get(':id/presigned-upload-url')
+  async getPresignedUploadUrl(
+    @Param('id') id: string,
+    @Query() query: GetPresignedUrlDto,
+  ) {
+    // 验证 Banner 是否存在
+    const banner = await this.bannerRepo.findOne({ where: { id: Number(id) } });
+    if (!banner) {
+      throw new NotFoundException('Banner not found');
+    }
+
+    const { filename, contentType } = query;
+
+    // 验证文件类型
+    const allowedImageTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
+    if (!allowedImageTypes.includes(contentType)) {
+      throw new BadRequestException('Invalid image type. Allowed: JPEG, PNG, WebP, GIF');
+    }
+
+    // 验证文件名安全性
+    if (filename.includes('..') || filename.includes('/') || filename.includes('\\')) {
+      throw new BadRequestException('Invalid filename');
+    }
+
+    // 验证文件扩展名
+    const extension = filename.split('.').pop()?.toLowerCase();
+    const allowedExtensions = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
+    if (!extension || !allowedExtensions.includes(extension)) {
+      throw new BadRequestException('Invalid file extension');
+    }
+
+    // 生成唯一文件路径
+    const fileKey = `banners/${id}/image_${randomUUID()}.${extension}`;
+
+    // 生成预签名 URL（有效期 1 小时）
+    const uploadUrl = await this.storage.generatePresignedUploadUrl(fileKey, contentType, 3600);
+    
+    // 获取公开访问 URL
+    const publicUrl = this.storage.getPublicUrl(fileKey);
+
+    return {
+      uploadUrl,
+      fileKey,
+      publicUrl,
+    };
+  }
+
+  /**
+   * 通知后端上传完成
+   * POST /api/admin/banners/:id/upload-complete
+   */
+  @Post(':id/upload-complete')
+  async uploadComplete(
+    @Param('id') id: string,
+    @Body() body: UploadCompleteDto,
+  ) {
+    const { fileKey, publicUrl } = body;
+
+    // 验证参数
+    if (!fileKey || !publicUrl) {
+      throw new BadRequestException('fileKey and publicUrl are required');
+    }
+
+    // 验证 Banner 是否存在
+    const banner = await this.bannerRepo.findOne({ where: { id: Number(id) } });
+    if (!banner) {
+      throw new NotFoundException('Banner not found');
+    }
+
+    // 更新 Banner 的 imageUrl
+    await this.bannerRepo.update(
+      { id: Number(id) },
+      { 
+        imageUrl: publicUrl,
+        updatedAt: new Date(),
+      },
+    );
+
+    return {
+      success: true,
+      message: 'Image upload completed',
+      imageUrl: publicUrl,
+    };
   }
 }
 

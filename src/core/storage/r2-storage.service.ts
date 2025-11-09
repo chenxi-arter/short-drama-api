@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { randomUUID } from 'crypto';
 
 export interface R2UploadOptions {
@@ -9,10 +10,11 @@ export interface R2UploadOptions {
 
 @Injectable()
 export class R2StorageService {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private s3: any;
-  private bucketName: string;
+  private bucketName!: string;
   private publicBaseUrl?: string;
-  private endpointBucketBase: string;
+  private endpointBucketBase!: string;
   private initialized = false;
 
   constructor() {
@@ -78,6 +80,39 @@ export class R2StorageService {
     const base = (this.publicBaseUrl ?? this.endpointBucketBase).replace(/\/$/, '');
     const url = `${base}/${key}`;
     return { key, url };
+  }
+
+  /**
+   * 生成预签名上传 URL
+   * @param fileKey 文件路径（如: banners/123/image_uuid.jpg）
+   * @param contentType 文件 MIME 类型
+   * @param expiresIn 有效期（秒），默认 3600 秒（1小时）
+   * @returns 预签名 URL
+   */
+  async generatePresignedUploadUrl(
+    fileKey: string,
+    contentType: string,
+    expiresIn: number = 3600,
+  ): Promise<string> {
+    this.ensureInitialized();
+
+    const command = new PutObjectCommand({
+      Bucket: this.bucketName,
+      Key: fileKey,
+      ContentType: contentType,
+    });
+
+    return await getSignedUrl(this.s3, command, { expiresIn });
+  }
+
+  /**
+   * 获取文件的公开访问 URL
+   * @param fileKey 文件路径
+   * @returns 公开访问 URL
+   */
+  getPublicUrl(fileKey: string): string {
+    const base = (this.publicBaseUrl ?? this.endpointBucketBase).replace(/\/$/, '');
+    return `${base}/${fileKey}`;
   }
 }
 
