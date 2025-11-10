@@ -326,6 +326,97 @@ curl -X POST "http://localhost:8080/api/admin/banners/123/image-from-url" \
 }
 ```
 
+#### 系列封面上传（推荐使用前端直传 R2）
+
+- **获取预签名上传 URL**（推荐）
+  - `GET /api/admin/series/:id/presigned-upload-url?filename=cover.jpg&contentType=image/jpeg`
+  - 参数：
+    - `filename` string（必填）：文件名，如 `cover.jpg`
+    - `contentType` string（必填）：文件 MIME 类型，如 `image/jpeg`、`image/png`
+  - 说明：获取预签名 URL，前端可直接上传到 R2，无需经过后端服务器
+  - 响应示例：
+```json
+{
+  "uploadUrl": "https://0d5622368be0547ffbf1909c86bec606.r2.cloudflarestorage.com/static-storage/series/123/cover_abc123.jpg?X-Amz-Algorithm=...",
+  "fileKey": "series/123/cover_abc123.jpg",
+  "publicUrl": "https://static.656932.com/series/123/cover_abc123.jpg"
+}
+```
+
+- **通知上传完成**
+  - `POST /api/admin/series/:id/upload-complete`
+  - 请求体：
+```json
+{
+  "fileKey": "series/123/cover_abc123.jpg",
+  "publicUrl": "https://static.656932.com/series/123/cover_abc123.jpg",
+  "fileSize": 524288
+}
+```
+  - 说明：前端上传到 R2 成功后，调用此接口通知后端更新系列的 `coverUrl` 字段
+  - 响应示例：
+```json
+{
+  "success": true,
+  "message": "Cover upload completed",
+  "coverUrl": "https://static.656932.com/series/123/cover_abc123.jpg"
+}
+```
+
+- **直传文件（备用方案）**
+  - `POST /api/admin/series/:id/cover`
+  - 表单字段：`file`（图片文件）
+  - 说明：服务端将图片存入 R2，并把生成的 URL 写回该系列的 `coverUrl` 字段
+  - cURL 示例：
+```bash
+curl -X POST "http://localhost:8080/api/admin/series/123/cover" \
+  -H "Accept: application/json" \
+  -F "file=@/path/to/cover.jpg"
+```
+
+- **从 URL 拉取封面（备用方案）**
+  - `POST /api/admin/series/:id/cover-from-url`
+  - 请求体：`{ "url": "https://example.com/cover.jpg" }`
+  - 说明：后端从该 URL 抓取图片，上传到 R2，并更新 `coverUrl`
+  - cURL 示例：
+```bash
+curl -X POST "http://localhost:8080/api/admin/series/123/cover-from-url" \
+  -H "Content-Type: application/json" \
+  -d '{ "url": "https://example.com/cover.jpg" }'
+```
+
+**前端直传完整流程示例**：
+```typescript
+// 1. 获取预签名 URL
+const response1 = await fetch(
+  `/api/admin/series/${seriesId}/presigned-upload-url?filename=${file.name}&contentType=${file.type}`
+);
+const { uploadUrl, fileKey, publicUrl } = await response1.json();
+
+// 2. 直接上传到 R2（不经过后端）
+await fetch(uploadUrl, {
+  method: 'PUT',
+  body: file,
+  headers: { 'Content-Type': file.type },
+});
+
+// 3. 通知后端更新 coverUrl
+await fetch(`/api/admin/series/${seriesId}/upload-complete`, {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ fileKey, publicUrl, fileSize: file.size }),
+});
+```
+
+**安全限制**：
+- 仅支持图片格式：JPEG, PNG, WebP, GIF
+- 预签名 URL 有效期：1 小时
+- 建议文件大小：≤ 10MB
+
+**详细文档**：参见 `docs/backend-series-cover-upload.md`
+
+---
+
 ### 单集管理 Episode（系列下的具体某一集）
 
 资源路径: `/admin/episodes`

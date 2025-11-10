@@ -28,16 +28,22 @@ export class AdminEpisodesController {
       return undefined;
     };
     const payload: Partial<Episode> = {};
+    
+    // 字符串字段 - 可编辑的文本字段
+    const title = toStr(raw.title); if (title !== undefined) payload.title = title;
+    const status = toStr(raw.status); if (status !== undefined) payload.status = status;
+    // shortId 和 accessKey 为只读字段，不允许编辑
+    
+    // 数字字段 - 可编辑的数值字段
     const seriesId = toInt(raw.seriesId); if (seriesId !== undefined) payload.seriesId = seriesId;
     const episodeNumber = toInt(raw.episodeNumber); if (episodeNumber !== undefined) payload.episodeNumber = episodeNumber;
     const duration = toInt(raw.duration); if (duration !== undefined) payload.duration = duration;
-    const status = toStr(raw.status); if (status !== undefined) payload.status = status;
-    const title = toStr(raw.title); if (title !== undefined) payload.title = title;
+    // playCount, likeCount, dislikeCount, favoriteCount 为只读字段，不允许编辑
+    
+    // 布尔值字段
     const isVertical = toBool(raw.isVertical); if (isVertical !== undefined) payload.isVertical = isVertical;
-    const playCount = toInt(raw.playCount); if (playCount !== undefined) payload.playCount = playCount;
-    const likeCount = toInt(raw.likeCount); if (likeCount !== undefined) payload.likeCount = likeCount;
-    const dislikeCount = toInt(raw.dislikeCount); if (dislikeCount !== undefined) payload.dislikeCount = dislikeCount;
-    const favoriteCount = toInt(raw.favoriteCount); if (favoriteCount !== undefined) payload.favoriteCount = favoriteCount;
+    const hasSequel = toBool(raw.hasSequel); if (hasSequel !== undefined) payload.hasSequel = hasSequel;
+    
     return payload;
   }
 
