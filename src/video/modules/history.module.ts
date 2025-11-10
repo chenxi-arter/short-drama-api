@@ -3,6 +3,8 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { BrowseHistory } from '../entity/browse-history.entity';
 import { User } from '../../user/entity/user.entity';
 import { Series } from '../entity/series.entity';
+import { WatchProgress } from '../entity/watch-progress.entity';
+import { Episode } from '../entity/episode.entity';
 import { BrowseHistoryService } from '../services/browse-history.service';
 import { BrowseHistoryCleanupService } from '../services/browse-history-cleanup.service';
 import { BrowseHistoryController } from '../browse-history.controller';
@@ -14,7 +16,7 @@ import { AppConfigService } from '../../common/config/app-config.service';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([BrowseHistory, User, Series, Category]),
+    TypeOrmModule.forFeature([BrowseHistory, User, Series, Category, WatchProgress, Episode]),
   ],
   controllers: [BrowseHistoryController],
   providers: [

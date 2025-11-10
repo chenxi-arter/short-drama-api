@@ -8,6 +8,8 @@ import { BrowseHistory } from '../entity/browse-history.entity';
 import { DateUtil } from '../../common/utils/date.util';
 import { Series } from '../entity/series.entity';
 import { User } from '../../user/entity/user.entity';
+import { WatchProgress } from '../entity/watch-progress.entity';
+import { Episode } from '../entity/episode.entity';
 import { Request } from 'express';
 
 /**
@@ -23,6 +25,10 @@ export class BrowseHistoryService {
     private readonly seriesRepo: Repository<Series>,
     @InjectRepository(User)
     private readonly userRepo: Repository<User>,
+    @InjectRepository(WatchProgress)
+    private readonly watchProgressRepo: Repository<WatchProgress>,
+    @InjectRepository(Episode)
+    private readonly episodeRepo: Repository<Episode>,
     @Inject(CACHE_MANAGER)
     private readonly cacheManager: Cache,
   ) {}
@@ -111,17 +117,18 @@ export class BrowseHistoryService {
   }
 
   /**
-   * 获取用户的浏览记录（优化版 - 默认10条，包含详细观看信息）
-   * ✅ 优化：确保同系列只返回最新的一条记录
+   * 获取用户浏览历史（从watch_progress聚合）
+   * ✅ 优化：从watch_progress表聚合数据，确保同系列只返回最新的一条记录
+   * ✅ 新增：支持分类筛选
    * @param userId 用户ID
    * @param page 页码
-   * @param size 每页大小（默认10条）
-   * @param categoryId 分类ID（可选，用于筛选特定分类的浏览记录）
+   * @param size 每页数量
+   * @param categoryId 分类ID（可选）
    */
   async getUserBrowseHistory(
     userId: number,
     page: number = 1,
-    size: number = 10,  // ✅ 修改默认值为10
+    size: number = 10,
     categoryId?: number
   ): Promise<{
     list: any[];
@@ -133,30 +140,30 @@ export class BrowseHistoryService {
     try {
       const offset = (page - 1) * size;
       
-      // ✅ 优化：使用子查询确保每个系列只返回最新的一条记录
-      // ✅ 只保留 episode_watch 类型的记录
-      // 先获取每个系列的最新浏览记录ID
-      let latestRecordQuery = this.browseHistoryRepo
-        .createQueryBuilder('bh')
-        .select('MAX(bh.id)', 'maxId')
-        .addSelect('bh.seriesId')
-        .where('bh.userId = :userId', { userId })
-        .andWhere('bh.browseType = :browseType', { browseType: 'episode_watch' });
+      // 从watch_progress聚合浏览记录
+      // 1. 找出每个系列的最新观看记录
+      let query = this.watchProgressRepo
+        .createQueryBuilder('wp')
+        .innerJoin('wp.episode', 'episode')
+        .innerJoin('episode.series', 'series')
+        .leftJoin('series.category', 'category')
+        .select('series.id', 'seriesId')
+        .addSelect('MAX(wp.updated_at)', 'lastVisitTime')
+        .addSelect('MAX(episode.episode_number)', 'lastEpisodeNumber')
+        .addSelect('COUNT(DISTINCT episode.id)', 'visitCount')
+        .where('wp.user_id = :userId', { userId });
       
-      // ✅ 添加分类筛选
+      // 添加分类筛选
       if (categoryId) {
-        latestRecordQuery = latestRecordQuery
-          .innerJoin('bh.series', 's')
-          .andWhere('s.categoryId = :categoryId', { categoryId });
+        query = query.andWhere('series.category_id = :categoryId', { categoryId });
       }
       
-      const latestRecordIds = await latestRecordQuery
-        .groupBy('bh.seriesId')
+      const aggregatedData = await query
+        .groupBy('series.id')
+        .orderBy('lastVisitTime', 'DESC')
         .getRawMany();
-
-      const latestIds = latestRecordIds.map((row: any) => Number(row.maxId));
       
-      if (latestIds.length === 0) {
+      if (aggregatedData.length === 0) {
         return {
           list: [],
           total: 0,
@@ -165,44 +172,55 @@ export class BrowseHistoryService {
           hasMore: false
         };
       }
+      
+      // 2. 分页处理
+      const total = aggregatedData.length;
+      const paginatedData = aggregatedData.slice(offset, offset + size);
+      
+      // 3. 批量获取系列详细信息
+      const seriesIds = paginatedData.map(item => item.seriesId);
+      const seriesMap = new Map();
+      
+      if (seriesIds.length > 0) {
+        const seriesList = await this.seriesRepo
+          .createQueryBuilder('series')
+          .leftJoinAndSelect('series.category', 'category')
+          .where('series.id IN (:...ids)', { ids: seriesIds })
+          .getMany();
+        
+        seriesList.forEach(series => {
+          seriesMap.set(series.id, series);
+        });
+      }
+      
+      // 4. 组装返回数据
+      const list = paginatedData.map(item => {
+        const series = seriesMap.get(item.seriesId);
+        return {
+          id: item.seriesId, // 使用seriesId作为id
+          seriesId: item.seriesId,
+          seriesTitle: series?.title || `系列${item.seriesId}`,
+          seriesShortId: series?.shortId || '',
+          seriesCoverUrl: series?.coverUrl || '',
+          categoryName: series?.category?.name || '',
+          categoryId: series?.category?.id,
+          browseType: 'episode_watch',
+          browseTypeDesc: '观看剧集',
+          lastEpisodeNumber: item.lastEpisodeNumber,
+          lastEpisodeTitle: item.lastEpisodeNumber ? `第${item.lastEpisodeNumber}集` : null,
+          visitCount: item.visitCount,
+          lastVisitTime: DateUtil.formatDateTime(new Date(item.lastVisitTime)),
+          watchStatus: `观看至第${item.lastEpisodeNumber}集`
+        };
+      });
 
-      // 使用关联查询获取完整的系列信息和分类信息
-      const [browseHistories, queryTotal] = await this.browseHistoryRepo
-        .createQueryBuilder('bh')
-        .leftJoinAndSelect('bh.series', 'series')
-        .leftJoinAndSelect('series.category', 'category')
-        .where('bh.id IN (:...ids)', { ids: latestIds })
-        .orderBy('bh.updatedAt', 'DESC')
-        .skip(offset)
-        .take(size)
-        .getManyAndCount();
-
-      const result = {
-        list: browseHistories.map(bh => ({
-          id: bh.id,
-          seriesId: bh.seriesId,
-          seriesTitle: bh.series?.title || `系列${bh.seriesId}`, // 使用真实标题，fallback到临时标题
-          seriesShortId: bh.series?.shortId || '', // 使用真实shortId
-          seriesCoverUrl: bh.series?.coverUrl || '', // 使用真实封面URL
-          categoryName: bh.series?.category?.name || '', // 使用真实分类名称
-          categoryId: bh.series?.category?.id, // ✅ 新增：返回分类ID
-          browseType: bh.browseType,
-          browseTypeDesc: this.getBrowseTypeDescription(bh.browseType), // ✅ 新增：浏览类型描述
-          lastEpisodeNumber: bh.lastEpisodeNumber,
-          lastEpisodeTitle: bh.lastEpisodeNumber ? `第${bh.lastEpisodeNumber}集` : null, // ✅ 新增：集数标题
-          visitCount: bh.visitCount,
-          lastVisitTime: DateUtil.formatDateTime(bh.updatedAt),
-          watchStatus: this.getWatchStatus(bh.browseType, bh.lastEpisodeNumber) // ✅ 新增：观看状态
-        })),
-        total: latestIds.length, // ✅ 修正：使用去重后的总数
+      return {
+        list,
+        total,
         page,
         size,
-        hasMore: latestIds.length > page * size
+        hasMore: total > page * size
       };
-
-      // 历史记录不缓存，确保实时性
-      
-      return result;
     } catch (error: any) {
       console.error('获取浏览历史失败:', error?.message || error);
       throw new Error('获取浏览历史失败');
