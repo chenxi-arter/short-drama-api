@@ -206,6 +206,35 @@ export class InteractionController extends BaseController {
       return this.error(errMsg, 400);
     }
   }
+
+  /**
+   * 获取用户收到的最新回复消息
+   */
+  @UseGuards(JwtAuthGuard)
+  @Get('my-replies')
+  async getMyReplies(
+    @Req() req: { user?: { userId?: number } },
+    @Query('page') page?: string,
+    @Query('size') size?: string,
+  ) {
+    const userId = req.user?.userId ? Number(req.user.userId) : 0;
+    if (!userId) return this.error('未认证', 401);
+
+    try {
+      const pageNum = Math.max(parseInt(page ?? '1', 10) || 1, 1);
+      const sizeNum = Math.max(parseInt(size ?? '20', 10) || 20, 1);
+      
+      const result = await this.interactionService.getUserReceivedReplies(
+        userId,
+        pageNum,
+        sizeNum,
+      );
+      return this.success(result, '获取成功', 200);
+    } catch (error) {
+      const errMsg = error instanceof Error ? error.message : '获取失败';
+      return this.error(errMsg, 400);
+    }
+  }
 }
 
 

@@ -161,6 +161,17 @@ export class EpisodeInteractionService {
   ) {
     return this.commentService.getCommentReplies(commentId, page, size);
   }
+
+  /**
+   * 获取用户收到的最新回复消息
+   */
+  async getUserReceivedReplies(
+    userId: number,
+    page: number,
+    size: number,
+  ) {
+    return this.commentService.getUserReceivedReplies(userId, page, size);
+  }
 }
 
 

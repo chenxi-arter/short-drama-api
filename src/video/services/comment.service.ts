@@ -106,6 +106,26 @@ export class CommentService {
       }
     });
     
+    // ✅ 批量获取所有被回复用户的信息
+    const replyToUserIds = [...new Set(allReplies.map(r => r.replyToUserId).filter(Boolean))] as number[];
+    const replyToUsersMap = new Map<number, any>();
+    
+    if (replyToUserIds.length > 0) {
+      const replyToUsers = await this.commentRepo.manager
+        .getRepository('User')
+        .createQueryBuilder('user')
+        .where('user.id IN (:...ids)', { ids: replyToUserIds })
+        .getMany();
+      
+      replyToUsers.forEach((user: any) => {
+        replyToUsersMap.set(user.id, {
+          username: user.username,
+          nickname: user.nickname,
+          photoUrl: user.photo_url,
+        });
+      });
+    }
+    
     // 组装最终结果
     const formattedComments = comments.map(comment => {
       const recentReplies = repliesMap.get(comment.id) || [];
@@ -121,15 +141,23 @@ export class CommentService {
         nickname: comment.user?.nickname || null,
         photoUrl: comment.user?.photo_url || null,
         // 回复预览
-        recentReplies: recentReplies.map(reply => ({
-          id: reply.id,
-          content: reply.content,
-          floorNumber: reply.floorNumber,
-          createdAt: reply.createdAt,
-          username: reply.user?.username || null,
-          nickname: reply.user?.nickname || null,
-          photoUrl: reply.user?.photo_url || null,
-        })),
+        recentReplies: recentReplies.map(reply => {
+          const replyToUser = reply.replyToUserId ? replyToUsersMap.get(reply.replyToUserId) : null;
+          return {
+            id: reply.id,
+            content: reply.content,
+            floorNumber: reply.floorNumber,
+            createdAt: reply.createdAt,
+            username: reply.user?.username || null,
+            nickname: reply.user?.nickname || null,
+            photoUrl: reply.user?.photo_url || null,
+            // ✅ 被回复者信息
+            replyToUserId: reply.replyToUserId || null,
+            replyToUsername: replyToUser?.username || null,
+            replyToNickname: replyToUser?.nickname || null,
+            replyToPhotoUrl: replyToUser?.photoUrl || null,
+          };
+        }),
       };
     });
     
@@ -252,6 +280,26 @@ export class CommentService {
       relations: ['user'],
     });
     
+    // 3. 批量获取被回复用户的信息
+    const replyToUserIds = [...new Set(replies.map(r => r.replyToUserId).filter(Boolean))] as number[];
+    const replyToUsersMap = new Map<number, any>();
+    
+    if (replyToUserIds.length > 0) {
+      const replyToUsers = await this.commentRepo.manager
+        .getRepository('User')
+        .createQueryBuilder('user')
+        .where('user.id IN (:...ids)', { ids: replyToUserIds })
+        .getMany();
+      
+      replyToUsers.forEach((user: any) => {
+        replyToUsersMap.set(user.id, {
+          username: user.username,
+          nickname: user.nickname,
+          photoUrl: user.photo_url,
+        });
+      });
+    }
+    
     return {
       rootComment: {
         id: rootComment.id,
@@ -262,16 +310,24 @@ export class CommentService {
         replyCount: rootComment.replyCount,
         createdAt: rootComment.createdAt,
       },
-      replies: replies.map(reply => ({
-        id: reply.id,
-        parentId: reply.parentId,
-        floorNumber: reply.floorNumber,
-        content: reply.content,
-        createdAt: reply.createdAt,
-        username: reply.user?.username || null,
-        nickname: reply.user?.nickname || null,
-        photoUrl: reply.user?.photo_url || null,
-      })),
+      replies: replies.map(reply => {
+        const replyToUser = reply.replyToUserId ? replyToUsersMap.get(reply.replyToUserId) : null;
+        return {
+          id: reply.id,
+          parentId: reply.parentId,
+          floorNumber: reply.floorNumber,
+          content: reply.content,
+          createdAt: reply.createdAt,
+          username: reply.user?.username || null,
+          nickname: reply.user?.nickname || null,
+          photoUrl: reply.user?.photo_url || null,
+          // ✅ 新增：回复目标用户信息
+          replyToUserId: reply.replyToUserId || null,
+          replyToUsername: replyToUser?.username || null,
+          replyToNickname: replyToUser?.nickname || null,
+          replyToPhotoUrl: replyToUser?.photoUrl || null,
+        };
+      }),
       total,
       page,
       size,
@@ -342,6 +398,109 @@ export class CommentService {
       total,
       page,
       size,
+      totalPages: Math.ceil(total / size),
+    };
+  }
+
+  /**
+   * 获取用户收到的最新回复消息
+   * @param userId 用户ID
+   * @param page 页码
+   * @param size 每页数量
+   */
+  async getUserReceivedReplies(
+    userId: number,
+    page: number = 1,
+    size: number = 20
+  ) {
+    const skip = (page - 1) * size;
+    
+    // 查找回复给该用户的所有评论
+    const [replies, total] = await this.commentRepo.findAndCount({
+      where: { replyToUserId: userId },
+      order: { createdAt: 'DESC' },
+      skip,
+      take: size,
+      relations: ['user'],
+    });
+    
+    // 批量获取被回复的原评论信息
+    const parentIds = [...new Set(replies.map(r => r.parentId).filter(Boolean))] as number[];
+    const parentCommentsMap = new Map<number, any>();
+    
+    if (parentIds.length > 0) {
+      const parentComments = await this.commentRepo
+        .createQueryBuilder('comment')
+        .where('comment.id IN (:...ids)', { ids: parentIds })
+        .getMany();
+      
+      parentComments.forEach(comment => {
+        parentCommentsMap.set(comment.id, {
+          id: comment.id,
+          content: comment.content,
+          episodeShortId: comment.episodeShortId,
+        });
+      });
+    }
+    
+    // 批量获取剧集和系列信息
+    const episodeShortIds = [...new Set(replies.map(r => r.episodeShortId).filter(Boolean))];
+    const episodeInfoMap = new Map<string, any>();
+    
+    if (episodeShortIds.length > 0) {
+      const episodes = await this.commentRepo.manager
+        .getRepository('Episode')
+        .createQueryBuilder('episode')
+        .leftJoinAndSelect('episode.series', 'series')
+        .where('episode.shortId IN (:...shortIds)', { shortIds: episodeShortIds })
+        .getMany();
+      
+      episodes.forEach((episode: any) => {
+        episodeInfoMap.set(episode.shortId, {
+          episodeId: episode.id,
+          episodeShortId: episode.shortId,
+          episodeNumber: episode.episodeNumber,
+          episodeTitle: episode.title,
+          seriesId: episode.series?.id,
+          seriesShortId: episode.series?.shortId,
+          seriesTitle: episode.series?.title,
+          seriesCoverUrl: episode.series?.coverUrl,
+        });
+      });
+    }
+    
+    // 格式化返回数据
+    const formattedReplies = replies.map(reply => {
+      const parentComment = reply.parentId ? parentCommentsMap.get(reply.parentId) : null;
+      const episodeInfo = episodeInfoMap.get(reply.episodeShortId) || null;
+      
+      return {
+        id: reply.id,
+        content: reply.content,
+        createdAt: reply.createdAt,
+        // 剧集和系列信息
+        episodeNumber: episodeInfo?.episodeNumber || null,
+        episodeTitle: episodeInfo?.episodeTitle || null,
+        seriesShortId: episodeInfo?.seriesShortId || null,  // 用于跳转
+        seriesTitle: episodeInfo?.seriesTitle || null,
+        seriesCoverUrl: episodeInfo?.seriesCoverUrl || null,
+        // 回复者信息
+        fromUsername: reply.user?.username || null,
+        fromNickname: reply.user?.nickname || null,
+        fromPhotoUrl: reply.user?.photo_url || null,
+        // 被回复的评论信息
+        myComment: parentComment?.content || null,
+        // 楼层信息
+        floorNumber: reply.floorNumber,
+      };
+    });
+    
+    return {
+      list: formattedReplies,
+      total,
+      page,
+      size,
+      hasMore: total > page * size,
       totalPages: Math.ceil(total / size),
     };
   }

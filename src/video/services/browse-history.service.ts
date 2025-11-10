@@ -167,7 +167,7 @@ export class BrowseHistoryService {
       }
 
       // 使用关联查询获取完整的系列信息和分类信息
-      const [browseHistories] = await this.browseHistoryRepo
+      const [browseHistories, queryTotal] = await this.browseHistoryRepo
         .createQueryBuilder('bh')
         .leftJoinAndSelect('bh.series', 'series')
         .leftJoinAndSelect('series.category', 'category')
