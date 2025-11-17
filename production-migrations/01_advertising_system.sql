@@ -179,10 +179,10 @@ INSERT IGNORE INTO advertising_platforms (name, code, description, color, sort_o
 ('快手', 'kuaishou', '快手短视频平台', '#ff6600', 7, true);
 
 -- 7. 为高频查询添加复合索引
-CREATE INDEX IF NOT EXISTS idx_events_campaign_time ON advertising_events(campaign_id, event_time);
-CREATE INDEX IF NOT EXISTS idx_events_session_time ON advertising_events(session_id, event_time);
-CREATE INDEX IF NOT EXISTS idx_conversions_campaign_time ON advertising_conversions(campaign_id, conversion_time);
+CREATE INDEX idx_events_campaign_time ON advertising_events(campaign_id, event_time);
+CREATE INDEX idx_events_session_time ON advertising_events(session_id, event_time);
+CREATE INDEX idx_conversions_campaign_time ON advertising_conversions(campaign_id, conversion_time);
 
 -- 8. 为统计查询添加覆盖索引
-CREATE INDEX IF NOT EXISTS idx_events_stats ON advertising_events(campaign_id, event_type, event_time);
-CREATE INDEX IF NOT EXISTS idx_conversions_stats ON advertising_conversions(campaign_id, conversion_type, conversion_time);
+CREATE INDEX idx_events_stats ON advertising_events(campaign_id, event_type, event_time);
+CREATE INDEX idx_conversions_stats ON advertising_conversions(campaign_id, conversion_type, conversion_time);

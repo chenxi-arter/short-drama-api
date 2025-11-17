@@ -6,6 +6,9 @@ import { User } from '../../user/entity/user.entity';
 import { EpisodeReaction } from '../../video/entity/episode-reaction.entity';
 import { Favorite } from '../../user/entity/favorite.entity';
 import { Episode } from '../../video/entity/episode.entity';
+import { Series } from '../../video/entity/series.entity';
+import { Comment } from '../../video/entity/comment.entity';
+import { ExportSeriesDetailsDto, SeriesDetailData } from '../dto/export-series-details.dto';
 
 /**
  * 数据导出控制器
@@ -24,6 +27,10 @@ export class AdminExportController {
     private readonly favoriteRepo: Repository<Favorite>,
     @InjectRepository(Episode)
     private readonly episodeRepo: Repository<Episode>,
+    @InjectRepository(Series)
+    private readonly seriesRepo: Repository<Series>,
+    @InjectRepository(Comment)
+    private readonly commentRepo: Repository<Comment>,
   ) {}
 
   /**
@@ -292,6 +299,235 @@ export class AdminExportController {
         data: null,
         message: `获取用户数据失败: ${error instanceof Error ? error.message : String(error)}`,
         timestamp: new Date().toISOString(),
+      };
+    }
+  }
+
+  /**
+   * 获取系列明细数据
+   * GET /api/admin/export/series-details?startDate=2025-11-01&endDate=2025-11-17&categoryId=1
+   * 
+   * 返回每个系列在每一天的汇总统计数据
+   */
+  @Get('series-details')
+  async getSeriesDetails(@Query() query: ExportSeriesDetailsDto) {
+    try {
+      const { startDate, endDate, categoryId } = query;
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+
+      // 1. 获取所有符合条件的系列
+      const seriesQuery = this.seriesRepo
+        .createQueryBuilder('series')
+        .leftJoinAndSelect('series.category', 'category')
+        .leftJoinAndSelect('series.episodes', 'episodes')
+        .where('series.id IS NOT NULL');
+
+      if (categoryId) {
+        seriesQuery.andWhere('series.category_id = :categoryId', { categoryId });
+      }
+
+      const seriesList = await seriesQuery.getMany();
+
+      if (seriesList.length === 0) {
+        return {
+          code: 200,
+          message: 'success',
+          timestamp: new Date().toISOString(),
+          data: [],
+        };
+      }
+
+      const seriesIds = seriesList.map(s => s.id);
+      const episodeIds = seriesList.flatMap(s => s.episodes.map(e => e.id));
+
+      if (episodeIds.length === 0) {
+        return {
+          code: 200,
+          message: 'success',
+          timestamp: new Date().toISOString(),
+          data: [],
+        };
+      }
+
+      // 2. 按日期和系列统计观看进度数据
+      const watchStats = await this.wpRepo
+        .createQueryBuilder('wp')
+        .innerJoin('wp.episode', 'episode')
+        .select("DATE_FORMAT(wp.updated_at, '%Y-%m-%d')", 'date')
+        .addSelect('episode.series_id', 'seriesId')
+        .addSelect('COUNT(*)', 'playCount')
+        .addSelect('AVG(wp.stop_at_second)', 'avgDuration')
+        .addSelect(
+          'AVG(CASE WHEN wp.stop_at_second >= episode.duration * 0.9 THEN 1 ELSE 0 END)',
+          'completionRate'
+        )
+        .where('wp.updated_at BETWEEN :start AND :end', { start, end })
+        .andWhere('episode.series_id IN (:...seriesIds)', { seriesIds })
+        .groupBy('date, episode.series_id')
+        .getRawMany<{
+          date: string;
+          seriesId: number;
+          playCount: string;
+          avgDuration: string;
+          completionRate: string;
+        }>();
+
+      // 3. 按日期和系列统计点赞/踩数
+      const reactionStats = await this.reactionRepo
+        .createQueryBuilder('r')
+        .innerJoin('r.episode', 'episode')
+        .select("DATE_FORMAT(r.created_at, '%Y-%m-%d')", 'date')
+        .addSelect('episode.series_id', 'seriesId')
+        .addSelect(
+          'SUM(CASE WHEN r.reaction_type = "like" THEN 1 ELSE 0 END)',
+          'likeCount'
+        )
+        .addSelect(
+          'SUM(CASE WHEN r.reaction_type = "dislike" THEN 1 ELSE 0 END)',
+          'dislikeCount'
+        )
+        .where('r.created_at BETWEEN :start AND :end', { start, end })
+        .andWhere('episode.series_id IN (:...seriesIds)', { seriesIds })
+        .groupBy('date, episode.series_id')
+        .getRawMany<{
+          date: string;
+          seriesId: number;
+          likeCount: string;
+          dislikeCount: string;
+        }>();
+
+      // 4. 按日期和系列统计收藏数
+      const favoriteStats = await this.favoriteRepo
+        .createQueryBuilder('f')
+        .select("DATE_FORMAT(f.created_at, '%Y-%m-%d')", 'date')
+        .addSelect('f.series_id', 'seriesId')
+        .addSelect('COUNT(*)', 'favoriteCount')
+        .where('f.created_at BETWEEN :start AND :end', { start, end })
+        .andWhere('f.series_id IN (:...seriesIds)', { seriesIds })
+        .groupBy('date, f.series_id')
+        .getRawMany<{
+          date: string;
+          seriesId: number;
+          favoriteCount: string;
+        }>();
+
+      // 5. 按日期统计评论数（通过episodeShortId关联）
+      const episodeShortIds = seriesList.flatMap(s => 
+        s.episodes.map(e => e.shortId).filter(Boolean)
+      );
+
+      let commentStats: Array<{
+        date: string;
+        episodeShortId: string;
+        commentCount: string;
+      }> = [];
+
+      if (episodeShortIds.length > 0) {
+        commentStats = await this.commentRepo
+          .createQueryBuilder('c')
+          .select("DATE_FORMAT(c.created_at, '%Y-%m-%d')", 'date')
+          .addSelect('c.episode_short_id', 'episodeShortId')
+          .addSelect('COUNT(*)', 'commentCount')
+          .where('c.created_at BETWEEN :start AND :end', { start, end })
+          .andWhere('c.episode_short_id IN (:...episodeShortIds)', { episodeShortIds })
+          .groupBy('date, c.episode_short_id')
+          .getRawMany();
+      }
+
+      // 创建episodeShortId到seriesId的映射
+      const shortIdToSeriesMap = new Map<string, number>();
+      seriesList.forEach(series => {
+        series.episodes.forEach(episode => {
+          if (episode.shortId) {
+            shortIdToSeriesMap.set(episode.shortId, series.id);
+          }
+        });
+      });
+
+      // 按日期和系列聚合评论数
+      const commentStatsBySeriesMap = new Map<string, number>();
+      commentStats.forEach(stat => {
+        const seriesId = shortIdToSeriesMap.get(stat.episodeShortId);
+        if (seriesId) {
+          const key = `${stat.date}-${seriesId}`;
+          commentStatsBySeriesMap.set(
+            key,
+            (commentStatsBySeriesMap.get(key) || 0) + parseInt(stat.commentCount)
+          );
+        }
+      });
+
+      // 6. 合并所有数据
+      const resultMap = new Map<string, SeriesDetailData>();
+
+      watchStats.forEach(stat => {
+        const key = `${stat.date}-${stat.seriesId}`;
+        const series = seriesList.find(s => s.id === stat.seriesId);
+        if (!series) return;
+
+        resultMap.set(key, {
+          date: stat.date,
+          seriesId: stat.seriesId,
+          seriesTitle: series.title,
+          categoryName: series.category?.name || '未分类',
+          episodeCount: series.episodes.length,
+          playCount: parseInt(stat.playCount),
+          completionRate: parseFloat(parseFloat(stat.completionRate).toFixed(4)),
+          avgWatchDuration: Math.round(parseFloat(stat.avgDuration) || 0),
+          likeCount: 0,
+          dislikeCount: 0,
+          shareCount: 0, // 暂无分享数据
+          favoriteCount: 0,
+          commentCount: 0,
+        });
+      });
+
+      reactionStats.forEach(stat => {
+        const key = `${stat.date}-${stat.seriesId}`;
+        const data = resultMap.get(key);
+        if (data) {
+          data.likeCount = parseInt(stat.likeCount);
+          data.dislikeCount = parseInt(stat.dislikeCount);
+        }
+      });
+
+      favoriteStats.forEach(stat => {
+        const key = `${stat.date}-${stat.seriesId}`;
+        const data = resultMap.get(key);
+        if (data) {
+          data.favoriteCount = parseInt(stat.favoriteCount);
+        }
+      });
+
+      commentStatsBySeriesMap.forEach((count, key) => {
+        const data = resultMap.get(key);
+        if (data) {
+          data.commentCount = count;
+        }
+      });
+
+      // 7. 转换为数组并排序
+      const result = Array.from(resultMap.values()).sort((a, b) => {
+        if (a.date !== b.date) {
+          return b.date.localeCompare(a.date); // 日期降序
+        }
+        return b.playCount - a.playCount; // 播放量降序
+      });
+
+      return {
+        code: 200,
+        message: 'success',
+        timestamp: new Date().toISOString(),
+        data: result,
+      };
+    } catch (error) {
+      return {
+        code: 500,
+        message: `获取系列明细数据失败: ${error instanceof Error ? error.message : String(error)}`,
+        timestamp: new Date().toISOString(),
+        data: [],
       };
     }
   }

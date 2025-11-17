@@ -95,6 +95,13 @@ export class IngestSeriesDto {
   @IsNumber()
   @Min(0)
   @Max(10)
+  seriesScore?: number;
+
+  // 兼容旧字段名
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(10)
   score?: number;
 
   @IsOptional()

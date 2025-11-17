@@ -12,6 +12,7 @@
 - 幂等性：通过 `externalId` 保证。相同 `externalId` 的系列会被定位并更新。
 - 文件上传：不接收二进制文件。请先把视频/字幕上传到对象存储（OSS/CDN），将地址以 URL 的形式传入。
 - **自动初始值** 🆕：新创建的剧集会自动获得合理的初始点赞数、收藏数和播放数，让数据看起来更真实。
+- **字段兼容性** 🔄：`seriesScore` 和 `score` 字段都支持，优先使用 `seriesScore`（详见下方说明）。
 
 ---
 
@@ -32,7 +33,8 @@
   - `isCompleted` boolean 必填：系列完结状态
   - `releaseDate` string 必填：ISO日期时间（如 `2024-08-01T12:34:56Z`）
   - `status` string 可选：仅用于软删除（传 "deleted"）
-  - `score` number [0,10] 可选：评分
+  - `seriesScore` number [0,10] 可选：评分（推荐使用）
+  - `score` number [0,10] 可选：评分（兼容旧字段，优先使用 seriesScore）
   - `playCount` int ≥0 可选：播放次数
   - `starring` string 可选（主演，逗号分隔）
   - `actor` string 可选（全演员，逗号分隔）
@@ -53,6 +55,11 @@
     - `subtitleUrl` string ≤255 可选
     - `originUrl` string ≤255 必填（原站/采集来源播放地址）
 
+**字段兼容性说明**：
+- `seriesScore` 和 `score` 都支持，优先使用 `seriesScore`
+- 如果同时传入两个字段，使用 `seriesScore` 的值
+- 推荐新接入方使用 `seriesScore`，旧接入方可继续使用 `score`
+
 示例请求：
 ```json
 {
@@ -64,7 +71,7 @@
   "status": "on-going",
   "releaseDate": "2024-08-01T12:34:56Z",
   "isCompleted": false,
-  "score": 8.2,
+  "seriesScore": 8.2,
   "playCount": 0,
   "upStatus": "更新中",
   "upCount": 1,
@@ -227,6 +234,12 @@
 
 ---
 
+## 评分字段说明 🔄
+
+`score` 字段可以用 `seriesScore` 代替（推荐使用 `seriesScore`，语义更清晰）。两个字段都支持，如果同时传入，优先使用 `seriesScore`。
+
+---
+
 ## 调用建议
 
 - 文件上传：请先上传到 OSS/CDN，接口只接收 URL；`cdnUrl` 建议传加速地址。
@@ -234,5 +247,6 @@
 - 速率：建议控制在 5~10 QPS，视数据库与网络情况调整。
 - 时序：先入库 `series` 与第1批 `episodes`，后续按 `series/update` 增量补充。
 - **初始值**：新剧集会自动获得初始互动数据，无需手动设置。
+- **评分字段**：推荐使用 `seriesScore`，旧的 `score` 字段仍然兼容。
 
 

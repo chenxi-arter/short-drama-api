@@ -2,6 +2,12 @@
 
 本文件夹包含了生产环境部署时需要执行的所有SQL迁移脚本。
 
+## 环境要求
+
+- MySQL 5.7+ 或 MySQL 8.0+
+- 字符集：utf8mb4
+- 执行权限：CREATE, ALTER, INSERT, INDEX
+
 ## 📋 迁移文件执行顺序
 
 **请严格按照以下顺序执行SQL文件：**
@@ -14,12 +20,14 @@ mysql -u root -p your_database < 01_advertising_system.sql
 
 ### 2. Episode删除优化相关迁移
 ```bash
-# 2.1 修复episode相关表的外键约束
+# 2.1 修复episode相关表的外键约束（自动查找外键名称）
 mysql -u root -p your_database < 02_fix_episode_cascade_delete.sql
 
-# 2.2 修复watch_progress表的外键约束
+# 2.2 修复watch_progress表的外键约束（自动查找外键名称）
 mysql -u root -p your_database < 03_fix_watch_progress_cascade.sql
 ```
+
+**注意**：这两个脚本使用动态SQL自动查找并修改外键，无需手动指定外键名称。
 
 ## 🔍 迁移内容说明
 
