@@ -239,10 +239,11 @@ curl -X POST "http://localhost:8080/api/admin/banners/123/image-from-url" \
 资源路径: `/admin/series`
 
 - 列表（默认仅显示未删除的系列）
-  - `GET /api/admin/series?page=1&size=20&includeDeleted=false`
+  - `GET /api/admin/series?page=1&size=20&includeDeleted=false&categoryId=3`
   - 参数：
     - `includeDeleted=true` 显示所有系列（包括已删除）
     - `includeDeleted=false` 或不传：仅显示未删除系列（默认）
+    - `categoryId` number（可选）：按分类筛选，如 1-短剧、2-电影、3-电视剧
   - 响应示例：
 ```json
 {
@@ -1138,6 +1139,15 @@ curl -X GET "http://localhost:8080/api/admin/series?page=1&size=20"
 
 # 获取所有系列（包括已删除）
 curl -X GET "http://localhost:8080/api/admin/series?page=1&size=20&includeDeleted=true"
+
+# 按分类筛选系列（短剧）
+curl -X GET "http://localhost:8080/api/admin/series?page=1&size=20&categoryId=1"
+
+# 按分类筛选系列（电影）
+curl -X GET "http://localhost:8080/api/admin/series?page=1&size=20&categoryId=2"
+
+# 按分类筛选系列（电视剧）
+curl -X GET "http://localhost:8080/api/admin/series?page=1&size=20&categoryId=3"
 
 # 获取已删除系列列表
 curl -X GET "http://localhost:8080/api/admin/series/deleted?page=1&size=20"

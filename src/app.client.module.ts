@@ -6,6 +6,7 @@ import { SharedModule } from './shared/shared.module';
 import { AuthModule } from './auth/auth.module';
 import { UserModule } from './user/user.module';
 import { VideoApiModule } from './video/modules/video-api.module';
+import { AdvertisingModule } from './advertising/advertising.module';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { VideoApiModule } from './video/modules/video-api.module';
     AuthModule,
     UserModule,
     VideoApiModule,
+    AdvertisingModule,
   ],
 })
 export class ClientAppModule {}

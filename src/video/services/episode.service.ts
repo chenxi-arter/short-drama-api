@@ -266,6 +266,45 @@ export class EpisodeService {
   }
 
   /**
+   * 安全删除剧集（级联删除相关数据）
+   */
+  async deleteEpisode(episodeId: number) {
+    const episode = await this.episodeRepo.findOne({
+      where: { id: episodeId },
+      relations: ['urls', 'watchProgresses']
+    });
+    
+    if (!episode) {
+      throw new Error('剧集不存在');
+    }
+
+    // 使用事务确保数据一致性
+    await this.episodeRepo.manager.transaction(async manager => {
+      // 1. 删除所有播放地址
+      if (episode.urls && episode.urls.length > 0) {
+        await manager.delete('episode_urls', { episodeId: episodeId });
+      }
+      
+      // 2. 删除所有观看进度
+      if (episode.watchProgresses && episode.watchProgresses.length > 0) {
+        await manager.delete('watch_progress', { episodeId: episodeId });
+      }
+      
+      // 3. 删除剧集反应记录（如果存在）
+      await manager.delete('episode_reactions', { episodeId: episodeId });
+      
+      // 4. 最后删除剧集本身
+      await manager.delete('episodes', { id: episodeId });
+    });
+    
+    // 清除相关缓存
+    await this.clearEpisodeCache(episodeId.toString());
+    await this.clearAllCache();
+    
+    return { ok: true, message: '剧集及相关数据删除成功' };
+  }
+
+  /**
    * 清除剧集相关缓存
    */
   private async clearEpisodeCache(episodeId: string) {

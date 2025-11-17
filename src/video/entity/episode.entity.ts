@@ -87,15 +87,17 @@ export class Episode {
   /** 
    * 一对多关系：该集的所有播放地址 
    * 一个剧集可以有多个不同清晰度的播放地址
+   * 设置级联删除：删除剧集时自动删除相关的播放地址
    */
-  @OneToMany(() => EpisodeUrl, url => url.episode)
+  @OneToMany(() => EpisodeUrl, url => url.episode, { cascade: true, onDelete: 'CASCADE' })
   urls: EpisodeUrl[];
 
   /** 
    * 一对多关系：所有用户的观看进度 
    * 记录不同用户对该剧集的观看进度
+   * 设置级联删除：删除剧集时自动删除相关的观看进度
    */
-  @OneToMany(() => WatchProgress, wp => wp.episode)
+  @OneToMany(() => WatchProgress, wp => wp.episode, { cascade: true, onDelete: 'CASCADE' })
   watchProgresses: WatchProgress[];
 
   /** 

@@ -29,6 +29,7 @@ import { AdminExportController } from './controllers/admin-export.controller';
 // Modules
 import { VideoModule } from '../video/video.module';
 import { CoreModule } from '../core/core.module';
+import { AdvertisingModule } from '../advertising/advertising.module';
 
 // Services
 import { AnalyticsService } from './services/analytics.service';
@@ -37,6 +38,7 @@ import { AnalyticsService } from './services/analytics.service';
   imports: [
     VideoModule,
     CoreModule,
+    AdvertisingModule,
     TypeOrmModule.forFeature([
       User,
       Banner,

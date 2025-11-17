@@ -125,6 +125,7 @@ import { SearchController } from './controllers/search.controller';
     UrlService,
     FilterService,
     CommentService,
+    EpisodeService,
     SeriesService,
     CategoryService,
     IngestService,

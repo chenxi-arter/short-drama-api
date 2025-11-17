@@ -4,6 +4,7 @@ import { Repository, FindOptionsWhere, LessThanOrEqual, MoreThanOrEqual, Between
 import { Episode } from '../../video/entity/episode.entity';
 import { EpisodeUrl } from '../../video/entity/episode-url.entity';
 import { R2StorageService } from '../../core/storage/r2-storage.service';
+import { EpisodeService } from '../../video/services/episode.service';
 import { GetVideoPresignedUrlDto, VideoUploadCompleteDto } from '../dto/presigned-upload.dto';
 import { randomUUID } from 'crypto';
 
@@ -15,6 +16,7 @@ export class AdminEpisodesController {
     @InjectRepository(EpisodeUrl)
     private readonly episodeUrlRepo: Repository<EpisodeUrl>,
     private readonly storage: R2StorageService,
+    private readonly episodeService: EpisodeService,
   ) {}
 
   private normalize(raw: Record<string, unknown>): Partial<Episode> {
@@ -98,33 +100,21 @@ export class AdminEpisodesController {
     return { total, items: mappedItems, page: Number(page) || 1, size: take };
   }
 
-  @Get(':id')
-  async get(@Param('id') id: string) {
-    return this.episodeRepo.findOne({ where: { id: Number(id) }, relations: ['series', 'urls'] });
-  }
-
+  /**
+   * 创建新剧集
+   * POST /api/admin/episodes
+   */
   @Post()
   async create(@Body() body: Partial<Episode>) {
-    const entity = this.episodeRepo.create(this.normalize(body));
-    return this.episodeRepo.save(entity);
-  }
-
-  @Put(':id')
-  async update(@Param('id') id: string, @Body() body: Partial<Episode>) {
     const payload = this.normalize(body);
-    await this.episodeRepo.update({ id: Number(id) }, payload);
-    return this.episodeRepo.findOne({ where: { id: Number(id) }, relations: ['series', 'urls'] });
-  }
-
-  @Delete(':id')
-  async remove(@Param('id') id: string) {
-    await this.episodeRepo.delete({ id: Number(id) });
-    return { success: true };
+    const entity = this.episodeRepo.create(payload);
+    return this.episodeRepo.save(entity);
   }
 
   /**
    * 获取剧集下载地址
    * 返回指定剧集的所有清晰度播放地址，用于下载
+   * 注意：此路由必须在 @Get(':id') 之前
    */
   @Get(':id/download-urls')
   async getDownloadUrls(@Param('id') id: string) {
@@ -281,6 +271,57 @@ export class AdminEpisodesController {
       quality,
       fileSize,
     };
+  }
+
+  /**
+   * 更新剧集信息
+   * PUT /api/admin/episodes/:id
+   * 注意：此路由必须在 @Get(':id') 之前
+   */
+  @Put(':id')
+  async update(@Param('id') id: string, @Body() body: Partial<Episode>) {
+    const episode = await this.episodeRepo.findOne({ where: { id: Number(id) } });
+    if (!episode) {
+      throw new NotFoundException('Episode not found');
+    }
+
+    const payload = this.normalize(body);
+    await this.episodeRepo.update({ id: Number(id) }, payload);
+    
+    return this.episodeRepo.findOne({ 
+      where: { id: Number(id) }, 
+      relations: ['series', 'urls'] 
+    });
+  }
+
+  /**
+   * 删除剧集
+   * DELETE /api/admin/episodes/:id
+   * 注意：此路由必须在 @Get(':id') 之前
+   */
+  @Delete(':id')
+  async remove(@Param('id') id: string) {
+    // 使用安全删除方法，自动处理级联删除
+    const result = await this.episodeService.deleteEpisode(Number(id));
+    return result;
+  }
+
+  /**
+   * 获取单个剧集详情
+   * GET /api/admin/episodes/:id
+   */
+  @Get(':id')
+  async get(@Param('id') id: string) {
+    const episode = await this.episodeRepo.findOne({ 
+      where: { id: Number(id) }, 
+      relations: ['series', 'urls'] 
+    });
+    
+    if (!episode) {
+      throw new NotFoundException('Episode not found');
+    }
+    
+    return episode;
   }
 }
 

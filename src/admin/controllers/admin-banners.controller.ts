@@ -54,6 +54,58 @@ export class AdminBannersController {
     return { total, items, page: Number(page) || 1, size: take };
   }
 
+  /**
+   * 获取预签名上传 URL（前端直传）
+   * GET /api/admin/banners/:id/presigned-upload-url?filename=banner.jpg&contentType=image/jpeg
+   * 注意：此路由必须在 @Get(':id') 之前，否则会被 :id 路由拦截
+   */
+  @Get(':id/presigned-upload-url')
+  async getPresignedUploadUrl(
+    @Param('id') id: string,
+    @Query() query: GetPresignedUrlDto,
+  ) {
+    // 验证 Banner 是否存在
+    const banner = await this.bannerRepo.findOne({ where: { id: Number(id) } });
+    if (!banner) {
+      throw new NotFoundException('Banner not found');
+    }
+
+    const { filename, contentType } = query;
+
+    // 验证文件类型
+    const allowedImageTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
+    if (!allowedImageTypes.includes(contentType)) {
+      throw new BadRequestException('Invalid image type. Allowed: JPEG, PNG, WebP, GIF');
+    }
+
+    // 验证文件名安全性
+    if (filename.includes('..') || filename.includes('/') || filename.includes('\\')) {
+      throw new BadRequestException('Invalid filename');
+    }
+
+    // 验证文件扩展名
+    const extension = filename.split('.').pop()?.toLowerCase();
+    const allowedExtensions = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
+    if (!extension || !allowedExtensions.includes(extension)) {
+      throw new BadRequestException('Invalid file extension');
+    }
+
+    // 生成唯一文件路径
+    const fileKey = `banners/${id}/image_${randomUUID()}.${extension}`;
+
+    // 生成预签名 URL（有效期 1 小时）
+    const uploadUrl = await this.storage.generatePresignedUploadUrl(fileKey, contentType, 3600);
+    
+    // 获取公开访问 URL
+    const publicUrl = this.storage.getPublicUrl(fileKey);
+
+    return {
+      uploadUrl,
+      fileKey,
+      publicUrl,
+    };
+  }
+
   @Get(':id')
   async get(@Param('id') id: string) {
     return this.bannerRepo.findOne({ where: { id: Number(id) } });
@@ -118,57 +170,6 @@ export class AdminBannersController {
     const imageUrl = url ?? key;
     await this.bannerRepo.update({ id: Number(id) }, { imageUrl });
     return this.bannerRepo.findOne({ where: { id: Number(id) } });
-  }
-
-  /**
-   * 获取预签名上传 URL（前端直传）
-   * GET /api/admin/banners/:id/presigned-upload-url?filename=banner.jpg&contentType=image/jpeg
-   */
-  @Get(':id/presigned-upload-url')
-  async getPresignedUploadUrl(
-    @Param('id') id: string,
-    @Query() query: GetPresignedUrlDto,
-  ) {
-    // 验证 Banner 是否存在
-    const banner = await this.bannerRepo.findOne({ where: { id: Number(id) } });
-    if (!banner) {
-      throw new NotFoundException('Banner not found');
-    }
-
-    const { filename, contentType } = query;
-
-    // 验证文件类型
-    const allowedImageTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
-    if (!allowedImageTypes.includes(contentType)) {
-      throw new BadRequestException('Invalid image type. Allowed: JPEG, PNG, WebP, GIF');
-    }
-
-    // 验证文件名安全性
-    if (filename.includes('..') || filename.includes('/') || filename.includes('\\')) {
-      throw new BadRequestException('Invalid filename');
-    }
-
-    // 验证文件扩展名
-    const extension = filename.split('.').pop()?.toLowerCase();
-    const allowedExtensions = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
-    if (!extension || !allowedExtensions.includes(extension)) {
-      throw new BadRequestException('Invalid file extension');
-    }
-
-    // 生成唯一文件路径
-    const fileKey = `banners/${id}/image_${randomUUID()}.${extension}`;
-
-    // 生成预签名 URL（有效期 1 小时）
-    const uploadUrl = await this.storage.generatePresignedUploadUrl(fileKey, contentType, 3600);
-    
-    // 获取公开访问 URL
-    const publicUrl = this.storage.getPublicUrl(fileKey);
-
-    return {
-      uploadUrl,
-      fileKey,
-      publicUrl,
-    };
   }
 
   /**

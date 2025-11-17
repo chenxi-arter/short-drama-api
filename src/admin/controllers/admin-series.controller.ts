@@ -120,16 +120,29 @@ export class AdminSeriesController {
   }
 
   @Get()
-  async list(@Query('page') page = 1, @Query('size') size = 20, @Query('includeDeleted') includeDeleted?: string) {
+  async list(
+    @Query('page') page = 1, 
+    @Query('size') size = 20, 
+    @Query('includeDeleted') includeDeleted?: string,
+    @Query('categoryId') categoryId?: string
+  ) {
     const take = Math.max(Number(size) || 20, 1);
     const skip = (Math.max(Number(page) || 1, 1) - 1) * take;
     
-    const where = includeDeleted === 'true' ? {} : { isActive: 1 };
+    // 构建查询条件
+    const where: any = includeDeleted === 'true' ? {} : { isActive: 1 };
+    
+    // 如果传入了 categoryId，添加分类筛选条件
+    if (categoryId && !isNaN(Number(categoryId))) {
+      where.categoryId = Number(categoryId);
+    }
+    
     const [items, total] = await this.seriesRepo.findAndCount({ 
       skip, 
       take, 
       order: { id: 'DESC' },
-      where
+      where,
+      relations: ['category'] // 包含分类信息
     });
     return { total, items, page: Number(page) || 1, size: take };
   }
@@ -145,6 +158,96 @@ export class AdminSeriesController {
       where: { isActive: 0 }
     });
     return { total, items, page: Number(page) || 1, size: take };
+  }
+
+  /**
+   * 获取预签名上传 URL（前端直传）
+   * GET /api/admin/series/:id/presigned-upload-url?filename=cover.jpg&contentType=image/jpeg
+   * 注意：此路由必须在 @Get(':id') 之前，否则会被 :id 路由拦截
+   */
+  @Get(':id/presigned-upload-url')
+  async getPresignedUploadUrl(
+    @Param('id') id: string,
+    @Query() query: GetPresignedUrlDto,
+  ) {
+    // 验证系列是否存在
+    const series = await this.seriesRepo.findOne({ where: { id: Number(id) } });
+    if (!series) {
+      throw new NotFoundException('Series not found');
+    }
+
+    const { filename, contentType } = query;
+
+    // 验证文件类型
+    const allowedImageTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
+    if (!allowedImageTypes.includes(contentType)) {
+      throw new BadRequestException('Invalid image type. Allowed: JPEG, PNG, WebP, GIF');
+    }
+
+    // 验证文件名安全性
+    if (filename.includes('..') || filename.includes('/') || filename.includes('\\')) {
+      throw new BadRequestException('Invalid filename');
+    }
+
+    // 验证文件扩展名
+    const extension = filename.split('.').pop()?.toLowerCase();
+    const allowedExtensions = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
+    if (!extension || !allowedExtensions.includes(extension)) {
+      throw new BadRequestException('Invalid file extension');
+    }
+
+    // 生成唯一文件路径
+    const fileKey = `series/${id}/cover_${randomUUID()}.${extension}`;
+
+    // 生成预签名 URL（有效期 1 小时）
+    const uploadUrl = await this.storage.generatePresignedUploadUrl(fileKey, contentType, 3600);
+    
+    // 获取公开访问 URL
+    const publicUrl = this.storage.getPublicUrl(fileKey);
+
+    return {
+      uploadUrl,
+      fileKey,
+      publicUrl,
+    };
+  }
+
+  /**
+   * 通知后端上传完成
+   * POST /api/admin/series/:id/upload-complete
+   */
+  @Post(':id/upload-complete')
+  async uploadComplete(
+    @Param('id') id: string,
+    @Body() body: UploadCompleteDto,
+  ) {
+    const { fileKey, publicUrl } = body;
+
+    // 验证参数
+    if (!fileKey || !publicUrl) {
+      throw new BadRequestException('fileKey and publicUrl are required');
+    }
+
+    // 验证系列是否存在
+    const series = await this.seriesRepo.findOne({ where: { id: Number(id) } });
+    if (!series) {
+      throw new NotFoundException('Series not found');
+    }
+
+    // 更新系列的 coverUrl
+    await this.seriesRepo.update(
+      { id: Number(id) },
+      { 
+        coverUrl: publicUrl,
+        updatedAt: new Date(),
+      },
+    );
+
+    return {
+      success: true,
+      message: 'Cover upload completed',
+      coverUrl: publicUrl,
+    };
   }
 
   @Get(':id')
@@ -232,95 +335,6 @@ export class AdminSeriesController {
     const coverUrl = url ?? key;
     await this.seriesRepo.update({ id: Number(id) }, { coverUrl });
     return this.seriesRepo.findOne({ where: { id: Number(id) } });
-  }
-
-  /**
-   * 获取预签名上传 URL（前端直传）
-   * GET /api/admin/series/:id/presigned-upload-url?filename=cover.jpg&contentType=image/jpeg
-   */
-  @Get(':id/presigned-upload-url')
-  async getPresignedUploadUrl(
-    @Param('id') id: string,
-    @Query() query: GetPresignedUrlDto,
-  ) {
-    // 验证系列是否存在
-    const series = await this.seriesRepo.findOne({ where: { id: Number(id) } });
-    if (!series) {
-      throw new NotFoundException('Series not found');
-    }
-
-    const { filename, contentType } = query;
-
-    // 验证文件类型
-    const allowedImageTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
-    if (!allowedImageTypes.includes(contentType)) {
-      throw new BadRequestException('Invalid image type. Allowed: JPEG, PNG, WebP, GIF');
-    }
-
-    // 验证文件名安全性
-    if (filename.includes('..') || filename.includes('/') || filename.includes('\\')) {
-      throw new BadRequestException('Invalid filename');
-    }
-
-    // 验证文件扩展名
-    const extension = filename.split('.').pop()?.toLowerCase();
-    const allowedExtensions = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
-    if (!extension || !allowedExtensions.includes(extension)) {
-      throw new BadRequestException('Invalid file extension');
-    }
-
-    // 生成唯一文件路径
-    const fileKey = `series/${id}/cover_${randomUUID()}.${extension}`;
-
-    // 生成预签名 URL（有效期 1 小时）
-    const uploadUrl = await this.storage.generatePresignedUploadUrl(fileKey, contentType, 3600);
-    
-    // 获取公开访问 URL
-    const publicUrl = this.storage.getPublicUrl(fileKey);
-
-    return {
-      uploadUrl,
-      fileKey,
-      publicUrl,
-    };
-  }
-
-  /**
-   * 通知后端上传完成
-   * POST /api/admin/series/:id/upload-complete
-   */
-  @Post(':id/upload-complete')
-  async uploadComplete(
-    @Param('id') id: string,
-    @Body() body: UploadCompleteDto,
-  ) {
-    const { fileKey, publicUrl } = body;
-
-    // 验证参数
-    if (!fileKey || !publicUrl) {
-      throw new BadRequestException('fileKey and publicUrl are required');
-    }
-
-    // 验证系列是否存在
-    const series = await this.seriesRepo.findOne({ where: { id: Number(id) } });
-    if (!series) {
-      throw new NotFoundException('Series not found');
-    }
-
-    // 更新系列的 coverUrl
-    await this.seriesRepo.update(
-      { id: Number(id) },
-      { 
-        coverUrl: publicUrl,
-        updatedAt: new Date(),
-      },
-    );
-
-    return {
-      success: true,
-      message: 'Cover upload completed',
-      coverUrl: publicUrl,
-    };
   }
 }
 
