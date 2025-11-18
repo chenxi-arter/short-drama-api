@@ -29,6 +29,12 @@ mysql -u root -p your_database < 03_fix_watch_progress_cascade.sql
 
 **注意**：这两个脚本使用动态SQL自动查找并修改外键，无需手动指定外键名称。
 
+### 3. 评论系统优化
+```bash
+# 3.1 添加评论点赞数字段
+mysql -u root -p your_database < 04_add_comment_like_count.sql
+```
+
 ## 🔍 迁移内容说明
 
 ### 广告系统 (Advertising System)
@@ -45,6 +51,11 @@ mysql -u root -p your_database < 03_fix_watch_progress_cascade.sql
 - 修复 `watch_progress` 表外键约束为级联删除
 - 解决删除episode时的外键约束错误
 
+### 评论系统优化
+- 为 `comments` 表添加 `like_count` 字段
+- 用于存储评论的点赞数量
+- 默认值为 0，支持后续点赞功能开发
+
 ## ⚠️ 注意事项
 
 1. **备份数据库**：执行迁移前请务必备份生产数据库
@@ -59,6 +70,7 @@ mysql -u root -p your_database < 03_fix_watch_progress_cascade.sql
 mysql -u root -p production_db < 01_advertising_system.sql
 mysql -u root -p production_db < 02_fix_episode_cascade_delete.sql
 mysql -u root -p production_db < 03_fix_watch_progress_cascade.sql
+mysql -u root -p production_db < 04_add_comment_like_count.sql
 ```
 
 ## 📞 联系方式

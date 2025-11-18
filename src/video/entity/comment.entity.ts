@@ -67,6 +67,13 @@ export class Comment {
   replyCount: number;
 
   /** 
+   * 点赞数量
+   * 记录该评论获得的点赞总数
+   */
+  @Column({ name: 'like_count', type: 'int', default: 0 })
+  likeCount: number;
+
+  /** 
    * 评论/弹幕文字内容 
    * 用户发表的评论或弹幕的具体内容
    */
