@@ -103,7 +103,24 @@ export class BannerController {
     return { code: resp.code, msg: 'ok', success: resp.success, timestamp: resp.timestamp };
   }
 
-  // 记录点击
+  // 记录点击（新接口：使用POST body）
+  @Post('track')
+  async track(
+    @Body() body: { id: number; type: 'click' | 'impression' },
+  ): Promise<{ code: number; msg: string; success: boolean; timestamp: number; }> {
+    const { id, type } = body;
+    
+    if (type === 'click') {
+      await this.bannerService.incrementClick(id);
+    } else if (type === 'impression') {
+      await this.bannerService.incrementImpression(id);
+    }
+    
+    const resp = AdminResponseUtil.success(null as any, 'ok');
+    return { code: resp.code, msg: 'ok', success: resp.success, timestamp: resp.timestamp };
+  }
+
+  // 记录点击（旧接口：保持兼容）
   @Post(':id/click')
   async click(
     @Param('id', ParseIntPipe) id: number,

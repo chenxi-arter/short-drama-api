@@ -25,7 +25,8 @@
 - [6. 评论功能](#6-评论功能) ⭐ 更新
 - [7. 个人中心](#7-个人中心) ⭐ 更新
 - [8. 推荐流](#8-推荐流)
-- [9. 数据类型定义](#9-数据类型定义)
+- [9. 广告追踪](#9-广告追踪) ⭐ 新增
+- [10. 轮播图统计](#10-轮播图统计) ⭐ 新增
 
 ---
 
@@ -2086,6 +2087,251 @@ GET /api/video/browse-history?categoryId=1 # 只看短剧
 # 获取统计信息
 GET /api/user/favorites/stats              # 收藏统计
 GET /api/user/liked/stats                  # 点赞统计 ⭐
+```
+
+---
+
+## 9. 广告追踪
+
+### 9.1 记录访问事件
+
+**接口**: `POST /api/tracking/advertising/event`
+
+**功能**: 记录用户通过广告进入网站的访问行为
+
+**请求参数**:
+```json
+{
+  "campaignCode": "WX_20251117_8FA5D0",  // 必填，广告计划代码（从URL参数获取）
+  "eventType": "click",                   // 必填，事件类型："click"
+  "sessionId": "session_xxx",             // 必填，会话ID
+  "deviceId": "device_xxx",               // 必填，设备ID
+  "userId": 123                           // 选填，用户ID（登录后传）
+}
+```
+
+**返回数据**:
+```json
+{
+  "code": 200,
+  "message": "事件记录成功",
+  "data": {
+    "success": true,
+    "message": "事件记录成功"
+  }
+}
+```
+
+**使用示例**:
+```javascript
+// 页面加载时，从URL获取广告代码
+const campaignCode = new URLSearchParams(window.location.search).get('campaign');
+
+if (campaignCode) {
+  axios.post('/api/tracking/advertising/event', {
+    campaignCode: campaignCode,
+    eventType: 'click',
+    sessionId: getSessionId(),
+    deviceId: getDeviceId()
+  });
+}
+```
+
+---
+
+### 9.2 记录注册转化
+
+**接口**: `POST /api/tracking/advertising/conversion`
+
+**功能**: 记录用户完成注册的转化行为
+
+**请求参数**:
+```json
+{
+  "campaignCode": "WX_20251117_8FA5D0",  // 必填，广告计划代码
+  "conversionType": "register",           // 必填，转化类型："register"
+  "userId": 123,                          // 必填，用户ID
+  "sessionId": "session_xxx",             // 必填，会话ID
+  "deviceId": "device_xxx"                // 必填，设备ID
+}
+```
+
+**返回数据**:
+```json
+{
+  "code": 200,
+  "message": "转化记录成功",
+  "data": {
+    "success": true,
+    "message": "转化记录成功",
+    "conversionId": "28"
+  }
+}
+```
+
+**使用示例**:
+```javascript
+// 用户注册成功后调用
+function onRegisterSuccess(userId) {
+  const campaignCode = localStorage.getItem('campaignCode');
+  
+  if (campaignCode) {
+    axios.post('/api/tracking/advertising/conversion', {
+      campaignCode: campaignCode,
+      conversionType: 'register',
+      userId: userId,
+      sessionId: getSessionId(),
+      deviceId: getDeviceId()
+    });
+  }
+}
+```
+
+**工具函数**:
+```javascript
+// 生成会话ID
+function getSessionId() {
+  let sessionId = sessionStorage.getItem('sessionId');
+  if (!sessionId) {
+    sessionId = 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    sessionStorage.setItem('sessionId', sessionId);
+  }
+  return sessionId;
+}
+
+// 生成设备ID
+function getDeviceId() {
+  let deviceId = localStorage.getItem('deviceId');
+  if (!deviceId) {
+    deviceId = 'device_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    localStorage.setItem('deviceId', deviceId);
+  }
+  return deviceId;
+}
+```
+
+---
+
+## 10. 轮播图统计
+
+### 10.1 轮播图追踪
+
+**接口**: `POST /api/banners/track`
+
+**功能**: 统一记录轮播图的点击和曝光行为
+
+**请求参数**:
+```json
+{
+  "id": 123,              // 必填，轮播图ID
+  "type": "click"         // 必填，追踪类型："click" 或 "impression"
+}
+```
+
+**type 参数说明**:
+- `click` - 记录点击
+- `impression` - 记录曝光
+
+**返回数据**:
+```json
+{
+  "code": 200,
+  "msg": "ok",
+  "success": true,
+  "timestamp": 1700000000000
+}
+```
+
+**使用示例**:
+```javascript
+// 记录点击
+function onBannerClick(bannerId, linkUrl) {
+  axios.post('/api/banners/track', {
+    id: bannerId,
+    type: 'click'
+  }).catch(err => {
+    console.error('点击记录失败:', err);
+  });
+  
+  // 跳转到目标链接
+  if (linkUrl) {
+    window.location.href = linkUrl;
+  }
+}
+
+// 记录曝光
+function onBannerVisible(bannerId) {
+  axios.post('/api/banners/track', {
+    id: bannerId,
+    type: 'impression'
+  }).catch(err => {
+    console.error('曝光记录失败:', err);
+  });
+}
+```
+
+---
+
+### 10.2 获取活跃轮播图列表
+
+**接口**: `GET /api/banners/active/list`
+
+**功能**: 获取当前活跃的轮播图列表
+
+**请求参数**:
+```bash
+GET /api/banners/active/list?categoryId=1&limit=5
+```
+
+- `categoryId` - 可选，分类ID
+- `limit` - 可选，限制数量，默认5
+
+**返回数据**:
+```json
+{
+  "code": 200,
+  "msg": "获取成功",
+  "data": [
+    {
+      "id": 1,
+      "title": "热门推荐",
+      "imageUrl": "https://example.com/banner.jpg",
+      "linkUrl": "https://example.com/series/123",
+      "weight": 100
+    }
+  ],
+  "success": true,
+  "timestamp": 1700000000000
+}
+```
+
+**使用 Intersection Observer 自动追踪曝光**:
+```javascript
+// 避免重复记录
+const impressionRecorded = new Set();
+
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      const bannerId = parseInt(entry.target.dataset.bannerId);
+      
+      if (!impressionRecorded.has(bannerId)) {
+        impressionRecorded.add(bannerId);
+        
+        // 记录曝光
+        axios.post('/api/banners/track', {
+          id: bannerId,
+          type: 'impression'
+        }).catch(err => console.error('曝光记录失败:', err));
+      }
+    }
+  });
+}, { threshold: 0.5 }); // 50%可见时触发
+
+// 监听所有轮播图
+document.querySelectorAll('.banner-item').forEach(banner => {
+  observer.observe(banner);
+});
 ```
 
 ---

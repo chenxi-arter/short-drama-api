@@ -294,7 +294,221 @@ async function handleRegister(formData) {
 
 ---
 
-## 📌 附录：注册/登录接口说明
+## 📌 附录1：轮播图点击统计接口
+
+### 轮播图统一追踪接口
+
+**接口地址**: `POST /api/banners/track`
+
+**功能说明**: 统一记录轮播图的点击和曝光行为
+
+**请求参数**:
+```json
+{
+  "id": 123,              // 轮播图ID（必填）
+  "type": "click"         // 追踪类型（必填）："click" 或 "impression"
+}
+```
+
+**type 参数说明**:
+- `click` - 记录点击
+- `impression` - 记录曝光
+
+**响应示例**:
+```json
+{
+  "code": 200,
+  "msg": "ok",
+  "success": true,
+  "timestamp": 1700000000000
+}
+```
+
+**使用示例**:
+```javascript
+// 示例1：记录点击
+function onBannerClick(bannerId, linkUrl) {
+  axios.post('/api/banners/track', {
+    id: bannerId,
+    type: 'click'
+  }).catch(err => {
+    console.error('点击记录失败:', err);
+  });
+  
+  // 跳转到目标链接
+  if (linkUrl) {
+    window.location.href = linkUrl;
+  }
+}
+
+// 示例2：记录曝光
+function onBannerVisible(bannerId) {
+  axios.post('/api/banners/track', {
+    id: bannerId,
+    type: 'impression'
+  }).catch(err => {
+    console.error('曝光记录失败:', err);
+  });
+}
+
+// 示例3：使用 Intersection Observer 自动追踪曝光
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      const bannerId = parseInt(entry.target.dataset.bannerId);
+      onBannerVisible(bannerId);
+    }
+  });
+}, { threshold: 0.5 }); // 50%可见时触发
+
+// 监听所有轮播图
+document.querySelectorAll('.banner-item').forEach(banner => {
+  observer.observe(banner);
+});
+```
+
+---
+
+### 轮播图统计数据查询
+
+**接口地址**: `GET /api/banners/:id/stats`
+
+**功能说明**: 查询轮播图的统计数据（按日统计）
+
+**请求参数**:
+- **路径参数**:
+  - `id`: 轮播图ID（必填）
+- **查询参数**:
+  - `from`: 开始日期（格式：YYYY-MM-DD）
+  - `to`: 结束日期（格式：YYYY-MM-DD）
+
+**响应示例**:
+```json
+{
+  "code": 200,
+  "msg": "ok",
+  "data": [
+    {
+      "date": "2025-11-18",
+      "impressions": 1500,
+      "clicks": 120,
+      "ctr": 0.08
+    },
+    {
+      "date": "2025-11-17",
+      "impressions": 1200,
+      "clicks": 95,
+      "ctr": 0.079
+    }
+  ],
+  "success": true,
+  "timestamp": 1700000000000
+}
+```
+
+**使用示例**:
+```javascript
+// 查询最近7天的统计数据
+async function getBannerStats(bannerId) {
+  const to = new Date().toISOString().split('T')[0];
+  const from = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+  
+  const response = await axios.get(`/api/banners/${bannerId}/stats`, {
+    params: { from, to }
+  });
+  
+  console.log('统计数据:', response.data.data);
+  return response.data.data;
+}
+```
+
+---
+
+### 完整示例：轮播图组件
+
+```vue
+<template>
+  <div class="banner-carousel">
+    <div 
+      v-for="banner in banners" 
+      :key="banner.id"
+      :data-banner-id="banner.id"
+      class="banner-item"
+      @click="handleBannerClick(banner)"
+    >
+      <img :src="banner.imageUrl" :alt="banner.title" />
+    </div>
+  </div>
+</template>
+
+<script>
+export default {
+  data() {
+    return {
+      banners: [],
+      impressionRecorded: new Set() // 记录已曝光的轮播图
+    };
+  },
+  
+  mounted() {
+    this.loadBanners();
+    this.setupImpressionTracking();
+  },
+  
+  methods: {
+    async loadBanners() {
+      const response = await axios.get('/api/banners/active/list');
+      this.banners = response.data.data;
+    },
+    
+    handleBannerClick(banner) {
+      // 记录点击（使用新接口）
+      axios.post('/api/banners/track', {
+        id: banner.id,
+        type: 'click'
+      }).catch(err => console.error('点击记录失败:', err));
+      
+      // 跳转
+      if (banner.linkUrl) {
+        window.location.href = banner.linkUrl;
+      }
+    },
+    
+    setupImpressionTracking() {
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            const bannerId = parseInt(entry.target.dataset.bannerId);
+            
+            // 避免重复记录
+            if (!this.impressionRecorded.has(bannerId)) {
+              this.impressionRecorded.add(bannerId);
+              
+              // 记录曝光（使用新接口）
+              axios.post('/api/banners/track', {
+                id: bannerId,
+                type: 'impression'
+              }).catch(err => console.error('曝光记录失败:', err));
+            }
+          }
+        });
+      }, { threshold: 0.5 });
+      
+      // 监听所有轮播图
+      this.$nextTick(() => {
+        document.querySelectorAll('.banner-item').forEach(banner => {
+          observer.observe(banner);
+        });
+      });
+    }
+  }
+};
+</script>
+```
+
+---
+
+## 📌 附录2：注册/登录接口说明
 
 系统支持三种注册/登录方式，所有方式都会返回 `userId`，用于记录广告转化。
 

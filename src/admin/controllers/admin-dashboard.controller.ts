@@ -91,6 +91,15 @@ export class AdminDashboardController {
       .getRawOne<{ sum: string }>();
     const totalPlayCount = Number(playSumRaw?.sum ?? 0);
 
+    // 轮播图统计（总点击数和曝光数）
+    const bannerStatsRaw = await this.bannerRepo
+      .createQueryBuilder('b')
+      .select('COALESCE(SUM(b.clicks), 0)', 'totalClicks')
+      .addSelect('COALESCE(SUM(b.impressions), 0)', 'totalImpressions')
+      .getRawOne<{ totalClicks: string; totalImpressions: string }>();
+    const totalClicks = Number(bannerStatsRaw?.totalClicks ?? 0);
+    const totalImpressions = Number(bannerStatsRaw?.totalImpressions ?? 0);
+
     // 区间内的筛选数据（可用于同比/环比，先返回 count 供前端使用）
     let range: { usersInRange: number; visitsInRange: number; playActiveInRange: number } | undefined;
     if (start && end) {
@@ -120,7 +129,12 @@ export class AdminDashboardController {
       },
       series: { total: seriesTotal },
       episodes: { total: episodesTotal },
-      banners: { total: bannersTotal },
+      banners: { 
+        total: bannersTotal,
+        totalClicks,
+        totalImpressions,
+        ctr: totalImpressions > 0 ? totalClicks / totalImpressions : 0,
+      },
       comments: { total: commentsTotal, new24h: comments24h },
       plays: { totalPlayCount, last24hVisits: visits24h },
       range,

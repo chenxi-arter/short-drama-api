@@ -1326,11 +1326,145 @@ const title = episode.seriesTitle;
 
 ---
 
-## 📚 相关文档
+## � 广告投放管理
+
+### 广告计划管理
+
+资源路径: `/admin/advertising/campaigns`
+
+#### 基本操作
+
+- **获取计划列表**
+  - `GET /api/admin/advertising/campaigns?page=1&size=20`
+  - 支持筛选参数：`platform`, `status`, `keyword`, `startDate`, `endDate`
+  
+- **获取计划详情**
+  - `GET /api/admin/advertising/campaigns/:id`
+  
+- **创建计划**
+  - `POST /api/admin/advertising/campaigns`
+  - 请求体：
+  ```json
+  {
+    "name": "微信推广计划",
+    "description": "微信朋友圈广告",
+    "platform": "wechat",
+    "targetUrl": "https://example.com",
+    "budget": 10000,
+    "targetClicks": 5000,
+    "targetConversions": 500,
+    "startDate": "2025-11-01",
+    "endDate": "2025-11-30"
+  }
+  ```
+
+- **更新计划**
+  - `PUT /api/admin/advertising/campaigns/:id`
+  
+- **更新状态**
+  - `PUT /api/admin/advertising/campaigns/:id/status`
+  - 请求体：`{ "status": "active" }` 或 `{ "status": "paused" }`
+  
+- **删除计划**
+  - `DELETE /api/admin/advertising/campaigns/:id`
+
+#### 统计数据
+
+返回数据中的 `stats` 字段包含实时统计：
+
+```json
+{
+  "stats": {
+    "totalClicks": 1234,
+    "totalViews": 5678,
+    "totalConversions": 89,
+    "conversionRate": 0.0722,
+    "cost": 2468.00,
+    "cpc": 2.00,
+    "cpa": 27.73
+  }
+}
+```
+
+**字段说明**：
+- `totalClicks`: 总点击数
+- `totalViews`: 总浏览数
+- `totalConversions`: 总转化数
+- `conversionRate`: 转化率（转化数/点击数）
+- `cost`: 总成本
+- `cpc`: 单次点击成本
+- `cpa`: 单次转化成本
+
+---
+
+### 广告平台管理
+
+资源路径: `/admin/advertising/platforms`
+
+- **获取平台列表**
+  - `GET /api/admin/advertising/platforms`
+  
+- **创建平台**
+  - `POST /api/admin/advertising/platforms`
+  - 请求体：
+  ```json
+  {
+    "name": "微信",
+    "code": "wechat",
+    "description": "微信广告平台"
+  }
+  ```
+
+---
+
+## 📈 轮播图统计管理
+
+### 轮播图数据统计
+
+- **获取统计数据**
+  - `GET /api/banners/:id/stats?from=2025-11-01&to=2025-11-30`
+  - 返回按日统计的点击和曝光数据
+  
+  **返回示例**：
+  ```json
+  {
+    "code": 200,
+    "msg": "ok",
+    "data": [
+      {
+        "date": "2025-11-18",
+        "impressions": 1500,
+        "clicks": 120,
+        "ctr": 0.08
+      },
+      {
+        "date": "2025-11-17",
+        "impressions": 1200,
+        "clicks": 95,
+        "ctr": 0.079
+      }
+    ],
+    "success": true
+  }
+  ```
+
+**字段说明**：
+- `impressions`: 曝光数
+- `clicks`: 点击数
+- `ctr`: 点击率（clicks/impressions）
+
+### 轮播图管理（已有）
+
+轮播图的基本CRUD操作请参考前文 [轮播图管理 Banners](#轮播图管理-banners) 章节。
+
+---
+
+## �📚 相关文档
 
 - [剧集列表 API 增强说明](./episode-list-api-enhancement.md) - `seriesTitle` 字段详细说明
 - [系列验证接口使用指南](./series-validation-frontend-guide.md) - 数据质量检查
 - [数据分析 API 详细指南](./admin-analytics-api.md) - DAU/WAU/MAU、留存率、完播率等高级统计
 - [API 变更文档](./api-changes-documentation.md) - 完整的 API 变更历史
+- [广告投放管理指南](./admin-advertising-guide.md) - 广告系统完整使用说明 ⭐ 新增
 
 
