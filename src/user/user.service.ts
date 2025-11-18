@@ -244,11 +244,34 @@ export class UserService {
       console.log('分配默认头像:', photoUrl);
     }
     
+    // 生成默认昵称：优先使用 first_name + last_name，其次使用 username，最后生成 "用户xxxx"
+    const generateDefaultNickname = (): string => {
+      // 1. 优先使用 first_name + last_name
+      const firstName = userData.first_name?.trim() || '';
+      const lastName = userData.last_name?.trim() || '';
+      const fullName = [firstName, lastName].filter(Boolean).join(' ');
+      
+      if (fullName) {
+        return fullName;
+      }
+      
+      // 2. 如果有 Telegram username，使用它（去掉 @ 符号）
+      const tgUsername = userData.username?.trim();
+      if (tgUsername) {
+        return tgUsername.startsWith('@') ? tgUsername.slice(1) : tgUsername;
+      }
+      
+      // 3. 最后生成 "用户" + 后4位ID
+      const shortId = String(userData.id).slice(-4);
+      return `用户${shortId}`;
+    };
+    
     const user = this.userRepo.create({
       telegram_id: userData.id, // 使用Telegram ID
       first_name: userData.first_name,
       last_name: userData.last_name || '',
       username: userData.username || telegramUsername, // 使用tg+用户ID格式
+      nickname: generateDefaultNickname(), // 自动生成默认昵称
       photo_url: photoUrl, // Telegram头像或默认头像
       is_active: true,
     });
