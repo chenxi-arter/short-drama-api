@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, SelectQueryBuilder } from 'typeorm';
-import { AdvertisingCampaign, AdvertisingPlatform, CampaignStatus } from '../entity';
+import { AdvertisingCampaign, AdvertisingPlatform, AdvertisingEvent, AdvertisingConversion, CampaignStatus, EventType } from '../entity';
 import { CreateCampaignDto, UpdateCampaignDto, UpdateCampaignStatusDto, CampaignQueryDto, CampaignListResponseDto, CampaignResponseDto } from '../dto';
 import { CampaignUtils } from '../utils/campaign-utils';
 import { PlatformService } from './platform.service';
@@ -13,6 +13,10 @@ export class CampaignService {
     private campaignRepository: Repository<AdvertisingCampaign>,
     @InjectRepository(AdvertisingPlatform)
     private platformRepository: Repository<AdvertisingPlatform>,
+    @InjectRepository(AdvertisingEvent)
+    private eventRepository: Repository<AdvertisingEvent>,
+    @InjectRepository(AdvertisingConversion)
+    private conversionRepository: Repository<AdvertisingConversion>,
     private platformService: PlatformService,
   ) {}
 
@@ -191,16 +195,8 @@ export class CampaignService {
   }
 
   private async transformToResponseDto(campaign: AdvertisingCampaign): Promise<CampaignResponseDto> {
-    // TODO: 获取统计数据
-    const stats = {
-      totalClicks: 0,
-      totalViews: 0,
-      totalConversions: 0,
-      conversionRate: 0,
-      cost: 0,
-      cpc: 0,
-      cpa: 0,
-    };
+    // 实时计算统计数据
+    const stats = await this.calculateCampaignStats(campaign.id);
 
     return {
       id: campaign.id,
@@ -220,6 +216,49 @@ export class CampaignService {
       createdBy: campaign.createdBy,
       createdAt: campaign.createdAt,
       updatedAt: campaign.updatedAt,
+    };
+  }
+
+  private async calculateCampaignStats(campaignId: number) {
+    // 统计点击数
+    const totalClicks = await this.eventRepository.count({
+      where: {
+        campaignId,
+        eventType: EventType.CLICK,
+      },
+    });
+
+    // 统计浏览数
+    const totalViews = await this.eventRepository.count({
+      where: {
+        campaignId,
+        eventType: EventType.VIEW,
+      },
+    });
+
+    // 统计转化数
+    const totalConversions = await this.conversionRepository.count({
+      where: {
+        campaignId,
+      },
+    });
+
+    // 计算转化率
+    const conversionRate = totalClicks > 0 ? totalConversions / totalClicks : 0;
+
+    // 计算成本指标（假设CPC为2元）
+    const cpc = 2.0;
+    const cost = totalClicks * cpc;
+    const cpa = totalConversions > 0 ? cost / totalConversions : 0;
+
+    return {
+      totalClicks,
+      totalViews,
+      totalConversions,
+      conversionRate: parseFloat(conversionRate.toFixed(4)),
+      cost: parseFloat(cost.toFixed(2)),
+      cpc: parseFloat(cpc.toFixed(2)),
+      cpa: parseFloat(cpa.toFixed(2)),
     };
   }
 }
