@@ -7,8 +7,15 @@ import { ValidationError } from 'class-validator';
 import { AdminAppModule } from './app.admin.module';
 import { DateUtil } from './common/utils/date.util';
 import { Request, Response, NextFunction } from 'express';
+import { LEGAL_DISCLAIMER } from './common/constants/legal.constants';
 
 async function bootstrap() {
+  // 启动时输出法律免责声明
+  console.log('\n' + '='.repeat(80));
+  console.log('法律免责声明 / Legal Disclaimer');
+  console.log('='.repeat(80));
+  console.log(LEGAL_DISCLAIMER.DEVELOPER_STATEMENT);
+  console.log('='.repeat(80) + '\n');
   const app = await NestFactory.create(AdminAppModule);
 
   app.setGlobalPrefix('api');

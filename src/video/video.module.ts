@@ -6,6 +6,7 @@ import { Episode } from './entity/episode.entity';             // 单集视频�
 import { EpisodeUrl } from './entity/episode-url.entity';      // 视频播放地址实体
 import { EpisodeReaction } from './entity/episode-reaction.entity'; // 剧集点赞点踩实体
 import { Comment } from './entity/comment.entity';             // 用户评论实体
+import { CommentLike } from './entity/comment-like.entity';    // 评论点赞实体
 import { WatchProgress } from './entity/watch-progress.entity';// 观看进度记录实体
 import { BrowseHistory } from './entity/browse-history.entity';// 浏览记录实体
 import { Category } from './entity/category.entity';           // 视频分类实体
@@ -21,6 +22,7 @@ import { CacheMonitorController } from './cache-monitor.controller'; // 缓存�
 import { VideoApiModule } from './modules/video-api.module';
 import { WatchProgressService } from './services/watch-progress.service';
 import { CommentService } from './services/comment.service';
+import { CommentLikeService } from './services/comment-like.service';
 import { FakeCommentService } from './services/fake-comment.service';
 import { EpisodeService } from './services/episode.service';
 import { CategoryService } from './services/category.service';
@@ -66,6 +68,7 @@ import { SearchController } from './controllers/search.controller';
       EpisodeUrl,     // 视频播放地址数据表
       EpisodeReaction,// 剧集点赞点踩数据表
       Comment,        // 评论数据表
+      CommentLike,    // 评论点赞数据表
       WatchProgress,  // 用户观看进度数据表
       Category,       // 分类目录数据表
       ShortVideo,     // 短视频数据表
@@ -96,6 +99,7 @@ import { SearchController } from './controllers/search.controller';
     WatchProgressService,
     FakeCommentService,  // ← 移到 CommentService 之前
     CommentService,
+    CommentLikeService,
     EpisodeService,
     EpisodeInteractionService,
     CategoryService,

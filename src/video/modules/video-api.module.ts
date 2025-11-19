@@ -10,6 +10,7 @@ import { BannerController } from '../controllers/banner.controller';
 // 新增的专门控制器
 import { ProgressController } from '../controllers/progress.controller';
 import { CommentController } from '../controllers/comment.controller';
+import { CommentLikeController } from '../controllers/comment-like.controller';
 import { UrlController } from '../controllers/url.controller';
 import { ContentController } from '../controllers/content.controller';
 import { InteractionController } from '../controllers/interaction.controller';
@@ -18,6 +19,7 @@ import { CompatBrowseHistoryController } from '../controllers/compat-browse-hist
 import { RecommendController } from '../controllers/recommend.controller';
 import { VideoService } from '../video.service';
 import { CommentService } from '../services/comment.service';
+import { CommentLikeService } from '../services/comment-like.service';
 import { FakeCommentService } from '../services/fake-comment.service';
 import { PlaybackService } from '../services/playback.service';
 import { ContentService } from '../services/content.service';
@@ -47,6 +49,7 @@ import { Episode } from '../entity/episode.entity';
 import { EpisodeUrl } from '../entity/episode-url.entity';
 import { EpisodeReaction } from '../entity/episode-reaction.entity';
 import { Comment } from '../entity/comment.entity';
+import { CommentLike } from '../entity/comment-like.entity';
 import { WatchProgress } from '../entity/watch-progress.entity';
 import { Category } from '../entity/category.entity';
 import { ShortVideo } from '../entity/short-video.entity';
@@ -64,7 +67,7 @@ import { SeriesGenreOption } from '../entity/series-genre-option.entity';
     BannerModule,
     // HistoryModule,
     TypeOrmModule.forFeature([
-      Series, Episode, EpisodeUrl, EpisodeReaction, Comment, WatchProgress, Category, ShortVideo, Banner, FilterType, FilterOption,
+      Series, Episode, EpisodeUrl, EpisodeReaction, Comment, CommentLike, WatchProgress, Category, ShortVideo, Banner, FilterType, FilterOption,
       SeriesGenreOption
     ]),
     forwardRef(() => import('../../user/user.module').then(m => m.UserModule)),
@@ -83,6 +86,7 @@ import { SeriesGenreOption } from '../entity/series-genre-option.entity';
     // 新增的专门控制器
     ProgressController,
     CommentController,
+    CommentLikeController,
     UrlController,
     ContentController,
     // PublicBrowseHistoryController,
@@ -111,6 +115,7 @@ import { SeriesGenreOption } from '../entity/series-genre-option.entity';
     IngestService,
     FakeCommentService,  // 必须在 CommentService 之前
     CommentService,
+    CommentLikeService,
     RecommendService,
     AppLoggerService,
     AppConfigService,

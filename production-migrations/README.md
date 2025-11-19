@@ -33,6 +33,9 @@ mysql -u root -p your_database < 03_fix_watch_progress_cascade.sql
 ```bash
 # 3.1 添加评论点赞数字段
 mysql -u root -p your_database < 04_add_comment_like_count.sql
+
+# 3.2 创建评论点赞记录表
+mysql -u root -p your_database < 05_add_comment_likes.sql
 ```
 
 ## 🔍 迁移内容说明
@@ -55,6 +58,9 @@ mysql -u root -p your_database < 04_add_comment_like_count.sql
 - 为 `comments` 表添加 `like_count` 字段
 - 用于存储评论的点赞数量
 - 默认值为 0，支持后续点赞功能开发
+- 创建 `comment_likes` 表 - 评论点赞记录
+- 记录用户对评论的点赞关系
+- 支持级联删除和防重复点赞
 
 ## ⚠️ 注意事项
 
@@ -71,6 +77,7 @@ mysql -u root -p production_db < 01_advertising_system.sql
 mysql -u root -p production_db < 02_fix_episode_cascade_delete.sql
 mysql -u root -p production_db < 03_fix_watch_progress_cascade.sql
 mysql -u root -p production_db < 04_add_comment_like_count.sql
+mysql -u root -p production_db < 05_add_comment_likes.sql
 ```
 
 ## 📞 联系方式

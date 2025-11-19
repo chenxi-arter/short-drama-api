@@ -6,6 +6,7 @@ import { Cache } from 'cache-manager';
 import { Comment } from '../entity/comment.entity';
 import { Episode } from '../entity/episode.entity';
 import { FakeCommentService } from './fake-comment.service';
+import { CommentLikeService } from './comment-like.service';
 
 /**
  * 评论管理服务
@@ -21,6 +22,7 @@ export class CommentService {
     @Inject(CACHE_MANAGER)
     private readonly cacheManager: Cache,
     private readonly fakeCommentService: FakeCommentService,
+    private readonly commentLikeService: CommentLikeService,
   ) {}
 
   /**
@@ -50,12 +52,14 @@ export class CommentService {
   /**
    * 获取剧集的主楼评论列表（带回复预览）
    * 优化版：批量查询，避免 N+1 问题
+   * @param userId 可选，用于查询用户的点赞状态
    */
   async getCommentsByEpisodeShortId(
     episodeShortId: string,
     page: number = 1,
     size: number = 20,
-    replyPreviewCount: number = 2
+    replyPreviewCount: number = 2,
+    userId?: number
   ) {
     const skip = (page - 1) * size;
     
@@ -126,6 +130,19 @@ export class CommentService {
       });
     }
     
+    // 批量查询用户的点赞状态（如果提供了 userId）
+    let likedCommentsMap = new Map<number, boolean>();
+    let likedRepliesMap = new Map<number, boolean>();
+    
+    if (userId) {
+      const allCommentIds = [
+        ...commentIds,
+        ...allReplies.map(r => r.id)
+      ];
+      likedCommentsMap = await this.commentLikeService.batchCheckLiked(userId, allCommentIds);
+      likedRepliesMap = likedCommentsMap; // 同一个 Map，包含所有评论和回复
+    }
+    
     // 组装最终结果
     const formattedComments = comments.map(comment => {
       const recentReplies = repliesMap.get(comment.id) || [];
@@ -136,6 +153,7 @@ export class CommentService {
         appearSecond: comment.appearSecond,
         replyCount: comment.replyCount,
         likeCount: comment.likeCount || 0,
+        liked: userId ? (likedCommentsMap.get(comment.id) || false) : undefined,
         createdAt: comment.createdAt,
         // 用户信息
         username: comment.user?.username || null,
@@ -149,6 +167,7 @@ export class CommentService {
             content: reply.content,
             floorNumber: reply.floorNumber,
             likeCount: reply.likeCount || 0,
+            liked: userId ? (likedRepliesMap.get(reply.id) || false) : undefined,
             createdAt: reply.createdAt,
             username: reply.user?.username || null,
             nickname: reply.user?.nickname || null,
@@ -256,11 +275,13 @@ export class CommentService {
 
   /**
    * 获取某条评论的所有回复
+   * @param userId 可选，用于查询用户的点赞状态
    */
   async getCommentReplies(
     commentId: number,
     page: number = 1,
     size: number = 20,
+    userId?: number
   ) {
     // 1. 获取主楼信息
     const rootComment = await this.commentRepo.findOne({
@@ -303,6 +324,13 @@ export class CommentService {
       });
     }
     
+    // 4. 批量查询用户的点赞状态（如果提供了 userId）
+    let likedMap = new Map<number, boolean>();
+    if (userId) {
+      const allCommentIds = [commentId, ...replies.map(r => r.id)];
+      likedMap = await this.commentLikeService.batchCheckLiked(userId, allCommentIds);
+    }
+    
     return {
       rootComment: {
         id: rootComment.id,
@@ -312,6 +340,7 @@ export class CommentService {
         photoUrl: rootComment.user?.photo_url || null,
         replyCount: rootComment.replyCount,
         likeCount: rootComment.likeCount || 0,
+        liked: userId ? (likedMap.get(commentId) || false) : undefined,
         createdAt: rootComment.createdAt,
       },
       replies: replies.map(reply => {
@@ -322,6 +351,7 @@ export class CommentService {
           floorNumber: reply.floorNumber,
           content: reply.content,
           likeCount: reply.likeCount || 0,
+          liked: userId ? (likedMap.get(reply.id) || false) : undefined,
           createdAt: reply.createdAt,
           username: reply.user?.username || null,
           nickname: reply.user?.nickname || null,

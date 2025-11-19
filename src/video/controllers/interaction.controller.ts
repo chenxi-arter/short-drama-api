@@ -3,6 +3,7 @@ import { BaseController } from '../controllers/base.controller';
 import { EpisodeInteractionService, EpisodeReactionType } from '../services/episode-interaction.service';
 import { EpisodeService } from '../services/episode.service';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { OptionalJwtAuthGuard } from '../../auth/guards/optional-jwt-auth.guard';
 import { VideoService } from '../video.service';
 import { FavoriteService } from '../../user/services/favorite.service';
 
@@ -184,9 +185,12 @@ export class InteractionController extends BaseController {
 
   /**
    * 获取某条评论的所有回复
+   * 公开接口，但支持可选认证以返回用户点赞状态
    */
+  @UseGuards(OptionalJwtAuthGuard)
   @Get('comments/:commentId/replies')
   async getCommentReplies(
+    @Req() req,
     @Param('commentId') commentId: string,
     @Query('page') page?: string,
     @Query('size') size?: string,
@@ -195,10 +199,14 @@ export class InteractionController extends BaseController {
       const pageNum = Math.max(parseInt(page ?? '1', 10) || 1, 1);
       const sizeNum = Math.max(parseInt(size ?? '20', 10) || 20, 1);
       
+      // 获取用户ID（如果已登录）
+      const userId = req.user?.userId;
+      
       const result = await this.interactionService.getCommentReplies(
         parseInt(commentId, 10),
         pageNum,
         sizeNum,
+        userId,
       );
       return this.success(result, '获取成功', 200);
     } catch (error) {

@@ -158,8 +158,9 @@ export class EpisodeInteractionService {
     commentId: number,
     page: number,
     size: number,
+    userId?: number,
   ) {
-    return this.commentService.getCommentReplies(commentId, page, size);
+    return this.commentService.getCommentReplies(commentId, page, size, userId);
   }
 
   /**
