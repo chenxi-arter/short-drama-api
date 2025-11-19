@@ -2,10 +2,9 @@ import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, CreateDa
 import { Series } from './series.entity';
 import { FilterOption } from './filter-option.entity';
 
-@Unique('uq_series_option', ['seriesId', 'optionId'])
-@Index('idx_series', ['seriesId'])
-@Index('idx_option', ['optionId'])
 @Entity('series_genre_options')
+@Unique('uq_series_option', ['seriesId', 'optionId'])
+@Index('idx_option', ['optionId'])
 export class SeriesGenreOption {
   @PrimaryGeneratedColumn({ name: 'id' })
   id: number;

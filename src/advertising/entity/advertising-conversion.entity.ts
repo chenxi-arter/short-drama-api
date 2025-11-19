@@ -9,12 +9,8 @@ export enum ConversionType {
 }
 
 @Entity('advertising_conversions')
-@Index(['campaignId'])
 @Index(['campaignCode'])
-@Index(['conversionType'])
 @Index(['userId'])
-@Index(['conversionTime'])
-@Index(['createdAt'])
 export class AdvertisingConversion {
   @PrimaryGeneratedColumn({ type: 'bigint' })
   id: number;

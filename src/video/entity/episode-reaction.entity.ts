@@ -1,8 +1,11 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, CreateDateColumn, UpdateDateColumn, Index, Unique } from 'typeorm';
 import { User } from '../../user/entity/user.entity';
 import { Episode } from './episode.entity';
 
 @Entity('episode_reactions')
+@Unique('idx_user_episode', ['userId', 'episodeId'])
+@Index(['episodeId'])
+@Index(['reactionType'])
 export class EpisodeReaction {
   @PrimaryGeneratedColumn({ name: 'id' })
   id: number;

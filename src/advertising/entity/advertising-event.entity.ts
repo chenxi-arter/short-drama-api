@@ -11,14 +11,9 @@ export enum EventType {
 }
 
 @Entity('advertising_events')
-@Index(['campaignId'])
 @Index(['campaignCode'])
-@Index(['eventType'])
-@Index(['eventTime'])
 @Index(['userId'])
-@Index(['sessionId'])
 @Index(['deviceId'])
-@Index(['createdAt'])
 export class AdvertisingEvent {
   @PrimaryGeneratedColumn({ type: 'bigint' })
   id: number;
