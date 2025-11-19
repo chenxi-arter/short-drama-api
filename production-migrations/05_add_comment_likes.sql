@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS `comment_likes` (
   `id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
   `user_id` BIGINT NOT NULL COMMENT '点赞用户ID',
   `comment_id` INT NOT NULL COMMENT '评论ID',
-  `created_at` DATETIME(6) NOT NULL DEF                                             爱知县AULT CURRENT_TIMESTAMP(6) COMMENT '点赞时间',
+  `created_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) COMMENT '点赞时间',
   
   -- 索引
   INDEX `idx_user_id` (`user_id`),
