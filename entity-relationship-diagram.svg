@@ -1,312 +1,312 @@
-<svg width="1600" height="1200" xmlns="http://www.w3.org/2000/svg">
+<svg width="2000" height="1400" xmlns="http://www.w3.org/2000/svg">
   <defs>
     <style>
-      .entity-box {
-        fill: #f8f9fa;
-        stroke: #343a40;
-        stroke-width: 2;
-        rx: 8;
-      }
-      .entity-title {
-        font-family: 'Arial', sans-serif;
-        font-size: 14px;
-        font-weight: bold;
-        fill: #495057;
-        text-anchor: middle;
-      }
-      .field-text {
-        font-family: 'Arial', sans-serif;
-        font-size: 11px;
-        fill: #6c757d;
-      }
-      .primary-key {
-        fill: #dc3545;
-        font-weight: bold;
-      }
-      .foreign-key {
-        fill: #007bff;
-      }
-      .relationship-line {
-        stroke: #6c757d;
-        stroke-width: 2;
-        fill: none;
-      }
-      .relationship-text {
-        font-family: 'Arial', sans-serif;
-        font-size: 10px;
-        fill: #495057;
-        text-anchor: middle;
-      }
-      .new-feature {
-        fill: #28a745;
-        font-weight: bold;
-      }
+      .entity-box { fill: #ffffff; stroke: #2c3e50; stroke-width: 2; rx: 6; }
+      .entity-title { font-family: 'Segoe UI', Arial, sans-serif; font-size: 15px; font-weight: bold; fill: #2c3e50; }
+      .field-text { font-family: 'Consolas', 'Monaco', monospace; font-size: 11px; fill: #34495e; }
+      .pk { fill: #e74c3c; font-weight: bold; }
+      .fk { fill: #3498db; }
+      .relation-line { stroke: #95a5a6; stroke-width: 1.5; fill: none; marker-end: url(#arrow); }
+      .relation-text { font-family: Arial, sans-serif; font-size: 10px; fill: #7f8c8d; text-anchor: middle; }
+      .section-bg { fill: #ecf0f1; stroke: #bdc3c7; stroke-width: 1; rx: 4; }
     </style>
+    <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#95a5a6" />
+    </marker>
   </defs>
-  
+
   <!-- 标题 -->
-  <text x="800" y="30" class="entity-title" style="font-size: 18px;">短剧API系统 - 实体关系图 (v2.0)</text>
-  <text x="800" y="50" class="field-text" style="text-anchor: middle; fill: #28a745;">✨ 新增：点赞点踩、收藏功能、浏览历史</text>
+  <text x="1000" y="30" style="font-size: 22px; font-weight: bold; fill: #2c3e50; text-anchor: middle;">短剧API系统 - 完整数据库实体关系图</text>
+  <text x="1000" y="52" style="font-size: 13px; fill: #7f8c8d; text-anchor: middle;">Database Entity Relationship Diagram - Complete Version (v2.1)</text>
+
+  <!-- ========== 第一行：核心实体 ========== -->
   
-  <!-- User 实体 -->
-  <rect x="50" y="80" width="200" height="140" class="entity-box"/>
-  <text x="150" y="100" class="entity-title">User (用户)</text>
-  <text x="60" y="120" class="field-text primary-key">• id: bigint (用户ID)</text>
-  <text x="60" y="135" class="field-text">• uuid: varchar(36) (UUID标识)</text>
-  <text x="60" y="150" class="field-text">• first_name: varchar(255) (名字)</text>
-  <text x="60" y="165" class="field-text">• last_name: varchar(255) (姓氏)</text>
-  <text x="60" y="180" class="field-text">• username: varchar(255) (用户名)</text>
-  <text x="60" y="195" class="field-text">• is_active: boolean (是否激活)</text>
-  <text x="60" y="210" class="field-text">• created_at: timestamp (创建时间)</text>
+  <!-- User -->
+  <rect x="50" y="80" width="280" height="280" class="entity-box"/>
+  <rect x="50" y="80" width="280" height="30" class="section-bg"/>
+  <text x="190" y="100" class="entity-title">👤 User (用户)</text>
+  <text x="60" y="125" class="field-text pk">▸ id: BIGINT PRIMARY KEY</text>
+  <text x="60" y="142" class="field-text">  uuid: VARCHAR(36) UNIQUE</text>
+  <text x="60" y="159" class="field-text">  telegram_id: BIGINT UNIQUE</text>
+  <text x="60" y="176" class="field-text">  username: VARCHAR(255)</text>
+  <text x="60" y="193" class="field-text">  first_name: VARCHAR(255)</text>
+  <text x="60" y="210" class="field-text">  last_name: VARCHAR(255)</text>
+  <text x="60" y="227" class="field-text">  email: VARCHAR(255)</text>
+  <text x="60" y="244" class="field-text">  password_hash: VARCHAR(255)</text>
+  <text x="60" y="261" class="field-text">  photo_url: TEXT</text>
+  <text x="60" y="278" class="field-text">  is_active: BOOLEAN DEFAULT TRUE</text>
+  <text x="60" y="295" class="field-text">  language_code: VARCHAR(10)</text>
+  <text x="60" y="312" class="field-text">  created_at: TIMESTAMP</text>
+  <text x="60" y="329" class="field-text">  updated_at: TIMESTAMP</text>
+  <text x="60" y="346" class="field-text">  last_login_at: TIMESTAMP</text>
+
+  <!-- Category -->
+  <rect x="370" y="80" width="280" height="220" class="entity-box"/>
+  <rect x="370" y="80" width="280" height="30" class="section-bg"/>
+  <text x="510" y="100" class="entity-title">📁 Category (分类)</text>
+  <text x="380" y="125" class="field-text pk">▸ id: INT PRIMARY KEY AUTO_INCREMENT</text>
+  <text x="380" y="142" class="field-text">  category_id: VARCHAR(50) UNIQUE</text>
+  <text x="380" y="159" class="field-text">  name: VARCHAR(50) NOT NULL</text>
+  <text x="380" y="176" class="field-text">  type: INT</text>
+  <text x="380" y="193" class="field-text">  index: INT</text>
+  <text x="380" y="210" class="field-text">  route_name: VARCHAR(50)</text>
+  <text x="380" y="227" class="field-text">  style_type: INT</text>
+  <text x="380" y="244" class="field-text">  is_enabled: BOOLEAN DEFAULT TRUE</text>
+  <text x="380" y="261" class="field-text">  created_at: TIMESTAMP</text>
+  <text x="380" y="278" class="field-text">  updated_at: TIMESTAMP</text>
+
+  <!-- Series -->
+  <rect x="690" y="80" width="300" height="340" class="entity-box"/>
+  <rect x="690" y="80" width="300" height="30" class="section-bg"/>
+  <text x="840" y="100" class="entity-title">🎬 Series (剧集系列)</text>
+  <text x="700" y="125" class="field-text pk">▸ id: INT PRIMARY KEY AUTO_INCREMENT</text>
+  <text x="700" y="142" class="field-text">  uuid: VARCHAR(36) UNIQUE</text>
+  <text x="700" y="159" class="field-text">  short_id: VARCHAR(11) UNIQUE</text>
+  <text x="700" y="176" class="field-text">  title: VARCHAR(255) NOT NULL</text>
+  <text x="700" y="193" class="field-text">  description: TEXT</text>
+  <text x="700" y="210" class="field-text">  cover_url: VARCHAR(255)</text>
+  <text x="700" y="227" class="field-text fk">  category_id: INT</text>
+  <text x="700" y="244" class="field-text">  total_episodes: INT DEFAULT 0</text>
+  <text x="700" y="261" class="field-text">  score: FLOAT</text>
+  <text x="700" y="278" class="field-text">  play_count: INT DEFAULT 0</text>
+  <text x="700" y="295" class="field-text">  starring: TEXT</text>
+  <text x="700" y="312" class="field-text">  actor: TEXT</text>
+  <text x="700" y="329" class="field-text">  director: VARCHAR(255)</text>
+  <text x="700" y="346" class="field-text">  release_date: DATE</text>
+  <text x="700" y="363" class="field-text">  is_active: BOOLEAN DEFAULT TRUE</text>
+  <text x="700" y="380" class="field-text">  created_at: TIMESTAMP</text>
+  <text x="700" y="397" class="field-text">  updated_at: TIMESTAMP</text>
+  <text x="700" y="414" class="field-text">  deleted_at: TIMESTAMP NULL</text>
+
+  <!-- Episode -->
+  <rect x="1030" y="80" width="300" height="340" class="entity-box"/>
+  <rect x="1030" y="80" width="300" height="30" class="section-bg"/>
+  <text x="1180" y="100" class="entity-title">📺 Episode (剧集)</text>
+  <text x="1040" y="125" class="field-text pk">▸ id: INT PRIMARY KEY AUTO_INCREMENT</text>
+  <text x="1040" y="142" class="field-text">  uuid: VARCHAR(36) UNIQUE</text>
+  <text x="1040" y="159" class="field-text">  short_id: VARCHAR(11) UNIQUE</text>
+  <text x="1040" y="176" class="field-text fk">  series_id: INT NOT NULL</text>
+  <text x="1040" y="193" class="field-text">  episode_number: INT NOT NULL</text>
+  <text x="1040" y="210" class="field-text">  title: VARCHAR(255)</text>
+  <text x="1040" y="227" class="field-text">  description: TEXT</text>
+  <text x="1040" y="244" class="field-text">  video_url: VARCHAR(255)</text>
+  <text x="1040" y="261" class="field-text">  cover_url: VARCHAR(255)</text>
+  <text x="1040" y="278" class="field-text">  duration: INT</text>
+  <text x="1040" y="295" class="field-text">  status: VARCHAR(20)</text>
+  <text x="1040" y="312" class="field-text">  play_count: INT DEFAULT 0</text>
+  <text x="1040" y="329" class="field-text">  access_key: VARCHAR(64)</text>
+  <text x="1040" y="346" class="field-text">  like_count: INT DEFAULT 0</text>
+  <text x="1040" y="363" class="field-text">  dislike_count: INT DEFAULT 0</text>
+  <text x="1040" y="380" class="field-text">  created_at: TIMESTAMP</text>
+  <text x="1040" y="397" class="field-text">  updated_at: TIMESTAMP</text>
+  <text x="1040" y="414" class="field-text">  deleted_at: TIMESTAMP NULL</text>
+
+  <!-- ========== 第二行：评论系统 ========== -->
   
-  <!-- Category 实体 -->
-  <rect x="300" y="80" width="220" height="160" class="entity-box"/>
-  <text x="410" y="100" class="entity-title">Category (分类)</text>
-  <text x="310" y="120" class="field-text primary-key">• id: int (分类ID)</text>
-  <text x="310" y="135" class="field-text">• category_id: varchar(50) (分类标识)</text>
-  <text x="310" y="150" class="field-text">• name: varchar(50) (分类名称)</text>
-  <text x="310" y="165" class="field-text">• type: int (分类类型)</text>
-  <text x="310" y="180" class="field-text">• index: int (排序索引)</text>
-  <text x="310" y="195" class="field-text">• route_name: varchar(50) (路由名称)</text>
-  <text x="310" y="210" class="field-text">• style_type: int (样式类型)</text>
-  <text x="310" y="225" class="field-text">• is_enabled: boolean (是否启用)</text>
+  <!-- Comment -->
+  <rect x="50" y="460" width="300" height="280" class="entity-box"/>
+  <rect x="50" y="460" width="300" height="30" class="section-bg"/>
+  <text x="200" y="480" class="entity-title">💬 Comment (评论)</text>
+  <text x="60" y="505" class="field-text pk">▸ id: INT PRIMARY KEY AUTO_INCREMENT</text>
+  <text x="60" y="522" class="field-text fk">  user_id: BIGINT NOT NULL</text>
+  <text x="60" y="539" class="field-text fk">  episode_id: INT NOT NULL</text>
+  <text x="60" y="556" class="field-text">  content: TEXT NOT NULL</text>
+  <text x="60" y="573" class="field-text">  appear_second: INT</text>
+  <text x="60" y="590" class="field-text">  parent_id: INT NULL</text>
+  <text x="60" y="607" class="field-text">  reply_to_user_id: BIGINT NULL</text>
+  <text x="60" y="624" class="field-text">  floor_number: INT</text>
+  <text x="60" y="641" class="field-text">  like_count: INT DEFAULT 0</text>
+  <text x="60" y="658" class="field-text">  reply_count: INT DEFAULT 0</text>
+  <text x="60" y="675" class="field-text">  is_deleted: BOOLEAN DEFAULT FALSE</text>
+  <text x="60" y="692" class="field-text">  created_at: TIMESTAMP</text>
+  <text x="60" y="709" class="field-text">  updated_at: TIMESTAMP</text>
+  <text x="60" y="726" class="field-text">  deleted_at: TIMESTAMP NULL</text>
+
+  <!-- CommentLikes -->
+  <rect x="390" y="460" width="300" height="180" class="entity-box"/>
+  <rect x="390" y="460" width="300" height="30" class="section-bg"/>
+  <text x="540" y="480" class="entity-title">👍 CommentLikes (评论点赞)</text>
+  <text x="400" y="505" class="field-text pk">▸ id: INT PRIMARY KEY AUTO_INCREMENT</text>
+  <text x="400" y="522" class="field-text fk">  user_id: BIGINT NOT NULL</text>
+  <text x="400" y="539" class="field-text fk">  comment_id: INT NOT NULL</text>
+  <text x="400" y="556" class="field-text">  created_at: DATETIME(6)</text>
+  <text x="400" y="573" class="field-text">  </text>
+  <text x="400" y="590" class="field-text">  UNIQUE KEY (user_id, comment_id)</text>
+  <text x="400" y="607" class="field-text">  INDEX idx_user_id (user_id)</text>
+  <text x="400" y="624" class="field-text">  INDEX idx_comment_id (comment_id)</text>
+
+  <!-- ========== 第三行：交互实体 ========== -->
   
-  <!-- Series 实体 -->
-  <rect x="570" y="80" width="280" height="240" class="entity-box"/>
-  <text x="710" y="100" class="entity-title">Series (剧集系列)</text>
-  <text x="580" y="120" class="field-text primary-key">• id: int (系列ID)</text>
-  <text x="580" y="135" class="field-text">• uuid: varchar(36) (UUID标识)</text>
-  <text x="580" y="150" class="field-text">• title: varchar(255) (标题)</text>
-  <text x="580" y="165" class="field-text">• description: text (简介)</text>
-  <text x="580" y="180" class="field-text">• cover_url: varchar(255) (封面地址)</text>
-  <text x="580" y="195" class="field-text">• total_episodes: int (总集数)</text>
-  <text x="580" y="210" class="field-text foreign-key">• category_id: int (分类ID)</text>
-  <text x="580" y="225" class="field-text">• score: float (评分)</text>
-  <text x="580" y="240" class="field-text">• play_count: int (播放次数)</text>
-  <text x="580" y="255" class="field-text">• starring: text (主演)</text>
-  <text x="580" y="270" class="field-text">• actor: text (演员)</text>
-  <text x="580" y="285" class="field-text">• director: varchar(255) (导演)</text>
-  <text x="580" y="300" class="field-text">• release_date: date (发布日期)</text>
-  <text x="580" y="315" class="field-text">• short_id: varchar(11) (短ID)</text>
-  <text x="580" y="330" class="field-text">• is_active: boolean (是否激活)</text>
+  <!-- EpisodeReactions -->
+  <rect x="730" y="460" width="300" height="200" class="entity-box"/>
+  <rect x="730" y="460" width="300" height="30" class="section-bg"/>
+  <text x="880" y="480" class="entity-title">⚡ EpisodeReactions (剧集反应)</text>
+  <text x="740" y="505" class="field-text pk">▸ id: INT PRIMARY KEY AUTO_INCREMENT</text>
+  <text x="740" y="522" class="field-text fk">  user_id: BIGINT NOT NULL</text>
+  <text x="740" y="539" class="field-text fk">  episode_id: INT NOT NULL</text>
+  <text x="740" y="556" class="field-text">  reaction_type: VARCHAR(20)</text>
+  <text x="740" y="573" class="field-text">    ('like' | 'dislike')</text>
+  <text x="740" y="590" class="field-text">  created_at: DATETIME(6)</text>
+  <text x="740" y="607" class="field-text">  updated_at: DATETIME(6)</text>
+  <text x="740" y="624" class="field-text">  </text>
+  <text x="740" y="641" class="field-text">  UNIQUE KEY (user_id, episode_id)</text>
+
+  <!-- Favorites -->
+  <rect x="1070" y="460" width="300" height="200" class="entity-box"/>
+  <rect x="1070" y="460" width="300" height="30" class="section-bg"/>
+  <text x="1220" y="480" class="entity-title">⭐ Favorites (收藏)</text>
+  <text x="1080" y="505" class="field-text pk">▸ id: INT PRIMARY KEY AUTO_INCREMENT</text>
+  <text x="1080" y="522" class="field-text fk">  user_id: BIGINT NOT NULL</text>
+  <text x="1080" y="539" class="field-text fk">  series_id: INT NOT NULL</text>
+  <text x="1080" y="556" class="field-text">  episode_id: INT NULL</text>
+  <text x="1080" y="573" class="field-text">  favorite_type: VARCHAR(20)</text>
+  <text x="1080" y="590" class="field-text">  created_at: DATETIME(6)</text>
+  <text x="1080" y="607" class="field-text">  updated_at: DATETIME(6)</text>
+  <text x="1080" y="624" class="field-text">  </text>
+  <text x="1080" y="641" class="field-text">  UNIQUE KEY (user_id, series_id)</text>
+
+  <!-- WatchProgress -->
+  <rect x="1410" y="460" width="300" height="180" class="entity-box"/>
+  <rect x="1410" y="460" width="300" height="30" class="section-bg"/>
+  <text x="1560" y="480" class="entity-title">⏯️ WatchProgress (观看进度)</text>
+  <text x="1420" y="505" class="field-text pk">▸ user_id: BIGINT</text>
+  <text x="1420" y="522" class="field-text pk">▸ episode_id: INT</text>
+  <text x="1420" y="539" class="field-text">  stop_at_second: INT DEFAULT 0</text>
+  <text x="1420" y="556" class="field-text">  total_duration: INT</text>
+  <text x="1420" y="573" class="field-text">  updated_at: TIMESTAMP</text>
+  <text x="1420" y="590" class="field-text">  </text>
+  <text x="1420" y="607" class="field-text">  PRIMARY KEY (user_id, episode_id)</text>
+
+  <!-- BrowseHistory -->
+  <rect x="50" y="780" width="320" height="240" class="entity-box"/>
+  <rect x="50" y="780" width="320" height="30" class="section-bg"/>
+  <text x="210" y="800" class="entity-title">📊 BrowseHistory (浏览历史)</text>
+  <text x="60" y="825" class="field-text pk">▸ id: INT PRIMARY KEY AUTO_INCREMENT</text>
+  <text x="60" y="842" class="field-text fk">  user_id: BIGINT NOT NULL</text>
+  <text x="60" y="859" class="field-text fk">  series_id: INT NOT NULL</text>
+  <text x="60" y="876" class="field-text">  browse_type: VARCHAR(50)</text>
+  <text x="60" y="893" class="field-text">  last_episode_number: INT</text>
+  <text x="60" y="910" class="field-text">  visit_count: INT DEFAULT 1</text>
+  <text x="60" y="927" class="field-text">  user_agent: VARCHAR(500)</text>
+  <text x="60" y="944" class="field-text">  ip_address: VARCHAR(45)</text>
+  <text x="60" y="961" class="field-text">  created_at: DATETIME(6)</text>
+  <text x="60" y="978" class="field-text">  updated_at: DATETIME(6)</text>
+  <text x="60" y="995" class="field-text">  </text>
+  <text x="60" y="1012" class="field-text">  INDEX idx_user_series (user_id, series_id)</text>
+
+  <!-- RefreshToken -->
+  <rect x="410" y="780" width="320" height="240" class="entity-box"/>
+  <rect x="410" y="780" width="320" height="30" class="section-bg"/>
+  <text x="570" y="800" class="entity-title">🔑 RefreshToken (刷新令牌)</text>
+  <text x="420" y="825" class="field-text pk">▸ id: INT PRIMARY KEY AUTO_INCREMENT</text>
+  <text x="420" y="842" class="field-text fk">  user_id: BIGINT NOT NULL</text>
+  <text x="420" y="859" class="field-text">  token: VARCHAR(255) UNIQUE</text>
+  <text x="420" y="876" class="field-text">  expires_at: TIMESTAMP</text>
+  <text x="420" y="893" class="field-text">  is_revoked: BOOLEAN DEFAULT FALSE</text>
+  <text x="420" y="910" class="field-text">  device_info: VARCHAR(500)</text>
+  <text x="420" y="927" class="field-text">  ip_address: VARCHAR(45)</text>
+  <text x="420" y="944" class="field-text">  user_agent: VARCHAR(500)</text>
+  <text x="420" y="961" class="field-text">  created_at: TIMESTAMP</text>
+  <text x="420" y="978" class="field-text">  updated_at: TIMESTAMP</text>
+  <text x="420" y="995" class="field-text">  </text>
+  <text x="420" y="1012" class="field-text">  INDEX idx_user_id (user_id)</text>
+
+  <!-- ========== 关系线 ========== -->
   
-  <!-- Episode 实体 -->
-  <rect x="890" y="80" width="240" height="200" class="entity-box"/>
-  <text x="1010" y="100" class="entity-title">Episode (剧集)</text>
-  <text x="900" y="120" class="field-text primary-key">• id: int (剧集ID)</text>
-  <text x="900" y="135" class="field-text">• uuid: varchar(36) (UUID标识)</text>
-  <text x="900" y="150" class="field-text foreign-key">• series_id: int (系列ID)</text>
-  <text x="900" y="165" class="field-text">• episode_number: int (集数编号)</text>
-  <text x="900" y="180" class="field-text">• title: varchar(255) (标题)</text>
-  <text x="900" y="195" class="field-text">• duration: int (时长)</text>
-  <text x="900" y="210" class="field-text">• status: varchar (状态)</text>
-  <text x="900" y="225" class="field-text">• play_count: int (播放次数)</text>
-  <text x="900" y="240" class="field-text">• short_id: varchar(11) (短ID)</text>
-  <text x="900" y="255" class="field-text">• access_key: varchar(64) (访问密钥)</text>
-  <text x="900" y="270" class="field-text">• like_count: int (点赞数)</text>
-  <text x="900" y="285" class="field-text">• dislike_count: int (点踩数)</text>
-  <text x="900" y="300" class="field-text">• favorite_count: int (收藏数)</text>
+  <!-- Category -> Series -->
+  <path d="M 650 190 L 690 190" class="relation-line"/>
+  <text x="670" y="185" class="relation-text">1:N</text>
+
+  <!-- Series -> Episode -->
+  <path d="M 990 250 L 1030 250" class="relation-line"/>
+  <text x="1010" y="245" class="relation-text">1:N</text>
+
+  <!-- User -> Comment -->
+  <path d="M 190 360 L 190 460" class="relation-line"/>
+  <text x="205" y="410" class="relation-text">1:N</text>
+
+  <!-- Episode -> Comment -->
+  <path d="M 1180 420 L 1180 600 L 350 600" class="relation-line"/>
+  <text x="765" y="595" class="relation-text">1:N</text>
+
+  <!-- User -> CommentLikes -->
+  <path d="M 330 300 L 540 300 L 540 460" class="relation-line"/>
+  <text x="435" y="295" class="relation-text">1:N</text>
+
+  <!-- Comment -> CommentLikes -->
+  <path d="M 350 550 L 390 550" class="relation-line"/>
+  <text x="370" y="545" class="relation-text">1:N</text>
+
+  <!-- User -> EpisodeReactions -->
+  <path d="M 330 280 L 880 280 L 880 460" class="relation-line"/>
+  <text x="605" y="275" class="relation-text">1:N</text>
+
+  <!-- Episode -> EpisodeReactions -->
+  <path d="M 1180 420 L 1180 450 L 880 450 L 880 460" class="relation-line"/>
+  <text x="1030" y="445" class="relation-text">1:N</text>
+
+  <!-- User -> Favorites -->
+  <path d="M 330 260 L 1220 260 L 1220 460" class="relation-line"/>
+  <text x="775" y="255" class="relation-text">1:N</text>
+
+  <!-- Series -> Favorites -->
+  <path d="M 990 300 L 1220 300 L 1220 460" class="relation-line"/>
+  <text x="1105" y="295" class="relation-text">1:N</text>
+
+  <!-- User -> WatchProgress -->
+  <path d="M 330 240 L 1560 240 L 1560 460" class="relation-line"/>
+  <text x="945" y="235" class="relation-text">1:N</text>
+
+  <!-- Episode -> WatchProgress -->
+  <path d="M 1330 350 L 1560 350 L 1560 460" class="relation-line"/>
+  <text x="1445" y="345" class="relation-text">1:N</text>
+
+  <!-- User -> BrowseHistory -->
+  <path d="M 190 360 L 190 700 L 210 700 L 210 780" class="relation-line"/>
+  <text x="205" y="570" class="relation-text">1:N</text>
+
+  <!-- Series -> BrowseHistory -->
+  <path d="M 840 420 L 840 700 L 210 700 L 210 780" class="relation-line"/>
+  <text x="525" y="695" class="relation-text">1:N</text>
+
+  <!-- User -> RefreshToken -->
+  <path d="M 190 360 L 190 720 L 570 720 L 570 780" class="relation-line"/>
+  <text x="380" y="715" class="relation-text">1:N</text>
+
+  <!-- ========== 图例 ========== -->
+  <rect x="770" y="780" width="950" height="240" fill="#f8f9fa" stroke="#dee2e6" stroke-width="2" rx="8"/>
+  <text x="1245" y="810" style="font-size: 18px; font-weight: bold; fill: #2c3e50; text-anchor: middle;">数据库设计说明 Database Design Notes</text>
   
-  <!-- EpisodeUrl 实体 -->
-  <rect x="1180" y="80" width="240" height="160" class="entity-box"/>
-  <text x="1300" y="100" class="entity-title">EpisodeUrl (剧集播放地址)</text>
-  <text x="1190" y="120" class="field-text primary-key">• id: int (地址ID)</text>
-  <text x="1190" y="135" class="field-text foreign-key">• episode_id: int (剧集ID)</text>
-  <text x="1190" y="150" class="field-text">• quality: varchar(50) (清晰度)</text>
-  <text x="1190" y="165" class="field-text">• oss_url: varchar(255) (OSS地址)</text>
-  <text x="1190" y="180" class="field-text">• cdn_url: varchar(255) (CDN地址)</text>
-  <text x="1190" y="195" class="field-text">• subtitle_url: varchar(255) (字幕地址)</text>
-  <text x="1190" y="210" class="field-text">• access_key: varchar(64) (访问密钥)</text>
-  <text x="1190" y="225" class="field-text">• created_at: timestamp (创建时间)</text>
+  <text x="790" y="840" style="font-size: 13px; font-weight: bold; fill: #2c3e50;">字段说明 Field Types:</text>
+  <text x="790" y="860" class="field-text pk">▸ 红色：主键 (Primary Key)</text>
+  <text x="790" y="877" class="field-text fk">▸ 蓝色：外键 (Foreign Key)</text>
+  <text x="790" y="894" class="field-text">▸ 黑色：普通字段 (Regular Field)</text>
   
-  <!-- WatchProgress 实体 -->
-  <rect x="300" y="320" width="220" height="120" class="entity-box"/>
-  <text x="410" y="340" class="entity-title">WatchProgress (观看进度)</text>
-  <text x="310" y="360" class="field-text primary-key">• user_id: bigint (用户ID)</text>
-  <text x="310" y="375" class="field-text primary-key">• episode_id: int (剧集ID)</text>
-  <text x="310" y="390" class="field-text">• stop_at_second: int (停止秒数)</text>
-  <text x="310" y="405" class="field-text">• updated_at: timestamp (更新时间)</text>
-  
-  <!-- Comment 实体 -->
-  <rect x="570" y="400" width="220" height="140" class="entity-box"/>
-  <text x="680" y="420" class="entity-title">Comment (评论/弹幕)</text>
-  <text x="580" y="440" class="field-text primary-key">• id: int (评论ID)</text>
-  <text x="580" y="455" class="field-text foreign-key">• user_id: bigint (用户ID)</text>
-  <text x="580" y="470" class="field-text foreign-key">• episode_id: int (剧集ID)</text>
-  <text x="580" y="485" class="field-text">• content: text (内容)</text>
-  <text x="580" y="500" class="field-text">• appear_second: int (出现秒数)</text>
-  <text x="580" y="515" class="field-text">• created_at: timestamp (创建时间)</text>
-  <text x="580" y="530" class="field-text">• parent_id: int (父评论ID)</text>
-  
-  <!-- RefreshToken 实体 -->
-  <rect x="50" y="270" width="200" height="140" class="entity-box"/>
-  <text x="150" y="290" class="entity-title">RefreshToken (刷新令牌)</text>
-  <text x="60" y="310" class="field-text primary-key">• id: int (令牌ID)</text>
-  <text x="60" y="325" class="field-text foreign-key">• user_id: bigint (用户ID)</text>
-  <text x="60" y="340" class="field-text">• token: varchar(255) (令牌值)</text>
-  <text x="60" y="355" class="field-text">• expires_at: timestamp (过期时间)</text>
-  <text x="60" y="370" class="field-text">• is_revoked: boolean (是否撤销)</text>
-  <text x="60" y="385" class="field-text">• device_info: varchar(500) (设备信息)</text>
-  <text x="60" y="400" class="field-text">• ip_address: varchar(45) (IP地址)</text>
-  
-  <!-- ShortVideo 实体 -->
-  <rect x="890" y="320" width="220" height="160" class="entity-box"/>
-  <text x="1000" y="340" class="entity-title">ShortVideo (短视频)</text>
-  <text x="900" y="360" class="field-text primary-key">• id: int (短视频ID)</text>
-  <text x="900" y="375" class="field-text">• uuid: varchar(36) (UUID标识)</text>
-  <text x="900" y="390" class="field-text">• title: varchar(255) (标题)</text>
-  <text x="900" y="405" class="field-text">• description: text (简介)</text>
-  <text x="900" y="420" class="field-text">• cover_url: varchar(255) (封面地址)</text>
-  <text x="900" y="435" class="field-text">• video_url: varchar(255) (视频地址)</text>
-  <text x="900" y="450" class="field-text">• duration: int (时长)</text>
-  <text x="900" y="465" class="field-text foreign-key">• category_id: int (分类ID)</text>
-  
-  <!-- EpisodeReactions 实体 (新增) -->
-  <rect x="50" y="500" width="240" height="140" class="entity-box"/>
-  <text x="170" y="520" class="entity-title new-feature">EpisodeReactions (点赞点踩) ✨</text>
-  <text x="60" y="540" class="field-text primary-key">• id: int (反应ID)</text>
-  <text x="60" y="555" class="field-text foreign-key">• user_id: bigint (用户ID)</text>
-  <text x="60" y="570" class="field-text foreign-key">• episode_id: int (剧集ID)</text>
-  <text x="60" y="585" class="field-text">• reaction_type: varchar(20) (反应类型)</text>
-  <text x="60" y="600" class="field-text">• created_at: datetime(6) (创建时间)</text>
-  <text x="60" y="615" class="field-text">• updated_at: datetime(6) (更新时间)</text>
-  <text x="60" y="630" class="field-text">• UNIQUE(user_id, episode_id)</text>
-  
-  <!-- Favorites 实体 (新增) -->
-  <rect x="330" y="500" width="240" height="160" class="entity-box"/>
-  <text x="450" y="520" class="entity-title new-feature">Favorites (收藏) ✨</text>
-  <text x="340" y="540" class="field-text primary-key">• id: int (收藏ID)</text>
-  <text x="340" y="555" class="field-text foreign-key">• user_id: bigint (用户ID)</text>
-  <text x="340" y="570" class="field-text foreign-key">• series_id: int (系列ID)</text>
-  <text x="340" y="585" class="field-text">• episode_id: int (剧集ID，可选)</text>
-  <text x="340" y="600" class="field-text">• favorite_type: varchar(20) (收藏类型)</text>
-  <text x="340" y="615" class="field-text">• created_at: datetime(6) (收藏时间)</text>
-  <text x="340" y="630" class="field-text">• updated_at: datetime(6) (更新时间)</text>
-  <text x="340" y="645" class="field-text">• UNIQUE(user_id, series_id, episode_id)</text>
-  
-  <!-- BrowseHistory 实体 (新增) -->
-  <rect x="610" y="500" width="240" height="160" class="entity-box"/>
-  <text x="730" y="520" class="entity-title new-feature">BrowseHistory (浏览历史) ✨</text>
-  <text x="620" y="540" class="field-text primary-key">• id: int (历史ID)</text>
-  <text x="620" y="555" class="field-text foreign-key">• user_id: bigint (用户ID)</text>
-  <text x="620" y="570" class="field-text foreign-key">• series_id: int (系列ID)</text>
-  <text x="620" y="585" class="field-text">• browse_type: varchar(50) (浏览类型)</text>
-  <text x="620" y="600" class="field-text">• last_episode_number: int (最后集数)</text>
-  <text x="620" y="615" class="field-text">• visit_count: int (访问次数)</text>
-  <text x="620" y="630" class="field-text">• user_agent: varchar(500) (用户代理)</text>
-  <text x="620" y="645" class="field-text">• ip_address: varchar(45) (IP地址)</text>
-  <text x="620" y="660" class="field-text">• created_at: datetime(6) (创建时间)</text>
-  
-  <!-- 关系线 -->
-  <!-- User -> RefreshToken (1:N) -->
-  <path d="M 150 220 L 150 270" class="relationship-line"/>
-  <text x="160" y="245" class="relationship-text">1:N</text>
-  
-  <!-- User -> WatchProgress (1:N) -->
-  <path d="M 250 150 L 300 150 L 300 360" class="relationship-line"/>
-  <text x="275" y="145" class="relationship-text">1:N</text>
-  
-  <!-- User -> Comment (1:N) -->
-  <path d="M 250 130 L 580 130 L 580 455" class="relationship-line"/>
-  <text x="415" y="125" class="relationship-text">1:N</text>
-  
-  <!-- User -> EpisodeReactions (1:N) -->
-  <path d="M 250 110 L 50 110 L 50 540" class="relationship-line"/>
-  <text x="150" y="105" class="relationship-text">1:N</text>
-  
-  <!-- User -> Favorites (1:N) -->
-  <path d="M 250 120 L 330 120 L 330 555" class="relationship-line"/>
-  <text x="290" y="115" class="relationship-text">1:N</text>
-  
-  <!-- User -> BrowseHistory (1:N) -->
-  <path d="M 250 125 L 610 125 L 610 555" class="relationship-line"/>
-  <text x="430" y="120" class="relationship-text">1:N</text>
-  
-  <!-- Category -> Series (1:N) -->
-  <path d="M 520 160 L 570 160" class="relationship-line"/>
-  <text x="545" y="155" class="relationship-text">1:N</text>
-  
-  <!-- Category -> ShortVideo (1:N) -->
-  <path d="M 520 200 L 890 200 L 890 465" class="relationship-line"/>
-  <text x="705" y="195" class="relationship-text">1:N</text>
-  
-  <!-- Series -> Episode (1:N) -->
-  <path d="M 850 160 L 890 160" class="relationship-line"/>
-  <text x="870" y="155" class="relationship-text">1:N</text>
-  
-  <!-- Series -> Favorites (1:N) -->
-  <path d="M 710 320 L 450 320 L 450 570" class="relationship-line"/>
-  <text x="580" y="315" class="relationship-text">1:N</text>
-  
-  <!-- Series -> BrowseHistory (1:N) -->
-  <path d="M 710 340 L 730 340 L 730 570" class="relationship-line"/>
-  <text x="720" y="335" class="relationship-text">1:N</text>
-  
-  <!-- Episode -> EpisodeUrl (1:N) -->
-  <path d="M 1130 160 L 1180 160" class="relationship-line"/>
-  <text x="1155" y="155" class="relationship-text">1:N</text>
-  
-  <!-- Episode -> WatchProgress (1:N) -->
-  <path d="M 890 200 L 520 200 L 520 375" class="relationship-line"/>
-  <text x="705" y="195" class="relationship-text">1:N</text>
-  
-  <!-- Episode -> Comment (1:N) -->
-  <path d="M 890 180 L 790 180 L 790 470" class="relationship-line"/>
-  <text x="840" y="175" class="relationship-text">1:N</text>
-  
-  <!-- Episode -> EpisodeReactions (1:N) -->
-  <path d="M 890 140 L 290 140 L 290 570" class="relationship-line"/>
-  <text x="590" y="135" class="relationship-text">1:N</text>
-  
-  <!-- Episode -> Favorites (1:N) -->
-  <path d="M 890 160 L 570 160 L 570 585" class="relationship-line"/>
-  <text x="730" y="155" class="relationship-text">1:N</text>
-  
-  <!-- Comment -> Comment (自关联，回复) -->
-  <path d="M 680 540 L 680 560 L 700 560 L 700 540" class="relationship-line"/>
-  <text x="690" y="550" class="relationship-text">1:N</text>
-  
-  <!-- 图例 -->
-  <rect x="50" y="700" width="350" height="140" fill="#f8f9fa" stroke="#dee2e6" stroke-width="1" rx="5"/>
-  <text x="225" y="720" class="entity-title">图例说明</text>
-  <text x="60" y="740" class="field-text primary-key">• 红色文字：主键字段</text>
-  <text x="60" y="755" class="field-text foreign-key">• 蓝色文字：外键字段</text>
-  <text x="60" y="770" class="field-text">• 灰色文字：普通字段</text>
-  <text x="60" y="785" class="field-text new-feature">• 绿色文字：新增功能</text>
-  <text x="60" y="800" class="relationship-text">• 1:N 表示一对多关系</text>
-  <text x="60" y="815" class="relationship-text">• 线条连接表示实体间的关联关系</text>
-  <text x="60" y="830" class="relationship-text">• ✨ 标记表示v2.0新增功能</text>
-  
-  <!-- 系统说明 -->
-  <rect x="450" y="700" width="600" height="200" fill="#f8f9fa" stroke="#dee2e6" stroke-width="1" rx="5"/>
-  <text x="750" y="720" class="entity-title">系统架构说明 (v2.0)</text>
-  <text x="460" y="740" class="field-text">• User: 用户实体，支持Telegram登录，存储用户基本信息</text>
-  <text x="460" y="755" class="field-text">• Category: 分类管理，支持视频和短视频的分类</text>
-  <text x="460" y="770" class="field-text">• Series: 剧集系列，包含多个Episode，支持评分、主演、演员信息</text>
-  <text x="460" y="785" class="field-text">• Episode: 单集内容，属于某个Series，支持点赞点踩计数</text>
-  <text x="460" y="800" class="field-text">• EpisodeUrl: 剧集播放地址，支持多清晰度和访问控制</text>
-  <text x="460" y="815" class="field-text">• WatchProgress: 观看进度记录，支持断点续播</text>
-  <text x="460" y="830" class="field-text">• Comment: 评论和弹幕系统，支持回复功能</text>
-  <text x="460" y="845" class="field-text">• RefreshToken: JWT刷新令牌管理，支持多设备登录</text>
-  <text x="460" y="860" class="field-text">• ShortVideo: 独立短视频内容</text>
-  <text x="460" y="875" class="field-text new-feature">• EpisodeReactions: 用户对剧集的点赞点踩记录 ✨</text>
-  <text x="460" y="890" class="field-text new-feature">• Favorites: 用户收藏表，支持系列和单集收藏 ✨</text>
-  <text x="460" y="905" class="field-text new-feature">• BrowseHistory: 用户浏览历史记录，支持访问统计 ✨</text>
-  
-  <!-- 新增功能说明 -->
-  <rect x="1100" y="700" width="400" height="200" fill="#e8f5e8" stroke="#28a745" stroke-width="2" rx="5"/>
-  <text x="1300" y="720" class="entity-title new-feature">v2.0 新增功能</text>
-  <text x="1110" y="740" class="field-text new-feature">🎯 点赞点踩系统：</text>
-  <text x="1110" y="755" class="field-text">   • 用户可对剧集点赞/点踩</text>
-  <text x="1110" y="770" class="field-text">   • 互斥操作，一个用户只能有一种反应</text>
-  <text x="1110" y="785" class="field-text">   • 实时统计点赞点踩数量</text>
-  <text x="1110" y="800" class="field-text new-feature">⭐ 收藏系统：</text>
-  <text x="1110" y="815" class="field-text">   • 收藏针对系列，不是单集</text>
-  <text x="1110" y="830" class="field-text">   • 收藏系列后，该系列所有集都显示已收藏</text>
-  <text x="1110" y="845" class="field-text">   • 支持收藏列表和统计</text>
-  <text x="1110" y="860" class="field-text new-feature">📊 浏览历史：</text>
-  <text x="1110" y="875" class="field-text">   • 记录用户浏览行为</text>
-  <text x="1110" y="890" class="field-text">   • 支持访问次数统计</text>
-  <text x="1110" y="905" class="field-text">   • 优化推荐算法</text>
-  
+  <text x="790" y="924" style="font-size: 13px; font-weight: bold; fill: #2c3e50;">索引设计 Indexes:</text>
+  <text x="790" y="944" class="field-text">• 所有外键字段都有索引</text>
+  <text x="790" y="961" class="field-text">• 唯一约束防止重复数据</text>
+  <text x="790" y="978" class="field-text">• 联合索引优化查询性能</text>
+  <text x="790" y="995" class="field-text">• 软删除使用 deleted_at 字段</text>
+
+  <text x="1100" y="840" style="font-size: 13px; font-weight: bold; fill: #2c3e50;">关系说明 Relationships:</text>
+  <text x="1100" y="860" class="field-text">• User 1:N Comment (用户发表多条评论)</text>
+  <text x="1100" y="877" class="field-text">• Comment 1:N CommentLikes (评论被多人点赞)</text>
+  <text x="1100" y="894" class="field-text">• Episode 1:N EpisodeReactions (剧集被多人反应)</text>
+  <text x="1100" y="911" class="field-text">• Series 1:N Favorites (系列被多人收藏)</text>
+  <text x="1100" y="928" class="field-text">• Episode 1:N WatchProgress (剧集有多个观看记录)</text>
+  <text x="1100" y="945" class="field-text">• Series 1:N BrowseHistory (系列有多个浏览记录)</text>
+
+  <text x="1450" y="840" style="font-size: 13px; font-weight: bold; fill: #2c3e50;">特性 Features:</text>
+  <text x="1450" y="860" class="field-text">✓ UUID 防枚举攻击</text>
+  <text x="1450" y="877" class="field-text">✓ 软删除支持</text>
+  <text x="1450" y="894" class="field-text">✓ 时间戳自动更新</text>
+  <text x="1450" y="911" class="field-text">✓ 级联删除保护</text>
+  <text x="1450" y="928" class="field-text">✓ 唯一约束防重复</text>
+  <text x="1450" y="945" class="field-text">✓ 索引优化查询</text>
+
+  <!-- 版本信息 -->
+  <text x="1000" y="1100" style="font-size: 12px; fill: #95a5a6; text-anchor: middle;">
+    Version 2.1 | Updated: 2025-11-19 | Total Entities: 10 | Total Fields: 120+
+  </text>
+
 </svg>
