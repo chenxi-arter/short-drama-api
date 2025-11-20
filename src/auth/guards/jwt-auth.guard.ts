@@ -18,7 +18,7 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
       );
     }
 
-    // 2. 简单反爬：拒绝常见爬虫 UA
+    // 2. 安全防护：拒绝常见自动化工具 UA
     const req = context.switchToHttp().getRequest();
     const ua = req.get('user-agent') || '';
     const banned = /bot|crawler|spider|scrapy/i;

@@ -45,8 +45,8 @@ export class EpisodeUrl {
   cdnUrl: string;
 
   /**
-   * 原站/采集来源的视频地址（可选）
-   * 爬虫抓取到的原始站点播放地址，便于追溯或回源
+   * 原始视频地址（可选）
+   * 数据源提供的原始播放地址，便于追溯或回源
    */
   @Column({ length: 255, nullable: false, name: 'origin_url' })
   originUrl: string;

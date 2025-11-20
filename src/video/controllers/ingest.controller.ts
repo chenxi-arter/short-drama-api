@@ -13,7 +13,7 @@ export class IngestController {
   constructor(private readonly ingestService: IngestService) {}
 
   /**
-   * 单个系列的采集入库
+   * 单个系列的数据导入
    */
   @Post('series')
   @UseInterceptors(IngestResultInterceptor)
@@ -56,7 +56,7 @@ export class IngestController {
     return ResponseUtil.success({
       summary: { created: createdCount, updated: updatedCount, failed: failedCount, total: (payload.items || []).length },
       items: results
-    }, '批量系列采集写入完成');
+    }, '批量系列数据导入完成');
   }
 
   /**

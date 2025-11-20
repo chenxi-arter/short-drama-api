@@ -34,7 +34,7 @@ export class Series {
   title: string;
 
   /**
-   * 外部唯一ID（用于采集与幂等）
+   * 外部唯一ID（用于数据导入与幂等）
    */
   @Column({ type: 'varchar', length: 128, nullable: true, unique: true, name: 'external_id' })
   externalId: string | null;

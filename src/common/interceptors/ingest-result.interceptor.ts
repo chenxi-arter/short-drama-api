@@ -22,7 +22,7 @@ export class IngestResultInterceptor implements NestInterceptor {
       map((data: IngestResponseData | IngestItem | any) => {
         // 如果已经是标准结构，直接返回
         if (data && data.summary && Array.isArray(data.items)) {
-          return ResponseUtil.success(data, '系列采集写入完成');
+          return ResponseUtil.success(data, '系列数据导入完成');
         }
         // 单条成功项 -> 包装
         if (data && data.seriesId) {
@@ -42,9 +42,9 @@ export class IngestResultInterceptor implements NestInterceptor {
             },
             items: [item],
           };
-          return ResponseUtil.success(wrapped, '系列采集写入完成');
+          return ResponseUtil.success(wrapped, '系列数据导入完成');
         }
-        return ResponseUtil.success(data, '系列采集写入完成');
+        return ResponseUtil.success(data, '系列数据导入完成');
       }),
       catchError((err) => {
         const status = err?.status || 400;
@@ -55,7 +55,7 @@ export class IngestResultInterceptor implements NestInterceptor {
           summary: { created: 0, updated: 0, failed: 1, total: 1 },
           items: [item],
         };
-        return of(ResponseUtil.success(wrapped, '系列采集写入完成'));
+        return of(ResponseUtil.success(wrapped, '系列数据导入完成'));
       })
     );
   }

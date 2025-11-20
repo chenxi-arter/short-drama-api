@@ -142,7 +142,13 @@ export class AdminSeriesController {
       take, 
       order: { id: 'DESC' },
       where,
-      relations: ['category'] // 包含分类信息
+      relations: [
+        'category',
+        'regionOption',
+        'languageOption',
+        'statusOption',
+        'yearOption'
+      ]
     });
     return { total, items, page: Number(page) || 1, size: take };
   }
@@ -263,8 +269,117 @@ export class AdminSeriesController {
     const normalized = this.normalize(body);
     // 合并结果，中文分类优先
     const payload = { ...normalized, ...chineseFilters };
-    const entity = this.seriesRepo.create(payload);
-    return this.seriesRepo.save(entity);
+    
+    // 验证筛选选项 ID 是否存在
+    await this.validateFilterOptionIds(payload);
+    
+    try {
+      const entity = this.seriesRepo.create(payload);
+      return this.seriesRepo.save(entity);
+    } catch (error) {
+      // 捕获外键约束错误
+      if (error.code === 'ER_NO_REFERENCED_ROW_2') {
+        throw new BadRequestException({
+          message: '外键约束失败：引用的选项不存在',
+          details: error.sqlMessage,
+          hint: '请调用 GET /api/admin/options?types=region,language,status,year 获取有效的选项列表'
+        });
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * 验证筛选选项 ID 是否存在
+   */
+  private async validateFilterOptionIds(payload: Partial<Series>): Promise<void> {
+    const errors: string[] = [];
+
+    // 验证地区选项
+    if (payload.regionOptionId) {
+      const exists = await this.filterOptionRepo
+        .createQueryBuilder('option')
+        .innerJoin('option.filterType', 'filterType')
+        .where('option.id = :id', { id: payload.regionOptionId })
+        .andWhere('filterType.code = :code', { code: 'region' })
+        .andWhere('option.isActive = 1')
+        .getOne();
+      if (!exists) {
+        errors.push(`地区选项 ID ${payload.regionOptionId} 不存在或已禁用`);
+      }
+    }
+
+    // 验证语言选项
+    if (payload.languageOptionId) {
+      const exists = await this.filterOptionRepo
+        .createQueryBuilder('option')
+        .innerJoin('option.filterType', 'filterType')
+        .where('option.id = :id', { id: payload.languageOptionId })
+        .andWhere('filterType.code = :code', { code: 'language' })
+        .andWhere('option.isActive = 1')
+        .getOne();
+      if (!exists) {
+        errors.push(`语言选项 ID ${payload.languageOptionId} 不存在或已禁用`);
+      }
+    }
+
+    // 验证状态选项
+    if (payload.statusOptionId) {
+      const exists = await this.filterOptionRepo
+        .createQueryBuilder('option')
+        .innerJoin('option.filterType', 'filterType')
+        .where('option.id = :id', { id: payload.statusOptionId })
+        .andWhere('filterType.code = :code', { code: 'status' })
+        .andWhere('option.isActive = 1')
+        .getOne();
+      if (!exists) {
+        errors.push(`状态选项 ID ${payload.statusOptionId} 不存在或已禁用`);
+      }
+    }
+
+    // 验证年份选项
+    if (payload.yearOptionId) {
+      const exists = await this.filterOptionRepo
+        .createQueryBuilder('option')
+        .innerJoin('option.filterType', 'filterType')
+        .where('option.id = :id', { id: payload.yearOptionId })
+        .andWhere('filterType.code = :code', { code: 'year' })
+        .andWhere('option.isActive = 1')
+        .getOne();
+      if (!exists) {
+        errors.push(`年份选项 ID ${payload.yearOptionId} 不存在或已禁用`);
+      }
+    }
+
+    if (errors.length > 0) {
+      // 获取所有可用选项，方便前端直接使用
+      const availableOptions: Record<string, any[]> = {};
+      
+      for (const typeCode of ['region', 'language', 'status', 'year']) {
+        const options = await this.filterOptionRepo
+          .createQueryBuilder('option')
+          .innerJoin('option.filterType', 'filterType')
+          .where('filterType.code = :typeCode', { typeCode })
+          .andWhere('option.isActive = 1')
+          .andWhere('option.isDefault = 0')
+          .orderBy('option.sortOrder', 'ASC')
+          .select(['option.id', 'option.name', 'option.value'])
+          .getMany();
+        
+        availableOptions[typeCode] = options.map(opt => ({
+          id: opt.id,
+          name: opt.name,
+          value: opt.value,
+        }));
+      }
+      
+      throw new BadRequestException({
+        message: '筛选选项验证失败',
+        errors,
+        availableOptions,
+        hint: '请使用 availableOptions 中的有效 ID，或调用 GET /api/admin/options?types=region,language,status,year 获取最新选项'
+      });
+    }
   }
 
   @Put(':id')
@@ -275,11 +390,27 @@ export class AdminSeriesController {
     const normalized = this.normalize(body);
     // 合并结果，中文分类优先
     const payload = { ...normalized, ...chineseFilters };
-    await this.seriesRepo.update({ id: Number(id) }, payload);
-    return this.seriesRepo.findOne({ 
-      where: { id: Number(id) },
-      relations: ['category', 'regionOption', 'languageOption', 'statusOption', 'yearOption']
-    });
+    
+    // 验证筛选选项 ID 是否存在
+    await this.validateFilterOptionIds(payload);
+    
+    try {
+      await this.seriesRepo.update({ id: Number(id) }, payload);
+      return this.seriesRepo.findOne({ 
+        where: { id: Number(id) },
+        relations: ['category', 'regionOption', 'languageOption', 'statusOption', 'yearOption']
+      });
+    } catch (error) {
+      // 捕获外键约束错误
+      if (error.code === 'ER_NO_REFERENCED_ROW_2') {
+        throw new BadRequestException({
+          message: '外键约束失败：引用的选项不存在',
+          details: error.sqlMessage,
+          hint: '请调用 GET /api/admin/options?types=region,language,status,year 获取有效的选项列表'
+        });
+      }
+      throw error;
+    }
   }
 
   @Delete(':id')

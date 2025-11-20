@@ -19,6 +19,7 @@ import { FilterOption } from '../video/entity/filter-option.entity';
 // Controllers
 import { AdminUsersController, AdminBannersController, AdminEpisodesController } from './controllers';
 import { AdminCategoriesController } from './controllers/admin-categories.controller';
+import { AdminOptionsController } from './controllers/admin-options.controller';
 import { IngestController } from './controllers/ingest.controller';
 import { TestIngestController } from './controllers/test-ingest.controller';
 import { AdminSeriesController } from './controllers/admin-series.controller';
@@ -59,6 +60,7 @@ import { AnalyticsService } from './services/analytics.service';
     AdminUsersController,
     AdminBannersController,
     AdminCategoriesController,
+    AdminOptionsController,
     AdminEpisodesController,
     AdminSeriesController,
     AdminDashboardController,

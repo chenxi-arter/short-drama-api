@@ -1,6 +1,6 @@
 /**
  * Ingest 结果类型定义
- * 用于标准化采集写入类接口（/api/admin/ingest 等）的返回数据结构：
+ * 用于标准化数据导入接口（/api/admin/ingest 等）的返回数据结构：
  * - IngestItem: 单条结果（成功或失败），包含状态码/标识/错误详情
  * - IngestSummary: 汇总统计（created/updated/failed/total）
  * - IngestResponseData: summary + items 的统一响应载荷
