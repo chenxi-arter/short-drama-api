@@ -38,6 +38,15 @@ mysql -u root -p your_database < 04_add_comment_like_count.sql
 mysql -u root -p your_database < 05_add_comment_likes.sql
 ```
 
+### 4. 索引优化
+```bash
+# 4.1 添加导出功能所需的索引
+mysql -u root -p your_database < 06_add_export_indexes.sql
+
+# 4.2 删除冗余索引（提升性能，节省空间）
+mysql -u root -p your_database < 07_remove_all_redundant_indexes.sql
+```
+
 ## 🔍 迁移内容说明
 
 ### 广告系统 (Advertising System)
@@ -78,6 +87,8 @@ mysql -u root -p production_db < 02_fix_episode_cascade_delete.sql
 mysql -u root -p production_db < 03_fix_watch_progress_cascade.sql
 mysql -u root -p production_db < 04_add_comment_like_count.sql
 mysql -u root -p production_db < 05_add_comment_likes.sql
+mysql -u root -p production_db < 06_add_export_indexes.sql
+mysql -u root -p production_db < 07_remove_all_redundant_indexes.sql
 ```
 
 ## 📞 联系方式

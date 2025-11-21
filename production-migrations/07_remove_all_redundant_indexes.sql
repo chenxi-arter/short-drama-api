@@ -1,12 +1,16 @@
 -- ============================================
--- 迁移脚本：删除冗余索引
--- 创建时间: 2025-11-20
+-- 迁移脚本：删除所有冗余索引（合并版）
+-- 创建时间: 2025-11-21
 -- 描述: 删除被复合索引覆盖的冗余单列索引
 -- 预期效果: 减少索引维护开销，节省磁盘空间
 -- ============================================
 
 -- 设置字符集
 SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- ============================================
+-- 第一部分：删除 TypeORM 自动创建的冗余索引
+-- ============================================
 
 -- 1. advertising_campaigns 表
 -- 删除重复的 campaign_code 索引（保留 idx_campaign_code）
@@ -124,13 +128,94 @@ PREPARE stmt FROM @sqlstmt;
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 
+-- ============================================
+-- 第二部分：删除 SQL 脚本创建的冗余索引
+-- ============================================
+
+-- 9. advertising_events 表（SQL脚本创建的）
+-- 删除 idx_event_type（被 idx_events_stats 覆盖）
+SET @exist := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS 
+    WHERE TABLE_SCHEMA = DATABASE() 
+    AND TABLE_NAME = 'advertising_events' 
+    AND INDEX_NAME = 'idx_event_type');
+SET @sqlstmt := IF(@exist > 0, 
+    'ALTER TABLE advertising_events DROP INDEX idx_event_type',
+    'SELECT "索引 idx_event_type 不存在" as message');
+PREPARE stmt FROM @sqlstmt;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+-- 删除 idx_event_time（被复合索引覆盖）
+SET @exist := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS 
+    WHERE TABLE_SCHEMA = DATABASE() 
+    AND TABLE_NAME = 'advertising_events' 
+    AND INDEX_NAME = 'idx_event_time');
+SET @sqlstmt := IF(@exist > 0, 
+    'ALTER TABLE advertising_events DROP INDEX idx_event_time',
+    'SELECT "索引 idx_event_time 不存在" as message');
+PREPARE stmt FROM @sqlstmt;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+-- 删除 idx_created_at（很少使用）
+SET @exist := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS 
+    WHERE TABLE_SCHEMA = DATABASE() 
+    AND TABLE_NAME = 'advertising_events' 
+    AND INDEX_NAME = 'idx_created_at');
+SET @sqlstmt := IF(@exist > 0, 
+    'ALTER TABLE advertising_events DROP INDEX idx_created_at',
+    'SELECT "索引 idx_created_at 不存在" as message');
+PREPARE stmt FROM @sqlstmt;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+-- 10. advertising_conversions 表（SQL脚本创建的）
+-- 删除 idx_conversion_type（被 idx_conversions_stats 覆盖）
+SET @exist := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS 
+    WHERE TABLE_SCHEMA = DATABASE() 
+    AND TABLE_NAME = 'advertising_conversions' 
+    AND INDEX_NAME = 'idx_conversion_type');
+SET @sqlstmt := IF(@exist > 0, 
+    'ALTER TABLE advertising_conversions DROP INDEX idx_conversion_type',
+    'SELECT "索引 idx_conversion_type 不存在" as message');
+PREPARE stmt FROM @sqlstmt;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+-- 删除 idx_conversion_time（被复合索引覆盖）
+SET @exist := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS 
+    WHERE TABLE_SCHEMA = DATABASE() 
+    AND TABLE_NAME = 'advertising_conversions' 
+    AND INDEX_NAME = 'idx_conversion_time');
+SET @sqlstmt := IF(@exist > 0, 
+    'ALTER TABLE advertising_conversions DROP INDEX idx_conversion_time',
+    'SELECT "索引 idx_conversion_time 不存在" as message');
+PREPARE stmt FROM @sqlstmt;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+-- 删除 idx_created_at（很少使用）
+SET @exist := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS 
+    WHERE TABLE_SCHEMA = DATABASE() 
+    AND TABLE_NAME = 'advertising_conversions' 
+    AND INDEX_NAME = 'idx_created_at');
+SET @sqlstmt := IF(@exist > 0, 
+    'ALTER TABLE advertising_conversions DROP INDEX idx_created_at',
+    'SELECT "索引 idx_created_at 不存在" as message');
+PREPARE stmt FROM @sqlstmt;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+-- ============================================
 -- 验证结果
-SELECT 
-    '删除冗余索引后的统计' as info;
+-- ============================================
+
+SELECT '删除所有冗余索引后的统计' as info;
 
 SELECT 
     TABLE_NAME,
-    COUNT(DISTINCT INDEX_NAME) as remaining_indexes
+    COUNT(DISTINCT INDEX_NAME) as remaining_indexes,
+    GROUP_CONCAT(DISTINCT INDEX_NAME ORDER BY INDEX_NAME SEPARATOR ', ') as indexes
 FROM INFORMATION_SCHEMA.STATISTICS 
 WHERE TABLE_SCHEMA = DATABASE()
     AND TABLE_NAME IN (
