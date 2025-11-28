@@ -81,6 +81,7 @@ export class RecommendService {
       
       // 生成缓存键（公开数据使用缓存，用户个性化数据不缓存）
       const cacheKey = `recommend:list:${page}:${size}`;
+      const cacheTTL = 120; // 2分钟缓存（有索引支持，保持推荐新鲜度）
       
       // 仅对未登录用户使用缓存
       if (!userId) {
@@ -96,11 +97,25 @@ export class RecommendService {
         }
       }
 
-      // 构建推荐查询（优化版）
-      // 推荐分数 = (点赞数 × 3 + 收藏数 × 5) × 随机权重(0.5-1.5) + 大随机因子(0-500) + 新鲜度分数(0-300)
-      // 新鲜度分数：越新的内容分数越高，30天后归零
-      // 优化点：预计算NOW()，减少函数调用，使用索引
+      // 构建推荐查询（性能优化版）
+      // 推荐分数 = (点赞数 × 3 + 收藏数 × 5) × 随机权重(0.5-1.5) + 大随机因子(0-500) + 新鲜度分数
+      // 新鲜度分数（增强时间权重）：
+      //   - 7天内：600分递减（每天-85分），最新内容优先
+      //   - 7-30天：300分递减（每天-13分）
+      //   - 30天后：保持100分基础分
+      // 性能优化：
+      //   1. 使用索引友好的 WHERE 条件顺序
+      //   2. 限制 OFFSET 最大值，避免深度分页
+      //   3. 使用 RAND(page) 作为种子，同一页码返回相同结果（可缓存）
       // 筛选条件：只推荐短剧（category_id=1）的第一集
+      
+      // 限制最大偏移量，避免深度分页导致的性能问题
+      const maxOffset = 1000;
+      const safeOffset = Math.min(offset, maxOffset);
+      
+      // 优化：只查询需要的字段 + 1条（用于判断hasMore）
+      const queryLimit = size + 1;
+      
       const query = `
         SELECT 
           e.id,
@@ -125,23 +140,26 @@ export class RecommendService {
           s.starring as seriesStarring,
           s.actor as seriesActor,
           s.up_status as seriesUpStatus,
-          @current_time := NOW(),
           (
-            (e.like_count * 3 + e.favorite_count * 5) * (0.5 + RAND()) +
-            FLOOR(RAND() * 500) +
-            GREATEST(0, 300 - DATEDIFF(@current_time, e.created_at) * 10)
+            (e.like_count * 3 + e.favorite_count * 5) * (0.5 + RAND(? + e.id)) +
+            FLOOR(RAND(? + e.id) * 500) +
+            CASE 
+              WHEN DATEDIFF(NOW(), e.created_at) <= 7 THEN GREATEST(0, 600 - DATEDIFF(NOW(), e.created_at) * 85)
+              WHEN DATEDIFF(NOW(), e.created_at) <= 30 THEN GREATEST(0, 300 - (DATEDIFF(NOW(), e.created_at) - 7) * 13)
+              ELSE 100
+            END
           ) as recommendScore
         FROM episodes e
         INNER JOIN series s ON e.series_id = s.id
         WHERE e.status = 'published'
-          AND s.is_active = 1
           AND e.episode_number = 1
+          AND s.is_active = 1
           AND s.category_id = 1
-        ORDER BY recommendScore DESC, RAND()
+        ORDER BY recommendScore DESC
         LIMIT ? OFFSET ?
       `;
 
-      const episodes: RecommendQueryResult[] = await this.episodeRepo.query(query, [size + 1, offset]);
+      const episodes: RecommendQueryResult[] = await this.episodeRepo.query(query, [page, page, queryLimit, safeOffset]);
 
       // 判断是否还有更多数据
       const hasMore = episodes.length > size;
@@ -249,9 +267,9 @@ export class RecommendService {
       };
       
       // 仅缓存未登录用户的数据（公开数据）
-      // 缓存时间：2分钟（推荐流需要保持新鲜度）
+      // 缓存时间：2分钟（有索引支持，保持推荐新鲜度）
       if (!userId) {
-        await this.cacheManager.set(cacheKey, result, 2 * 60 * 1000);
+        await this.cacheManager.set(cacheKey, result, cacheTTL * 1000);
       }
       
       return result;

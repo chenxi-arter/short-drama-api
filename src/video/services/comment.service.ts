@@ -123,7 +123,6 @@ export class CommentService {
       
       replyToUsers.forEach((user: any) => {
         replyToUsersMap.set(user.id, {
-          username: user.username,
           nickname: user.nickname,
           photoUrl: user.photo_url,
         });
@@ -155,8 +154,8 @@ export class CommentService {
         likeCount: comment.likeCount || 0,
         liked: userId ? (likedCommentsMap.get(comment.id) || false) : undefined,
         createdAt: comment.createdAt,
-        // 用户信息
-        username: comment.user?.username || null,
+        // 用户信息（username字段返回nickname值，避免泄漏Telegram信息）
+        username: comment.user?.nickname || null,
         nickname: comment.user?.nickname || null,
         photoUrl: comment.user?.photo_url || null,
         // 回复预览
@@ -169,12 +168,12 @@ export class CommentService {
             likeCount: reply.likeCount || 0,
             liked: userId ? (likedRepliesMap.get(reply.id) || false) : undefined,
             createdAt: reply.createdAt,
-            username: reply.user?.username || null,
+            username: reply.user?.nickname || null,
             nickname: reply.user?.nickname || null,
             photoUrl: reply.user?.photo_url || null,
-            // ✅ 被回复者信息
+            // ✅ 被回复者信息（username字段返回nickname值）
             replyToUserId: reply.replyToUserId || null,
-            replyToUsername: replyToUser?.username || null,
+            replyToUsername: replyToUser?.nickname || null,
             replyToNickname: replyToUser?.nickname || null,
             replyToPhotoUrl: replyToUser?.photoUrl || null,
           };
@@ -265,10 +264,10 @@ export class CommentService {
       content: savedWithUser.content,
       likeCount: savedWithUser.likeCount || 0,
       createdAt: savedWithUser.createdAt,
-      username: savedWithUser.user?.username || null,
+      username: savedWithUser.user?.nickname || null,
       nickname: savedWithUser.user?.nickname || null,
       photoUrl: savedWithUser.user?.photo_url || null,
-      replyToUsername: parentComment.user?.username || null,
+      replyToUsername: parentComment.user?.nickname || null,
       replyToNickname: parentComment.user?.nickname || null,
     };
   }
@@ -317,7 +316,6 @@ export class CommentService {
       
       replyToUsers.forEach((user: any) => {
         replyToUsersMap.set(user.id, {
-          username: user.username,
           nickname: user.nickname,
           photoUrl: user.photo_url,
         });
@@ -335,7 +333,7 @@ export class CommentService {
       rootComment: {
         id: rootComment.id,
         content: rootComment.content,
-        username: rootComment.user?.username || null,
+        username: rootComment.user?.nickname || null,
         nickname: rootComment.user?.nickname || null,
         photoUrl: rootComment.user?.photo_url || null,
         replyCount: rootComment.replyCount,
@@ -353,12 +351,12 @@ export class CommentService {
           likeCount: reply.likeCount || 0,
           liked: userId ? (likedMap.get(reply.id) || false) : undefined,
           createdAt: reply.createdAt,
-          username: reply.user?.username || null,
+          username: reply.user?.nickname || null,
           nickname: reply.user?.nickname || null,
           photoUrl: reply.user?.photo_url || null,
-          // ✅ 新增：回复目标用户信息
+          // ✅ 新增：回复目标用户信息（username字段返回nickname值）
           replyToUserId: reply.replyToUserId || null,
-          replyToUsername: replyToUser?.username || null,
+          replyToUsername: replyToUser?.nickname || null,
           replyToNickname: replyToUser?.nickname || null,
           replyToPhotoUrl: replyToUser?.photoUrl || null,
         };
@@ -519,8 +517,8 @@ export class CommentService {
         seriesShortId: episodeInfo?.seriesShortId || null,  // 用于跳转
         seriesTitle: episodeInfo?.seriesTitle || null,
         seriesCoverUrl: episodeInfo?.seriesCoverUrl || null,
-        // 回复者信息
-        fromUsername: reply.user?.username || null,
+        // 回复者信息（username字段返回nickname值）
+        fromUsername: reply.user?.nickname || null,
         fromNickname: reply.user?.nickname || null,
         fromPhotoUrl: reply.user?.photo_url || null,
         // 被回复的评论信息
