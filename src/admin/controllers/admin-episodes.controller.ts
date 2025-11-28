@@ -153,14 +153,18 @@ export class AdminEpisodesController {
   /**
    * 获取预签名上传 URL（前端直传视频）
    * GET /api/admin/episodes/:id/presigned-upload-url?filename=video.mp4&contentType=video/mp4&quality=720p
+   * 使用与爬取脚本一致的路径生成逻辑
    */
   @Get(':id/presigned-upload-url')
   async getPresignedUploadUrl(
     @Param('id') id: string,
     @Query() query: GetVideoPresignedUrlDto,
   ) {
-    // 验证 Episode 是否存在
-    const episode = await this.episodeRepo.findOne({ where: { id: Number(id) } });
+    // 验证 Episode 是否存在，并获取 seriesId
+    const episode = await this.episodeRepo.findOne({ 
+      where: { id: Number(id) },
+      relations: ['series']
+    });
     if (!episode) {
       throw new NotFoundException('Episode not found');
     }
@@ -180,7 +184,7 @@ export class AdminEpisodesController {
 
     // 验证文件扩展名
     const extension = filename.split('.').pop()?.toLowerCase();
-    const allowedExtensions = ['mp4', 'mpeg', 'mpg', 'mov', 'avi', 'webm'];
+    const allowedExtensions = ['mp4', 'mpeg', 'mpg', 'mov', 'avi', 'webm', 'm3u8', 'ts'];
     if (!extension || !allowedExtensions.includes(extension)) {
       throw new BadRequestException('Invalid file extension');
     }
@@ -191,8 +195,15 @@ export class AdminEpisodesController {
       throw new BadRequestException('Invalid quality parameter');
     }
 
-    // 生成唯一文件路径
-    const fileKey = `episodes/${id}/video_${quality}_${randomUUID()}.${extension}`;
+    // 生成存储路径
+    // 格式: admin.v1.0.0.t1/{me_path}/{ep_path}/{quality}/{filename}
+    // 文件名会自动清理特殊字符，保证安全性
+    const fileKey = this.storage.generateVideoPath(
+      episode.seriesId,
+      episode.id,
+      quality,
+      filename  // 直接使用原始文件名，会在 generateVideoPath 中自动清理
+    );
 
     // 生成预签名 URL（有效期 2 小时，视频文件上传时间较长）
     const uploadUrl = await this.storage.generatePresignedUploadUrl(fileKey, contentType, 7200);

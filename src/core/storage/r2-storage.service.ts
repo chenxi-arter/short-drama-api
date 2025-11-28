@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import { randomUUID } from 'crypto';
+import { randomUUID, createHash } from 'crypto';
 
 export interface R2UploadOptions {
   keyPrefix?: string;
@@ -113,6 +113,101 @@ export class R2StorageService {
   getPublicUrl(fileKey: string): string {
     const base = (this.publicBaseUrl ?? this.endpointBucketBase).replace(/\/$/, '');
     return `${base}/${fileKey}`;
+  }
+
+  /**
+   * 生成媒体路径（与爬取脚本逻辑一致）
+   * 使用 MD5 + Base64 编码生成短路径
+   * @param id 媒体ID或剧集ID
+   * @returns 11位的短路径
+   */
+  private generateShortPath(id: number | string): string {
+    const padding = 'zpxw';
+    const hash = createHash('md5')
+      .update(String(id) + padding)
+      .digest();
+    return hash.toString('base64url').substring(0, 11);
+  }
+
+  /**
+   * 生成视频文件的存储路径（Admin 后台上传）
+   * 使用 MD5 + Base64 编码生成短路径，确保路径安全性
+   * @param seriesId 系列ID
+   * @param episodeId 剧集ID
+   * @param quality 清晰度（如 480p, 720p, 1080p）
+   * @param filename 文件名（如 video.mp4, chunklist.m3u8）
+   * @param type 媒体类型，默认 't1' (短剧)
+   * @returns 完整的存储路径
+   */
+  generateVideoPath(
+    seriesId: number,
+    episodeId: number,
+    quality: string,
+    filename: string,
+    type: string = 't1'
+  ): string {
+    const mePath = this.generateShortPath(seriesId);
+    const epPath = this.generateShortPath(episodeId);
+    
+    // 清理文件名：移除特殊字符，保留扩展名
+    const sanitizedFilename = this.sanitizeFilename(filename);
+    
+    // Admin 后台上传路径格式: admin.v1.0.0.t1/{me_path}/{ep_path}/{quality}/{filename}
+    return `admin.v1.0.0.${type}/${mePath}/${epPath}/${quality}/${sanitizedFilename}`;
+  }
+
+  /**
+   * 清理文件名，确保安全性
+   * @param filename 原始文件名
+   * @returns 清理后的文件名
+   */
+  private sanitizeFilename(filename: string): string {
+    // 提取扩展名
+    const parts = filename.split('.');
+    const extension = parts.length > 1 ? parts.pop()?.toLowerCase() : '';
+    
+    // 移除扩展名后的文件名
+    let basename = parts.join('.');
+    
+    // 如果文件名为空或只有特殊字符，使用默认名称
+    if (!basename || basename.trim() === '') {
+      basename = 'video';
+    }
+    
+    // 移除或替换不安全的字符
+    // 保留：字母、数字、下划线、连字符、点
+    basename = basename
+      .replace(/[^\w\-\.]/g, '_')  // 替换特殊字符为下划线
+      .replace(/_{2,}/g, '_')       // 多个下划线合并为一个
+      .replace(/^_+|_+$/g, '')      // 移除首尾下划线
+      .substring(0, 100);           // 限制长度
+    
+    // 如果清理后为空，使用默认名称
+    if (!basename) {
+      basename = 'video';
+    }
+    
+    return extension ? `${basename}.${extension}` : basename;
+  }
+
+  /**
+   * 生成视频的公开访问 URL（Admin 后台上传）
+   * @param seriesId 系列ID
+   * @param episodeId 剧集ID
+   * @param quality 清晰度
+   * @param filename 文件名
+   * @param type 媒体类型
+   * @returns 完整的公开访问 URL
+   */
+  getVideoUrl(
+    seriesId: number,
+    episodeId: number,
+    quality: string,
+    filename: string = 'video.mp4',
+    type: string = 't1'
+  ): string {
+    const path = this.generateVideoPath(seriesId, episodeId, quality, filename, type);
+    return this.getPublicUrl(path);
   }
 }
 
