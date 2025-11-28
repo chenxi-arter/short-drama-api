@@ -146,6 +146,16 @@ export class CommentService {
     const formattedComments = comments.map(comment => {
       const recentReplies = repliesMap.get(comment.id) || [];
       
+      // 计算显示昵称（与 /user/me 保持一致）
+      const getDisplayNickname = (user: any) => {
+        if (user?.nickname?.trim()) return user.nickname.trim();
+        const firstName = user?.first_name?.trim() || '';
+        const lastName = user?.last_name?.trim() || '';
+        const fullName = [firstName, lastName].filter(Boolean).join(' ');
+        if (fullName) return fullName;
+        return user?.username || null;
+      };
+
       return {
         id: comment.id,
         content: comment.content,
@@ -155,8 +165,8 @@ export class CommentService {
         liked: userId ? (likedCommentsMap.get(comment.id) || false) : undefined,
         createdAt: comment.createdAt,
         // 用户信息（username字段返回nickname值，避免泄漏Telegram信息）
-        username: comment.user?.nickname || null,
-        nickname: comment.user?.nickname || null,
+        username: getDisplayNickname(comment.user),
+        nickname: getDisplayNickname(comment.user),
         photoUrl: comment.user?.photo_url || null,
         // 回复预览
         recentReplies: recentReplies.map(reply => {
@@ -168,13 +178,13 @@ export class CommentService {
             likeCount: reply.likeCount || 0,
             liked: userId ? (likedRepliesMap.get(reply.id) || false) : undefined,
             createdAt: reply.createdAt,
-            username: reply.user?.nickname || null,
-            nickname: reply.user?.nickname || null,
+            username: getDisplayNickname(reply.user),
+            nickname: getDisplayNickname(reply.user),
             photoUrl: reply.user?.photo_url || null,
             // ✅ 被回复者信息（username字段返回nickname值）
             replyToUserId: reply.replyToUserId || null,
-            replyToUsername: replyToUser?.nickname || null,
-            replyToNickname: replyToUser?.nickname || null,
+            replyToUsername: getDisplayNickname(replyToUser),
+            replyToNickname: getDisplayNickname(replyToUser),
             replyToPhotoUrl: replyToUser?.photoUrl || null,
           };
         }),
@@ -256,6 +266,16 @@ export class CommentService {
       throw new Error('保存的评论未找到');
     }
     
+    // 计算显示昵称（与 /user/me 保持一致）
+    const getDisplayNickname = (user: any) => {
+      if (user?.nickname?.trim()) return user.nickname.trim();
+      const firstName = user?.first_name?.trim() || '';
+      const lastName = user?.last_name?.trim() || '';
+      const fullName = [firstName, lastName].filter(Boolean).join(' ');
+      if (fullName) return fullName;
+      return user?.username || null;
+    };
+
     return {
       id: savedWithUser.id,
       parentId: savedWithUser.parentId,
@@ -264,11 +284,11 @@ export class CommentService {
       content: savedWithUser.content,
       likeCount: savedWithUser.likeCount || 0,
       createdAt: savedWithUser.createdAt,
-      username: savedWithUser.user?.nickname || null,
-      nickname: savedWithUser.user?.nickname || null,
+      username: getDisplayNickname(savedWithUser.user),
+      nickname: getDisplayNickname(savedWithUser.user),
       photoUrl: savedWithUser.user?.photo_url || null,
-      replyToUsername: parentComment.user?.nickname || null,
-      replyToNickname: parentComment.user?.nickname || null,
+      replyToUsername: getDisplayNickname(parentComment.user),
+      replyToNickname: getDisplayNickname(parentComment.user),
     };
   }
 
@@ -329,12 +349,22 @@ export class CommentService {
       likedMap = await this.commentLikeService.batchCheckLiked(userId, allCommentIds);
     }
     
+    // 计算显示昵称（与 /user/me 保持一致）
+    const getDisplayNickname = (user: any) => {
+      if (user?.nickname?.trim()) return user.nickname.trim();
+      const firstName = user?.first_name?.trim() || '';
+      const lastName = user?.last_name?.trim() || '';
+      const fullName = [firstName, lastName].filter(Boolean).join(' ');
+      if (fullName) return fullName;
+      return user?.username || null;
+    };
+
     return {
       rootComment: {
         id: rootComment.id,
         content: rootComment.content,
-        username: rootComment.user?.nickname || null,
-        nickname: rootComment.user?.nickname || null,
+        username: getDisplayNickname(rootComment.user),
+        nickname: getDisplayNickname(rootComment.user),
         photoUrl: rootComment.user?.photo_url || null,
         replyCount: rootComment.replyCount,
         likeCount: rootComment.likeCount || 0,
@@ -351,13 +381,13 @@ export class CommentService {
           likeCount: reply.likeCount || 0,
           liked: userId ? (likedMap.get(reply.id) || false) : undefined,
           createdAt: reply.createdAt,
-          username: reply.user?.nickname || null,
-          nickname: reply.user?.nickname || null,
+          username: getDisplayNickname(reply.user),
+          nickname: getDisplayNickname(reply.user),
           photoUrl: reply.user?.photo_url || null,
           // ✅ 新增：回复目标用户信息（username字段返回nickname值）
           replyToUserId: reply.replyToUserId || null,
-          replyToUsername: replyToUser?.nickname || null,
-          replyToNickname: replyToUser?.nickname || null,
+          replyToUsername: getDisplayNickname(replyToUser),
+          replyToNickname: getDisplayNickname(replyToUser),
           replyToPhotoUrl: replyToUser?.photoUrl || null,
         };
       }),
