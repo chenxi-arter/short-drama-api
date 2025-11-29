@@ -173,6 +173,31 @@ export class EpisodeInteractionService {
   ) {
     return this.commentService.getUserReceivedReplies(userId, page, size);
   }
+
+  /**
+   * 获取用户收到的未读回复消息
+   */
+  async getUserUnreadReplies(
+    userId: number,
+    page: number,
+    size: number,
+  ) {
+    return this.commentService.getUserUnreadReplies(userId, page, size);
+  }
+
+  /**
+   * 标记回复为已读
+   */
+  async markRepliesAsRead(userId: number, replyIds?: number[]) {
+    return this.commentService.markRepliesAsRead(userId, replyIds);
+  }
+
+  /**
+   * 获取用户未读回复的数量
+   */
+  async getUnreadReplyCount(userId: number): Promise<number> {
+    return this.commentService.getUnreadReplyCount(userId);
+  }
 }
 
 

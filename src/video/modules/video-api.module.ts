@@ -17,10 +17,12 @@ import { InteractionController } from '../controllers/interaction.controller';
 import { CommentsController } from '../controllers/comments.controller';
 import { CompatBrowseHistoryController } from '../controllers/compat-browse-history.controller';
 import { RecommendController } from '../controllers/recommend.controller';
+import { NotificationController } from '../controllers/notification.controller';
 import { VideoService } from '../video.service';
 import { CommentService } from '../services/comment.service';
 import { CommentLikeService } from '../services/comment-like.service';
 import { FakeCommentService } from '../services/fake-comment.service';
+import { NotificationService } from '../services/notification.service';
 import { PlaybackService } from '../services/playback.service';
 import { ContentService } from '../services/content.service';
 import { HomeService } from '../services/home.service';
@@ -93,6 +95,7 @@ import { SeriesGenreOption } from '../entity/series-genre-option.entity';
     InteractionController,
     CommentsController,
     RecommendController,
+    NotificationController,
   ],
   providers: [
     VideoService,
@@ -116,6 +119,7 @@ import { SeriesGenreOption } from '../entity/series-genre-option.entity';
     FakeCommentService,  // 必须在 CommentService 之前
     CommentService,
     CommentLikeService,
+    NotificationService,
     RecommendService,
     AppLoggerService,
     AppConfigService,

@@ -1,4 +1,4 @@
-import { Controller, Post, Body, UseGuards, Req } from '@nestjs/common';
+import { Controller, Post, Get, Body, Query, UseGuards, Req } from '@nestjs/common';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { BaseController } from './base.controller';
 import { CommentLikeService } from '../services/comment-like.service';
@@ -111,6 +111,81 @@ export class CommentLikeController extends BaseController {
       return this.success(result, '获取成功', 200);
     } catch (error) {
       return this.handleServiceError(error, '获取点赞用户列表失败');
+    }
+  }
+
+  /**
+   * 获取用户收到的未读点赞通知
+   * GET /api/video/comment/my-unread-likes?page=1&size=20
+   */
+  @UseGuards(JwtAuthGuard)
+  @Get('my-unread-likes')
+  async getMyUnreadLikes(
+    @Req() req,
+    @Query('page') page?: string,
+    @Query('size') size?: string,
+  ) {
+    try {
+      const userId = req.user?.userId;
+      if (!userId) return this.error('未认证', 401);
+
+      const pageNum = Math.max(parseInt(page ?? '1', 10) || 1, 1);
+      const sizeNum = Math.max(parseInt(size ?? '20', 10) || 20, 1);
+
+      const result = await this.commentLikeService.getUserUnreadLikes(
+        userId,
+        pageNum,
+        sizeNum,
+      );
+
+      return this.success(result, '获取成功', 200);
+    } catch (error) {
+      return this.handleServiceError(error, '获取未读点赞失败');
+    }
+  }
+
+  /**
+   * 标记点赞通知为已读
+   * POST /api/video/comment/likes/mark-read
+   * Body: { likeIds?: number[] } // 可选，不传则标记所有未读点赞
+   */
+  @UseGuards(JwtAuthGuard)
+  @Post('likes/mark-read')
+  async markLikesAsRead(
+    @Req() req,
+    @Body('likeIds') likeIds?: number[],
+  ) {
+    try {
+      const userId = req.user?.userId;
+      if (!userId) return this.error('未认证', 401);
+
+      const result = await this.commentLikeService.markLikesAsRead(
+        userId,
+        likeIds,
+      );
+
+      return this.success(result, '已标记为已读', 200);
+    } catch (error) {
+      return this.handleServiceError(error, '标记失败');
+    }
+  }
+
+  /**
+   * 获取未读点赞数量
+   * GET /api/video/comment/unread-like-count
+   */
+  @UseGuards(JwtAuthGuard)
+  @Get('unread-like-count')
+  async getUnreadLikeCount(@Req() req) {
+    try {
+      const userId = req.user?.userId;
+      if (!userId) return this.error('未认证', 401);
+
+      const count = await this.commentLikeService.getUnreadLikeCount(userId);
+
+      return this.success({ count }, '获取成功', 200);
+    } catch (error) {
+      return this.handleServiceError(error, '获取未读点赞数量失败');
     }
   }
 }

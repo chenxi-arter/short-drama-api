@@ -243,6 +243,83 @@ export class InteractionController extends BaseController {
       return this.error(errMsg, 400);
     }
   }
+
+  /**
+   * 获取用户收到的未读回复消息
+   * GET /api/video/episode/my-unread-replies?page=1&size=20
+   */
+  @UseGuards(JwtAuthGuard)
+  @Get('my-unread-replies')
+  async getMyUnreadReplies(
+    @Req() req: { user?: { userId?: number } },
+    @Query('page') page?: string,
+    @Query('size') size?: string,
+  ) {
+    const userId = req.user?.userId ? Number(req.user.userId) : 0;
+    if (!userId) return this.error('未认证', 401);
+
+    try {
+      const pageNum = Math.max(parseInt(page ?? '1', 10) || 1, 1);
+      const sizeNum = Math.max(parseInt(size ?? '20', 10) || 20, 1);
+      
+      const result = await this.interactionService.getUserUnreadReplies(
+        userId,
+        pageNum,
+        sizeNum,
+      );
+      return this.success(result, '获取成功', 200);
+    } catch (error) {
+      const errMsg = error instanceof Error ? error.message : '获取失败';
+      return this.error(errMsg, 400);
+    }
+  }
+
+  /**
+   * 标记回复为已读
+   * POST /api/video/episode/replies/mark-read
+   * Body: { replyIds?: number[] } // 可选，不传则标记所有未读回复
+   */
+  @UseGuards(JwtAuthGuard)
+  @Post('replies/mark-read')
+  async markRepliesAsRead(
+    @Req() req: { user?: { userId?: number } },
+    @Body() body: { replyIds?: number[] },
+  ) {
+    const userId = req.user?.userId ? Number(req.user.userId) : 0;
+    if (!userId) return this.error('未认证', 401);
+
+    try {
+      const result = await this.interactionService.markRepliesAsRead(
+        userId,
+        body.replyIds,
+      );
+      return this.success(result, '已标记为已读', 200);
+    } catch (error) {
+      const errMsg = error instanceof Error ? error.message : '标记失败';
+      return this.error(errMsg, 400);
+    }
+  }
+
+  /**
+   * 获取未读回复数量
+   * GET /api/video/episode/unread-reply-count
+   */
+  @UseGuards(JwtAuthGuard)
+  @Get('unread-reply-count')
+  async getUnreadReplyCount(
+    @Req() req: { user?: { userId?: number } },
+  ) {
+    const userId = req.user?.userId ? Number(req.user.userId) : 0;
+    if (!userId) return this.error('未认证', 401);
+
+    try {
+      const count = await this.interactionService.getUnreadReplyCount(userId);
+      return this.success({ count }, '获取成功', 200);
+    } catch (error) {
+      const errMsg = error instanceof Error ? error.message : '获取失败';
+      return this.error(errMsg, 400);
+    }
+  }
 }
 
 

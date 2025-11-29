@@ -466,6 +466,113 @@ export class CommentService {
   }
 
   /**
+   * 获取用户收到的未读回复消息
+   * @param userId 用户ID
+   * @param page 页码
+   * @param size 每页数量
+   */
+  async getUserUnreadReplies(
+    userId: number,
+    page: number = 1,
+    size: number = 20
+  ) {
+    const skip = (page - 1) * size;
+    
+    // 查找回复给该用户的所有未读评论
+    const [replies, total] = await this.commentRepo.findAndCount({
+      where: { 
+        replyToUserId: userId,
+        isRead: false,
+      },
+      order: { createdAt: 'DESC' },
+      skip,
+      take: size,
+      relations: ['user'],
+    });
+    
+    // 批量获取被回复的原评论信息
+    const parentIds = [...new Set(replies.map(r => r.parentId).filter(Boolean))] as number[];
+    const parentCommentsMap = new Map<number, any>();
+    
+    if (parentIds.length > 0) {
+      const parentComments = await this.commentRepo
+        .createQueryBuilder('comment')
+        .where('comment.id IN (:...ids)', { ids: parentIds })
+        .getMany();
+      
+      parentComments.forEach(comment => {
+        parentCommentsMap.set(comment.id, {
+          id: comment.id,
+          content: comment.content,
+          episodeShortId: comment.episodeShortId,
+        });
+      });
+    }
+    
+    // 批量获取剧集和系列信息
+    const episodeShortIds = [...new Set(replies.map(r => r.episodeShortId).filter(Boolean))];
+    const episodeInfoMap = new Map<string, any>();
+    
+    if (episodeShortIds.length > 0) {
+      const episodes = await this.commentRepo.manager
+        .getRepository('Episode')
+        .createQueryBuilder('episode')
+        .leftJoinAndSelect('episode.series', 'series')
+        .where('episode.shortId IN (:...shortIds)', { shortIds: episodeShortIds })
+        .getMany();
+      
+      episodes.forEach((episode: any) => {
+        episodeInfoMap.set(episode.shortId, {
+          episodeId: episode.id,
+          episodeShortId: episode.shortId,
+          episodeNumber: episode.episodeNumber,
+          episodeTitle: episode.title,
+          seriesId: episode.series?.id,
+          seriesShortId: episode.series?.shortId,
+          seriesTitle: episode.series?.title,
+          seriesCoverUrl: episode.series?.coverUrl,
+        });
+      });
+    }
+    
+    // 格式化返回数据
+    const formattedReplies = replies.map(reply => {
+      const parentComment = reply.parentId ? parentCommentsMap.get(reply.parentId) : null;
+      const episodeInfo = episodeInfoMap.get(reply.episodeShortId) || null;
+      
+      return {
+        id: reply.id,
+        content: reply.content,
+        createdAt: reply.createdAt,
+        isRead: reply.isRead,
+        // 剧集和系列信息
+        episodeNumber: episodeInfo?.episodeNumber || null,
+        episodeTitle: episodeInfo?.episodeTitle || null,
+        seriesShortId: episodeInfo?.seriesShortId || null,  // 用于跳转
+        seriesTitle: episodeInfo?.seriesTitle || null,
+        seriesCoverUrl: episodeInfo?.seriesCoverUrl || null,
+        // 回复者信息（username字段返回nickname值）
+        fromUsername: reply.user?.nickname || null,
+        fromNickname: reply.user?.nickname || null,
+        fromPhotoUrl: reply.user?.photo_url || null,
+        // 被回复的评论信息
+        myComment: parentComment?.content || null,
+        // 楼层信息
+        floorNumber: reply.floorNumber,
+      };
+    });
+    
+    return {
+      list: formattedReplies,
+      total,
+      page,
+      size,
+      hasMore: total > page * size,
+      totalPages: Math.ceil(total / size),
+    };
+  }
+
+  /**
    * 获取用户收到的最新回复消息
    * @param userId 用户ID
    * @param page 页码
@@ -710,5 +817,44 @@ export class CommentService {
   async getCommentCountByShortId(episodeShortId: string): Promise<number> {
     const countMap = await this.getCommentCountsByShortIds([episodeShortId]);
     return countMap.get(episodeShortId) || 0;
+  }
+
+  /**
+   * 标记回复为已读
+   * @param userId 用户ID
+   * @param replyIds 回复ID数组（可选，如果不传则标记所有未读回复）
+   */
+  async markRepliesAsRead(userId: number, replyIds?: number[]) {
+    const updateQuery = this.commentRepo
+      .createQueryBuilder()
+      .update(Comment)
+      .set({ isRead: true })
+      .where('replyToUserId = :userId', { userId })
+      .andWhere('isRead = :isRead', { isRead: false });
+
+    // 如果指定了特定的回复ID，只标记这些回复
+    if (replyIds && replyIds.length > 0) {
+      updateQuery.andWhere('id IN (:...replyIds)', { replyIds });
+    }
+
+    const result = await updateQuery.execute();
+    return { 
+      ok: true, 
+      affected: result.affected || 0 
+    };
+  }
+
+  /**
+   * 获取用户未读回复的数量
+   * @param userId 用户ID
+   * @returns 未读回复数量
+   */
+  async getUnreadReplyCount(userId: number): Promise<number> {
+    return await this.commentRepo.count({
+      where: {
+        replyToUserId: userId,
+        isRead: false,
+      },
+    });
   }
 }

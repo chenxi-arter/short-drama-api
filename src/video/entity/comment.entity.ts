@@ -74,6 +74,14 @@ export class Comment {
   likeCount: number;
 
   /** 
+   * 是否已读（针对回复消息）
+   * true: 被回复者已查看
+   * false: 未查看
+   */
+  @Column({ name: 'is_read', type: 'boolean', default: false })
+  isRead: boolean;
+
+  /** 
    * 评论/弹幕文字内容 
    * 用户发表的评论或弹幕的具体内容
    */

@@ -22,6 +22,10 @@ export class CommentLike {
   @Column({ name: 'comment_id', type: 'int' })
   commentId: number;
 
+  /** 是否已读（针对被点赞者的通知） */
+  @Column({ name: 'is_read', type: 'boolean', default: false })
+  isRead: boolean;
+
   /** 点赞时间 */
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;

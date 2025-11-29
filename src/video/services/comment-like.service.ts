@@ -196,4 +196,125 @@ export class CommentLikeService {
       totalPages: Math.ceil(total / size),
     };
   }
+
+  /**
+   * 获取用户收到的未读点赞通知
+   * @param userId 用户ID（评论作者）
+   * @param page 页码
+   * @param size 每页数量
+   */
+  async getUserUnreadLikes(userId: number, page = 1, size = 20) {
+    const skip = (page - 1) * size;
+
+    // 查询该用户的评论收到的未读点赞
+    const [likes, total] = await this.commentLikeRepo
+      .createQueryBuilder('like')
+      .leftJoinAndSelect('like.user', 'liker')  // 点赞者
+      .leftJoinAndSelect('like.comment', 'comment')  // 被点赞的评论
+      .where('comment.userId = :userId', { userId })  // 评论作者是当前用户
+      .andWhere('like.isRead = :isRead', { isRead: false })  // 未读
+      .orderBy('like.createdAt', 'DESC')
+      .skip(skip)
+      .take(size)
+      .getManyAndCount();
+
+    // 批量获取剧集和系列信息
+    const episodeShortIds = [...new Set(likes.map(like => like.comment?.episodeShortId).filter(Boolean))];
+    const episodeInfoMap = new Map<string, any>();
+
+    if (episodeShortIds.length > 0) {
+      const episodes = await this.commentRepo.manager
+        .getRepository('Episode')
+        .createQueryBuilder('episode')
+        .leftJoinAndSelect('episode.series', 'series')
+        .where('episode.shortId IN (:...shortIds)', { shortIds: episodeShortIds })
+        .getMany();
+
+      episodes.forEach((episode: any) => {
+        episodeInfoMap.set(episode.shortId, {
+          episodeNumber: episode.episodeNumber,
+          episodeTitle: episode.title,
+          seriesShortId: episode.series?.shortId,
+          seriesTitle: episode.series?.title,
+          seriesCoverUrl: episode.series?.coverUrl,
+        });
+      });
+    }
+
+    // 格式化返回数据
+    const formattedLikes = likes.map((like) => {
+      const comment = like.comment;
+      const episodeInfo = comment?.episodeShortId ? episodeInfoMap.get(comment.episodeShortId) : null;
+
+      return {
+        id: like.id,
+        likedAt: like.createdAt,
+        isRead: like.isRead,
+        // 点赞者信息
+        likerUserId: like.userId,
+        likerUsername: like.user?.nickname || like.user?.username || null,
+        likerNickname: like.user?.nickname || null,
+        likerPhotoUrl: like.user?.photo_url || null,
+        // 被点赞的评论信息
+        commentId: comment?.id || null,
+        commentContent: comment?.content || null,
+        // 剧集和系列信息
+        episodeShortId: comment?.episodeShortId || null,
+        episodeNumber: episodeInfo?.episodeNumber || null,
+        episodeTitle: episodeInfo?.episodeTitle || null,
+        seriesShortId: episodeInfo?.seriesShortId || null,
+        seriesTitle: episodeInfo?.seriesTitle || null,
+        seriesCoverUrl: episodeInfo?.seriesCoverUrl || null,
+      };
+    });
+
+    return {
+      list: formattedLikes,
+      total,
+      page,
+      size,
+      hasMore: total > page * size,
+      totalPages: Math.ceil(total / size),
+    };
+  }
+
+  /**
+   * 标记点赞通知为已读
+   * @param userId 用户ID（评论作者）
+   * @param likeIds 点赞记录ID数组（可选，不传则标记所有未读）
+   */
+  async markLikesAsRead(userId: number, likeIds?: number[]) {
+    const queryBuilder = this.commentLikeRepo
+      .createQueryBuilder('like')
+      .leftJoin('like.comment', 'comment')
+      .update(CommentLike)
+      .set({ isRead: true })
+      .where('comment.userId = :userId', { userId })
+      .andWhere('like.isRead = :isRead', { isRead: false });
+
+    // 如果指定了特定的点赞ID，只标记这些点赞
+    if (likeIds && likeIds.length > 0) {
+      queryBuilder.andWhere('like.id IN (:...likeIds)', { likeIds });
+    }
+
+    const result = await queryBuilder.execute();
+    return {
+      ok: true,
+      affected: result.affected || 0,
+    };
+  }
+
+  /**
+   * 获取用户未读点赞的数量
+   * @param userId 用户ID（评论作者）
+   * @returns 未读点赞数量
+   */
+  async getUnreadLikeCount(userId: number): Promise<number> {
+    return await this.commentLikeRepo
+      .createQueryBuilder('like')
+      .leftJoin('like.comment', 'comment')
+      .where('comment.userId = :userId', { userId })
+      .andWhere('like.isRead = :isRead', { isRead: false })
+      .getCount();
+  }
 }
