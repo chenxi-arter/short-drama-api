@@ -284,17 +284,29 @@ export class CommentLikeService {
    * @param likeIds 点赞记录ID数组（可选，不传则标记所有未读）
    */
   async markLikesAsRead(userId: number, likeIds?: number[]) {
+    // 先查询出该用户的所有评论ID
+    const userComments = await this.commentRepo.find({
+      where: { userId },
+      select: ['id'],
+    });
+
+    const commentIds = userComments.map(c => c.id);
+    
+    if (commentIds.length === 0) {
+      return { ok: true, affected: 0 };
+    }
+
+    // 构建更新查询
     const queryBuilder = this.commentLikeRepo
-      .createQueryBuilder('like')
-      .leftJoin('like.comment', 'comment')
+      .createQueryBuilder()
       .update(CommentLike)
       .set({ isRead: true })
-      .where('comment.userId = :userId', { userId })
-      .andWhere('like.isRead = :isRead', { isRead: false });
+      .where('commentId IN (:...commentIds)', { commentIds })
+      .andWhere('isRead = :isRead', { isRead: false });
 
     // 如果指定了特定的点赞ID，只标记这些点赞
     if (likeIds && likeIds.length > 0) {
-      queryBuilder.andWhere('like.id IN (:...likeIds)', { likeIds });
+      queryBuilder.andWhere('id IN (:...likeIds)', { likeIds });
     }
 
     const result = await queryBuilder.execute();
