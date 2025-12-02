@@ -79,34 +79,21 @@ export class RecommendService {
     try {
       const offset = (page - 1) * size;
       
-      // 生成缓存键（公开数据使用缓存，用户个性化数据不缓存）
-      const cacheKey = `recommend:list:${page}:${size}`;
-      const cacheTTL = 120; // 2分钟缓存（有索引支持，保持推荐新鲜度）
-      
-      // 仅对未登录用户使用缓存
-      if (!userId) {
-        const cachedData = await this.cacheManager.get<{
-          list: RecommendEpisodeItem[];
-          page: number;
-          size: number;
-          hasMore: boolean;
-        }>(cacheKey);
-        
-        if (cachedData) {
-          return cachedData;
-        }
-      }
+      // 注意：推荐接口不使用缓存，保证每次刷新都是真随机
+      // 类似抖音的推荐流，每次刷新都有新内容
 
-      // 构建推荐查询（性能优化版）
-      // 推荐分数 = (点赞数 × 3 + 收藏数 × 5) × 随机权重(0.5-1.5) + 大随机因子(0-500) + 新鲜度分数
-      // 新鲜度分数（增强时间权重）：
-      //   - 7天内：600分递减（每天-85分），最新内容优先
-      //   - 7-30天：300分递减（每天-13分）
-      //   - 30天后：保持100分基础分
+      // 构建推荐查询（性能优化版 + 真随机）
+      // 推荐分数 = (点赞数 × 2 + 收藏数 × 4) × 随机权重(0.8-1.5) + 大随机因子(0-400) + 新鲜度分数
+      // 新鲜度分数（强化时间权重，优先推荐新内容）：
+      //   - 3天内：800分递减（每天-267分），极度优先最新内容
+      //   - 3-14天：600分递减（每天-54分），优先较新内容
+      //   - 14-30天：300分递减（每天-19分），适度推荐
+      //   - 30天后：保持120分基础分
+      // 权重平衡：新鲜度占主导（最高800分），点赞/收藏有明显作用（高互动内容可获200-500分加成）
       // 性能优化：
       //   1. 使用索引友好的 WHERE 条件顺序
       //   2. 限制 OFFSET 最大值，避免深度分页
-      //   3. 使用 RAND(page) 作为种子，同一页码返回相同结果（可缓存）
+      //   3. 使用 RAND() 实现真随机推荐（类似抖音刷新）
       // 筛选条件：只推荐短剧（category_id=1）的第一集
       
       // 限制最大偏移量，避免深度分页导致的性能问题
@@ -141,12 +128,13 @@ export class RecommendService {
           s.actor as seriesActor,
           s.up_status as seriesUpStatus,
           (
-            (e.like_count * 3 + e.favorite_count * 5) * (0.5 + RAND(? + e.id)) +
-            FLOOR(RAND(? + e.id) * 500) +
+            (e.like_count * 2 + e.favorite_count * 4) * (0.8 + RAND() * 0.7) +
+            FLOOR(RAND() * 400) +
             CASE 
-              WHEN DATEDIFF(NOW(), e.created_at) <= 7 THEN GREATEST(0, 600 - DATEDIFF(NOW(), e.created_at) * 85)
-              WHEN DATEDIFF(NOW(), e.created_at) <= 30 THEN GREATEST(0, 300 - (DATEDIFF(NOW(), e.created_at) - 7) * 13)
-              ELSE 100
+              WHEN DATEDIFF(NOW(), e.created_at) <= 3 THEN GREATEST(0, 800 - DATEDIFF(NOW(), e.created_at) * 267)
+              WHEN DATEDIFF(NOW(), e.created_at) <= 14 THEN GREATEST(0, 600 - (DATEDIFF(NOW(), e.created_at) - 3) * 54)
+              WHEN DATEDIFF(NOW(), e.created_at) <= 30 THEN GREATEST(0, 300 - (DATEDIFF(NOW(), e.created_at) - 14) * 19)
+              ELSE 120
             END
           ) as recommendScore
         FROM episodes e
@@ -159,7 +147,7 @@ export class RecommendService {
         LIMIT ? OFFSET ?
       `;
 
-      const episodes: RecommendQueryResult[] = await this.episodeRepo.query(query, [page, page, queryLimit, safeOffset]);
+      const episodes: RecommendQueryResult[] = await this.episodeRepo.query(query, [queryLimit, safeOffset]);
 
       // 判断是否还有更多数据
       const hasMore = episodes.length > size;
@@ -259,20 +247,12 @@ export class RecommendService {
         })
       );
 
-      const result = {
+      return {
         list: enrichedList,
         page,
         size,
         hasMore,
       };
-      
-      // 仅缓存未登录用户的数据（公开数据）
-      // 缓存时间：2分钟（有索引支持，保持推荐新鲜度）
-      if (!userId) {
-        await this.cacheManager.set(cacheKey, result, cacheTTL * 1000);
-      }
-      
-      return result;
     } catch (error) {
       console.error('获取推荐列表失败:', error);
       throw new Error('获取推荐列表失败');
