@@ -2213,14 +2213,16 @@ GET /api/user/liked/stats                  # 点赞统计 ⭐
 
 **功能**: 记录用户通过广告进入网站的访问行为
 
+**认证**: 可选（如果传 JWT Token，会自动获取 userId）
+
 **请求参数**:
 ```json
 {
   "campaignCode": "WX_20251117_8FA5D0",  // 必填，广告计划代码（从URL参数获取）
   "eventType": "click",                   // 必填，事件类型："click"
   "sessionId": "session_xxx",             // 必填，会话ID
-  "deviceId": "device_xxx",               // 必填，设备ID
-  "userId": 123                           // 选填，用户ID（登录后传）
+  "deviceId": "device_xxx"                // 必填，设备ID
+  // userId 会从 JWT Token 自动获取，无需传递
 }
 ```
 
@@ -2240,13 +2242,22 @@ GET /api/user/liked/stats                  # 点赞统计 ⭐
 ```javascript
 // 页面加载时，从URL获取广告代码
 const campaignCode = new URLSearchParams(window.location.search).get('campaign');
+const token = localStorage.getItem('access_token');
 
 if (campaignCode) {
+  const headers = {};
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`; // 如果已登录，传 Token
+  }
+  
   axios.post('/api/tracking/advertising/event', {
     campaignCode: campaignCode,
     eventType: 'click',
     sessionId: getSessionId(),
     deviceId: getDeviceId()
+    // userId 会从 Token 自动获取
+  }, { headers }).catch(err => {
+    console.error('记录访问事件失败:', err);
   });
 }
 ```
@@ -2259,14 +2270,16 @@ if (campaignCode) {
 
 **功能**: 记录用户完成注册的转化行为
 
+**认证**: 需要 JWT Token（会自动获取 userId）
+
 **请求参数**:
 ```json
 {
   "campaignCode": "WX_20251117_8FA5D0",  // 必填，广告计划代码
   "conversionType": "register",           // 必填，转化类型："register"
-  "userId": 123,                          // 必填，用户ID
   "sessionId": "session_xxx",             // 必填，会话ID
   "deviceId": "device_xxx"                // 必填，设备ID
+  // userId 会从 JWT Token 自动获取，无需传递
 }
 ```
 
@@ -2286,16 +2299,22 @@ if (campaignCode) {
 **使用示例**:
 ```javascript
 // 用户注册成功后调用
-function onRegisterSuccess(userId) {
+function onRegisterSuccess(token) {
   const campaignCode = localStorage.getItem('campaignCode');
   
   if (campaignCode) {
     axios.post('/api/tracking/advertising/conversion', {
       campaignCode: campaignCode,
       conversionType: 'register',
-      userId: userId,
       sessionId: getSessionId(),
       deviceId: getDeviceId()
+      // userId 会从 Token 自动获取
+    }, {
+      headers: {
+        'Authorization': `Bearer ${token}` // 必须传 Token
+      }
+    }).catch(err => {
+      console.error('记录注册转化失败:', err);
     });
   }
 }
@@ -2445,6 +2464,415 @@ const observer = new IntersectionObserver((entries) => {
 // 监听所有轮播图
 document.querySelectorAll('.banner-item').forEach(banner => {
   observer.observe(banner);
+});
+```
+
+---
+
+## 11. 通知系统
+
+### 11.1 获取未读通知总数
+
+**接口**: `GET /api/notifications/unread-count`
+
+**功能**: 一次性获取所有类型的未读通知数量（回复 + 点赞）
+
+**认证**: 需要 JWT Token
+
+**返回数据**:
+```json
+{
+  "code": 200,
+  "message": "获取成功",
+  "data": {
+    "replies": 5,      // 未读回复数
+    "likes": 10,       // 未读点赞数
+    "total": 15        // 总未读数
+  }
+}
+```
+
+**使用示例**:
+```javascript
+// 获取未读通知总数
+async function getUnreadCount() {
+  const response = await axios.get('/api/notifications/unread-count', {
+    headers: {
+      'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+    }
+  });
+  
+  const { replies, likes, total } = response.data.data;
+  
+  // 更新UI显示
+  updateNotificationBadge(total);
+}
+```
+
+---
+
+### 11.2 获取未读通知列表
+
+**接口**: `GET /api/notifications/unread?page=1&size=20`
+
+**功能**: 获取回复和点赞的合并列表，按时间倒序排列
+
+**认证**: 需要 JWT Token
+
+**请求参数**:
+- `page` - 页码，默认1
+- `size` - 每页数量，默认20
+
+**返回数据**:
+```json
+{
+  "code": 200,
+  "message": "获取成功",
+  "data": {
+    "list": [
+      {
+        "type": "reply",
+        "id": 123,
+        "content": "我也觉得这集很精彩！",
+        "createdAt": "2024-01-15T10:30:00.000Z",
+        "isRead": false,
+        "fromUsername": "张三",
+        "myComment": "这集太精彩了！",
+        "seriesTitle": "热门剧集",
+        "episodeNumber": 5
+      },
+      {
+        "type": "like",
+        "id": 456,
+        "likedAt": "2024-01-15T10:25:00.000Z",
+        "isRead": false,
+        "likerUsername": "李四",
+        "commentContent": "这个角色演得真好",
+        "seriesTitle": "热门剧集",
+        "episodeNumber": 3
+      }
+    ],
+    "total": 15,
+    "page": 1,
+    "size": 20,
+    "hasMore": false,
+    "totalPages": 1
+  }
+}
+```
+
+**使用示例**:
+```javascript
+// 获取未读通知列表
+async function getUnreadNotifications(page = 1, size = 20) {
+  const response = await axios.get(`/api/notifications/unread?page=${page}&size=${size}`, {
+    headers: {
+      'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+    }
+  });
+  
+  const { list, total, hasMore } = response.data.data;
+  
+  // 渲染通知列表
+  renderNotificationList(list);
+}
+```
+
+---
+
+### 11.3 获取未读回复列表
+
+**接口**: `GET /api/video/episode/my-unread-replies?page=1&size=20`
+
+**功能**: 获取我的评论的未读回复列表
+
+**认证**: 需要 JWT Token
+
+**请求参数**:
+- `page` - 页码，默认1
+- `size` - 每页数量，默认20
+
+**返回数据**:
+```json
+{
+  "code": 200,
+  "message": "获取成功",
+  "data": {
+    "list": [
+      {
+        "id": 123,
+        "content": "我也觉得这集很精彩！",
+        "createdAt": "2024-01-15T10:30:00.000Z",
+        "isRead": false,
+        "episodeNumber": 5,
+        "episodeTitle": "第五集",
+        "seriesShortId": "abc123",
+        "seriesTitle": "热门剧集",
+        "seriesCoverUrl": "https://...",
+        "fromUsername": "张三",
+        "fromNickname": "张三",
+        "fromPhotoUrl": "https://...",
+        "myComment": "这集太精彩了！",
+        "floorNumber": 2
+      }
+    ],
+    "total": 5,
+    "page": 1,
+    "size": 20,
+    "hasMore": false,
+    "totalPages": 1
+  }
+}
+```
+
+---
+
+### 11.4 标记回复为已读
+
+**接口**: `POST /api/video/episode/replies/mark-read`
+
+**功能**: 标记回复通知为已读
+
+**认证**: 需要 JWT Token
+
+**请求参数**:
+```json
+{
+  "replyIds": [123, 124, 125]  // 可选，不传则标记所有未读回复
+}
+```
+
+**返回数据**:
+```json
+{
+  "code": 200,
+  "message": "已标记为已读",
+  "data": {
+    "ok": true,
+    "affected": 3
+  }
+}
+```
+
+**使用示例**:
+```javascript
+// 标记指定回复为已读
+async function markRepliesAsRead(replyIds) {
+  await axios.post('/api/video/episode/replies/mark-read', {
+    replyIds: replyIds
+  }, {
+    headers: {
+      'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+    }
+  });
+}
+
+// 标记所有回复为已读
+async function markAllRepliesAsRead() {
+  await axios.post('/api/video/episode/replies/mark-read', {}, {
+    headers: {
+      'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+    }
+  });
+}
+```
+
+---
+
+### 11.5 获取未读点赞列表
+
+**接口**: `GET /api/video/comment/my-unread-likes?page=1&size=20`
+
+**功能**: 获取我的评论的未读点赞列表
+
+**认证**: 需要 JWT Token
+
+**请求参数**:
+- `page` - 页码，默认1
+- `size` - 每页数量，默认20
+
+**返回数据**:
+```json
+{
+  "code": 200,
+  "message": "获取成功",
+  "data": {
+    "list": [
+      {
+        "id": 456,
+        "likedAt": "2024-01-15T10:25:00.000Z",
+        "isRead": false,
+        "likerUserId": 789,
+        "likerUsername": "李四",
+        "likerNickname": "李四",
+        "likerPhotoUrl": "https://...",
+        "commentId": 100,
+        "commentContent": "这个角色演得真好",
+        "episodeShortId": "xyz789",
+        "episodeNumber": 3,
+        "episodeTitle": "第三集",
+        "seriesShortId": "abc123",
+        "seriesTitle": "热门剧集",
+        "seriesCoverUrl": "https://..."
+      }
+    ],
+    "total": 10,
+    "page": 1,
+    "size": 20,
+    "hasMore": false,
+    "totalPages": 1
+  }
+}
+```
+
+---
+
+### 11.6 标记点赞为已读
+
+**接口**: `POST /api/video/comment/likes/mark-read`
+
+**功能**: 标记点赞通知为已读
+
+**认证**: 需要 JWT Token
+
+**请求参数**:
+```json
+{
+  "likeIds": [456, 457, 458]  // 可选，不传则标记所有未读点赞
+}
+```
+
+**返回数据**:
+```json
+{
+  "code": 200,
+  "message": "已标记为已读",
+  "data": {
+    "ok": true,
+    "affected": 3
+  }
+}
+```
+
+**使用示例**:
+```javascript
+// 标记指定点赞为已读
+async function markLikesAsRead(likeIds) {
+  await axios.post('/api/video/comment/likes/mark-read', {
+    likeIds: likeIds
+  }, {
+    headers: {
+      'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+    }
+  });
+}
+
+// 标记所有点赞为已读
+async function markAllLikesAsRead() {
+  await axios.post('/api/video/comment/likes/mark-read', {}, {
+    headers: {
+      'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+    }
+  });
+}
+```
+
+---
+
+### 11.7 智能轮询实现
+
+**推荐做法**: 使用智能轮询定期检查未读通知
+
+```javascript
+class NotificationPoller {
+  constructor() {
+    this.intervalId = null;
+    this.pollInterval = 30000; // 30秒
+  }
+  
+  async start() {
+    // 立即执行一次
+    await this.checkNotifications();
+    
+    // 定时轮询
+    this.intervalId = setInterval(() => {
+      this.checkNotifications();
+    }, this.pollInterval);
+    
+    // 页面可见性变化时调整轮询频率
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        this.pollInterval = 60000; // 后台时1分钟
+      } else {
+        this.pollInterval = 30000; // 前台时30秒
+        this.checkNotifications(); // 立即检查
+      }
+      this.restart();
+    });
+  }
+  
+  async checkNotifications() {
+    try {
+      const token = localStorage.getItem('access_token');
+      if (!token) return;
+      
+      const response = await fetch('/api/notifications/unread-count', {
+        headers: { 
+          'Authorization': `Bearer ${token}` 
+        }
+      });
+      
+      const result = await response.json();
+      
+      if (result.code === 200) {
+        const { replies, likes, total } = result.data;
+        
+        // 更新UI显示
+        this.updateBadge(total);
+        
+        // 如果有新通知，可以显示提示
+        if (total > 0) {
+          this.showNotificationHint(replies, likes);
+        }
+      }
+    } catch (error) {
+      console.error('检查通知失败:', error);
+    }
+  }
+  
+  updateBadge(count) {
+    const badge = document.querySelector('.notification-badge');
+    if (badge) {
+      badge.textContent = count > 99 ? '99+' : count;
+      badge.style.display = count > 0 ? 'block' : 'none';
+    }
+  }
+  
+  showNotificationHint(replies, likes) {
+    // 显示通知提示（可选）
+    console.log(`您有 ${replies} 条新回复，${likes} 个新点赞`);
+  }
+  
+  restart() {
+    this.stop();
+    this.start();
+  }
+  
+  stop() {
+    if (this.intervalId) {
+      clearInterval(this.intervalId);
+      this.intervalId = null;
+    }
+  }
+}
+
+// 使用示例
+const poller = new NotificationPoller();
+poller.start();
+
+// 页面卸载时停止轮询
+window.addEventListener('beforeunload', () => {
+  poller.stop();
 });
 ```
 
