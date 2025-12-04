@@ -1,5 +1,5 @@
 import { IsString, IsOptional, IsNumber, IsEnum, IsObject, IsArray } from 'class-validator';
-import { Type } from 'class-transformer';
+import { Type, Exclude } from 'class-transformer';
 import { EventType, ConversionType } from '../entity';
 
 export class CreateEventDto {
@@ -46,9 +46,6 @@ export class CreateConversionDto {
   @IsOptional()
   @IsNumber()
   conversionValue?: number;
-
-  @IsNumber()
-  userId: number;
 
   @IsOptional()
   @IsString()

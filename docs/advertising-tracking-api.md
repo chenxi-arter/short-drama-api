@@ -18,14 +18,16 @@
 
 **功能说明**: 记录用户通过广告进入网站的访问行为
 
+**认证**: 可选（如果传 JWT Token，会自动获取 userId）
+
 **请求参数**:
 ```json
 {
   "campaignCode": "WX_20251117_8FA5D0",  // 广告计划代码（必填）
   "eventType": "click",                   // 事件类型（必填）
   "sessionId": "session_xxx",             // 会话ID（必填）
-  "deviceId": "device_xxx",               // 设备ID（必填）
-  "userId": 123                           // 用户ID（选填，登录后传）
+  "deviceId": "device_xxx"                // 设备ID（必填）
+  // userId 会从 JWT Token 自动获取，无需传递
 }
 ```
 
@@ -48,14 +50,21 @@
 ```javascript
 // 页面加载时，从URL获取广告代码
 const campaignCode = new URLSearchParams(window.location.search).get('campaign');
+const token = localStorage.getItem('access_token');
 
 if (campaignCode) {
+  const headers = {};
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`; // 如果已登录，传 Token
+  }
+  
   axios.post('/api/tracking/advertising/event', {
     campaignCode: campaignCode,
     eventType: 'click',
     sessionId: getSessionId(),
     deviceId: getDeviceId()
-  });
+    // userId 会从 Token 自动获取，无需传递
+  }, { headers });
 }
 ```
 
@@ -67,14 +76,16 @@ if (campaignCode) {
 
 **功能说明**: 记录用户完成注册的转化行为
 
+**认证**: 需要 JWT Token（会自动获取 userId）
+
 **请求参数**:
 ```json
 {
   "campaignCode": "WX_20251117_8FA5D0",  // 广告计划代码（必填）
   "conversionType": "register",           // 转化类型（必填）
-  "userId": 123,                          // 用户ID（必填）
   "sessionId": "session_xxx",             // 会话ID（必填）
   "deviceId": "device_xxx"                // 设备ID（必填）
+  // userId 会从 JWT Token 自动获取，无需传递
 }
 ```
 
@@ -97,16 +108,20 @@ if (campaignCode) {
 **使用示例**:
 ```javascript
 // 用户注册成功后调用
-function onRegisterSuccess(userId) {
+function onRegisterSuccess(token) {
   const campaignCode = localStorage.getItem('campaignCode');
   
   if (campaignCode) {
     axios.post('/api/tracking/advertising/conversion', {
       campaignCode: campaignCode,
       conversionType: 'register',
-      userId: userId,
       sessionId: getSessionId(),
       deviceId: getDeviceId()
+      // userId 会从 Token 自动获取，无需传递
+    }, {
+      headers: {
+        'Authorization': `Bearer ${token}` // 必须传 Token
+      }
     });
   }
 }
@@ -186,12 +201,19 @@ if (campaignCode) {
   localStorage.setItem('campaignCode', campaignCode);
   
   // 记录访问事件
+  const token = localStorage.getItem('access_token');
+  const headers = {};
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`; // 如果已登录，传 Token
+  }
+  
   axios.post('/api/tracking/advertising/event', {
     campaignCode: campaignCode,
     eventType: 'click',
     sessionId: getSessionId(),
     deviceId: getDeviceId()
-  }).catch(err => {
+    // userId 会从 Token 自动获取
+  }, { headers }).catch(err => {
     console.error('记录访问事件失败:', err);
   });
 }
@@ -203,8 +225,11 @@ async function handleRegister(formData) {
     // 调用你们的注册接口
     const response = await axios.post('/api/auth/register', formData);
     
-    // 从注册接口响应中获取 userId
-    const userId = response.data.userId;  // 或 response.data.id，根据你们的接口返回
+    // 从注册接口响应中获取 access_token
+    const token = response.data.access_token;
+    
+    // 保存 token
+    localStorage.setItem('access_token', token);
     
     // 记录注册转化
     const campaignCode = localStorage.getItem('campaignCode');
@@ -212,9 +237,13 @@ async function handleRegister(formData) {
       axios.post('/api/tracking/advertising/conversion', {
         campaignCode: campaignCode,
         conversionType: 'register',
-        userId: userId,  // 使用注册接口返回的用户ID
         sessionId: getSessionId(),
         deviceId: getDeviceId()
+        // userId 会从 Token 自动获取
+      }, {
+        headers: {
+          'Authorization': `Bearer ${token}` // 必须传 Token
+        }
       }).catch(err => {
         console.error('记录注册转化失败:', err);
       });
@@ -240,7 +269,7 @@ async function handleRegister(formData) {
    - `campaignCode`: 从URL参数获取，保存到localStorage
    - `sessionId`: 会话级别，浏览器关闭后失效
    - `deviceId`: 设备级别，永久保存
-   - `userId`: 用户登录/注册接口返回的用户ID，记录转化时必填
+   - `userId`: 从 JWT Token 自动获取，无需在请求体中传递
 
 3. **调用时机**
    - **访问事件**: 页面加载时检测到campaign参数立即调用
@@ -612,13 +641,12 @@ async function handleTelegramLogin(initData) {
       deviceInfo: navigator.userAgent
     });
     
-    // 2. 获取返回的 userId
-    const userId = response.data.userId;
+    // 2. 获取返回的 access_token
+    const token = response.data.access_token;
     
-    // 3. 保存token和用户信息
-    localStorage.setItem('access_token', response.data.access_token);
+    // 3. 保存token
+    localStorage.setItem('access_token', token);
     localStorage.setItem('refresh_token', response.data.refresh_token);
-    localStorage.setItem('userId', userId);
     
     // 4. 记录广告注册转化
     const campaignCode = localStorage.getItem('campaignCode');
@@ -626,9 +654,13 @@ async function handleTelegramLogin(initData) {
       axios.post('/api/tracking/advertising/conversion', {
         campaignCode: campaignCode,
         conversionType: 'register',
-        userId: userId,
         sessionId: getSessionId(),
         deviceId: getDeviceId()
+        // userId 会从 Token 自动获取
+      }, {
+        headers: {
+          'Authorization': `Bearer ${token}` // 必须传 Token
+        }
       }).catch(err => {
         console.error('记录注册转化失败:', err);
       });
@@ -658,13 +690,12 @@ async function handleTelegramBotLogin(telegramData) {
       deviceInfo: navigator.userAgent
     });
     
-    // 2. 获取返回的 userId
-    const userId = response.data.userId;
+    // 2. 获取返回的 access_token
+    const token = response.data.access_token;
     
-    // 3. 保存token和用户信息
-    localStorage.setItem('access_token', response.data.access_token);
+    // 3. 保存token
+    localStorage.setItem('access_token', token);
     localStorage.setItem('refresh_token', response.data.refresh_token);
-    localStorage.setItem('userId', userId);
     
     // 4. 记录广告注册转化
     const campaignCode = localStorage.getItem('campaignCode');
@@ -672,9 +703,13 @@ async function handleTelegramBotLogin(telegramData) {
       axios.post('/api/tracking/advertising/conversion', {
         campaignCode: campaignCode,
         conversionType: 'register',
-        userId: userId,
         sessionId: getSessionId(),
         deviceId: getDeviceId()
+        // userId 会从 Token 自动获取
+      }, {
+        headers: {
+          'Authorization': `Bearer ${token}` // 必须传 Token
+        }
       }).catch(err => {
         console.error('记录注册转化失败:', err);
       });
@@ -700,13 +735,12 @@ async function handleEmailRegister(formData) {
       confirmPassword: formData.confirmPassword
     });
     
-    // 2. 获取返回的 userId
-    const userId = response.data.userId;
+    // 2. 获取返回的 access_token
+    const token = response.data.access_token;
     
-    // 3. 保存token和用户信息
-    localStorage.setItem('access_token', response.data.access_token);
+    // 3. 保存token
+    localStorage.setItem('access_token', token);
     localStorage.setItem('refresh_token', response.data.refresh_token);
-    localStorage.setItem('userId', userId);
     
     // 4. 记录广告注册转化
     const campaignCode = localStorage.getItem('campaignCode');
@@ -714,9 +748,13 @@ async function handleEmailRegister(formData) {
       axios.post('/api/tracking/advertising/conversion', {
         campaignCode: campaignCode,
         conversionType: 'register',
-        userId: userId,
         sessionId: getSessionId(),
         deviceId: getDeviceId()
+        // userId 会从 Token 自动获取
+      }, {
+        headers: {
+          'Authorization': `Bearer ${token}` // 必须传 Token
+        }
       }).catch(err => {
         console.error('记录注册转化失败:', err);
       });

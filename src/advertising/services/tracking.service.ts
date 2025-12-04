@@ -16,7 +16,7 @@ export class TrackingService {
     private campaignService: CampaignService,
   ) {}
 
-  async createEvent(createEventDto: CreateEventDto, ipAddress?: string): Promise<EventResponseDto> {
+  async createEvent(createEventDto: CreateEventDto, ipAddress?: string, userId?: number): Promise<EventResponseDto> {
     try {
       // 查找对应的投放计划
       const campaign = await this.campaignService.findByCode(createEventDto.campaignCode);
@@ -41,6 +41,7 @@ export class TrackingService {
         deviceId: createEventDto.deviceId,
         referrer: createEventDto.referrer,
         userAgent: createEventDto.userAgent,
+        userId: userId, // 从参数传入
         ipAddress,
         country: location.country,
         region: location.region,
@@ -121,7 +122,7 @@ export class TrackingService {
     }
   }
 
-  async createConversion(createConversionDto: CreateConversionDto): Promise<ConversionResponseDto> {
+  async createConversion(createConversionDto: CreateConversionDto, userId: number): Promise<ConversionResponseDto> {
     try {
       // 查找对应的投放计划
       const campaign = await this.campaignService.findByCode(createConversionDto.campaignCode);
@@ -138,7 +139,7 @@ export class TrackingService {
       const existingConversion = await this.conversionRepository.findOne({
         where: {
           campaignId: campaign.id,
-          userId: createConversionDto.userId,
+          userId: userId,
           conversionType: createConversionDto.conversionType,
         },
       });
@@ -154,7 +155,7 @@ export class TrackingService {
       const firstClickEvent = await this.eventRepository.findOne({
         where: {
           campaignId: campaign.id,
-          userId: createConversionDto.userId,
+          userId: userId,
           eventType: EventType.CLICK,
         },
         order: { eventTime: 'ASC' },
@@ -171,7 +172,7 @@ export class TrackingService {
         campaignCode: createConversionDto.campaignCode,
         conversionType: createConversionDto.conversionType,
         conversionValue: createConversionDto.conversionValue || 0,
-        userId: createConversionDto.userId,
+        userId: userId, // 从参数传入
         sessionId: createConversionDto.sessionId,
         deviceId: createConversionDto.deviceId,
         firstClickTime,

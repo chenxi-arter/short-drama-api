@@ -1,19 +1,22 @@
-import { Controller, Post, Body, Req } from '@nestjs/common';
+import { Controller, Post, Body, Req, UseGuards } from '@nestjs/common';
 import { Request } from 'express';
 import { TrackingService } from '../services';
 import { CreateEventDto, BatchCreateEventDto, CreateConversionDto, EventResponseDto, ConversionResponseDto } from '../dto';
+import { OptionalJwtAuthGuard } from '../../auth/guards/optional-jwt-auth.guard';
 
 @Controller('tracking/advertising')
 export class TrackingController {
   constructor(private readonly trackingService: TrackingService) {}
 
   @Post('event')
+  @UseGuards(OptionalJwtAuthGuard)
   async createEvent(
     @Body() createEventDto: CreateEventDto,
-    @Req() req: Request
+    @Req() req: Request & { user?: { userId: number } }
   ): Promise<{ code: number; message: string; data: EventResponseDto }> {
     const ipAddress = this.getClientIp(req);
-    const result = await this.trackingService.createEvent(createEventDto, ipAddress);
+    const userId = req.user?.userId; // 从 JWT Token 获取 userId
+    const result = await this.trackingService.createEvent(createEventDto, ipAddress, userId);
     
     return {
       code: result.success ? 200 : 400,
@@ -38,10 +41,26 @@ export class TrackingController {
   }
 
   @Post('conversion')
+  @UseGuards(OptionalJwtAuthGuard)
   async createConversion(
-    @Body() createConversionDto: CreateConversionDto
+    @Body() createConversionDto: CreateConversionDto,
+    @Req() req: Request & { user?: { userId: number } }
   ): Promise<{ code: number; message: string; data: ConversionResponseDto }> {
-    const result = await this.trackingService.createConversion(createConversionDto);
+    const userId = req.user?.userId; // 从 JWT Token 获取 userId
+    
+    // 转化接口必须有 userId
+    if (!userId) {
+      return {
+        code: 400,
+        message: '转化记录需要用户ID，请先登录',
+        data: {
+          success: false,
+          message: '转化记录需要用户ID，请先登录',
+        },
+      };
+    }
+    
+    const result = await this.trackingService.createConversion(createConversionDto, userId);
     
     return {
       code: result.success ? 200 : 400,
