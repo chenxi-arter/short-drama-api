@@ -211,8 +211,8 @@ export class CommentLikeService {
       .createQueryBuilder('like')
       .leftJoinAndSelect('like.user', 'liker')  // 点赞者
       .leftJoinAndSelect('like.comment', 'comment')  // 被点赞的评论
-      .where('comment.userId = :userId', { userId })  // 评论作者是当前用户
-      .andWhere('like.isRead = :isRead', { isRead: false })  // 未读
+      .where('comment.user_id = :userId', { userId })  // 评论作者是当前用户
+      .andWhere('like.is_read = :isRead', { isRead: false })  // 未读
       .orderBy('like.createdAt', 'DESC')
       .skip(skip)
       .take(size)
@@ -325,8 +325,8 @@ export class CommentLikeService {
     return await this.commentLikeRepo
       .createQueryBuilder('like')
       .leftJoin('like.comment', 'comment')
-      .where('comment.userId = :userId', { userId })
-      .andWhere('like.isRead = :isRead', { isRead: false })
+      .where('comment.user_id = :userId', { userId })
+      .andWhere('like.is_read = :isRead', { isRead: false })
       .getCount();
   }
 }

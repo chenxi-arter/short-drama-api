@@ -484,7 +484,7 @@ export class CommentService {
       .leftJoinAndSelect('comment.user', 'user')
       .where('comment.reply_to_user_id = :userId', { userId })
       .andWhere('comment.is_read = :isRead', { isRead: false })
-      .orderBy('comment.created_at', 'DESC')
+      .orderBy('comment.createdAt', 'DESC')
       .skip(skip)
       .take(size);
     
