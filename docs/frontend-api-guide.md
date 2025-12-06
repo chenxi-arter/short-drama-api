@@ -2609,9 +2609,10 @@ async function getUnreadNotifications(page = 1, size = 20) {
         "seriesShortId": "abc123",
         "seriesTitle": "热门剧集",
         "seriesCoverUrl": "https://...",
-        "fromUsername": "张三",
+        "fromUserId": 789,
+        "fromUsername": "张三",  // 显示优先级：nickname -> first_name+last_name -> username -> null
         "fromNickname": "张三",
-        "fromPhotoUrl": "https://...",
+        "fromPhotoUrl": "https://...",  // 用户头像URL，可能为null
         "myComment": "这集太精彩了！",
         "floorNumber": 2
       }

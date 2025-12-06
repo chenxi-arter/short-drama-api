@@ -478,17 +478,17 @@ export class CommentService {
   ) {
     const skip = (page - 1) * size;
     
-    // 查找回复给该用户的所有未读评论
-    const [replies, total] = await this.commentRepo.findAndCount({
-      where: { 
-        replyToUserId: userId,
-        isRead: false,
-      },
-      order: { createdAt: 'DESC' },
-      skip,
-      take: size,
-      relations: ['user'],
-    });
+    // 查找回复给该用户的所有未读评论，使用 leftJoinAndSelect 确保加载用户信息
+    const queryBuilder = this.commentRepo
+      .createQueryBuilder('comment')
+      .leftJoinAndSelect('comment.user', 'user')
+      .where('comment.reply_to_user_id = :userId', { userId })
+      .andWhere('comment.is_read = :isRead', { isRead: false })
+      .orderBy('comment.created_at', 'DESC')
+      .skip(skip)
+      .take(size);
+    
+    const [replies, total] = await queryBuilder.getManyAndCount();
     
     // 批量获取被回复的原评论信息
     const parentIds = [...new Set(replies.map(r => r.parentId).filter(Boolean))] as number[];
@@ -535,6 +535,16 @@ export class CommentService {
       });
     }
     
+    // 计算显示昵称（与评论列表保持一致）
+    const getDisplayNickname = (user: any) => {
+      if (user?.nickname?.trim()) return user.nickname.trim();
+      const firstName = user?.first_name?.trim() || '';
+      const lastName = user?.last_name?.trim() || '';
+      const fullName = [firstName, lastName].filter(Boolean).join(' ');
+      if (fullName) return fullName;
+      return user?.username || null;
+    };
+    
     // 格式化返回数据
     const formattedReplies = replies.map(reply => {
       const parentComment = reply.parentId ? parentCommentsMap.get(reply.parentId) : null;
@@ -551,9 +561,10 @@ export class CommentService {
         seriesShortId: episodeInfo?.seriesShortId || null,  // 用于跳转
         seriesTitle: episodeInfo?.seriesTitle || null,
         seriesCoverUrl: episodeInfo?.seriesCoverUrl || null,
-        // 回复者信息（username字段返回nickname值）
-        fromUsername: reply.user?.nickname || null,
-        fromNickname: reply.user?.nickname || null,
+        // 回复者信息（与评论列表保持一致）
+        fromUserId: reply.userId,
+        fromUsername: getDisplayNickname(reply.user),
+        fromNickname: getDisplayNickname(reply.user),
         fromPhotoUrl: reply.user?.photo_url || null,
         // 被回复的评论信息
         myComment: parentComment?.content || null,
@@ -585,14 +596,16 @@ export class CommentService {
   ) {
     const skip = (page - 1) * size;
     
-    // 查找回复给该用户的所有评论
-    const [replies, total] = await this.commentRepo.findAndCount({
-      where: { replyToUserId: userId },
-      order: { createdAt: 'DESC' },
-      skip,
-      take: size,
-      relations: ['user'],
-    });
+    // 查找回复给该用户的所有评论，使用 leftJoinAndSelect 确保加载用户信息
+    const queryBuilder = this.commentRepo
+      .createQueryBuilder('comment')
+      .leftJoinAndSelect('comment.user', 'user')
+      .where('comment.reply_to_user_id = :userId', { userId })
+      .orderBy('comment.created_at', 'DESC')
+      .skip(skip)
+      .take(size);
+    
+    const [replies, total] = await queryBuilder.getManyAndCount();
     
     // 批量获取被回复的原评论信息
     const parentIds = [...new Set(replies.map(r => r.parentId).filter(Boolean))] as number[];
@@ -639,6 +652,16 @@ export class CommentService {
       });
     }
     
+    // 计算显示昵称（与评论列表保持一致）
+    const getDisplayNickname = (user: any) => {
+      if (user?.nickname?.trim()) return user.nickname.trim();
+      const firstName = user?.first_name?.trim() || '';
+      const lastName = user?.last_name?.trim() || '';
+      const fullName = [firstName, lastName].filter(Boolean).join(' ');
+      if (fullName) return fullName;
+      return user?.username || null;
+    };
+    
     // 格式化返回数据
     const formattedReplies = replies.map(reply => {
       const parentComment = reply.parentId ? parentCommentsMap.get(reply.parentId) : null;
@@ -654,9 +677,10 @@ export class CommentService {
         seriesShortId: episodeInfo?.seriesShortId || null,  // 用于跳转
         seriesTitle: episodeInfo?.seriesTitle || null,
         seriesCoverUrl: episodeInfo?.seriesCoverUrl || null,
-        // 回复者信息（username字段返回nickname值）
-        fromUsername: reply.user?.nickname || null,
-        fromNickname: reply.user?.nickname || null,
+        // 回复者信息（与评论列表保持一致）
+        fromUserId: reply.userId,
+        fromUsername: getDisplayNickname(reply.user),
+        fromNickname: getDisplayNickname(reply.user),
         fromPhotoUrl: reply.user?.photo_url || null,
         // 被回复的评论信息
         myComment: parentComment?.content || null,
