@@ -68,6 +68,9 @@ export class UpdateCampaignDto {
   @IsOptional()
   @IsDateString()
   endDate?: string;
+
+  // 注意：platform 和 platformId 不允许更新
+  // 如果前端发送了这些字段，会被忽略
 }
 
 export class UpdateCampaignStatusDto {

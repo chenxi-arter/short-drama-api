@@ -147,7 +147,29 @@ export class CampaignService {
       throw new NotFoundException(`Campaign with ID ${id} not found`);
     }
 
-    // 验证时间范围
+    // 构建更新数据对象，只包含明确提供的字段
+    const updateData: Partial<AdvertisingCampaign> = {};
+
+    if (updateCampaignDto.name !== undefined) {
+      updateData.name = updateCampaignDto.name;
+    }
+    if (updateCampaignDto.description !== undefined) {
+      updateData.description = updateCampaignDto.description;
+    }
+    if (updateCampaignDto.targetUrl !== undefined) {
+      updateData.targetUrl = updateCampaignDto.targetUrl;
+    }
+    if (updateCampaignDto.budget !== undefined) {
+      updateData.budget = updateCampaignDto.budget;
+    }
+    if (updateCampaignDto.targetClicks !== undefined) {
+      updateData.targetClicks = updateCampaignDto.targetClicks;
+    }
+    if (updateCampaignDto.targetConversions !== undefined) {
+      updateData.targetConversions = updateCampaignDto.targetConversions;
+    }
+
+    // 验证和处理时间范围
     if (updateCampaignDto.startDate || updateCampaignDto.endDate) {
       const startDate = updateCampaignDto.startDate ? new Date(updateCampaignDto.startDate) : campaign.startDate;
       const endDate = updateCampaignDto.endDate ? new Date(updateCampaignDto.endDate) : campaign.endDate;
@@ -156,15 +178,23 @@ export class CampaignService {
         throw new BadRequestException('End date must be after start date');
       }
       
-      updateCampaignDto.startDate = startDate.toISOString();
-      if (endDate) {
-        updateCampaignDto.endDate = endDate.toISOString();
+      if (updateCampaignDto.startDate) {
+        updateData.startDate = startDate;
+      }
+      if (updateCampaignDto.endDate) {
+        updateData.endDate = endDate;
       }
     }
-
-    Object.assign(campaign, updateCampaignDto);
     
-    await this.campaignRepository.save(campaign);
+    // 使用 QueryBuilder 执行更新，避免关系字段干扰
+    if (Object.keys(updateData).length > 0) {
+      await this.campaignRepository
+        .createQueryBuilder()
+        .update(AdvertisingCampaign)
+        .set(updateData)
+        .where('id = :id', { id })
+        .execute();
+    }
     
     return this.findOne(id);
   }
