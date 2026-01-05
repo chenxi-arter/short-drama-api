@@ -1,5 +1,5 @@
 import { Global, Module } from '@nestjs/common';
-import { EntitiesModule } from './entities/entities.module';
+import { EntitiesModule } from './base/entities.module';
 import { AccessKeyUtil } from './utils/access-key.util';
 
 /**

@@ -8,8 +8,8 @@ import { Series } from './series.entity';
 import { EpisodeUrl } from './episode-url.entity';
 import { WatchProgress } from './watch-progress.entity';
 import { Comment } from './comment.entity';
-import { ShortIdUtil } from '../../shared/utils/short-id.util';
-import { AccessKeyUtil } from '../../shared/utils/access-key.util';
+import { ShortIdUtil } from '../../common/utils/short-id.util';
+import { AccessKeyUtil } from '../../common/utils/access-key.util';
 
 @Entity('episodes')
 export class Episode {

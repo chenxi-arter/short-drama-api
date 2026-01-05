@@ -81,7 +81,7 @@ export class TelegramStrategy extends PassportStrategy(Strategy, 'telegram') {
       
       // 如果短ID为空，生成新的短ID
       if (!user.shortId) {
-        const { ShortIdUtil } = await import('../../shared/utils/short-id.util');
+        const { ShortIdUtil } = await import('../../common/utils/short-id.util');
         user.shortId = ShortIdUtil.generate();
       }
       

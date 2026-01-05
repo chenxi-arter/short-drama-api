@@ -5,7 +5,7 @@ import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
 import { Episode } from '../entity/episode.entity';
 import { EpisodeUrl } from '../entity/episode-url.entity';
-import { AccessKeyUtil } from '../../shared/utils/access-key.util';
+import { AccessKeyUtil } from '../../common/utils/access-key.util';
 
 /**
  * 剧集管理服务

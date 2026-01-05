@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { DefaultAvatarUtil } from '../../shared/utils/default-avatar.util';
+import { DefaultAvatarUtil } from '../../common/utils/default-avatar.util';
 
 /**
  * 假评论生成服务

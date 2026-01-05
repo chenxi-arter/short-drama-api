@@ -5,7 +5,7 @@ import { TestModule } from './test/test.module';
 import { VideoModule } from './video/video.module';
 import { AuthModule } from './auth/auth.module';
 import { CoreModule } from './core/core.module';
-import { SharedModule } from './shared/shared.module';
+import { SharedModule } from './common/shared.module';
 import { AdminModule } from './admin/admin.module';
 
 @Module({

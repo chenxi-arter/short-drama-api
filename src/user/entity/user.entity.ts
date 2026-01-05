@@ -6,7 +6,7 @@ import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, OneToMany, Be
 import { Comment } from '../../video/entity/comment.entity';
 import { WatchProgress } from '../../video/entity/watch-progress.entity';
 // import { BrowseHistory } from '../../video/entity/browse-history.entity';
-import { ShortIdUtil } from '../../shared/utils/short-id.util';
+import { ShortIdUtil } from '../../common/utils/short-id.util';
 
 @Entity('users')
 export class User {

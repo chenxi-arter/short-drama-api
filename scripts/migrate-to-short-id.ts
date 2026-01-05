@@ -14,7 +14,7 @@ import { Category } from '../src/video/entity/category.entity';
 import { EpisodeUrl } from '../src/video/entity/episode-url.entity';
 import { WatchProgress } from '../src/video/entity/watch-progress.entity';
 import { Comment } from '../src/video/entity/comment.entity';
-import { ShortIdUtil } from '../src/shared/utils/short-id.util';
+import { ShortIdUtil } from '../src/common/utils/short-id.util';
 
 // 数据库连接配置
 const dataSource = new DataSource({

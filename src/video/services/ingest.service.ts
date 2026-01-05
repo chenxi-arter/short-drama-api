@@ -5,7 +5,7 @@ import { Series } from '../entity/series.entity';
 import { Episode } from '../entity/episode.entity';
 import { EpisodeUrl } from '../entity/episode-url.entity';
 import { IngestSeriesDto } from '../dto/ingest-series.dto';
-import { AccessKeyUtil } from '../../shared/utils/access-key.util';
+import { AccessKeyUtil } from '../../common/utils/access-key.util';
 import { UpdateIngestSeriesDto } from '../dto/update-ingest-series.dto';
 import { FilterType } from '../entity/filter-type.entity';
 import { FilterOption } from '../entity/filter-option.entity';

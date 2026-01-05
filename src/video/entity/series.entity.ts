@@ -7,7 +7,7 @@ import { Entity, PrimaryGeneratedColumn, Column, OneToMany, CreateDateColumn, Ma
 import { Episode } from './episode.entity';
 import { Category } from './category.entity';
 // import { BrowseHistory } from './browse-history.entity';
-import { ShortIdUtil } from '../../shared/utils/short-id.util';
+import { ShortIdUtil } from '../../common/utils/short-id.util';
 import { FilterOption } from './filter-option.entity';
 
 @Entity('series')

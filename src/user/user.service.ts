@@ -240,7 +240,7 @@ export class UserService {
     // 如果Telegram没有提供头像，分配默认头像
     let photoUrl = userData.photo_url;
     if (!photoUrl) {
-      const { DefaultAvatarUtil } = await import('../shared/utils/default-avatar.util');
+      const { DefaultAvatarUtil } = await import('../common/utils/default-avatar.util');
       photoUrl = DefaultAvatarUtil.getRandomAvatar();
       console.log('分配默认头像:', photoUrl);
     }
@@ -301,7 +301,7 @@ export class UserService {
     
     // 如果短ID为空，生成新的短ID
     if (!user.shortId) {
-      const { ShortIdUtil } = await import('../shared/utils/short-id.util');
+      const { ShortIdUtil } = await import('../common/utils/short-id.util');
       user.shortId = ShortIdUtil.generate();
     }
     
@@ -364,7 +364,7 @@ export class UserService {
     const passwordHash = await PasswordUtil.hashPassword(dto.password);
 
     // 分配随机默认头像
-    const { DefaultAvatarUtil } = await import('../shared/utils/default-avatar.util');
+    const { DefaultAvatarUtil } = await import('../common/utils/default-avatar.util');
     const defaultAvatar = DefaultAvatarUtil.getRandomAvatar();
 
     // 创建用户

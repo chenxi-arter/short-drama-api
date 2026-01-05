@@ -7,7 +7,7 @@ import { Repository } from 'typeorm';
 import { Episode } from '../entity/episode.entity';
 import { EpisodeUrl } from '../entity/episode-url.entity';
 import { Series } from '../entity/series.entity';
-import { AccessKeyUtil } from '../../shared/utils/access-key.util';
+import { AccessKeyUtil } from '../../common/utils/access-key.util';
 
 /**
  * URL服务

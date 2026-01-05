@@ -5,7 +5,7 @@
  */
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, ManyToOne, JoinColumn, BeforeInsert } from 'typeorm';
 import { Category } from './category.entity';
-import { ShortIdUtil } from '../../shared/utils/short-id.util';
+import { ShortIdUtil } from '../../common/utils/short-id.util';
 
 @Entity('short_videos')
 export class ShortVideo {

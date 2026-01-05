@@ -46,7 +46,7 @@ export class GuestService {
   private async createGuestUser(): Promise<User> {
     const guestToken = this.generateGuestToken();
     
-    const { DefaultAvatarUtil } = await import('../shared/utils/default-avatar.util');
+    const { DefaultAvatarUtil } = await import('../common/utils/default-avatar.util');
     const defaultAvatar = DefaultAvatarUtil.getRandomAvatar();
 
     const guestNumber = Math.floor(Math.random() * 999999);

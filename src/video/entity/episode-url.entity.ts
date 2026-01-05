@@ -5,7 +5,7 @@
  */
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, CreateDateColumn, UpdateDateColumn, BeforeInsert } from 'typeorm';
 import { Episode } from './episode.entity';
-import { AccessKeyUtil } from '../../shared/utils/access-key.util';
+import { AccessKeyUtil } from '../../common/utils/access-key.util';
 
 @Entity('episode_urls')
 export class EpisodeUrl {
