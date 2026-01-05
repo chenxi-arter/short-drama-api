@@ -10,6 +10,7 @@ import { BindEmailDto } from './dto/bind-email.dto';
 import { UpdateNicknameDto, UpdateNicknameResponseDto } from './dto/update-nickname.dto';
 import { UpdatePasswordDto, UpdatePasswordResponseDto } from './dto/update-password.dto';
 import { UpdateAvatarDto, UpdateAvatarResponseDto } from './dto/update-avatar.dto';
+import { ConvertGuestToEmailDto, ConvertGuestResponseDto } from './dto/convert-guest.dto';
 import { verifyTelegramHash } from './telegram.validator';
 import { AuthService } from '../auth/auth.service';
 import { TelegramAuthService } from '../auth/telegram-auth.service';
@@ -23,7 +24,7 @@ interface TelegramUserData {
   photo_url?: string;
 }
 
-interface TokenResult {
+export interface TokenResult {
   access_token: string;
   refresh_token: string;
   token_type: string;
@@ -602,6 +603,118 @@ export class UserService {
       success: true,
       message: '头像更新成功',
       photo_url: dto.photo_url
+    };
+  }
+
+  /**
+   * 游客转正式用户（邮箱注册）
+   * @param userId 游客用户ID
+   * @param dto 注册信息
+   * @returns 转换结果和新令牌
+   */
+  async convertGuestToEmailUser(userId: number, dto: ConvertGuestToEmailDto): Promise<ConvertGuestResponseDto> {
+    // 1. 验证密码确认
+    if (dto.password !== dto.confirmPassword) {
+      throw new BadRequestException('密码和确认密码不匹配');
+    }
+
+    // 2. 验证密码强度
+    const passwordValidation = PasswordUtil.validatePasswordStrength(dto.password);
+    if (!passwordValidation.valid) {
+      throw new BadRequestException(passwordValidation.message);
+    }
+
+    // 3. 查找游客用户
+    const user = await this.userRepo.findOneBy({ id: userId, isGuest: true });
+    if (!user) {
+      throw new BadRequestException('游客用户不存在或已转为正式用户');
+    }
+
+    // 4. 检查邮箱是否已被使用
+    const existingUser = await this.userRepo.findOneBy({ email: dto.email });
+    if (existingUser) {
+      throw new ConflictException('该邮箱已被注册');
+    }
+
+    // 5. 检查用户名是否已被使用（如果提供了）
+    if (dto.username) {
+      const existingUsername = await this.userRepo.findOneBy({ username: dto.username });
+      if (existingUsername) {
+        throw new ConflictException('该用户名已被使用');
+      }
+    }
+
+    // 6. 加密密码
+    const passwordHash = await PasswordUtil.hashPassword(dto.password);
+
+    // 7. 更新用户信息，转为正式用户
+    user.isGuest = false;
+    user.email = dto.email;
+    user.password_hash = passwordHash;
+    if (dto.username) {
+      user.username = dto.username;
+    }
+    if (dto.firstName) {
+      user.first_name = dto.firstName;
+    }
+    if (dto.lastName) {
+      user.last_name = dto.lastName;
+    }
+
+    await this.userRepo.save(user);
+
+    // 8. 生成新的令牌
+    const tokens = await this.authService.generateTokens(user, 'Email Registration');
+
+    return {
+      success: true,
+      message: '游客账号已成功转为正式用户，所有历史数据已保留',
+      ...tokens,
+    };
+  }
+
+  /**
+   * 游客通过Telegram登录转正式用户
+   * @param userId 游客用户ID
+   * @param dto Telegram登录信息
+   * @returns 转换结果和新令牌
+   */
+  async convertGuestToTelegramUser(userId: number, dto: TelegramUserDto): Promise<TokenResult> {
+    // 1. 验证Bot Token配置
+    this.validateBotToken();
+
+    // 2. 验证并提取Telegram用户数据
+    const userData = this.validateAndExtractUserData(dto);
+
+    // 3. 查找游客用户
+    const guestUser = await this.userRepo.findOneBy({ id: userId, isGuest: true });
+    if (!guestUser) {
+      throw new BadRequestException('游客用户不存在或已转为正式用户');
+    }
+
+    // 4. 检查Telegram ID是否已被其他用户使用
+    const existingTgUser = await this.userRepo.findOneBy({ telegram_id: userData.id });
+    if (existingTgUser) {
+      throw new ConflictException('该Telegram账号已被其他用户绑定');
+    }
+
+    // 5. 更新游客用户信息，转为正式用户
+    guestUser.isGuest = false;
+    guestUser.telegram_id = userData.id;
+    guestUser.first_name = userData.first_name;
+    guestUser.last_name = userData.last_name || guestUser.last_name;
+    guestUser.username = userData.username || guestUser.username;
+    if (userData.photo_url) {
+      guestUser.photo_url = userData.photo_url;
+    }
+
+    await this.userRepo.save(guestUser);
+
+    // 6. 生成新的令牌
+    const tokens = await this.generateUserTokens(guestUser, dto.deviceInfo);
+
+    return {
+      ...tokens,
     };
   }
 }

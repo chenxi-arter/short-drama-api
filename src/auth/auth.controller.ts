@@ -22,9 +22,13 @@ import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { EmailLoginDto } from '../user/dto/email-login.dto';
 import { RegisterDto, RegisterResponseDto } from '../user/dto/register.dto';
 import { BotLoginDto } from './dto/bot-login.dto';
+import { GuestLoginDto, GuestLoginResponseDto } from './dto/guest-login.dto';
 import { UserService } from '../user/user.service';
 import { LoginType, TelegramUserDto } from '../user/dto/telegram-user.dto';
 import { User } from '../user/entity/user.entity';
+import { GuestService } from './guest.service';
+import { ConvertGuestToEmailDto, ConvertGuestResponseDto } from '../user/dto/convert-guest.dto';
+import { Query } from '@nestjs/common';
 
 @ApiTags('认证')
 @Controller('auth')
@@ -32,7 +36,25 @@ export class AuthController {
   constructor(
     private readonly authService: AuthService,
     private readonly userService: UserService,
+    private readonly guestService: GuestService,
   ) {}
+
+  @Post('guest-login')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: '游客登录',
+    description: '自动创建游客账号，用于匿名用户访问。首次访问会创建新游客，后续可通过guestToken识别'
+  })
+  @ApiResponse({
+    status: 200,
+    description: '登录成功',
+    type: GuestLoginResponseDto
+  })
+  async guestLogin(
+    @Body() dto: GuestLoginDto,
+  ): Promise<GuestLoginResponseDto> {
+    return this.guestService.guestLogin(dto.guestToken, dto.deviceInfo);
+  }
 
   @Post('telegram/webapp-login')
   @HttpCode(HttpStatus.OK)
@@ -238,5 +260,136 @@ export class AuthController {
 
     // 这里可以从数据库获取完整的用户信息
     return { userId, message: '用户已认证' };
+  }
+
+  @Post('convert-guest-to-email')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: '游客转正式用户（邮箱注册）',
+    description: '将当前游客账号转换为正式邮箱注册用户，保留所有历史数据（观看记录、收藏、评论等）'
+  })
+  @ApiResponse({
+    status: 200,
+    description: '转换成功',
+    type: ConvertGuestResponseDto
+  })
+  @ApiResponse({
+    status: 400,
+    description: '请求参数错误或用户已是正式用户'
+  })
+  @ApiResponse({
+    status: 409,
+    description: '邮箱或用户名已被使用'
+  })
+  async convertGuestToEmail(
+    @Request() req: { user?: { userId: number } },
+    @Body() dto: ConvertGuestToEmailDto,
+  ): Promise<ConvertGuestResponseDto> {
+    const userId = req.user?.userId;
+    if (!userId) {
+      throw new UnauthorizedException('用户信息无效');
+    }
+
+    return this.userService.convertGuestToEmailUser(userId, dto);
+  }
+
+  @Post('convert-guest-to-telegram')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: '游客转正式用户（Telegram登录）',
+    description: '将当前游客账号通过Telegram登录转换为正式用户，保留所有历史数据'
+  })
+  @ApiResponse({
+    status: 200,
+    description: '转换成功',
+    type: TelegramLoginResponseDto
+  })
+  async convertGuestToTelegram(
+    @Request() req: { user?: { userId: number } },
+    @Body() dto: TelegramLoginDto,
+  ) {
+    const userId = req.user?.userId;
+    if (!userId) {
+      throw new UnauthorizedException('用户信息无效');
+    }
+
+    const telegramUserDto: TelegramUserDto = {
+      loginType: LoginType.WEBAPP,
+      initData: dto.initData,
+      deviceInfo: dto.deviceInfo,
+    };
+
+    return this.userService.convertGuestToTelegramUser(userId, telegramUserDto);
+  }
+
+  @Post('admin/clean-inactive-guests')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: '清理不活跃游客（管理员）',
+    description: '将长期不活跃的游客标记为不活跃状态（软删除），不会删除数据，可恢复'
+  })
+  @ApiResponse({
+    status: 200,
+    description: '清理成功',
+    schema: {
+      type: 'object',
+      properties: {
+        success: { type: 'boolean' },
+        deactivated: { type: 'number' },
+        message: { type: 'string' },
+        details: { type: 'object' }
+      }
+    }
+  })
+  async cleanInactiveGuests(
+    @Query('inactiveDays') inactiveDays?: number,
+    @Query('recentActivityDays') recentActivityDays?: number,
+  ) {
+    const inactive = inactiveDays ? parseInt(String(inactiveDays)) : 90;
+    const recent = recentActivityDays ? parseInt(String(recentActivityDays)) : 30;
+    
+    return this.guestService.cleanInactiveGuests(inactive, recent);
+  }
+
+  @Get('admin/guest-statistics')
+  @ApiOperation({
+    summary: '获取游客统计信息（管理员）',
+    description: '获取游客总数、活跃数、转化率等统计数据'
+  })
+  @ApiResponse({
+    status: 200,
+    description: '统计信息',
+    schema: {
+      type: 'object',
+      properties: {
+        totalGuests: { type: 'number' },
+        activeGuests: { type: 'number' },
+        inactiveGuests: { type: 'number' },
+        convertedGuests: { type: 'number' },
+        recentGuests: { type: 'number' },
+        conversionRate: { type: 'string' }
+      }
+    }
+  })
+  async getGuestStatistics() {
+    return this.guestService.getGuestStatistics();
+  }
+
+  @Post('admin/reactivate-guest/:userId')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: '恢复不活跃游客（管理员）',
+    description: '将被标记为不活跃的游客恢复为活跃状态'
+  })
+  @ApiResponse({
+    status: 200,
+    description: '恢复成功'
+  })
+  async reactivateGuest(@Param('userId') userId: string) {
+    return this.guestService.reactivateGuest(parseInt(userId));
   }
 }

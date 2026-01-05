@@ -7,6 +7,7 @@ import { JwtStrategy } from './strategies/jwt.strategy';
 import { TelegramStrategy } from './strategies/telegram.strategy';
 import { AuthService } from './auth.service';
 import { TelegramAuthService } from './telegram-auth.service';
+import { GuestService } from './guest.service';
 import { AuthController } from './auth.controller';
 import { RefreshToken } from './entity/refresh-token.entity';
 import { User } from '../user/entity/user.entity';
@@ -29,7 +30,7 @@ import { UserModule } from '../user/user.module';
     }),
   ],
   controllers: [AuthController],
-  providers: [JwtStrategy, TelegramStrategy, AuthService, TelegramAuthService],
-  exports: [PassportModule, JwtModule, AuthService, TelegramAuthService],
+  providers: [JwtStrategy, TelegramStrategy, AuthService, TelegramAuthService, GuestService],
+  exports: [PassportModule, JwtModule, AuthService, TelegramAuthService, GuestService],
 })
 export class AuthModule {}

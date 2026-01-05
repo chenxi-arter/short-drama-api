@@ -88,6 +88,20 @@ export class User {
   is_active: boolean;
 
   /** 
+   * 是否为游客用户
+   * 0=正式用户, 1=游客用户
+   */
+  @Column({ type: 'tinyint', default: 0, name: 'is_guest' })
+  isGuest: boolean;
+
+  /** 
+   * 游客唯一标识token
+   * 用于前端识别和追踪游客身份，游客转正后此字段保留
+   */
+  @Column({ type: 'varchar', length: 64, unique: true, nullable: true, name: 'guest_token' })
+  guestToken: string;
+
+  /** 
    * 创建时间 
    * 记录用户账号创建的时间戳
    */
