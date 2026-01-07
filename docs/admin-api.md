@@ -1459,7 +1459,65 @@ const title = episode.seriesTitle;
 
 ---
 
-## �📚 相关文档
+## 🔗 短链接服务
+
+### 创建短链接
+
+**接口**: `POST /api/short-links`
+
+**功能**: 将长URL转换为短链接，用于分享和推广
+
+**认证**: 无需认证（公开接口）
+
+**请求参数**:
+```json
+{
+  "originalURL": "string",      // 必填，原始长URL
+  "domain": "string",           // 必填，短链接域名（如：xgtv.short.gy），必须与配置的域名一致
+  "allowDuplicates": false,     // 可选，是否允许重复创建，默认false。设为false时，相同URL会返回已存在的短链接
+  "ttl": "string"               // 可选，过期时间（ISO 8601格式，如：2026-01-18T00:00:00Z），不设置则永久有效
+}
+```
+
+**返回数据**:
+```json
+{
+  "code": 200,
+  "message": "短链接创建成功",
+  "data": {
+    "id": "lnk_6JzS_VEbhQej0E0zmqJwwVL6rr",
+    "originalURL": "https://t.me/xgshort_bot/xgapp?startapp=__series__BmK2rTAsXW9___eid=n5fpRH7ZCzH",
+    "shortURL": "https://xgtv.short.gy/bmTfvb",
+    "domain": "xgtv.short.gy",
+    "expiresAt": "2026-01-18T00:00:00Z",
+    "createdAt": "2026-01-07T13:29:24.009Z"
+  },
+  "timestamp": "2026-01-07T13:29:24.009Z"
+}
+```
+
+**使用示例**:
+```bash
+# 创建短链接
+curl -X POST "http://localhost:8080/api/short-links" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "originalURL": "https://t.me/xgshort_bot/xgapp?startapp=__series__BmK2rTAsXW9",
+    "domain": "xgtv.short.gy",
+    "allowDuplicates": false,
+    "ttl": "2026-12-31T23:59:59Z"
+  }'
+```
+
+**配置说明**:
+- 需要在 `.env` 文件中配置 `SHORT_IO_API_KEY`
+- API key 安全存储在后端，前端无需传递
+- 使用 Short.io 服务提供短链接功能
+- 接口无需认证，可公开访问
+
+---
+
+## 📚 相关文档
 
 - [剧集列表 API 增强说明](./episode-list-api-enhancement.md) - `seriesTitle` 字段详细说明
 - [系列验证接口使用指南](./series-validation-frontend-guide.md) - 数据质量检查

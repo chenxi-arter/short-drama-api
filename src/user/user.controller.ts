@@ -61,10 +61,12 @@ export class UserController {
       nickname: getDisplayNickname(),      // 计算后的显示昵称（优先级：nickname > 姓名 > username）
       firstName: user.first_name,          // 名字，用于显示
       lastName: user.last_name,            // 姓氏，用于显示
-      photoUrl: user.photo_url,            // Telegram头像URL
+      photoUrl: user.photo_url,            // 头像URL（游客为默认头像）
       hasTelegram: !!user.telegram_id,     // 是否绑定了Telegram（布尔值，不暴露具体ID）
       tgusername: user.telegram_id ? user.telegram_id : null, // 如果有telegram_id则返回telegram_id作为tgusername
       isActive: user.is_active,            // 账号状态
+      isGuest: user.isGuest,               // 是否为游客用户
+      guestToken: user.guestToken || null, // 游客token（仅游客用户有值）
       createdAt: user.created_at,          // 注册时间
     };
   }

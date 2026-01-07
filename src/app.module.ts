@@ -7,6 +7,7 @@ import { AuthModule } from './auth/auth.module';
 import { CoreModule } from './core/core.module';
 import { SharedModule } from './common/shared.module';
 import { AdminModule } from './admin/admin.module';
+import { ShortLinkModule } from './common/short-link.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { AdminModule } from './admin/admin.module';
     VideoModule,
     AdminModule,
     TestModule,
+    ShortLinkModule,
   ],
 })
 export class AppModule {}

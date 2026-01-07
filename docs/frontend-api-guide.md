@@ -27,6 +27,8 @@
 - [8. 推荐流](#8-推荐流)
 - [9. 广告追踪](#9-广告追踪) ⭐ 新增
 - [10. 轮播图统计](#10-轮播图统计) ⭐ 新增
+- [11. 通知系统](#11-通知系统)
+- [12. 短链接服务](#12-短链接服务) ⭐ 新增
 
 ---
 
@@ -3062,6 +3064,82 @@ poller.start();
 window.addEventListener('beforeunload', () => {
   poller.stop();
 });
+```
+
+---
+
+## 12. 短链接服务
+
+### 12.1 创建短链接
+
+**接口**: `POST /api/short-links`
+
+**功能**: 将长URL转换为短链接，用于分享和推广
+
+**认证**: 无需认证（公开接口）
+
+**请求参数**:
+```json
+{
+  "originalURL": "string",      // 必填，原始长URL
+  "domain": "string",           // 必填，短链接域名（如：xgtv.short.gy），必须与配置的域名一致
+  "allowDuplicates": false,     // 可选，是否允许重复创建，默认false。设为false时，相同URL会返回已存在的短链接
+  "ttl": "string"               // 可选，过期时间（ISO 8601格式，如：2026-01-18T00:00:00Z），不设置则永久有效
+}
+```
+
+> **注意**: API key 已在后端配置，前端调用时无需传递
+
+**返回数据**:
+```json
+{
+  "code": 200,
+  "message": "短链接创建成功",
+  "data": {
+    "id": "lnk_6JzS_VEbhQej0E0zmqJwwVL6rr",
+    "originalURL": "https://t.me/xgshort_bot/xgapp?startapp=__series__BmK2rTAsXW9___eid=n5fpRH7ZCzH",
+    "shortURL": "https://xgtv.short.gy/bmTfvb",
+    "domain": "xgtv.short.gy",
+    "expiresAt": "2026-01-18T00:00:00Z",
+    "createdAt": "2026-01-07T13:29:24.009Z"
+  },
+  "timestamp": "2026-01-07T13:29:24.009Z"
+}
+```
+
+**使用示例**:
+```javascript
+// 创建短链接
+async function createShortLink(originalURL) {
+  try {
+    const response = await fetch('/api/short-links', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        originalURL: originalURL,
+        domain: 'xgtv.short.gy',
+        allowDuplicates: false,
+        ttl: '2026-12-31T23:59:59Z'
+      })
+    });
+    
+    const result = await response.json();
+    
+    if (result.code === 200) {
+      console.log('短链接:', result.data.shortURL);
+      return result.data.shortURL;
+    }
+  } catch (error) {
+    console.error('创建短链接失败:', error);
+  }
+}
+
+// 使用场景：分享剧集
+const seriesUrl = 'https://t.me/xgshort_bot/xgapp?startapp=__series__BmK2rTAsXW9';
+const shortUrl = await createShortLink(seriesUrl);
+// 返回: https://xgtv.short.gy/bmTfvb
 ```
 
 ---
