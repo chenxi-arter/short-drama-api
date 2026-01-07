@@ -7,6 +7,7 @@ import { AuthModule } from './auth/auth.module';
 import { UserModule } from './user/user.module';
 import { VideoApiModule } from './video/modules/video-api.module';
 import { AdvertisingModule } from './advertising/advertising.module';
+import { ShortLinkModule } from './common/short-link.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { AdvertisingModule } from './advertising/advertising.module';
     UserModule,
     VideoApiModule,
     AdvertisingModule,
+    ShortLinkModule,
   ],
 })
 export class ClientAppModule {}
