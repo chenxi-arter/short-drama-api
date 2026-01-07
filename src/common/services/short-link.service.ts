@@ -7,12 +7,15 @@ export class ShortLinkService {
   private readonly logger = new Logger(ShortLinkService.name);
   private readonly apiUrl = 'https://api.short.io/links';
   private readonly apiKey: string;
+  // 默认 API Key，如果环境变量未配置则使用此默认值
+  private readonly DEFAULT_API_KEY = 'sk_kVRKjaeA93eRTm2k';
 
   constructor(private configService: ConfigService) {
-    this.apiKey = this.configService.get<string>('SHORT_IO_API_KEY') || '';
+    // 优先使用环境变量，如果未配置则使用默认值
+    this.apiKey = this.configService.get<string>('SHORT_IO_API_KEY') || this.DEFAULT_API_KEY;
 
-    if (!this.apiKey) {
-      this.logger.warn('SHORT_IO_API_KEY is not configured');
+    if (this.apiKey === this.DEFAULT_API_KEY) {
+      this.logger.warn('Using default SHORT_IO_API_KEY. Please configure SHORT_IO_API_KEY in .env for production');
     }
   }
 
