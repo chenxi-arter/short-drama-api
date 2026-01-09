@@ -38,7 +38,7 @@ async function bootstrap() {
 
   // ✅ 开启跨域
   app.enableCors({
-    origin: '*', // 生产环境可改为 'https://thinkingking.top'
+    origin: '*',
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     credentials: true,
   });
