@@ -96,14 +96,15 @@ export class RecommendService {
       //   3. 使用 RAND() 实现真随机推荐（类似抖音刷新）
       // 筛选条件：只推荐短剧（category_id=1）的第一集
       
-      // 限制最大偏移量，避免深度分页导致的性能问题
-      const maxOffset = 1000;
-      const safeOffset = Math.min(offset, maxOffset);
+      // 增强随机性策略：
+      // 1. 先随机选择一批候选集（随机池大小 = size * 10，确保有足够的随机性）
+      // 2. 在候选集中计算推荐分数并排序
+      // 3. 最后在结果中再次随机打乱，确保每次刷新都不同
       
-      // 优化：只查询需要的字段 + 1条（用于判断hasMore）
-      const queryLimit = size + 1;
+      const randomPoolSize = Math.max(size * 10, 200); // 至少200条候选，确保随机性
       
-      const query = `
+      // 第一步：随机选择候选集（使用 RAND() 完全随机）
+      const candidateQuery = `
         SELECT 
           e.id,
           e.short_id as shortId,
@@ -126,28 +127,71 @@ export class RecommendService {
           s.score as seriesScore,
           s.starring as seriesStarring,
           s.actor as seriesActor,
-          s.up_status as seriesUpStatus,
-          (
-            (e.like_count * 2 + e.favorite_count * 4) * (0.8 + RAND() * 0.7) +
-            FLOOR(RAND() * 400) +
-            CASE 
-              WHEN DATEDIFF(NOW(), e.created_at) <= 3 THEN GREATEST(0, 800 - DATEDIFF(NOW(), e.created_at) * 267)
-              WHEN DATEDIFF(NOW(), e.created_at) <= 14 THEN GREATEST(0, 600 - (DATEDIFF(NOW(), e.created_at) - 3) * 54)
-              WHEN DATEDIFF(NOW(), e.created_at) <= 30 THEN GREATEST(0, 300 - (DATEDIFF(NOW(), e.created_at) - 14) * 19)
-              ELSE 120
-            END
-          ) as recommendScore
+          s.up_status as seriesUpStatus
         FROM episodes e
         INNER JOIN series s ON e.series_id = s.id
         WHERE e.status = 'published'
           AND e.episode_number = 1
           AND s.is_active = 1
           AND s.category_id = 1
-        ORDER BY recommendScore DESC
-        LIMIT ? OFFSET ?
+        ORDER BY RAND()
+        LIMIT ?
       `;
 
-      const episodes: RecommendQueryResult[] = await this.episodeRepo.query(query, [queryLimit, safeOffset]);
+      const candidates: RecommendQueryResult[] = await this.episodeRepo.query(candidateQuery, [randomPoolSize]);
+
+      if (candidates.length === 0) {
+        return {
+          list: [],
+          page,
+          size,
+          hasMore: false,
+        };
+      }
+
+      // 第二步：在候选集中计算推荐分数（增强随机因子）
+      // 大幅增加随机因子权重，让随机性占主导
+      const scoredCandidates = candidates.map(candidate => {
+        const likeWeight = (candidate.likeCount || 0) * 2;
+        const favoriteWeight = (candidate.favoriteCount || 0) * 4;
+        const interactionScore = likeWeight + favoriteWeight;
+        
+        // 大幅增强随机性：随机权重范围扩大到 0.3-2.0，随机因子扩大到 0-800
+        const randomWeight = 0.3 + Math.random() * 1.7; // 0.3-2.0
+        const randomFactor = Math.floor(Math.random() * 800); // 0-800
+        
+        // 计算新鲜度分数
+        const createdAt = new Date(candidate.createdAt);
+        const daysDiff = Math.floor((Date.now() - createdAt.getTime()) / (1000 * 60 * 60 * 24));
+        let freshnessScore = 120; // 默认基础分
+        if (daysDiff <= 3) {
+          freshnessScore = Math.max(0, 800 - daysDiff * 267);
+        } else if (daysDiff <= 14) {
+          freshnessScore = Math.max(0, 600 - (daysDiff - 3) * 54);
+        } else if (daysDiff <= 30) {
+          freshnessScore = Math.max(0, 300 - (daysDiff - 14) * 19);
+        }
+        
+        const recommendScore = interactionScore * randomWeight + randomFactor + freshnessScore;
+        
+        return {
+          ...candidate,
+          recommendScore: recommendScore.toString(),
+        };
+      });
+
+      // 第三步：按推荐分数排序，取前 size + 1 条（用于判断hasMore）
+      scoredCandidates.sort((a, b) => parseFloat(b.recommendScore) - parseFloat(a.recommendScore));
+      const topCandidates = scoredCandidates.slice(0, size + 1);
+
+      // 第四步：再次随机打乱结果，确保每次刷新都不同（这是关键！）
+      // 使用 Fisher-Yates 洗牌算法
+      for (let i = topCandidates.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [topCandidates[i], topCandidates[j]] = [topCandidates[j], topCandidates[i]];
+      }
+
+      const episodes: RecommendQueryResult[] = topCandidates;
 
       // 判断是否还有更多数据
       const hasMore = episodes.length > size;
