@@ -1,7 +1,10 @@
-import { Controller, Post, Body, UseGuards, Req } from '@nestjs/common';
+import { Controller, Post, Body, UseGuards, Req, HttpStatus } from '@nestjs/common';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { VideoService } from '../video.service';
 import { BaseController } from './base.controller';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { User } from '../../user/entity/user.entity';
 
 /**
  * 评论控制器
@@ -10,7 +13,11 @@ import { BaseController } from './base.controller';
 @UseGuards(JwtAuthGuard)
 @Controller('video/comment')
 export class CommentController extends BaseController {
-  constructor(private readonly videoService: VideoService) {
+  constructor(
+    private readonly videoService: VideoService,
+    @InjectRepository(User)
+    private readonly userRepo: Repository<User>,
+  ) {
     super();
   }
 
@@ -26,6 +33,17 @@ export class CommentController extends BaseController {
     @Body('appearSecond') appearSecond?: number,
   ) {
     try {
+      // 检查是否为游客用户
+      const user = await this.userRepo.findOne({ where: { id: req.user.userId } });
+      if (!user) {
+        return this.error('用户不存在', 404);
+      }
+      
+      // 游客检查（兼容tinyint类型：1=true，0=false）
+      if (Boolean(user.isGuest)) {
+        return this.error('游客用户暂不支持发表评论，请先注册成为正式用户', 403, HttpStatus.FORBIDDEN);
+      }
+
       if (!episodeIdentifier) {
         return this.error('剧集标识符不能为空', 400);
       }

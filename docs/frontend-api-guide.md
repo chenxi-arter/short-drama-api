@@ -10,8 +10,8 @@
 - 开发环境: `http://localhost` (客户端API)
 - 管理后台: `http://localhost:8080` (管理API)
 
-**文档版本**: v2.6  
-**最后更新**: 2026年1月5日
+**文档版本**: v2.7  
+**最后更新**: 2026年1月12日
 
 ---
 
@@ -37,8 +37,8 @@
 **概述**: 
 - 支持邮箱注册/登录、Telegram登录
 - ⭐ **新增游客登录**：无需注册即可使用，支持随时转为正式用户
-- 游客可以正常使用所有功能（观看、点赞、评论、收藏等）
-- 游客转正后保留所有历史数据
+- 游客可以正常使用大部分功能（观看、点赞、收藏等），但**不能发表评论**
+- 游客转正后保留所有历史数据，如果转正时邮箱/Telegram账号已存在，会自动合并数据
 
 **接口列表**:
 - 1.1 邮箱注册
@@ -132,7 +132,7 @@
 - 首次访问会创建新游客，返回 `guestToken`
 - 前端需保存 `guestToken` 到本地存储（localStorage/AsyncStorage）
 - 再次访问时携带 `guestToken`，后端识别为同一游客
-- 游客可以正常使用所有功能（观看、点赞、评论等）
+- 游客可以正常使用大部分功能（观看、点赞、收藏等），但**不能发表评论**
 - 游客数据会被保留，可随时转为正式用户
 
 **请求参数**:
@@ -198,12 +198,13 @@ async function initGuest() {
 
 ### 1.5 游客转正（邮箱） ⭐ 新增
 
-**接口**: `POST /api/user/convert-guest-to-email`  
+**接口**: `POST /api/auth/convert-guest-to-email`  
 **认证**: 必需（游客token）
 
 **说明**: 
 - 将当前游客账号转为正式邮箱账号
 - 转正后保留所有历史数据（观看记录、收藏、评论等）
+- ⭐ **自动数据合并**：如果该邮箱已注册，会将游客数据合并到已存在的账号，并删除游客账号
 - 转正后会返回新的 token，需要更新本地存储
 
 **请求参数**:
@@ -222,7 +223,7 @@ async function initGuest() {
 ```json
 {
   "success": true,             // 是否成功
-  "message": "游客账号已成功转为正式账号",
+  "message": "游客账号已成功转为正式用户，所有历史数据已保留",  // 或 "检测到该邮箱已注册，已将您的游客数据合并到现有账号"
   "access_token": "string",    // ⭐ 新的访问令牌（需更新）
   "refresh_token": "string",   // ⭐ 新的刷新令牌（需更新）
   "token_type": "Bearer",
@@ -230,12 +231,16 @@ async function initGuest() {
 }
 ```
 
+**返回消息说明**:
+- 新账号：`"游客账号已成功转为正式用户，所有历史数据已保留"`
+- 数据合并：`"检测到该邮箱已注册，已将您的游客数据合并到现有账号"`
+
 **前端集成示例**:
 ```javascript
 // 游客转正
 async function convertGuest(email, password) {
   const res = await wx.request({
-    url: 'https://api.example.com/api/user/convert-guest-to-email',
+    url: 'https://api.example.com/api/auth/convert-guest-to-email',
     method: 'POST',
     header: {
       'Authorization': `Bearer ${wx.getStorageSync('access_token')}`
@@ -270,19 +275,35 @@ async function convertGuest(email, password) {
 
 ### 1.6 游客转正（Telegram） ⭐ 新增
 
-**接口**: `POST /api/user/convert-guest-to-telegram`  
+**接口**: `POST /api/auth/convert-guest-to-telegram`  
 **认证**: 必需（游客token）
 
-**说明**: 将当前游客账号绑定到 Telegram 账号
+**说明**: 
+- 将当前游客账号通过Telegram登录转为正式用户
+- ⭐ **自动数据合并**：如果该Telegram ID已存在，会将游客数据合并到已存在的账号，并删除游客账号
+- 只支持WebApp格式（`initData`），不支持Bot格式
 
 **请求参数**:
 ```json
 {
-  "initData": "string"         // 必填，Telegram WebApp的initData
+  "initData": "string",        // 必填，Telegram WebApp的initData
+  "deviceInfo": "string"       // 可选，设备信息
 }
 ```
 
-**返回数据**: 同游客转正（邮箱）
+**返回数据**: 
+```json
+{
+  "access_token": "string",    // ⭐ 新的访问令牌（需更新）
+  "refresh_token": "string",   // ⭐ 新的刷新令牌（需更新）
+  "token_type": "Bearer",
+  "expires_in": 7200
+}
+```
+
+**说明**: 
+- 如果Telegram ID不存在，直接转换游客为正式用户
+- 如果Telegram ID已存在，合并数据后返回已存在账号的token
 
 ---
 
@@ -1115,22 +1136,34 @@ categoryId: number // 可选，分类ID（1-短剧，2-电影，3-电视剧等�
 
 ---
 
-## 6. 评论功能
+## 6. 评论功能 ⭐ 更新
 
 ### 6.1 发表主楼评论
 
-**接口**: `POST /api/video/episode/comment`  
+**接口**: `POST /api/video/episode/comment`
+
 **认证**: 必需
+
+**游客限制**: ⚠️ **游客用户不能发表评论**，会返回403错误
 
 **请求参数**:
 ```json
 {
-  "shortId": "6JswefD4QXK",  // 必填，剧集ShortID
-  "content": "这部剧太好看了！" // 必填，评论内容（≤500字）
+  "shortId": "6JswefD4QXK",            // 必填，剧集ShortID
+  "content": "这部剧太好看了！"        // 必填，评论内容（≤500字）
 }
 ```
 
-**返回数据**:
+**错误响应**（游客用户）:
+```json
+{
+  "code": 403,
+  "message": "游客用户暂不支持发表评论，请先注册成为正式用户",
+  "data": null
+}
+```
+
+**返回数据**（成功）:
 ```json
 {
   "code": 200,
@@ -1149,6 +1182,8 @@ categoryId: number // 可选，分类ID（1-短剧，2-电影，3-电视剧等�
 
 **接口**: `POST /api/video/episode/comment/reply`  
 **认证**: 必需
+
+**游客限制**: ⚠️ **游客用户不能回复评论**（同主楼评论限制）
 
 **请求参数**:
 ```json
@@ -1950,6 +1985,21 @@ if (episode.userInteraction) {
 - 同一系列的所有集，`userInteraction.favorited` 都相同
 - 收藏/取消收藏后，前端需要同步更新该系列所有剧集的状态
 
+### 4. 游客用户功能 ⭐ 新增
+
+**游客用户可以使用**:
+- ✅ 观看视频
+- ✅ 点赞/点踩
+- ✅ 收藏
+- ✅ 查看评论
+- ✅ 浏览历史
+- ❌ **不能发表评论**（主楼和回复都不可以）
+
+**游客转正**:
+- 支持邮箱转正（`POST /api/auth/convert-guest-to-email`）
+- 支持Telegram转正（`POST /api/auth/convert-guest-to-telegram`）
+- 转正时如果邮箱/Telegram账号已存在，会自动合并数据到已存在账号
+
 ### 4. 点赞点踩互斥
 
 - 用户不能同时点赞和点踩同一集
@@ -2287,7 +2337,15 @@ if (comment.id < 0) {
 
 ## 📝 更新日志
 
-### v2.3 (2025-11-08) ⭐ 最新
+### v2.7 (2026-01-12) ⭐ 最新
+- ✅ **新增游客登录功能**（POST /api/auth/guest-login）
+- ✅ **新增游客转正功能**（邮箱和Telegram两种方式）
+- ✅ **游客评论限制**：游客用户不能发表评论（返回403错误）
+- ✅ **自动数据合并**：游客转正时如果邮箱/Telegram账号已存在，自动合并数据
+- ✅ 更新评论接口文档（添加游客限制说明）
+- ✅ 修正游客转正接口路径（/api/auth/convert-guest-to-email）
+
+### v2.3 (2025-11-08)
 - ✅ **模糊搜索支持分类筛选**（categoryId参数）⭐
 - ✅ 模糊搜索支持智能验证（无效分类ID返回友好提示）
 

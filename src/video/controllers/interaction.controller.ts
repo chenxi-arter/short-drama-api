@@ -1,4 +1,6 @@
-import { Body, Controller, Post, Get, Param, Query, BadRequestException, UseGuards, Req } from '@nestjs/common';
+import { Body, Controller, Post, Get, Param, Query, BadRequestException, UseGuards, Req, HttpStatus } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import { BaseController } from '../controllers/base.controller';
 import { EpisodeInteractionService, EpisodeReactionType } from '../services/episode-interaction.service';
 import { EpisodeService } from '../services/episode.service';
@@ -6,6 +8,7 @@ import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { OptionalJwtAuthGuard } from '../../auth/guards/optional-jwt-auth.guard';
 import { VideoService } from '../video.service';
 import { FavoriteService } from '../../user/services/favorite.service';
+import { User } from '../../user/entity/user.entity';
 
 // 保留类型声明以供内部复用
 class EpisodeActivityDto {
@@ -20,6 +23,8 @@ export class InteractionController extends BaseController {
     private readonly episodeService: EpisodeService,
     private readonly videoService: VideoService,
     private readonly favoriteService: FavoriteService,
+    @InjectRepository(User)
+    private readonly userRepo: Repository<User>,
   ) { super(); }
 
   // 合并接口：通过短ID提交单一动作（播放或互动）
@@ -145,6 +150,17 @@ export class InteractionController extends BaseController {
 
     const userId = req.user?.userId ? Number(req.user.userId) : 0;
     if (!userId) return this.error('未认证', 401);
+
+    // 检查是否为游客用户
+    const user = await this.userRepo.findOne({ where: { id: userId } });
+    if (!user) {
+      return this.error('用户不存在', 404);
+    }
+    
+    // 游客检查（兼容tinyint类型：1=true，0=false）
+    if (Boolean(user.isGuest)) {
+      return this.error('游客用户暂不支持发表评论，请先注册成为正式用户', 403, HttpStatus.FORBIDDEN);
+    }
 
     // 使用 shortId 存储评论
     const result = await this.videoService.addComment(userId, shortId, content);

@@ -60,6 +60,7 @@ import { FilterType } from '../entity/filter-type.entity';
 import { FilterOption } from '../entity/filter-option.entity';
 // import { BrowseHistory } from '../entity/browse-history.entity';
 import { SeriesGenreOption } from '../entity/series-genre-option.entity';
+import { User } from '../../user/entity/user.entity';
 
 @Module({
   imports: [
@@ -70,7 +71,7 @@ import { SeriesGenreOption } from '../entity/series-genre-option.entity';
     // HistoryModule,
     TypeOrmModule.forFeature([
       Series, Episode, EpisodeUrl, EpisodeReaction, Comment, CommentLike, WatchProgress, Category, ShortVideo, Banner, FilterType, FilterOption,
-      SeriesGenreOption
+      SeriesGenreOption, User
     ]),
     forwardRef(() => import('../../user/user.module').then(m => m.UserModule)),
   ],

@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException, ConflictException, BadRequestException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, ConflictException, BadRequestException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from './entity/user.entity';
@@ -14,6 +14,7 @@ import { ConvertGuestToEmailDto, ConvertGuestResponseDto } from './dto/convert-g
 import { verifyTelegramHash } from './telegram.validator';
 import { AuthService } from '../auth/auth.service';
 import { TelegramAuthService } from '../auth/telegram-auth.service';
+import { AccountMergeService } from '../auth/account-merge.service';
 import { PasswordUtil } from '../common/utils/password.util';
 
 interface TelegramUserData {
@@ -42,10 +43,13 @@ interface TokensOnly {
 
 @Injectable()
 export class UserService {
+  private readonly logger = new Logger(UserService.name);
+
   constructor(
     @InjectRepository(User) private readonly userRepo: Repository<User>,
     private readonly authService: AuthService,
     private readonly telegramAuthService: TelegramAuthService,
+    private readonly accountMergeService: AccountMergeService,
   ) {}
 
   async telegramLogin(dto: TelegramUserDto): Promise<TokenResult> {
@@ -625,15 +629,31 @@ export class UserService {
     }
 
     // 3. 查找游客用户
-    const user = await this.userRepo.findOneBy({ id: userId, isGuest: true });
-    if (!user) {
+    const guestUser = await this.userRepo.findOneBy({ id: userId, isGuest: true });
+    if (!guestUser) {
       throw new BadRequestException('游客用户不存在或已转为正式用户');
     }
 
     // 4. 检查邮箱是否已被使用
     const existingUser = await this.userRepo.findOneBy({ email: dto.email });
+    
     if (existingUser) {
-      throw new ConflictException('该邮箱已被注册');
+      // 邮箱已存在，进行数据合并
+      this.logger.log(`邮箱 ${dto.email} 已存在，将游客 ${userId} 的数据合并到用户 ${existingUser.id}`);
+      
+      // 合并游客数据到已存在的用户
+      const mergeStats = await this.accountMergeService.mergeGuestToUser(userId, existingUser.id);
+      
+      this.logger.log(`数据合并完成: ${JSON.stringify(mergeStats)}`);
+      
+      // 生成正式用户的令牌
+      const tokens = await this.authService.generateTokens(existingUser, 'Email Login After Merge');
+      
+      return {
+        success: true,
+        message: '检测到该邮箱已注册，已将您的游客数据合并到现有账号',
+        ...tokens,
+      };
     }
 
     // 5. 检查用户名是否已被使用（如果提供了）
@@ -647,24 +667,24 @@ export class UserService {
     // 6. 加密密码
     const passwordHash = await PasswordUtil.hashPassword(dto.password);
 
-    // 7. 更新用户信息，转为正式用户
-    user.isGuest = false;
-    user.email = dto.email;
-    user.password_hash = passwordHash;
+    // 7. 更新游客用户信息，转为正式用户
+    guestUser.isGuest = false;
+    guestUser.email = dto.email;
+    guestUser.password_hash = passwordHash;
     if (dto.username) {
-      user.username = dto.username;
+      guestUser.username = dto.username;
     }
     if (dto.firstName) {
-      user.first_name = dto.firstName;
+      guestUser.first_name = dto.firstName;
     }
     if (dto.lastName) {
-      user.last_name = dto.lastName;
+      guestUser.last_name = dto.lastName;
     }
 
-    await this.userRepo.save(user);
+    await this.userRepo.save(guestUser);
 
     // 8. 生成新的令牌
-    const tokens = await this.authService.generateTokens(user, 'Email Registration');
+    const tokens = await this.authService.generateTokens(guestUser, 'Email Registration');
 
     return {
       success: true,
@@ -694,8 +714,22 @@ export class UserService {
 
     // 4. 检查Telegram ID是否已被其他用户使用
     const existingTgUser = await this.userRepo.findOneBy({ telegram_id: userData.id });
+    
     if (existingTgUser) {
-      throw new ConflictException('该Telegram账号已被其他用户绑定');
+      // Telegram账号已存在，进行数据合并
+      this.logger.log(`Telegram ID ${userData.id} 已存在，将游客 ${userId} 的数据合并到用户 ${existingTgUser.id}`);
+      
+      // 合并游客数据到已存在的用户
+      const mergeStats = await this.accountMergeService.mergeGuestToUser(userId, existingTgUser.id);
+      
+      this.logger.log(`数据合并完成: ${JSON.stringify(mergeStats)}`);
+      
+      // 生成正式用户的令牌
+      const tokens = await this.generateUserTokens(existingTgUser, dto.deviceInfo);
+      
+      return {
+        ...tokens,
+      };
     }
 
     // 5. 更新游客用户信息，转为正式用户
