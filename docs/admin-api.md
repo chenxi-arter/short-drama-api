@@ -1417,6 +1417,89 @@ const title = episode.seriesTitle;
 
 ---
 
+### 广告数据统计 Dashboard ⭐ 新增
+
+资源路径: `/admin/advertising`
+
+- **获取仪表盘统计数据**
+  - `GET /api/admin/advertising/dashboard?from=YYYY-MM-DD&to=YYYY-MM-DD`
+  - 参数：
+    - `from` (可选): 开始日期，格式 YYYY-MM-DD
+    - `to` (可选): 结束日期，格式 YYYY-MM-DD
+  - ⭐ **时间参数说明**：
+    - **不传时间参数**：返回全部统计数据（所有时间的数据）
+    - **只传 `from`**：返回从指定日期到当前的所有数据
+    - **只传 `to`**：返回从最早到指定日期的所有数据
+    - **两个都传**：返回指定时间范围内的数据
+  - 返回所有广告投放的核心统计数据
+  - 响应示例：
+  ```json
+  {
+    "code": 200,
+    "message": "success",
+    "data": {
+      "totalCampaigns": 15,           // 总投放计划数
+      "activeCampaigns": 8,            // 活跃计划数
+      "totalSpend": 0,                 // 总花费（暂未实现，返回0）
+      "totalViews": 5000,              // 总访问量（浏览量，VIEW事件数）
+      "totalClicks": 1250,             // 总点击数（CLICK事件数）
+      "totalConversions": 89,          // 总转化量
+      "avgConversionRate": 0.0712,     // 平均转化率（总转化数/总点击数）
+      "platformStats": [               // 按平台分组的统计
+        {
+          "platform": "wechat",
+          "campaigns": 5,
+          "clicks": 800,
+          "conversions": 60,
+          "spend": 0
+        }
+      ],
+      "recentEvents": [                // 最近事件列表
+        {
+          "id": 123,
+          "campaignCode": "WX_20251117_8FA5D0",
+          "eventType": "click",
+          "eventTime": "2025-11-18T10:30:00.000Z"
+        }
+      ]
+    }
+  }
+  ```
+
+**字段说明**：
+- `totalCampaigns`: 总投放计划数（所有状态）
+- `activeCampaigns`: 活跃计划数（status='active' 且 isActive=true）
+- `totalSpend`: 总花费（暂未实现，返回0）
+- `totalClicks`: 总点击数（在时间范围内的所有 CLICK 事件数）
+- `totalConversions`: 总转化量（在时间范围内的所有转化记录数）
+- `avgConversionRate`: 平均转化率（totalConversions / totalClicks，如果 totalClicks 为0则返回0）
+- `platformStats`: 按平台分组的统计数据数组
+- `recentEvents`: 最近的事件记录（最多10条）
+
+**前端字段映射**（根据图片显示）：
+- 总投放计划 ← `data.totalCampaigns`
+- 活跃计划 ← `data.activeCampaigns`
+- 总访问量 ← `data.totalClicks`（总点击数）
+- 总转化量 ← `data.totalConversions`
+- 平均转化率 ← `data.avgConversionRate`（前端需要乘以100并格式化，如：`(avgConversionRate * 100).toFixed(2) + '%'`）
+
+**使用示例**：
+```bash
+# 获取全部统计数据（不传时间参数）
+curl "http://localhost:8080/api/admin/advertising/dashboard"
+
+# 获取指定时间范围的统计数据
+curl "http://localhost:8080/api/admin/advertising/dashboard?from=2025-11-01&to=2025-11-30"
+
+# 只传开始日期（从指定日期到当前）
+curl "http://localhost:8080/api/admin/advertising/dashboard?from=2025-11-01"
+
+# 只传结束日期（从最早到指定日期）
+curl "http://localhost:8080/api/admin/advertising/dashboard?to=2025-11-30"
+```
+
+---
+
 ## 📈 轮播图统计管理
 
 ### 轮播图数据统计

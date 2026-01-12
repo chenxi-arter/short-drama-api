@@ -35,43 +35,88 @@ export class AnalyticsService {
   }
 
   async getDashboardStats(from?: string, to?: string): Promise<DashboardResponseDto> {
-    const startDate = from ? new Date(from) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-    const endDate = to ? new Date(to) : new Date();
+    // 如果不传时间参数，返回全部统计数据（不限制时间范围）
+    const hasTimeFilter = from || to;
+    let startDate: Date | undefined;
+    let endDate: Date | undefined;
+    
+    if (from) {
+      // 将 "YYYY-MM-DD" 格式转换为 Date，设置为当天的 00:00:00（本地时间）
+      startDate = new Date(from);
+      startDate.setHours(0, 0, 0, 0);
+    }
+    
+    if (to) {
+      // 将 "YYYY-MM-DD" 格式转换为 Date，设置为当天的 23:59:59.999（本地时间）
+      endDate = new Date(to);
+      endDate.setHours(23, 59, 59, 999);
+    }
 
-    // 获取总体统计
+    // 获取总体统计（不受时间限制）
     const totalCampaigns = await this.campaignRepository.count();
     const activeCampaigns = await this.campaignRepository.count({
       where: { isActive: true }
     });
 
     // 获取事件统计
-    const eventStats = await this.eventRepository
-      .createQueryBuilder('event')
-      .select('COUNT(*)', 'totalEvents')
-      .where('event.eventTime BETWEEN :startDate AND :endDate', { startDate, endDate })
-      .getRawOne();
+    let totalClicks = 0;
+    let totalConversions = 0;
 
-    const clickStats = await this.eventRepository
-      .createQueryBuilder('event')
-      .select('COUNT(*)', 'totalClicks')
-      .where('event.eventType = :eventType', { eventType: EventType.CLICK })
-      .andWhere('event.eventTime BETWEEN :startDate AND :endDate', { startDate, endDate })
-      .getRawOne();
+    if (hasTimeFilter) {
+      // 有时间限制时，使用时间范围查询
+      // 统计点击数（CLICK事件）
+      const clicksQueryBuilder = this.eventRepository
+        .createQueryBuilder('event')
+        .select('COUNT(*)', 'totalClicks')
+        .where('event.eventType = :clickType', { clickType: EventType.CLICK });
+      
+      if (startDate) {
+        clicksQueryBuilder.andWhere('event.eventTime >= :startDate', { startDate });
+      }
+      if (endDate) {
+        clicksQueryBuilder.andWhere('event.eventTime <= :endDate', { endDate });
+      }
+      
+      const clickStats = await clicksQueryBuilder.getRawOne();
+      totalClicks = parseInt(clickStats?.totalClicks || '0') || 0;
 
-    const conversionStats = await this.conversionRepository
-      .createQueryBuilder('conversion')
-      .select('COUNT(*)', 'totalConversions')
-      .where('conversion.conversionTime BETWEEN :startDate AND :endDate', { startDate, endDate })
-      .getRawOne();
+      // 统计转化数
+      const conversionQueryBuilder = this.conversionRepository
+        .createQueryBuilder('conversion')
+        .select('COUNT(*)', 'totalConversions');
+      
+      if (startDate) {
+        conversionQueryBuilder.andWhere('conversion.conversionTime >= :startDate', { startDate });
+      }
+      if (endDate) {
+        conversionQueryBuilder.andWhere('conversion.conversionTime <= :endDate', { endDate });
+      }
+      
+      const conversionStats = await conversionQueryBuilder.getRawOne();
+      totalConversions = parseInt(conversionStats?.totalConversions || '0') || 0;
+    } else {
+      // 无时间限制时，返回全部数据
+      // 统计点击数（CLICK事件）
+      const clickStats = await this.eventRepository
+        .createQueryBuilder('event')
+        .select('COUNT(*)', 'totalClicks')
+        .where('event.eventType = :eventType', { eventType: EventType.CLICK })
+        .getRawOne();
+      totalClicks = parseInt(clickStats?.totalClicks || '0') || 0;
 
-    const totalClicks = parseInt(clickStats.totalClicks) || 0;
-    const totalConversions = parseInt(conversionStats.totalConversions) || 0;
+      // 统计转化数
+      const conversionStats = await this.conversionRepository
+        .createQueryBuilder('conversion')
+        .select('COUNT(*)', 'totalConversions')
+        .getRawOne();
+      totalConversions = parseInt(conversionStats?.totalConversions || '0') || 0;
+    }
     const avgConversionRate = CampaignUtils.calculateConversionRate(totalConversions, totalClicks);
 
-    // 获取平台统计
+    // 获取平台统计（传入时间范围，如果无限制则传undefined）
     const platformStats = await this.getPlatformStats(startDate, endDate);
 
-    // 获取最近事件
+    // 获取最近事件（不受时间限制）
     const recentEvents = await this.getRecentEvents(10);
 
     // TODO: 计算总花费
@@ -231,32 +276,69 @@ export class AnalyticsService {
     return timeline;
   }
 
-  private async getPlatformStats(startDate: Date, endDate: Date): Promise<PlatformStatsDto[]> {
-    const stats = await this.campaignRepository
+  private async getPlatformStats(startDate?: Date, endDate?: Date): Promise<PlatformStatsDto[]> {
+    // 获取所有活跃计划的平台分组
+    const platforms = await this.campaignRepository
       .createQueryBuilder('campaign')
       .leftJoin('campaign.platform', 'platform')
-      .leftJoin('campaign.events', 'event', 'event.eventTime BETWEEN :startDate AND :endDate')
-      .leftJoin('campaign.conversions', 'conversion', 'conversion.conversionTime BETWEEN :startDate AND :endDate')
-      .select([
-        'platform.code as platform',
-        'COUNT(DISTINCT campaign.id) as campaigns',
-        'COUNT(CASE WHEN event.eventType = :clickType THEN 1 END) as clicks',
-        'COUNT(conversion.id) as conversions',
-      ])
       .where('campaign.isActive = :isActive', { isActive: true })
-      .setParameter('startDate', startDate)
-      .setParameter('endDate', endDate)
-      .setParameter('clickType', EventType.CLICK)
-      .groupBy('platform.code')
+      .select('DISTINCT platform.code', 'platform')
       .getRawMany();
 
-    return stats.map(stat => ({
-      platform: stat.platform,
-      campaigns: parseInt(stat.campaigns) || 0,
-      clicks: parseInt(stat.clicks) || 0,
-      conversions: parseInt(stat.conversions) || 0,
-      spend: 0, // TODO: 获取实际花费数据
-    }));
+    const result: PlatformStatsDto[] = [];
+
+    for (const { platform } of platforms) {
+      if (!platform) continue;
+
+      // 统计该平台的计划数
+      const campaignsCount = await this.campaignRepository.count({
+        where: {
+          isActive: true,
+          platformCode: platform,
+        },
+      });
+
+      // 统计该平台的点击数
+      let clicksQuery = this.eventRepository
+        .createQueryBuilder('event')
+        .leftJoin('event.campaign', 'campaign')
+        .where('campaign.platformCode = :platform', { platform })
+        .andWhere('event.eventType = :clickType', { clickType: EventType.CLICK });
+
+      if (startDate) {
+        clicksQuery = clicksQuery.andWhere('event.eventTime >= :startDate', { startDate });
+      }
+      if (endDate) {
+        clicksQuery = clicksQuery.andWhere('event.eventTime <= :endDate', { endDate });
+      }
+
+      const clicks = await clicksQuery.getCount();
+
+      // 统计该平台的转化数
+      let conversionsQuery = this.conversionRepository
+        .createQueryBuilder('conversion')
+        .leftJoin('conversion.campaign', 'campaign')
+        .where('campaign.platformCode = :platform', { platform });
+
+      if (startDate) {
+        conversionsQuery = conversionsQuery.andWhere('conversion.conversionTime >= :startDate', { startDate });
+      }
+      if (endDate) {
+        conversionsQuery = conversionsQuery.andWhere('conversion.conversionTime <= :endDate', { endDate });
+      }
+
+      const conversions = await conversionsQuery.getCount();
+
+      result.push({
+        platform,
+        campaigns: campaignsCount,
+        clicks,
+        conversions,
+        spend: 0, // TODO: 获取实际花费数据
+      });
+    }
+
+    return result;
   }
 
   private async getRecentEvents(limit: number): Promise<RecentEventDto[]> {
