@@ -32,6 +32,16 @@ export class EmailLoginDto {
   @IsOptional()
   @IsString({ message: '设备信息必须是字符串' })
   deviceInfo?: string;
+
+  @ApiProperty({ 
+    description: '游客唯一标识（可选，用于自动合并游客数据）', 
+    example: 'guest_abc123xyz',
+    type: String,
+    required: false
+  })
+  @IsOptional()
+  @IsString({ message: '游客token必须是字符串' })
+  guestToken?: string;
 }
 
 /**

@@ -18,6 +18,15 @@ export class TelegramLoginDto {
     required: false
   })
   deviceInfo?: string;
+
+  @IsOptional()
+  @IsString()
+  @ApiProperty({
+    description: '游客token（可选），如果提供则自动合并游客数据到Telegram账号',
+    example: 'a1b2c3d4e5f6...',
+    required: false
+  })
+  guestToken?: string;
 }
 
 export class TelegramLoginResponseDto {

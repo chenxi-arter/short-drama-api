@@ -62,10 +62,39 @@ export class UserService {
     // 3. 查找或创建用户
     const user = await this.findOrCreateUser(userData);
 
-    // 4. 生成令牌
+    // 4. 如果提供了游客token，自动合并游客数据
+    if (dto.guestToken) {
+      try {
+        // 查找游客用户
+        const guestUser = await this.userRepo.findOne({
+          where: { guestToken: dto.guestToken, isGuest: true },
+        });
+
+        if (guestUser) {
+          this.logger.log(`检测到游客token，将游客 ${guestUser.id} 的数据合并到Telegram用户 ${user.id}`);
+          
+          // 合并游客数据到Telegram用户
+          const mergeStats = await this.accountMergeService.mergeGuestToUser(
+            guestUser.id,
+            user.id,
+          );
+          
+          this.logger.log(`游客数据合并完成: ${JSON.stringify(mergeStats)}`);
+        } else {
+          this.logger.warn(`提供的游客token无效或已转正: ${dto.guestToken}`);
+        }
+      } catch (error) {
+        // 合并失败不影响登录，只记录错误
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        const errorStack = error instanceof Error ? error.stack : undefined;
+        this.logger.error(`游客数据合并失败: ${errorMessage}`, errorStack);
+      }
+    }
+
+    // 5. 生成令牌
     const tokens = await this.generateUserTokens(user, dto.deviceInfo);
 
-    // 5. 返回令牌（不包含用户信息以保护隐私）
+    // 6. 返回令牌（不包含用户信息以保护隐私）
     return {
       ...tokens,
       // 移除用户信息以保护隐私
@@ -424,6 +453,26 @@ export class UserService {
       throw new UnauthorizedException('账号已被禁用');
     }
 
+    // 如果提供了 guestToken，尝试合并游客数据
+    if (dto.guestToken && !user.isGuest) {
+      try {
+        const guestUser = await this.userRepo.findOne({
+          where: { guestToken: dto.guestToken, isGuest: true }
+        });
+        
+        if (guestUser) {
+          this.logger.log(`邮箱登录时发现游客账号 ${guestUser.id}，准备合并到用户 ${user.id}`);
+          await this.accountMergeService.mergeGuestToUser(guestUser.id, user.id);
+          this.logger.log(`游客数据合并成功`);
+        }
+      } catch (error) {
+        // 合并失败不影响登录，只记录错误
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        const errorStack = error instanceof Error ? error.stack : undefined;
+        this.logger.error(`游客数据合并失败: ${errorMessage}`, errorStack);
+      }
+    }
+
     // 生成令牌
     const tokens = await this.authService.generateTokens(
       user,
@@ -695,6 +744,7 @@ export class UserService {
 
   /**
    * 游客通过Telegram登录转正式用户
+   * @deprecated 已废弃，请使用 telegramLogin 并携带 guestToken 参数实现自动合并
    * @param userId 游客用户ID
    * @param dto Telegram登录信息
    * @returns 转换结果和新令牌

@@ -19,6 +19,10 @@ export class TelegramUserDto {
   @IsString()
   deviceInfo?: string;
 
+  @IsOptional()
+  @IsString()
+  guestToken?: string;
+
   // 旧格式：分离字段（当loginType为bot时必需）
   @ValidateIf((o: TelegramUserDto) => o.loginType === LoginType.BOT)
   @IsNumber()

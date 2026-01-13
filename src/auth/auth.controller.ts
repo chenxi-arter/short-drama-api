@@ -15,7 +15,6 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
-import { TelegramAuthGuard } from './guards/telegram-auth.guard';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { TelegramLoginDto, TelegramLoginResponseDto } from './dto/telegram-login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
@@ -25,7 +24,6 @@ import { BotLoginDto } from './dto/bot-login.dto';
 import { GuestLoginDto, GuestLoginResponseDto } from './dto/guest-login.dto';
 import { UserService } from '../user/user.service';
 import { LoginType, TelegramUserDto } from '../user/dto/telegram-user.dto';
-import { User } from '../user/entity/user.entity';
 import { GuestService } from './guest.service';
 import { ConvertGuestToEmailDto, ConvertGuestResponseDto } from '../user/dto/convert-guest.dto';
 import { Query } from '@nestjs/common';
@@ -82,6 +80,7 @@ export class AuthController {
       loginType: LoginType.WEBAPP,
       initData: loginDto.initData,
       deviceInfo: loginDto.deviceInfo,
+      guestToken: loginDto.guestToken,
     };
 
     return this.userService.telegramLogin(telegramUserDto);
@@ -103,6 +102,7 @@ export class AuthController {
       auth_date: dto.auth_date,
       hash: dto.hash,
       deviceInfo: dto.deviceInfo,
+      guestToken: dto.guestToken,
     };
 
     // 复用 UserService 登录逻辑，返回令牌 + 用户信息
@@ -293,37 +293,6 @@ export class AuthController {
     }
 
     return this.userService.convertGuestToEmailUser(userId, dto);
-  }
-
-  @Post('convert-guest-to-telegram')
-  @UseGuards(JwtAuthGuard)
-  @HttpCode(HttpStatus.OK)
-  @ApiBearerAuth()
-  @ApiOperation({
-    summary: '游客转正式用户（Telegram登录）',
-    description: '将当前游客账号通过Telegram登录转换为正式用户，保留所有历史数据'
-  })
-  @ApiResponse({
-    status: 200,
-    description: '转换成功',
-    type: TelegramLoginResponseDto
-  })
-  async convertGuestToTelegram(
-    @Request() req: { user?: { userId: number } },
-    @Body() dto: TelegramLoginDto,
-  ) {
-    const userId = req.user?.userId;
-    if (!userId) {
-      throw new UnauthorizedException('用户信息无效');
-    }
-
-    const telegramUserDto: TelegramUserDto = {
-      loginType: LoginType.WEBAPP,
-      initData: dto.initData,
-      deviceInfo: dto.deviceInfo,
-    };
-
-    return this.userService.convertGuestToTelegramUser(userId, telegramUserDto);
   }
 
   @Post('admin/clean-inactive-guests')

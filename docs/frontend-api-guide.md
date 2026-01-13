@@ -42,13 +42,12 @@
 
 **接口列表**:
 - 1.1 邮箱注册
-- 1.2 邮箱登录
-- 1.3 Telegram WebApp 登录
-- 1.4 游客登录 ⭐ 新增
-- 1.5 游客转正（邮箱）⭐ 新增
-- 1.6 游客转正（Telegram）⭐ 新增
-- 1.7 获取用户信息
-- 1.8 刷新Token
+- 1.2 邮箱登录（支持游客自动转正）⭐
+- 1.3 Telegram WebApp 登录（支持游客自动转正）⭐
+- 1.4 Telegram Bot 登录（支持游客自动转正）⭐
+- 1.5 游客登录 ⭐ 新增
+- 1.6 获取用户信息
+- 1.7 刷新Token
 
 ---
 
@@ -82,16 +81,21 @@
 
 ---
 
-### 1.2 邮箱登录
+### 1.2 邮箱登录（支持游客自动转正）⭐
 
 **接口**: `POST /api/auth/email-login`
+
+**说明**: 
+- 支持普通邮箱登录
+- ⭐ **支持游客自动转正**：传入 `guestToken` 参数即可自动将游客数据合并到邮箱账号
 
 **请求参数**:
 ```json
 {
   "email": "string",           // 必填，邮箱地址
   "password": "string",        // 必填，密码
-  "deviceInfo": "string"       // 可选，设备信息
+  "deviceInfo": "string",      // 可选，设备信息
+  "guestToken": "string"       // ⭐ 可选，游客token（用于自动合并游客数据）
 }
 ```
 
@@ -105,25 +109,214 @@
 }
 ```
 
+**游客转正示例**:
+```javascript
+// 游客通过邮箱登录自动转正
+async function emailLoginWithGuest(email, password) {
+  // 1. 读取本地保存的 guestToken
+  const guestToken = localStorage.getItem('guestToken');
+  
+  // 2. 邮箱登录，携带 guestToken
+  const res = await fetch('/api/auth/email-login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      email: email,
+      password: password,
+      deviceInfo: navigator.userAgent,
+      guestToken: guestToken || undefined  // ⭐ 自动合并游客数据
+    })
+  });
+  
+  const { access_token, refresh_token } = await res.json();
+  
+  // 3. 保存新的 token
+  localStorage.setItem('access_token', access_token);
+  localStorage.setItem('refresh_token', refresh_token);
+  
+  // 4. 清除 guestToken（已经不是游客了）
+  localStorage.removeItem('guestToken');
+  
+  console.log('登录成功，游客数据已自动合并！');
+}
+```
+
+**使用场景**:
+- **普通登录**: 不传 `guestToken`，正常邮箱登录
+- **游客转正**: 传入 `guestToken`，自动合并游客数据（观看记录、收藏、点赞等）
+
 ---
 
-### 1.3 Telegram WebApp 登录
+### 1.3 Telegram WebApp 登录（支持游客自动转正）⭐
 
 **接口**: `POST /api/auth/telegram/webapp-login`
+
+**说明**: 
+- 支持普通 Telegram 登录
+- ⭐ **支持游客自动转正**：传入 `guestToken` 参数即可自动将游客数据合并到 Telegram 账号
+- 如果该 Telegram ID 已存在，会自动合并游客数据到已存在的账号
 
 **请求参数**:
 ```json
 {
   "initData": "string",        // 必填，Telegram WebApp的initData
-  "deviceInfo": "string"       // 可选，设备信息
+  "deviceInfo": "string",      // 可选，设备信息
+  "guestToken": "string"       // ⭐ 可选，游客token（用于自动合并游客数据）
 }
 ```
 
-**返回数据**: 同邮箱登录（access_token、refresh_token等）
+**返回数据**: 
+```json
+{
+  "access_token": "string",    // 访问令牌（有效期2小时）
+  "refresh_token": "string",   // 刷新令牌（有效期30天）
+  "expires_in": 7200,          // 过期时间（秒）
+  "token_type": "Bearer"       // 令牌类型
+}
+```
+
+**游客转正示例**:
+```javascript
+// 游客通过 Telegram 登录自动转正
+async function telegramLoginWithGuest() {
+  // 1. 读取本地保存的 guestToken
+  const guestToken = localStorage.getItem('guestToken');
+  
+  // 2. Telegram登录，携带 guestToken
+  const res = await fetch('/api/auth/telegram/webapp-login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      initData: window.Telegram.WebApp.initData,
+      deviceInfo: navigator.userAgent,
+      guestToken: guestToken || undefined  // ⭐ 自动合并游客数据
+    })
+  });
+  
+  const { access_token, refresh_token } = await res.json();
+  
+  // 3. 保存新的 token
+  localStorage.setItem('access_token', access_token);
+  localStorage.setItem('refresh_token', refresh_token);
+  
+  // 4. 清除 guestToken（已经不是游客了）
+  localStorage.removeItem('guestToken');
+  
+  console.log('登录成功，游客数据已自动合并！');
+}
+```
+
+**使用场景**:
+- **普通登录**: 不传 `guestToken`，正常 Telegram 登录
+- **游客转正**: 传入 `guestToken`，自动合并游客数据（观看记录、收藏、点赞等）
+
+**优势**:
+- ✅ 一步完成：不需要单独的转正接口
+- ✅ 更安全：不需要保存多个 token
+- ✅ 容错性强：guestToken 无效也不影响登录
 
 ---
 
-### 1.4 游客登录 ⭐ 新增
+### 1.4 Telegram Bot 登录（支持游客自动转正）⭐
+
+**接口**: `POST /api/auth/telegram/bot-login`
+
+**说明**: 
+- 支持 Telegram Login Widget（网页登录按钮）
+- ⭐ **支持游客自动转正**：传入 `guestToken` 参数即可自动将游客数据合并到 Telegram 账号
+
+**请求参数**:
+```json
+{
+  "id": 123456789,             // 必填，Telegram用户ID
+  "first_name": "string",      // 必填，名字
+  "last_name": "string",       // 可选，姓氏
+  "username": "string",        // 可选，用户名
+  "auth_date": 1234567890,     // 必填，认证时间戳
+  "hash": "string",            // 必填，认证哈希
+  "deviceInfo": "string",      // 可选，设备信息
+  "guestToken": "string"       // ⭐ 可选，游客token（用于自动合并游客数据）
+}
+```
+
+**返回数据**: 
+```json
+{
+  "access_token": "string",    // 访问令牌（有效期2小时）
+  "refresh_token": "string",   // 刷新令牌（有效期30天）
+  "expires_in": 7200,          // 过期时间（秒）
+  "token_type": "Bearer"       // 令牌类型
+}
+```
+
+**游客转正示例**:
+```javascript
+// 游客通过 Telegram Bot 登录自动转正
+function onTelegramAuth(user) {
+  // user 包含: id, first_name, last_name, username, auth_date, hash
+  
+  // 1. 读取本地保存的 guestToken
+  const guestToken = localStorage.getItem('guestToken');
+  
+  // 2. Telegram Bot 登录，携带 guestToken
+  fetch('/api/auth/telegram/bot-login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      id: user.id,
+      first_name: user.first_name,
+      last_name: user.last_name,
+      username: user.username,
+      auth_date: user.auth_date,
+      hash: user.hash,
+      deviceInfo: navigator.userAgent,
+      guestToken: guestToken || undefined  // ⭐ 自动合并游客数据
+    })
+  })
+  .then(res => res.json())
+  .then(data => {
+    // 3. 保存新的 token
+    localStorage.setItem('access_token', data.access_token);
+    localStorage.setItem('refresh_token', data.refresh_token);
+    
+    // 4. 清除 guestToken（已经不是游客了）
+    localStorage.removeItem('guestToken');
+    
+    console.log('登录成功，游客数据已自动合并！');
+  });
+}
+```
+
+**Telegram Login Widget 集成**:
+```html
+<!-- 1. 引入 Telegram Widget 脚本 -->
+<script async src="https://telegram.org/js/telegram-widget.js?22" 
+  data-telegram-login="your_bot_name" 
+  data-size="large" 
+  data-onauth="onTelegramAuth(user)" 
+  data-request-access="write">
+</script>
+
+<!-- 2. 定义回调函数 -->
+<script>
+function onTelegramAuth(user) {
+  // user 自动包含所有需要的字段
+  // 直接调用上面的登录逻辑
+}
+</script>
+```
+
+**使用场景**:
+- **普通登录**: 不传 `guestToken`，正常 Telegram Bot 登录
+- **游客转正**: 传入 `guestToken`，自动合并游客数据
+
+**与 Web App 登录的区别**:
+- **Bot 登录**: 用于普通网页嵌入 Telegram 登录按钮
+- **Web App 登录**: 用于 Telegram Mini App 内部
+
+---
+
+### 1.5 游客登录 ⭐ 新增
 
 **接口**: `POST /api/auth/guest-login`
 
@@ -196,118 +389,7 @@ async function initGuest() {
 
 ---
 
-### 1.5 游客转正（邮箱） ⭐ 新增
-
-**接口**: `POST /api/auth/convert-guest-to-email`  
-**认证**: 必需（游客token）
-
-**说明**: 
-- 将当前游客账号转为正式邮箱账号
-- 转正后保留所有历史数据（观看记录、收藏、评论等）
-- ⭐ **自动数据合并**：如果该邮箱已注册，会将游客数据合并到已存在的账号，并删除游客账号
-- 转正后会返回新的 token，需要更新本地存储
-
-**请求参数**:
-```json
-{
-  "email": "string",           // 必填，邮箱地址
-  "password": "string",        // 必填，密码（6-20位）
-  "confirmPassword": "string", // 必填，确认密码
-  "username": "string",        // 可选，用户名
-  "firstName": "string",       // 可选，名字
-  "lastName": "string"         // 可选，姓氏
-}
-```
-
-**返回数据**:
-```json
-{
-  "success": true,             // 是否成功
-  "message": "游客账号已成功转为正式用户，所有历史数据已保留",  // 或 "检测到该邮箱已注册，已将您的游客数据合并到现有账号"
-  "access_token": "string",    // ⭐ 新的访问令牌（需更新）
-  "refresh_token": "string",   // ⭐ 新的刷新令牌（需更新）
-  "token_type": "Bearer",
-  "expires_in": 7200
-}
-```
-
-**返回消息说明**:
-- 新账号：`"游客账号已成功转为正式用户，所有历史数据已保留"`
-- 数据合并：`"检测到该邮箱已注册，已将您的游客数据合并到现有账号"`
-
-**前端集成示例**:
-```javascript
-// 游客转正
-async function convertGuest(email, password) {
-  const res = await wx.request({
-    url: 'https://api.example.com/api/auth/convert-guest-to-email',
-    method: 'POST',
-    header: {
-      'Authorization': `Bearer ${wx.getStorageSync('access_token')}`
-    },
-    data: {
-      email,
-      password,
-      confirmPassword: password,
-      username: 'myusername',
-      firstName: '张三'
-    }
-  });
-  
-  // 更新 token
-  const { access_token, refresh_token } = res.data;
-  wx.setStorageSync('access_token', access_token);
-  wx.setStorageSync('refresh_token', refresh_token);
-  
-  // 清除 guestToken（已经不是游客了）
-  wx.removeStorageSync('guestToken');
-  
-  console.log('转正成功！');
-}
-```
-
-**重要提示**:
-- ⚠️ 转正成功后必须更新本地的 token
-- ⚠️ 转正后可以删除本地的 `guestToken`
-- ⚠️ 转正后用户可以使用邮箱登录
-
----
-
-### 1.6 游客转正（Telegram） ⭐ 新增
-
-**接口**: `POST /api/auth/convert-guest-to-telegram`  
-**认证**: 必需（游客token）
-
-**说明**: 
-- 将当前游客账号通过Telegram登录转为正式用户
-- ⭐ **自动数据合并**：如果该Telegram ID已存在，会将游客数据合并到已存在的账号，并删除游客账号
-- 只支持WebApp格式（`initData`），不支持Bot格式
-
-**请求参数**:
-```json
-{
-  "initData": "string",        // 必填，Telegram WebApp的initData
-  "deviceInfo": "string"       // 可选，设备信息
-}
-```
-
-**返回数据**: 
-```json
-{
-  "access_token": "string",    // ⭐ 新的访问令牌（需更新）
-  "refresh_token": "string",   // ⭐ 新的刷新令牌（需更新）
-  "token_type": "Bearer",
-  "expires_in": 7200
-}
-```
-
-**说明**: 
-- 如果Telegram ID不存在，直接转换游客为正式用户
-- 如果Telegram ID已存在，合并数据后返回已存在账号的token
-
----
-
-### 1.7 获取用户信息
+### 1.6 获取用户信息
 
 **接口**: `GET /api/user/me`  
 **认证**: 必需
@@ -335,7 +417,7 @@ async function convertGuest(email, password) {
 
 ---
 
-### 1.8 刷新Token
+### 1.7 刷新Token
 
 **接口**: `POST /api/user/refresh`  
 **认证**: 必需
@@ -1140,7 +1222,7 @@ categoryId: number // 可选，分类ID（1-短剧，2-电影，3-电视剧等�
 
 ### 6.1 发表主楼评论
 
-**接口**: `POST /api/video/episode/comment`
+**接口**: `POST /api/video/episode/comment`  
 
 **认证**: 必需
 
@@ -2000,9 +2082,10 @@ if (episode.userInteraction) {
 - ❌ **不能发表评论**（主楼和回复都不可以）
 
 **游客转正**:
-- 支持邮箱转正（`POST /api/auth/convert-guest-to-email`）
-- 支持Telegram转正（`POST /api/auth/convert-guest-to-telegram`）
+- **邮箱转正**: 在邮箱登录时携带 `guestToken` 参数即可（无需单独接口）⭐
+- **Telegram转正**: 在 Telegram 登录时携带 `guestToken` 参数即可（无需单独接口）⭐
 - 转正时如果邮箱/Telegram账号已存在，会自动合并数据到已存在账号
+- 也可以使用独立接口 `POST /api/auth/convert-guest-to-email` 先注册再转正
 
 ### 4. 点赞点踩互斥
 
@@ -2341,13 +2424,16 @@ if (comment.id < 0) {
 
 ## 📝 更新日志
 
-### v2.7 (2026-01-12) ⭐ 最新
+### v2.7 (2026-01-13) ⭐ 最新
 - ✅ **新增游客登录功能**（POST /api/auth/guest-login）
-- ✅ **新增游客转正功能**（邮箱和Telegram两种方式）
+- ✅ **登录自动合并游客数据** ⭐ 新方式：
+  - 邮箱登录：携带 `guestToken` 自动合并
+  - Telegram Web App 登录：携带 `guestToken` 自动合并
+  - Telegram Bot 登录：携带 `guestToken` 自动合并
 - ✅ **游客评论限制**：游客用户不能发表评论（返回403错误）
 - ✅ **自动数据合并**：游客转正时如果邮箱/Telegram账号已存在，自动合并数据
 - ✅ 更新评论接口文档（添加游客限制说明）
-- ✅ 修正游客转正接口路径（/api/auth/convert-guest-to-email）
+- ✅ 废弃旧的独立转正接口（已集成到登录接口）
 
 ### v2.3 (2025-11-08)
 - ✅ **模糊搜索支持分类筛选**（categoryId参数）⭐

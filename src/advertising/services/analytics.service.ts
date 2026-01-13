@@ -66,7 +66,7 @@ export class AnalyticsService {
       // 有时间限制时，使用时间范围查询
       // 统计点击数（CLICK事件）
       const clicksQueryBuilder = this.eventRepository
-        .createQueryBuilder('event')
+      .createQueryBuilder('event')
         .select('COUNT(*)', 'totalClicks')
         .where('event.eventType = :clickType', { clickType: EventType.CLICK });
       
@@ -97,18 +97,18 @@ export class AnalyticsService {
     } else {
       // 无时间限制时，返回全部数据
       // 统计点击数（CLICK事件）
-      const clickStats = await this.eventRepository
-        .createQueryBuilder('event')
-        .select('COUNT(*)', 'totalClicks')
-        .where('event.eventType = :eventType', { eventType: EventType.CLICK })
-        .getRawOne();
+    const clickStats = await this.eventRepository
+      .createQueryBuilder('event')
+      .select('COUNT(*)', 'totalClicks')
+      .where('event.eventType = :eventType', { eventType: EventType.CLICK })
+      .getRawOne();
       totalClicks = parseInt(clickStats?.totalClicks || '0') || 0;
 
       // 统计转化数
-      const conversionStats = await this.conversionRepository
-        .createQueryBuilder('conversion')
-        .select('COUNT(*)', 'totalConversions')
-        .getRawOne();
+    const conversionStats = await this.conversionRepository
+      .createQueryBuilder('conversion')
+      .select('COUNT(*)', 'totalConversions')
+      .getRawOne();
       totalConversions = parseInt(conversionStats?.totalConversions || '0') || 0;
     }
     const avgConversionRate = CampaignUtils.calculateConversionRate(totalConversions, totalClicks);
@@ -334,7 +334,7 @@ export class AnalyticsService {
         campaigns: campaignsCount,
         clicks,
         conversions,
-        spend: 0, // TODO: 获取实际花费数据
+      spend: 0, // TODO: 获取实际花费数据
       });
     }
 
