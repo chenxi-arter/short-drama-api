@@ -1,4 +1,4 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import { Controller, Get, Query, Post, Body } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from '../../user/entity/user.entity';
@@ -10,6 +10,7 @@ import { Comment } from '../../video/entity/comment.entity';
 import { WatchProgress } from '../../video/entity/watch-progress.entity';
 import { BrowseHistory } from '../../video/entity/browse-history.entity';
 import { AnalyticsService } from '../services/analytics.service';
+import { WatchLogsCleanupService } from '../../video/services/watch-logs-cleanup.service';
 
 function toDateStart(d?: string): Date | undefined {
   if (!d) return undefined;
@@ -39,6 +40,7 @@ export class AdminDashboardController {
     @InjectRepository(WatchProgress) private readonly wpRepo: Repository<WatchProgress>,
     @InjectRepository(BrowseHistory) private readonly bhRepo: Repository<BrowseHistory>,
     private readonly analyticsService: AnalyticsService,
+    private readonly watchLogsCleanupService: WatchLogsCleanupService,
   ) {}
 
   @Get('overview')
@@ -419,6 +421,66 @@ export class AdminDashboardController {
         code: 500,
         data: null,
         message: `获取观看统计失败: ${error instanceof Error ? error.message : String(error)}`,
+        timestamp: new Date().toISOString(),
+      };
+    }
+  }
+
+  /**
+   * 获取观看日志清理统计信息
+   * GET /api/admin/dashboard/watch-logs-stats
+   */
+  @Get('watch-logs-stats')
+  async getWatchLogsStats() {
+    try {
+      const stats = await this.watchLogsCleanupService.getCleanupStats();
+
+      return {
+        code: 200,
+        data: stats,
+        message: '获取观看日志统计成功',
+        timestamp: new Date().toISOString(),
+      };
+    } catch (error) {
+      return {
+        code: 500,
+        data: null,
+        message: `获取观看日志统计失败: ${error instanceof Error ? error.message : String(error)}`,
+        timestamp: new Date().toISOString(),
+      };
+    }
+  }
+
+  /**
+   * 手动触发观看日志归档
+   * POST /api/admin/dashboard/archive-watch-logs
+   * 
+   * Body:
+   * - daysToKeep: 保留最近多少天的数据（默认365天）
+   * - archiveBeforeDelete: 是否在删除前先归档（默认false）
+   */
+  @Post('archive-watch-logs')
+  async archiveWatchLogs(
+    @Body('daysToKeep') daysToKeep?: number,
+    @Body('archiveBeforeDelete') archiveBeforeDelete?: boolean,
+  ) {
+    try {
+      const days = daysToKeep || 365;
+      const archive = archiveBeforeDelete || false;
+
+      const result = await this.watchLogsCleanupService.manualArchive(days, archive);
+
+      return {
+        code: 200,
+        data: result,
+        message: result.success ? '归档任务执行成功' : '归档任务执行失败',
+        timestamp: new Date().toISOString(),
+      };
+    } catch (error) {
+      return {
+        code: 500,
+        data: null,
+        message: `归档任务执行失败: ${error instanceof Error ? error.message : String(error)}`,
         timestamp: new Date().toISOString(),
       };
     }

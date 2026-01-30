@@ -11,6 +11,7 @@ import { Episode } from '../../video/entity/episode.entity';
 import { EpisodeUrl } from '../../video/entity/episode-url.entity';
 import { Comment } from '../../video/entity/comment.entity';
 import { WatchProgress } from '../../video/entity/watch-progress.entity';
+import { WatchLog } from '../../video/entity/watch-log.entity';
 import { Category } from '../../video/entity/category.entity';
 import { ShortVideo } from '../../video/entity/short-video.entity';
 
@@ -33,6 +34,7 @@ import { ShortVideo } from '../../video/entity/short-video.entity';
       EpisodeUrl,
       Comment,
       WatchProgress,
+      WatchLog,
       Category,
       ShortVideo,
 

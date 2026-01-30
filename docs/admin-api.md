@@ -935,7 +935,7 @@ curl "http://localhost:9090/api/admin/series/validation/check-duplicate-names"
       "averagePlayCountPerEpisode": 27    // 每剧集平均播放次数
     },
     "watching": {
-      "averageWatchProgress": 320,        // 平均观看进度（秒）
+      "averageWatchProgress": 320,        // 平均日观看时长（秒）= 总观看时长 ÷ 活跃用户数
       "averageWatchPercentage": 65.8,     // 平均观看百分比 (%)
       "totalWatchTime": 45678900,         // 总观看时长（秒）
       "completionRate": 42.5              // 完播率 (%)
@@ -1054,7 +1054,7 @@ curl "http://localhost:9090/api/admin/series/validation/check-duplicate-names"
 {
   "code": 200,
   "data": {
-    "averageWatchProgress": 320,        // 平均观看进度（秒）
+    "averageWatchProgress": 320,        // 平均日观看时长（秒）= 总观看时长 ÷ 活跃用户数
     "averageWatchPercentage": 65.8,     // 平均观看百分比 (%)
     "totalWatchTime": 45678900,         // 总观看时长（秒）
     "totalWatchRecords": 125000,        // 总观看记录数
@@ -1063,6 +1063,66 @@ curl "http://localhost:9090/api/admin/series/validation/check-duplicate-names"
   }
 }
 ```
+
+**重要说明**：
+- `averageWatchProgress`: 从 v2.0 开始，计算方式改为 **总观看时长 ÷ 活跃用户数**，更准确地反映"平均每个用户在平台上花费的时间"
+- 数据来源：优先使用 `watch_logs` 表（2026年1月后的新数据），降级使用 `watch_progress` 表（历史数据）
+
+#### 观看日志管理
+
+- **获取观看日志统计信息**
+  - `GET /api/admin/dashboard/watch-logs-stats`
+  - 用于查看观看日志的存储情况和清理建议
+  - 响应示例：
+```json
+{
+  "code": 200,
+  "data": {
+    "totalLogs": 125000,              // 总日志记录数
+    "logsOlderThan1Year": 0,          // 1年前的日志数
+    "logsOlderThan6Months": 8500,     // 6个月前的日志数
+    "logsOlderThan3Months": 32000,    // 3个月前的日志数
+    "oldestLogDate": "2026-01-01",    // 最早日志日期
+    "newestLogDate": "2026-01-29"     // 最新日志日期
+  },
+  "message": "获取观看日志统计成功"
+}
+```
+
+- **手动触发观看日志归档**
+  - `POST /api/admin/dashboard/archive-watch-logs`
+  - 用于手动清理或归档旧的观看日志数据
+  - 请求参数：
+```json
+{
+  "daysToKeep": 365,              // 保留最近N天的数据（默认365天）
+  "archiveBeforeDelete": false    // 是否在删除前先归档到archive表（默认false）
+}
+```
+  - 响应示例：
+```json
+{
+  "code": 200,
+  "data": {
+    "success": true,
+    "message": "归档任务完成: 归档了 0 条记录，删除了 8500 条记录",
+    "archivedCount": 0,             // 归档的记录数
+    "deletedCount": 8500,           // 删除的记录数
+    "duration": 1250                // 执行耗时（毫秒）
+  },
+  "message": "归档任务执行成功"
+}
+```
+
+**使用场景**：
+- 定期清理历史观看日志，控制数据库大小
+- 在数据库容量不足时紧急清理旧数据
+- 归档重要历史数据到archive表（设置 `archiveBeforeDelete: true`）
+
+**注意事项**：
+- 归档操作不可逆，建议先设置 `archiveBeforeDelete: true` 进行测试
+- 系统每年1月1日凌晨2点自动执行归档任务（保留365天）
+- 归档的数据会保存到 `watch_logs_archive` 表，可用于历史分析
 
 **指标解释**：
 
@@ -1202,6 +1262,19 @@ curl -X GET "http://localhost:8080/api/admin/dashboard/content-stats"
 
 # 获取完播率和平均观影时长
 curl -X GET "http://localhost:8080/api/admin/dashboard/watch-stats"
+
+# 获取观看日志统计信息
+curl -X GET "http://localhost:8080/api/admin/dashboard/watch-logs-stats"
+
+# 手动触发观看日志归档（删除1年前的数据）
+curl -X POST "http://localhost:8080/api/admin/dashboard/archive-watch-logs" \
+  -H "Content-Type: application/json" \
+  -d '{"daysToKeep": 365, "archiveBeforeDelete": false}'
+
+# 归档并保存历史数据（先保存到archive表，再删除）
+curl -X POST "http://localhost:8080/api/admin/dashboard/archive-watch-logs" \
+  -H "Content-Type: application/json" \
+  -d '{"daysToKeep": 365, "archiveBeforeDelete": true}'
 ```
 
 ---

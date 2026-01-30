@@ -65,7 +65,7 @@ export class ExportOptimizationService {
         SELECT 
           DATE(wp.updated_at) as wp_date,
           COUNT(*) as play_count,
-          AVG(wp.stop_at_second) as avg_duration,
+          SUM(wp.stop_at_second) / COUNT(DISTINCT wp.user_id) as avg_duration,
           AVG(CASE WHEN wp.stop_at_second >= e.duration * 0.9 THEN 1 ELSE 0 END) as completion_rate
         FROM watch_progress wp
         INNER JOIN episodes e ON wp.episode_id = e.id
@@ -156,7 +156,7 @@ export class ExportOptimizationService {
         SELECT 
           DATE(updated_at) as wp_date,
           COUNT(DISTINCT user_id) as dau,
-          AVG(stop_at_second) as avg_duration
+          SUM(stop_at_second) / COUNT(DISTINCT user_id) as avg_duration
         FROM watch_progress
         WHERE updated_at BETWEEN ? AND ?
         GROUP BY DATE(updated_at)
@@ -206,7 +206,7 @@ export class ExportOptimizationService {
         (SELECT COUNT(*) FROM episodes WHERE series_id = s.id) as episodeCount,
         COUNT(DISTINCT wp.id) as playCount,
         AVG(CASE WHEN wp.stop_at_second >= e.duration * 0.9 THEN 1 ELSE 0 END) as completionRate,
-        AVG(wp.stop_at_second) as avgWatchDuration,
+        SUM(wp.stop_at_second) / COUNT(DISTINCT wp.user_id) as avgWatchDuration,
         COALESCE(SUM(CASE WHEN er.reaction_type = 'like' THEN 1 ELSE 0 END), 0) as likeCount,
         COALESCE(SUM(CASE WHEN er.reaction_type = 'dislike' THEN 1 ELSE 0 END), 0) as dislikeCount,
         0 as shareCount,

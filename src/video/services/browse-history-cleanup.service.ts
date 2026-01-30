@@ -22,11 +22,15 @@ export class BrowseHistoryCleanupService {
   ) {}
 
   /**
+   * ⚠️ 已废弃：browse_history 表已不再使用，统一从 watch_progress 获取观看记录
+   * 定时清理任务已停用，保留此方法仅供手动调用
+   * 
    * 每天凌晨2点执行浏览记录清理任务
    * 清理每个用户超过100条的浏览记录
    */
-  @Cron(CronExpression.EVERY_DAY_AT_2AM)
+  // @Cron(CronExpression.EVERY_DAY_AT_2AM)  // ⚠️ 已禁用定时任务
   async cleanupExcessBrowseHistory(): Promise<void> {
+    this.logger.warn('⚠️ 警告：browse_history 表已废弃，此清理任务仅供手动调用');
     this.logger.log('开始执行浏览记录清理任务...');
     
     try {

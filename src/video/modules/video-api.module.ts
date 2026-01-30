@@ -32,6 +32,8 @@ import { FilterService } from '../services/filter.service';
 import { SeriesService } from '../services/series.service';
 import { EpisodeService } from '../services/episode.service';
 import { WatchProgressService } from '../services/watch-progress.service';
+import { WatchLogService } from '../services/watch-log.service';
+import { WatchLogsCleanupService } from '../services/watch-logs-cleanup.service';
 import { BannerService } from '../services/banner.service';
 import { CategoryService } from '../services/category.service';
 import { IngestService } from '../services/ingest.service';
@@ -53,6 +55,7 @@ import { EpisodeReaction } from '../entity/episode-reaction.entity';
 import { Comment } from '../entity/comment.entity';
 import { CommentLike } from '../entity/comment-like.entity';
 import { WatchProgress } from '../entity/watch-progress.entity';
+import { WatchLog } from '../entity/watch-log.entity';
 import { Category } from '../entity/category.entity';
 import { ShortVideo } from '../entity/short-video.entity';
 import { Banner } from '../entity/banner.entity';
@@ -70,7 +73,7 @@ import { User } from '../../user/entity/user.entity';
     BannerModule,
     // HistoryModule,
     TypeOrmModule.forFeature([
-      Series, Episode, EpisodeUrl, EpisodeReaction, Comment, CommentLike, WatchProgress, Category, ShortVideo, Banner, FilterType, FilterOption,
+      Series, Episode, EpisodeUrl, EpisodeReaction, Comment, CommentLike, WatchProgress, WatchLog, Category, ShortVideo, Banner, FilterType, FilterOption,
       SeriesGenreOption, User
     ]),
     forwardRef(() => import('../../user/user.module').then(m => m.UserModule)),
@@ -111,8 +114,10 @@ import { User } from '../../user/entity/user.entity';
     SeriesService,
     EpisodeService,
     // BrowseHistoryService,
-    // BrowseHistoryCleanupService,
+    // BrowseHistoryCleanupService,  // ⚠️ 已禁用：browse_history 表已废弃
     WatchProgressService,
+    WatchLogService,
+    WatchLogsCleanupService,  // ✅ 新增：观看日志归档服务
     BannerService,
     CategoryService,
     CategoryValidator,

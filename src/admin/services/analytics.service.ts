@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between, MoreThan } from 'typeorm';
 import { User } from '../../user/entity/user.entity';
 import { WatchProgress } from '../../video/entity/watch-progress.entity';
+import { WatchLog } from '../../video/entity/watch-log.entity';
 import { BrowseHistory } from '../../video/entity/browse-history.entity';
 import { Episode } from '../../video/entity/episode.entity';
 
@@ -17,6 +18,8 @@ export class AnalyticsService {
     private readonly userRepo: Repository<User>,
     @InjectRepository(WatchProgress)
     private readonly wpRepo: Repository<WatchProgress>,
+    @InjectRepository(WatchLog)
+    private readonly watchLogRepo: Repository<WatchLog>,
     @InjectRepository(BrowseHistory)
     private readonly bhRepo: Repository<BrowseHistory>,
     @InjectRepository(Episode)
@@ -231,18 +234,56 @@ export class AnalyticsService {
 
   /**
    * 获取平均观影时长（秒）
-   * 基于所有观看记录的平均进度
-   * 通过 JOIN episodes 表计算百分比：stop_at_second / duration * 100
+   * 平均日观看时长 = 当天所有用户观看时长总和 ÷ 当天日活数
+   * 
+   * 数据来源策略（优雅降级）：
+   * 1. 优先使用 watch_logs 表（2026年1月后的新数据，更准确）
+   * 2. 如果 watch_logs 无数据，降级使用 watch_progress 表（历史数据）
    */
   async getAverageWatchDuration(): Promise<{
-    averageWatchProgress: number;  // 平均观看进度（秒）
+    averageWatchProgress: number;  // 平均日观看时长（秒）
     averageWatchPercentage: number; // 平均观看百分比
     totalWatchTime: number;         // 总观看时长（秒）
   }> {
+    // 1. 尝试从 watch_logs 获取数据（准确的观看时长）
+    const watchLogResult = await this.watchLogRepo
+      .createQueryBuilder('wl')
+      .select('SUM(wl.watch_duration) / COUNT(DISTINCT wl.user_id)', 'avgDuration')
+      .addSelect('SUM(wl.watch_duration)', 'totalDuration')
+      .addSelect('COUNT(DISTINCT wl.user_id)', 'uniqueUsers')
+      .getRawOne<{
+        avgDuration: string;
+        totalDuration: string;
+        uniqueUsers: string;
+      }>();
+
+    const watchLogCount = parseInt(watchLogResult?.uniqueUsers || '0', 10);
+
+    // 2. 如果 watch_logs 有数据，使用它
+    if (watchLogCount > 0) {
+      const avgDuration = Math.round(parseFloat(watchLogResult?.avgDuration || '0'));
+      const totalDuration = parseInt(watchLogResult?.totalDuration || '0', 10);
+
+      // 计算平均观看百分比（需要关联episode表）
+      const percentageResult = await this.watchLogRepo
+        .createQueryBuilder('wl')
+        .innerJoin('wl.episode', 'ep')
+        .select('AVG(CASE WHEN ep.duration > 0 THEN (wl.watch_duration / ep.duration * 100) ELSE 0 END)', 'avgPercentage')
+        .where('ep.duration > 0')
+        .getRawOne<{ avgPercentage: string }>();
+
+      return {
+        averageWatchProgress: avgDuration,
+        averageWatchPercentage: Math.round(parseFloat(percentageResult?.avgPercentage || '0') * 100) / 100,
+        totalWatchTime: totalDuration,
+      };
+    }
+
+    // 3. 降级：使用 watch_progress 表（历史数据）
     const result = await this.wpRepo
       .createQueryBuilder('wp')
       .innerJoin('wp.episode', 'ep')
-      .select('AVG(wp.stopAtSecond)', 'avgProgress')
+      .select('SUM(wp.stopAtSecond) / COUNT(DISTINCT wp.user_id)', 'avgProgress')
       .addSelect('AVG(CASE WHEN ep.duration > 0 THEN (wp.stopAtSecond / ep.duration * 100) ELSE 0 END)', 'avgPercentage')
       .addSelect('SUM(wp.stopAtSecond)', 'totalTime')
       .where('ep.duration > 0')

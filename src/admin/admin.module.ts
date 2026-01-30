@@ -11,6 +11,7 @@ import { EpisodeUrl } from '../video/entity/episode-url.entity';
 import { RefreshToken } from '../auth/entity/refresh-token.entity';
 import { Comment } from '../video/entity/comment.entity';
 import { WatchProgress } from '../video/entity/watch-progress.entity';
+import { WatchLog } from '../video/entity/watch-log.entity';
 import { BrowseHistory } from '../video/entity/browse-history.entity';
 import { EpisodeReaction } from '../video/entity/episode-reaction.entity';
 import { Favorite } from '../user/entity/favorite.entity';
@@ -34,6 +35,9 @@ import { AdvertisingModule } from '../advertising/advertising.module';
 
 // Services
 import { AnalyticsService } from './services/analytics.service';
+import { WatchLogService } from '../video/services/watch-log.service';
+import { WatchLogsCleanupService } from '../video/services/watch-logs-cleanup.service';
+import { ExportOptimizationService } from './services/export-optimization.service';
 
 @Module({
   imports: [
@@ -49,6 +53,7 @@ import { AnalyticsService } from './services/analytics.service';
       RefreshToken,
       Comment,
       WatchProgress,
+      WatchLog,
       BrowseHistory,
       Category,
       EpisodeReaction,
@@ -72,6 +77,9 @@ import { AnalyticsService } from './services/analytics.service';
   ],
   providers: [
     AnalyticsService,
+    WatchLogService,
+    WatchLogsCleanupService,
+    ExportOptimizationService,
   ],
 })
 export class AdminModule {}

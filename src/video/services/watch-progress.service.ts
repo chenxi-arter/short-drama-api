@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
 import { WatchProgress } from '../entity/watch-progress.entity';
 import { Episode } from '../entity/episode.entity';
+import { WatchLog } from '../entity/watch-log.entity';
 
 @Injectable()
 export class WatchProgressService {
@@ -11,10 +12,13 @@ export class WatchProgressService {
     private readonly watchProgressRepo: Repository<WatchProgress>,
     @InjectRepository(Episode)
     private readonly episodeRepo: Repository<Episode>,
+    @InjectRepository(WatchLog)
+    private readonly watchLogRepo: Repository<WatchLog>,
   ) {}
 
   /**
    * 更新观看进度（通过episode ID）
+   * 同时记录观看日志用于准确统计观看时长
    */
   async updateWatchProgress(
     userId: number,
@@ -37,11 +41,20 @@ export class WatchProgressService {
       },
     });
 
+    // 记录观看日志
+    let startPosition = 0;
     if (watchProgress) {
+      // 有旧记录，说明不是第一次观看
+      // startPosition = 上次的观看位置
+      startPosition = watchProgress.stopAtSecond;
+      
       // 更新现有记录
       watchProgress.stopAtSecond = stopAtSecond;
       watchProgress.updatedAt = new Date();
     } else {
+      // 第一次观看，从0开始
+      startPosition = 0;
+      
       // 创建新记录
       watchProgress = this.watchProgressRepo.create({
         userId,
@@ -51,7 +64,33 @@ export class WatchProgressService {
       });
     }
 
+    // 保存观看进度
     await this.watchProgressRepo.save(watchProgress);
+
+    // 记录观看日志（用于统计）
+    // 只有当 stopAtSecond > startPosition 时才记录（说明确实观看了内容）
+    if (stopAtSecond > startPosition) {
+      try {
+        const watchDuration = stopAtSecond - startPosition;
+        const today = new Date();
+        today.setHours(0, 0, 0, 0); // 设置为当天0点
+
+        const watchLog = this.watchLogRepo.create({
+          userId,
+          episodeId,
+          watchDuration,
+          startPosition,
+          endPosition: stopAtSecond,
+          watchDate: today,
+        });
+
+        await this.watchLogRepo.save(watchLog);
+      } catch (error) {
+        // 记录日志失败不影响主流程
+        console.error('记录观看日志失败:', error);
+      }
+    }
+
     return { ok: true } as const;
   }
 

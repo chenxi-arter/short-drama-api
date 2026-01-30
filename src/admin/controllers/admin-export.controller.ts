@@ -2,6 +2,7 @@ import { Controller, Get, Query } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between } from 'typeorm';
 import { WatchProgress } from '../../video/entity/watch-progress.entity';
+import { WatchLog } from '../../video/entity/watch-log.entity';
 import { User } from '../../user/entity/user.entity';
 import { EpisodeReaction } from '../../video/entity/episode-reaction.entity';
 import { Favorite } from '../../user/entity/favorite.entity';
@@ -9,6 +10,7 @@ import { Episode } from '../../video/entity/episode.entity';
 import { Series } from '../../video/entity/series.entity';
 import { Comment } from '../../video/entity/comment.entity';
 import { ExportSeriesDetailsDto, SeriesDetailData } from '../dto/export-series-details.dto';
+import { WatchLogService } from '../../video/services/watch-log.service';
 
 /**
  * 数据导出控制器
@@ -19,6 +21,8 @@ export class AdminExportController {
   constructor(
     @InjectRepository(WatchProgress)
     private readonly wpRepo: Repository<WatchProgress>,
+    @InjectRepository(WatchLog)
+    private readonly watchLogRepo: Repository<WatchLog>,
     @InjectRepository(User)
     private readonly userRepo: Repository<User>,
     @InjectRepository(EpisodeReaction)
@@ -31,6 +35,7 @@ export class AdminExportController {
     private readonly seriesRepo: Repository<Series>,
     @InjectRepository(Comment)
     private readonly commentRepo: Repository<Comment>,
+    private readonly watchLogService: WatchLogService,
   ) {}
 
   /**
@@ -65,7 +70,7 @@ export class AdminExportController {
         .createQueryBuilder('wp')
         .select("DATE_FORMAT(wp.updated_at, '%Y-%m-%d')", 'date')
         .addSelect('COUNT(*)', 'playCount')  // 改为统计所有记录，不去重
-        .addSelect('AVG(wp.stop_at_second)', 'avgDuration')
+        .addSelect('SUM(wp.stop_at_second) / COUNT(DISTINCT wp.user_id)', 'avgDuration')
         .where('wp.updated_at BETWEEN :start AND :end', { start, end })
         .groupBy('date')
         .orderBy('date', 'ASC')
@@ -208,14 +213,29 @@ export class AdminExportController {
         .groupBy('date')
         .getRawMany<{ date: string; dau: string }>();
 
-      // 3. 按日期统计平均观影时长
-      const avgDurationStats = await this.wpRepo
-        .createQueryBuilder('wp')
-        .select("DATE_FORMAT(wp.updated_at, '%Y-%m-%d')", 'date')
-        .addSelect('AVG(wp.stop_at_second)', 'avgDuration')
-        .where('wp.updated_at BETWEEN :start AND :end', { start, end })
+      // 3. 按日期统计平均观影时长（优先使用 watch_logs 表的数据）
+      // 策略：先尝试从 watch_logs 获取，如果没有数据则降级到 watch_progress
+      const watchLogStats = await this.watchLogRepo
+        .createQueryBuilder('wl')
+        .select("DATE(wl.watch_date)", 'date')
+        .addSelect('SUM(wl.watch_duration) / COUNT(DISTINCT wl.user_id)', 'avgDuration')
+        .where('wl.watch_date BETWEEN :start AND :end', { 
+          start: start.toISOString().split('T')[0], 
+          end: end.toISOString().split('T')[0] 
+        })
         .groupBy('date')
         .getRawMany<{ date: string; avgDuration: string }>();
+
+      // 如果 watch_logs 没有数据，降级使用 watch_progress
+      const avgDurationStats = watchLogStats.length > 0 
+        ? watchLogStats 
+        : await this.wpRepo
+            .createQueryBuilder('wp')
+            .select("DATE_FORMAT(wp.updated_at, '%Y-%m-%d')", 'date')
+            .addSelect('SUM(wp.stop_at_second) / COUNT(DISTINCT wp.user_id)', 'avgDuration')
+            .where('wp.updated_at BETWEEN :start AND :end', { start, end })
+            .groupBy('date')
+            .getRawMany<{ date: string; avgDuration: string }>();
 
       // 4. 计算次日留存率（需要逐日计算）
       const retentionMap = new Map<string, number>();
@@ -351,14 +371,41 @@ export class AdminExportController {
         };
       }
 
-      // 2. 按日期和系列统计观看进度数据
+      // 2. 按日期和系列统计观看数据（优先使用 watch_logs）
+      // 先尝试从 watch_logs 获取平均观看时长
+      const watchLogStatsByDate = await this.watchLogRepo
+        .createQueryBuilder('wl')
+        .innerJoin('wl.episode', 'episode')
+        .select("DATE(wl.watch_date)", 'date')
+        .addSelect('episode.series_id', 'seriesId')
+        .addSelect('SUM(wl.watch_duration) / COUNT(DISTINCT wl.user_id)', 'avgDuration')
+        .where('wl.watch_date BETWEEN :start AND :end', { 
+          start: start.toISOString().split('T')[0], 
+          end: end.toISOString().split('T')[0] 
+        })
+        .andWhere('episode.series_id IN (:...seriesIds)', { seriesIds })
+        .groupBy('date, episode.series_id')
+        .getRawMany<{
+          date: string;
+          seriesId: number;
+          avgDuration: string;
+        }>();
+
+      // 创建日志数据映射（用于快速查找）
+      const logDataMap = new Map<string, number>();
+      watchLogStatsByDate.forEach(item => {
+        const key = `${item.date}-${item.seriesId}`;
+        logDataMap.set(key, parseFloat(item.avgDuration || '0'));
+      });
+
+      // 从 watch_progress 获取播放量和完播率
       const watchStats = await this.wpRepo
         .createQueryBuilder('wp')
         .innerJoin('wp.episode', 'episode')
         .select("DATE_FORMAT(wp.updated_at, '%Y-%m-%d')", 'date')
         .addSelect('episode.series_id', 'seriesId')
         .addSelect('COUNT(*)', 'playCount')
-        .addSelect('AVG(wp.stop_at_second)', 'avgDuration')
+        .addSelect('SUM(wp.stop_at_second) / COUNT(DISTINCT wp.user_id)', 'avgDurationFallback')
         .addSelect(
           'AVG(CASE WHEN wp.stop_at_second >= episode.duration * 0.9 THEN 1 ELSE 0 END)',
           'completionRate'
@@ -370,7 +417,7 @@ export class AdminExportController {
           date: string;
           seriesId: number;
           playCount: string;
-          avgDuration: string;
+          avgDurationFallback: string;
           completionRate: string;
         }>();
 
@@ -467,6 +514,9 @@ export class AdminExportController {
         const series = seriesList.find(s => s.id === stat.seriesId);
         if (!series) return;
 
+        // 优先使用 watch_logs 的数据，如果没有则降级到 watch_progress
+        const avgDuration = logDataMap.get(key) || parseFloat(stat.avgDurationFallback || '0');
+
         resultMap.set(key, {
           date: stat.date,
           seriesId: stat.seriesId,
@@ -475,7 +525,7 @@ export class AdminExportController {
           episodeCount: series.episodes.length,
           playCount: parseInt(stat.playCount),
           completionRate: parseFloat(parseFloat(stat.completionRate).toFixed(4)),
-          avgWatchDuration: Math.round(parseFloat(stat.avgDuration) || 0),
+          avgWatchDuration: Math.round(avgDuration),
           likeCount: 0,
           dislikeCount: 0,
           shareCount: 0, // 暂无分享数据
