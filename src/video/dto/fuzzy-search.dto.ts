@@ -43,6 +43,7 @@ export interface FuzzySearchItem {
   playCount: number;   // 播放次数
   url: string;         // 访问URL
   type: string;        // 类型
+  contentType: string; // 内容类型
   isSerial: boolean;   // 是否是系列剧集
   upStatus: string;    // 更新状态
   upCount: number;     // 更新次数
@@ -52,6 +53,7 @@ export interface FuzzySearchItem {
   isRecommend: boolean; // 是否推荐
   createdAt: string;   // 创建时间
   channeid: number;    // 频道ID标识
+  tags: string[];      // 系列标签（题材/地区/语言/年份/状态）
 }
 
 /**

@@ -6,6 +6,7 @@ import { Cache } from 'cache-manager';
 import { Episode } from '../entity/episode.entity';
 import { EpisodeUrl } from '../entity/episode-url.entity';
 import { Comment } from '../entity/comment.entity';
+import { Series } from '../entity/series.entity';
 import { DateUtil } from '../../common/utils/date.util';
 import { RecommendEpisodeItem } from '../dto/recommend.dto';
 import { EpisodeInteractionService } from './episode-interaction.service';
@@ -36,6 +37,7 @@ interface RecommendQueryResult {
   seriesStarring: string;
   seriesActor: string;
   seriesUpStatus: string;
+  categoryName: string;
   recommendScore: string;
 }
 
@@ -52,6 +54,8 @@ export class RecommendService {
     private readonly episodeUrlRepo: Repository<EpisodeUrl>,
     @InjectRepository(Comment)
     private readonly commentRepo: Repository<Comment>,
+    @InjectRepository(Series)
+    private readonly seriesRepo: Repository<Series>,
     @Inject(CACHE_MANAGER)
     private readonly cacheManager: Cache,
     private readonly episodeInteractionService: EpisodeInteractionService,
@@ -127,9 +131,11 @@ export class RecommendService {
           s.score as seriesScore,
           s.starring as seriesStarring,
           s.actor as seriesActor,
-          s.up_status as seriesUpStatus
+          s.up_status as seriesUpStatus,
+          c.name as categoryName
         FROM episodes e
         INNER JOIN series s ON e.series_id = s.id
+        LEFT JOIN categories c ON s.category_id = c.id
         WHERE e.status = 'published'
           AND e.episode_number = 1
           AND s.is_active = 1
@@ -236,6 +242,10 @@ export class RecommendService {
       const shortIds = list.map(ep => ep.shortId);
       const commentCountMap = await this.commentService.getCommentCountsByShortIds(shortIds);
 
+      // 批量获取系列标签
+      const seriesIds = Array.from(new Set(list.map(ep => ep.seriesId)));
+      const seriesTagsMap = await this.getSeriesTagsBatch(seriesIds);
+
       // 获取每个剧集的播放地址
       const enrichedList: RecommendEpisodeItem[] = await Promise.all(
         list.map(async (episode: RecommendQueryResult): Promise<RecommendEpisodeItem> => {
@@ -265,6 +275,8 @@ export class RecommendService {
             seriesStarring: episode.seriesStarring || '',
             seriesActor: episode.seriesActor || '',
             updateStatus: episode.seriesUpStatus || '',
+            contentType: episode.categoryName || '',
+            tags: seriesTagsMap.get(episode.seriesId) || [],
             playCount: episode.playCount || 0,
             likeCount: episode.likeCount || 0,
             dislikeCount: episode.dislikeCount || 0,
@@ -301,5 +313,84 @@ export class RecommendService {
       console.error('获取推荐列表失败:', error);
       throw new Error('获取推荐列表失败');
     }
+  }
+
+  /**
+   * 批量获取系列标签（题材 + 地区 + 语言 + 年份 + 状态）
+   * @param seriesIds 系列ID数组
+   * @returns Map<seriesId, tags[]>
+   */
+  private async getSeriesTagsBatch(seriesIds: number[]): Promise<Map<number, string[]>> {
+    const tagsMap = new Map<number, string[]>();
+    
+    if (seriesIds.length === 0) {
+      return tagsMap;
+    }
+
+    try {
+      // 先为每个系列初始化空数组，保证没有题材时也能有地区/语言/年份/状态标签
+      seriesIds.forEach(id => tagsMap.set(id, []));
+
+      // 1. 批量查询题材标签（从中间表获取）
+      type RawTag = { series_id: number; name?: string };
+      const genreTags: RawTag[] = await this.seriesRepo
+        .createQueryBuilder('s')
+        .leftJoin('series_genre_options', 'sgo', 'sgo.series_id = s.id')
+        .leftJoin('filter_options', 'fo', 'fo.id = sgo.option_id')
+        .select('s.id', 'series_id')
+        .addSelect('fo.name', 'name')
+        .where('s.id IN (:...seriesIds)', { seriesIds })
+        .andWhere('fo.filter_type_id = 2') // 题材类型
+        .andWhere('fo.is_active = 1')
+        .orderBy('s.id', 'ASC')
+        .addOrderBy('fo.display_order', 'ASC')
+        .getRawMany();
+      
+      genreTags.forEach((tag: RawTag) => {
+        if (tag.name && tag.series_id) {
+          const tags = tagsMap.get(tag.series_id)!;
+          if (tags && !tags.includes(tag.name)) {
+            tags.push(tag.name);
+          }
+        }
+      });
+
+      // 2. 批量查询地区、语言、年份、状态选项名称并合并到 tags
+      type RawOption = { series_id: number; region_name?: string; lang_name?: string; year_name?: string; status_name?: string };
+      const optionRows: RawOption[] = await this.seriesRepo
+        .createQueryBuilder('s')
+        .leftJoin('filter_options', 'fo_region', 's.region_option_id = fo_region.id AND fo_region.is_active = 1')
+        .leftJoin('filter_options', 'fo_lang', 's.language_option_id = fo_lang.id AND fo_lang.is_active = 1')
+        .leftJoin('filter_options', 'fo_year', 's.year_option_id = fo_year.id AND fo_year.is_active = 1')
+        .leftJoin('filter_options', 'fo_status', 's.status_option_id = fo_status.id AND fo_status.is_active = 1')
+        .select('s.id', 'series_id')
+        .addSelect('fo_region.name', 'region_name')
+        .addSelect('fo_lang.name', 'lang_name')
+        .addSelect('fo_year.name', 'year_name')
+        .addSelect('fo_status.name', 'status_name')
+        .where('s.id IN (:...seriesIds)', { seriesIds })
+        .getRawMany();
+      
+      optionRows.forEach((row: RawOption) => {
+        if (!row.series_id) return;
+        const tags = tagsMap.get(row.series_id);
+        if (!tags) return;
+        [row.region_name, row.lang_name, row.year_name, row.status_name]
+          .filter((name): name is string => Boolean(name))
+          .forEach(name => {
+            if (!tags.includes(name)) tags.push(name);
+          });
+      });
+      
+      // 去重并限制每个系列最多 10 个标签
+      tagsMap.forEach((tags, seriesId) => {
+        tagsMap.set(seriesId, Array.from(new Set(tags)).slice(0, 10));
+      });
+      
+    } catch (error) {
+      console.error('批量获取系列标签失败:', error);
+    }
+    
+    return tagsMap;
   }
 }

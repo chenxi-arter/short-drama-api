@@ -39,6 +39,8 @@ export interface RecommendEpisodeItem {
   seriesStarring: string;
   seriesActor: string;
   updateStatus: string;
+  contentType: string;
+  tags: string[]; // 系列标签（题材/地区/语言/年份/状态）
   
   // 互动数据
   playCount: number;

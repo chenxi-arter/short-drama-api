@@ -230,28 +230,43 @@ export class FilterService {
         }, {});
       }
 
-      // 转换为响应格式
-      const items: FilterDataItem[] = series.map(s => ({
-        id: s.id,
-        shortId: s.shortId || '',
-        coverUrl: s.coverUrl || '',
-        title: s.title,
-        score: s.score?.toString() || '0.0',
-        playCount: s.playCount || 0,
-        url: s.id.toString(), // 使用ID作为URL
-        type: s.category?.name || '未分类', // 使用分类名称作为类型
-        isSerial: (s.totalEpisodes && s.totalEpisodes > 1) || false,
-        upStatus: s.upStatus || (s.statusOption?.name ? `${s.statusOption.name}` : '已完结'),
-        upCount: upCountMap[s.id] ?? 0,
-        likeCount: statMap[s.id]?.like ?? 0,
-        dislikeCount: statMap[s.id]?.dislike ?? 0,
-        favoriteCount: statMap[s.id]?.favorite ?? 0,
-        author: s.starring || s.actor || '', // 使用主演或演员作为作者
-        description: s.description || '', // 使用描述字段
-        cidMapper: s.category?.id?.toString() || '0',
-        isRecommend: false, // 默认不推荐，可根据实际业务逻辑调整
-        createdAt: s.createdAt ? DateUtil.formatDateTime(s.createdAt) : DateUtil.formatDateTime(new Date()), // 创建时间
-      }));
+      // 批量获取系列标签
+      const seriesTagsMap = await this.getSeriesTagsBatch(seriesIds);
+
+      // 转换为响应格式（tags = 题材 + 地区 + 语言 + 年份 + 状态，保证有数据时就有标签）
+      const items: FilterDataItem[] = series.map(s => {
+        const genreTags = seriesTagsMap.get(s.id) || [];
+        const optionTags = [
+          s.regionOption?.name,
+          s.languageOption?.name,
+          s.yearOption?.name,
+          s.statusOption?.name,
+        ].filter((name): name is string => Boolean(name));
+        const tags = Array.from(new Set([...genreTags, ...optionTags])).slice(0, 10);
+        return {
+          id: s.id,
+          shortId: s.shortId || '',
+          coverUrl: s.coverUrl || '',
+          title: s.title,
+          score: s.score?.toString() || '0.0',
+          playCount: s.playCount || 0,
+          url: s.id.toString(), // 使用ID作为URL
+          type: s.category?.name || '未分类', // 使用分类名称作为类型
+          contentType: s.category?.name || '', // 内容类型
+          isSerial: (s.totalEpisodes && s.totalEpisodes > 1) || false,
+          upStatus: s.upStatus || (s.statusOption?.name ? `${s.statusOption.name}` : '已完结'),
+          upCount: upCountMap[s.id] ?? 0,
+          likeCount: statMap[s.id]?.like ?? 0,
+          dislikeCount: statMap[s.id]?.dislike ?? 0,
+          favoriteCount: statMap[s.id]?.favorite ?? 0,
+          author: s.starring || s.actor || '', // 使用主演或演员作为作者
+          description: s.description || '', // 使用描述字段
+          cidMapper: s.category?.id?.toString() || '0',
+          isRecommend: false, // 默认不推荐，可根据实际业务逻辑调整
+          createdAt: s.createdAt ? DateUtil.formatDateTime(s.createdAt) : DateUtil.formatDateTime(new Date()), // 创建时间
+          tags, // 系列标签（题材+地区+语言+年份+状态）
+        };
+      });
 
       const response: FilterDataResponse = {
         data: {
@@ -616,26 +631,42 @@ export class FilterService {
         return response;
       }
 
-      // 转换为响应格式
-      const items: FuzzySearchItem[] = series.map(s => ({
-        id: s.id,
-        shortId: s.shortId || '',
-        coverUrl: s.coverUrl || '',
-        title: s.title,
-        score: s.score?.toString() || '0.0',
-        playCount: s.playCount || 0,
-        url: s.id.toString(), // 使用ID作为URL
-        type: s.category?.name || '未分类', // 使用分类名称作为类型
-        isSerial: (s.episodes && s.episodes.length > 1) || false,
-        upStatus: s.upStatus || (s.statusOption?.name ? `${s.statusOption.name}` : '已完结'),
-        upCount: 0,
-        author: s.starring || s.actor || '', // 使用主演或演员作为作者
-        description: s.description || '', // 使用描述字段
-        cidMapper: s.category?.id?.toString() || '0',
-        isRecommend: false, // 默认不推荐，可根据实际业务逻辑调整
-        createdAt: s.createdAt ? DateUtil.formatDateTime(s.createdAt) : DateUtil.formatDateTime(new Date()),
-        channeid: s.categoryId || 0 // 添加频道ID标识
-      }));
+      // 批量获取系列标签
+      const seriesIds = series.map(s => s.id);
+      const seriesTagsMap = await this.getSeriesTagsBatch(seriesIds);
+
+      // 转换为响应格式（tags = 题材 + 地区 + 语言 + 年份 + 状态）
+      const items: FuzzySearchItem[] = series.map(s => {
+        const genreTags = seriesTagsMap.get(s.id) || [];
+        const optionTags = [
+          s.regionOption?.name,
+          s.languageOption?.name,
+          s.yearOption?.name,
+          s.statusOption?.name,
+        ].filter((name): name is string => Boolean(name));
+        const tags = Array.from(new Set([...genreTags, ...optionTags])).slice(0, 10);
+        return {
+          id: s.id,
+          shortId: s.shortId || '',
+          coverUrl: s.coverUrl || '',
+          title: s.title,
+          score: s.score?.toString() || '0.0',
+          playCount: s.playCount || 0,
+          url: s.id.toString(), // 使用ID作为URL
+          type: s.category?.name || '未分类', // 使用分类名称作为类型
+          contentType: s.category?.name || '', // 内容类型
+          isSerial: (s.episodes && s.episodes.length > 1) || false,
+          upStatus: s.upStatus || (s.statusOption?.name ? `${s.statusOption.name}` : '已完结'),
+          upCount: 0,
+          author: s.starring || s.actor || '', // 使用主演或演员作为作者
+          description: s.description || '', // 使用描述字段
+          cidMapper: s.category?.id?.toString() || '0',
+          isRecommend: false, // 默认不推荐，可根据实际业务逻辑调整
+          createdAt: s.createdAt ? DateUtil.formatDateTime(s.createdAt) : DateUtil.formatDateTime(new Date()),
+          channeid: s.categoryId || 0, // 添加频道ID标识
+          tags, // 系列标签（题材+地区+语言+年份+状态）
+        };
+      });
 
       const response: FuzzySearchResponse = {
         code: 200,
@@ -687,5 +718,61 @@ export class FilterService {
     const minutes = String(beijingTime.getMinutes()).padStart(2, '0');
     
     return `${year}-${month}-${day} ${hours}:${minutes}`;
+  }
+
+  /**
+   * 批量获取系列标签
+   * @param seriesIds 系列ID数组
+   * @returns Map<seriesId, tags[]>
+   */
+  private async getSeriesTagsBatch(seriesIds: number[]): Promise<Map<number, string[]>> {
+    const tagsMap = new Map<number, string[]>();
+    
+    if (seriesIds.length === 0) {
+      return tagsMap;
+    }
+
+    try {
+      // 批量查询题材标签（从中间表获取）
+      type RawTag = { series_id: number; name?: string };
+      const genreTags: RawTag[] = await this.seriesRepo
+        .createQueryBuilder('s')
+        .leftJoin('series_genre_options', 'sgo', 'sgo.series_id = s.id')
+        .leftJoin('filter_options', 'fo', 'fo.id = sgo.option_id')
+        .select('s.id', 'series_id')
+        .addSelect('fo.name', 'name')
+        .where('s.id IN (:...seriesIds)', { seriesIds })
+        .andWhere('fo.filter_type_id = 2') // 题材类型
+        .andWhere('fo.is_active = 1')
+        .orderBy('s.id', 'ASC')
+        .addOrderBy('fo.display_order', 'ASC')
+        .getRawMany();
+      
+      // 组织标签数据
+      genreTags.forEach((tag: RawTag) => {
+        if (tag.name && tag.series_id) {
+          const seriesId = tag.series_id;
+          if (!tagsMap.has(seriesId)) {
+            tagsMap.set(seriesId, []);
+          }
+          const tags = tagsMap.get(seriesId)!;
+          if (!tags.includes(tag.name)) {
+            tags.push(tag.name);
+          }
+        }
+      });
+      
+      // 限制每个系列最多5个标签
+      tagsMap.forEach((tags, seriesId) => {
+        if (tags.length > 5) {
+          tagsMap.set(seriesId, tags.slice(0, 5));
+        }
+      });
+      
+    } catch (error) {
+      console.error('批量获取系列标签失败:', error);
+    }
+    
+    return tagsMap;
   }
 }
