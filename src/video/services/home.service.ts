@@ -100,14 +100,19 @@ export class HomeService {
         });
       }
 
-      // 4. 视频列表模块（所有页都包含）
-      const videoList = await this.getVideoList(channeid, page, 20);
+      // 4. 视频列表模块（所有页都包含，含 total/totalPage 供 PC 分页）
+      const videoListResult = await this.getVideoList(channeid, page, 20);
       contentBlocks.push({
         type: 3,
         name: "视频列表",
         filters: [],
         banners: [],
-        list: videoList
+        list: videoListResult.list,
+        total: videoListResult.total,
+        totalPage: videoListResult.totalPage,
+        page: videoListResult.page,
+        size: videoListResult.size,
+        hasMore: videoListResult.hasMore,
       });
 
       return {
@@ -167,15 +172,22 @@ export class HomeService {
   }
 
   /**
-   * 获取视频列表
+   * 获取视频列表（含 total、totalPage，供 PC 分页使用）
    * @param categoryId 分类ID
    * @param page 页码
    * @param size 每页大小
    */
-  private async getVideoList(categoryId?: number, page: number = 1, size: number = 20) {
+  private async getVideoList(categoryId?: number, page: number = 1, size: number = 20): Promise<{
+    list: any[];
+    total: number;
+    page: number;
+    size: number;
+    totalPage: number;
+    hasMore: boolean;
+  }> {
     try {
       const offset = (page - 1) * size;
-      
+
       const queryBuilder = this.seriesRepo.createQueryBuilder('series')
         .leftJoinAndSelect('series.category', 'category')
         .where('series.isActive = :isActive', { isActive: 1 })
@@ -189,9 +201,9 @@ export class HomeService {
         queryBuilder.andWhere('series.categoryId = :categoryId', { categoryId });
       }
 
-      const series = await queryBuilder.getMany();
+      const [series, total] = await queryBuilder.getManyAndCount();
 
-      return series.map(s => ({
+      const list = series.map(s => ({
         id: s.id,
         shortId: s.shortId,
         coverUrl: s.coverUrl || '',
@@ -209,9 +221,28 @@ export class HomeService {
         isRecommend: s.score >= 8.0,
         createdAt: DateUtil.formatDateTime(s.createdAt)
       }));
+
+      const totalPage = size > 0 ? Math.ceil(total / size) : 0;
+      const hasMore = page < totalPage;
+
+      return {
+        list,
+        total,
+        page,
+        size,
+        totalPage,
+        hasMore,
+      };
     } catch (error) {
       DebugUtil.error('获取视频列表失败', error as Error);
-      return [];
+      return {
+        list: [],
+        total: 0,
+        page,
+        size,
+        totalPage: 0,
+        hasMore: false,
+      };
     }
   }
 
