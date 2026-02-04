@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CommentLike } from '../entity/comment-like.entity';
 import { Comment } from '../entity/comment.entity';
+import { DefaultAvatarUtil } from '../../common/utils/default-avatar.util';
 
 /**
  * 评论点赞服务
@@ -10,6 +11,12 @@ import { Comment } from '../entity/comment.entity';
  */
 @Injectable()
 export class CommentLikeService {
+  private static getPhotoUrl(user: { id?: number; photo_url?: string | null } | null): string {
+    if (!user) return DefaultAvatarUtil.getRandomAvatar();
+    if (user.photo_url && String(user.photo_url).trim()) return user.photo_url.trim();
+    if (user.id != null) return DefaultAvatarUtil.getAvatarByUserId(user.id);
+    return DefaultAvatarUtil.getRandomAvatar();
+  }
   constructor(
     @InjectRepository(CommentLike)
     private readonly commentLikeRepo: Repository<CommentLike>,
@@ -187,7 +194,7 @@ export class CommentLikeService {
         userId: like.userId,
         username: like.user?.username,
         nickname: like.user?.nickname,
-        photoUrl: like.user?.photo_url,
+        photoUrl: CommentLikeService.getPhotoUrl(like.user),
         likedAt: like.createdAt,
       })),
       total,
@@ -254,7 +261,7 @@ export class CommentLikeService {
         likerUserId: like.userId,
         likerUsername: like.user?.nickname || like.user?.username || null,
         likerNickname: like.user?.nickname || null,
-        likerPhotoUrl: like.user?.photo_url || null,
+        likerPhotoUrl: CommentLikeService.getPhotoUrl(like.user),
         // 被点赞的评论信息
         commentId: comment?.id || null,
         commentContent: comment?.content || null,

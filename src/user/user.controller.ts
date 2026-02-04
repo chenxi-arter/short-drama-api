@@ -8,6 +8,7 @@ import { BindEmailDto } from './dto/bind-email.dto';
 import { UpdateNicknameDto, UpdateNicknameResponseDto } from './dto/update-nickname.dto';
 import { UpdatePasswordDto, UpdatePasswordResponseDto } from './dto/update-password.dto';
 import { UpdateAvatarDto, UpdateAvatarResponseDto } from './dto/update-avatar.dto';
+import { DefaultAvatarUtil } from '../common/utils/default-avatar.util';
 
 interface AuthenticatedRequest extends Request {
   user: {
@@ -61,7 +62,7 @@ export class UserController {
       nickname: getDisplayNickname(),      // 计算后的显示昵称（优先级：nickname > 姓名 > username）
       firstName: user.first_name,          // 名字，用于显示
       lastName: user.last_name,            // 姓氏，用于显示
-      photoUrl: user.photo_url,            // 头像URL（游客为默认头像）
+      photoUrl: (user.photo_url && user.photo_url.trim()) ? user.photo_url : DefaultAvatarUtil.getAvatarByUserId(user.id), // 头像URL，空则用默认头像
       hasTelegram: !!user.telegram_id,     // 是否绑定了Telegram（布尔值，不暴露具体ID）
       tgusername: user.telegram_id ? user.telegram_id : null, // 如果有telegram_id则返回telegram_id作为tgusername
       isActive: user.is_active,            // 账号状态

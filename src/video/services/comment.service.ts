@@ -7,6 +7,7 @@ import { Comment } from '../entity/comment.entity';
 import { Episode } from '../entity/episode.entity';
 import { FakeCommentService } from './fake-comment.service';
 import { CommentLikeService } from './comment-like.service';
+import { DefaultAvatarUtil } from '../../common/utils/default-avatar.util';
 
 /**
  * 评论管理服务
@@ -14,6 +15,13 @@ import { CommentLikeService } from './comment-like.service';
  */
 @Injectable()
 export class CommentService {
+  /** 用户头像：有则用用户头像，无则用默认头像（按 userId 固定） */
+  private static getPhotoUrl(user: { id?: number; photo_url?: string | null } | null): string {
+    if (!user) return DefaultAvatarUtil.getRandomAvatar();
+    if (user.photo_url && String(user.photo_url).trim()) return user.photo_url.trim();
+    if (user.id != null) return DefaultAvatarUtil.getAvatarByUserId(user.id);
+    return DefaultAvatarUtil.getRandomAvatar();
+  }
   constructor(
     @InjectRepository(Comment)
     private readonly commentRepo: Repository<Comment>,
@@ -124,7 +132,7 @@ export class CommentService {
       replyToUsers.forEach((user: any) => {
         replyToUsersMap.set(user.id, {
           nickname: user.nickname,
-          photoUrl: user.photo_url,
+          photoUrl: CommentService.getPhotoUrl(user),
         });
       });
     }
@@ -167,7 +175,7 @@ export class CommentService {
         // 用户信息（username字段返回nickname值，避免泄漏Telegram信息）
         username: getDisplayNickname(comment.user),
         nickname: getDisplayNickname(comment.user),
-        photoUrl: comment.user?.photo_url || null,
+        photoUrl: CommentService.getPhotoUrl(comment.user),
         // 回复预览
         recentReplies: recentReplies.map(reply => {
           const replyToUser = reply.replyToUserId ? replyToUsersMap.get(reply.replyToUserId) : null;
@@ -180,12 +188,12 @@ export class CommentService {
             createdAt: reply.createdAt,
             username: getDisplayNickname(reply.user),
             nickname: getDisplayNickname(reply.user),
-            photoUrl: reply.user?.photo_url || null,
+            photoUrl: CommentService.getPhotoUrl(reply.user),
             // ✅ 被回复者信息（username字段返回nickname值）
             replyToUserId: reply.replyToUserId || null,
             replyToUsername: getDisplayNickname(replyToUser),
             replyToNickname: getDisplayNickname(replyToUser),
-            replyToPhotoUrl: replyToUser?.photoUrl || null,
+            replyToPhotoUrl: replyToUser?.photoUrl ?? CommentService.getPhotoUrl(null),
           };
         }),
       };
@@ -286,7 +294,7 @@ export class CommentService {
       createdAt: savedWithUser.createdAt,
       username: getDisplayNickname(savedWithUser.user),
       nickname: getDisplayNickname(savedWithUser.user),
-      photoUrl: savedWithUser.user?.photo_url || null,
+      photoUrl: CommentService.getPhotoUrl(savedWithUser.user),
       replyToUsername: getDisplayNickname(parentComment.user),
       replyToNickname: getDisplayNickname(parentComment.user),
     };
@@ -337,7 +345,7 @@ export class CommentService {
       replyToUsers.forEach((user: any) => {
         replyToUsersMap.set(user.id, {
           nickname: user.nickname,
-          photoUrl: user.photo_url,
+          photoUrl: CommentService.getPhotoUrl(user),
         });
       });
     }
@@ -365,7 +373,7 @@ export class CommentService {
         content: rootComment.content,
         username: getDisplayNickname(rootComment.user),
         nickname: getDisplayNickname(rootComment.user),
-        photoUrl: rootComment.user?.photo_url || null,
+        photoUrl: CommentService.getPhotoUrl(rootComment.user),
         replyCount: rootComment.replyCount,
         likeCount: rootComment.likeCount || 0,
         liked: userId ? (likedMap.get(commentId) || false) : undefined,
@@ -383,12 +391,12 @@ export class CommentService {
           createdAt: reply.createdAt,
           username: getDisplayNickname(reply.user),
           nickname: getDisplayNickname(reply.user),
-          photoUrl: reply.user?.photo_url || null,
+          photoUrl: CommentService.getPhotoUrl(reply.user),
           // ✅ 新增：回复目标用户信息（username字段返回nickname值）
           replyToUserId: reply.replyToUserId || null,
           replyToUsername: getDisplayNickname(replyToUser),
           replyToNickname: getDisplayNickname(replyToUser),
-          replyToPhotoUrl: replyToUser?.photoUrl || null,
+          replyToPhotoUrl: replyToUser?.photoUrl ?? CommentService.getPhotoUrl(null),
         };
       }),
       total,
@@ -565,7 +573,7 @@ export class CommentService {
         fromUserId: reply.userId,
         fromUsername: getDisplayNickname(reply.user),
         fromNickname: getDisplayNickname(reply.user),
-        fromPhotoUrl: reply.user?.photo_url || null,
+        fromPhotoUrl: CommentService.getPhotoUrl(reply.user),
         // 被回复的评论信息
         myComment: parentComment?.content || null,
         // 楼层信息
@@ -681,7 +689,7 @@ export class CommentService {
         fromUserId: reply.userId,
         fromUsername: getDisplayNickname(reply.user),
         fromNickname: getDisplayNickname(reply.user),
-        fromPhotoUrl: reply.user?.photo_url || null,
+        fromPhotoUrl: CommentService.getPhotoUrl(reply.user),
         // 被回复的评论信息
         myComment: parentComment?.content || null,
         // 楼层信息
