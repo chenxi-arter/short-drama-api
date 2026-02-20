@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Between, MoreThan } from 'typeorm';
+import { Repository, MoreThan } from 'typeorm';
 import { User } from '../../user/entity/user.entity';
 import { WatchProgress } from '../../video/entity/watch-progress.entity';
 import { WatchLog } from '../../video/entity/watch-log.entity';
@@ -32,19 +32,13 @@ export class AnalyticsService {
    */
   async getDAU(date?: Date): Promise<number> {
     const targetDate = date || new Date();
-    const startOfDay = new Date(targetDate);
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date(targetDate);
-    endOfDay.setHours(23, 59, 59, 999);
+    const dateStr = targetDate.toISOString().split('T')[0];
 
-    // 统计当天有观看行为的唯一用户数
+    // 统计当天有观看行为的唯一用户数（使用 DATE() 避免时区问题）
     const result = await this.wpRepo
       .createQueryBuilder('wp')
       .select('COUNT(DISTINCT wp.user_id)', 'count')
-      .where('wp.updated_at BETWEEN :start AND :end', {
-        start: startOfDay,
-        end: endOfDay,
-      })
+      .where('DATE(wp.updated_at) = :date', { date: dateStr })
       .getRawOne<{ count: string }>();
 
     return parseInt(result?.count || '0', 10);
@@ -58,14 +52,17 @@ export class AnalyticsService {
     const end = endDate || new Date();
     const start = new Date(end);
     start.setDate(start.getDate() - 7);
+    
+    const startStr = start.toISOString().split('T')[0];
+    const endStr = end.toISOString().split('T')[0];
 
     // 统计最近7天有观看行为的唯一用户数
     const result = await this.wpRepo
       .createQueryBuilder('wp')
       .select('COUNT(DISTINCT wp.user_id)', 'count')
-      .where('wp.updated_at BETWEEN :start AND :end', {
-        start,
-        end,
+      .where('DATE(wp.updated_at) BETWEEN :start AND :end', {
+        start: startStr,
+        end: endStr,
       })
       .getRawOne<{ count: string }>();
 
@@ -80,14 +77,17 @@ export class AnalyticsService {
     const end = endDate || new Date();
     const start = new Date(end);
     start.setDate(start.getDate() - 30);
+    
+    const startStr = start.toISOString().split('T')[0];
+    const endStr = end.toISOString().split('T')[0];
 
     // 统计最近30天有观看行为的唯一用户数
     const result = await this.wpRepo
       .createQueryBuilder('wp')
       .select('COUNT(DISTINCT wp.user_id)', 'count')
-      .where('wp.updated_at BETWEEN :start AND :end', {
-        start,
-        end,
+      .where('DATE(wp.updated_at) BETWEEN :start AND :end', {
+        start: startStr,
+        end: endStr,
       })
       .getRawOne<{ count: string }>();
 
@@ -98,25 +98,23 @@ export class AnalyticsService {
    * 获取用户留存率
    * @param retentionDays 留存天数（1=次日留存，7=7日留存）
    * @param cohortDate 队列日期（该日注册的用户）
+   * @param includeBrowseHistory 为 true 时，「留存」= 留存日有观看进度更新 或 浏览记录更新（任一即可），否则仅看观看进度
    */
   async getRetentionRate(
     retentionDays: number = 1,
     cohortDate?: Date,
+    includeBrowseHistory: boolean = true,
   ): Promise<{ totalUsers: number; retainedUsers: number; retentionRate: number }> {
     const cohort = cohortDate || new Date();
-    const startOfDay = new Date(cohort);
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date(cohort);
-    endOfDay.setHours(23, 59, 59, 999);
+    
+    // 使用 DATE() 函数确保时区一致性
+    const cohortDateStr = cohort.toISOString().split('T')[0];
 
-    // 1. 获取该天注册的所有用户ID
+    // 1. 获取该天注册的所有用户ID（使用 DATE() 函数避免时区问题）
     const cohortUsers = await this.userRepo
       .createQueryBuilder('u')
       .select('u.id')
-      .where('u.created_at BETWEEN :start AND :end', {
-        start: startOfDay,
-        end: endOfDay,
-      })
+      .where('DATE(u.created_at) = :cohortDate', { cohortDate: cohortDateStr })
       .getMany();
 
     const totalUsers = cohortUsers.length;
@@ -127,26 +125,35 @@ export class AnalyticsService {
 
     const userIds = cohortUsers.map(u => u.id);
 
-    // 2. 计算留存日期范围
-    const retentionStart = new Date(endOfDay);
-    retentionStart.setDate(retentionStart.getDate() + retentionDays);
-    retentionStart.setHours(0, 0, 0, 0);
-    
-    const retentionEnd = new Date(retentionStart);
-    retentionEnd.setHours(23, 59, 59, 999);
+    // 2. 计算留存日期（直接在队列日基础上加天数）
+    const retentionDate = new Date(cohort);
+    retentionDate.setDate(retentionDate.getDate() + retentionDays);
+    const retentionDateStr = retentionDate.toISOString().split('T')[0];
 
-    // 3. 统计在留存日有活跃行为的用户数
-    const retainedResult = await this.wpRepo
+    // 3. 统计在留存日有活跃行为的用户数（观看进度 或 可选：浏览记录）
+    const retainedUserIds = new Set<number>();
+
+    // 查询留存日有观看进度更新的用户
+    const wpRows = await this.wpRepo
       .createQueryBuilder('wp')
-      .select('COUNT(DISTINCT wp.user_id)', 'count')
+      .select('DISTINCT wp.user_id', 'userId')
       .where('wp.user_id IN (:...userIds)', { userIds })
-      .andWhere('wp.updated_at BETWEEN :start AND :end', {
-        start: retentionStart,
-        end: retentionEnd,
-      })
-      .getRawOne<{ count: string }>();
+      .andWhere('DATE(wp.updated_at) = :retentionDate', { retentionDate: retentionDateStr })
+      .getRawMany<{ userId: number }>();
+    wpRows.forEach(r => retainedUserIds.add(r.userId));
 
-    const retainedUsers = parseInt(retainedResult?.count || '0', 10);
+    if (includeBrowseHistory) {
+      // 查询留存日有浏览记录更新的用户
+      const bhRows = await this.bhRepo
+        .createQueryBuilder('bh')
+        .select('DISTINCT bh.user_id', 'userId')
+        .where('bh.user_id IN (:...userIds)', { userIds })
+        .andWhere('DATE(bh.updated_at) = :retentionDate', { retentionDate: retentionDateStr })
+        .getRawMany<{ userId: number }>();
+      bhRows.forEach(r => retainedUserIds.add(r.userId));
+    }
+
+    const retainedUsers = retainedUserIds.size;
     const retentionRate = totalUsers > 0 ? (retainedUsers / totalUsers) * 100 : 0;
 
     return {
@@ -176,7 +183,10 @@ export class AnalyticsService {
       retainedUsers: number;
       retentionRate: number;
     }> = [];
+    
+    // 使用今天的日期，但设置为0点，避免时区问题
     const today = new Date();
+    today.setHours(0, 0, 0, 0);
 
     for (let i = days - 1; i >= 0; i--) {
       const cohortDate = new Date(today);
@@ -465,8 +475,13 @@ export class AnalyticsService {
     };
   }> {
     const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
     const yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);
+    
+    const sevenDaysAgo = new Date(today);
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
     // 并发查询所有数据
     const [
@@ -479,34 +494,25 @@ export class AnalyticsService {
     ] = await Promise.all([
       this.getActiveUsersStats(),
       this.getRetentionRate(1, yesterday), // 昨天注册用户的次日留存
-      this.getRetentionRate(7, new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000)), // 7天前注册用户的7日留存
+      this.getRetentionRate(7, sevenDaysAgo), // 7天前注册用户的7日留存
       this.getContentPlayStats(),
       this.getAverageWatchDuration(),
       this.getCompletionRate(),
     ]);
 
-    // 获取注册统计
-    const todayStart = new Date(today);
-    todayStart.setHours(0, 0, 0, 0);
-    const todayEnd = new Date(today);
-    todayEnd.setHours(23, 59, 59, 999);
-
-    const yesterdayStart = new Date(yesterday);
-    yesterdayStart.setHours(0, 0, 0, 0);
-    const yesterdayEnd = new Date(yesterday);
-    yesterdayEnd.setHours(23, 59, 59, 999);
+    // 获取注册统计（使用 DATE() 避免时区问题）
+    const todayStr = today.toISOString().split('T')[0];
+    const yesterdayStr = yesterday.toISOString().split('T')[0];
 
     const [todayRegistrations, yesterdayRegistrations, last7DaysReg, last30DaysReg] = await Promise.all([
-      this.userRepo.count({
-        where: {
-          created_at: Between(todayStart, todayEnd),
-        },
-      }),
-      this.userRepo.count({
-        where: {
-          created_at: Between(yesterdayStart, yesterdayEnd),
-        },
-      }),
+      this.userRepo
+        .createQueryBuilder('u')
+        .where('DATE(u.created_at) = :date', { date: todayStr })
+        .getCount(),
+      this.userRepo
+        .createQueryBuilder('u')
+        .where('DATE(u.created_at) = :date', { date: yesterdayStr })
+        .getCount(),
       this.userRepo.count({
         where: {
           created_at: MoreThan(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)),
