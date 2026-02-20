@@ -262,11 +262,21 @@ async function handleRegister(formData) {
 ## ⚠️ 注意事项
 
 1. **广告链接格式**
-   - 站外广告链接需要带上 `campaign` 参数
-   - 示例：`https://你的网站.com?campaign=WX_20251117_8FA5D0`
+   - 支持两种参数名格式（推荐使用 UTM 标准格式）：
+     - ✅ 标准 UTM 格式（推荐）：`?utm_campaign=OT_20260213_D53363&utm_source=XG-WEB`
+     - ✅ 简短格式（兼容）：`?campaign=OT_20260213_D53363`
+   - 示例：`https://www.xgshort.com/tgad?utm_campaign=OT_20260213_D53363&utm_source=XG-WEB`
 
-2. **参数说明**
-   - `campaignCode`: 从URL参数获取，保存到localStorage
+2. **前端读取 campaignCode 的正确方式**（兼容两种格式）
+   ```js
+   const params = new URLSearchParams(window.location.search);
+   // 优先读 utm_campaign（UTM标准），没有再读 campaign（旧格式）
+   const campaignCode = params.get('utm_campaign') || params.get('campaign');
+   ```
+
+3. **参数说明**
+   - `utm_campaign` / `campaign`: 推广计划代码，从URL参数获取后保存到 localStorage
+   - `utm_source`: 可选，来源标识（如 `XG-WEB`、`TG-BOT` 等），仅用于外部统计工具，后端不读取
    - `sessionId`: 会话级别，浏览器关闭后失效
    - `deviceId`: 设备级别，永久保存
    - `userId`: 从 JWT Token 自动获取，无需在请求体中传递
@@ -291,35 +301,139 @@ async function handleRegister(formData) {
 
 ## 🎯 典型流程
 
+### 网页推广流程
+
 ```
-用户在微信看到广告
+用户在微信/抖音等平台看到广告
     ↓
 点击广告链接: https://网站.com?campaign=WX_20251117_8FA5D0
     ↓
 进入网站，页面加载
     ↓
-检测到 campaign 参数
+检测到 campaign 参数 → 存入 localStorage
     ↓
-调用接口记录访问事件 ✅
+调用接口记录「点击事件」✅  POST /api/tracking/advertising/event
     ↓
 用户浏览、注册
     ↓
 注册成功
     ↓
-调用接口记录注册转化 ✅
+调用接口记录「注册转化」✅  POST /api/tracking/advertising/conversion
     ↓
 后台统计数据更新
 ```
 
 ---
 
+### Telegram 推广流程
+
+TG 推广链接使用 `startapp` 参数（非 URL query 参数），需要在 TG Web App 初始化时手动解析。
+
+**推广链接格式**：
+```
+https://t.me/your_bot/your_app?startapp=TG_20251117_8FA5D0
+```
+
+> 其中 `startapp=` 后面的值即为 `campaignCode`，由投放人员创建推广计划时生成。
+
+**第一步：在 TG Web App 初始化时解析 campaignCode 并记录点击**
+
+```javascript
+// Telegram Web App 初始化
+const tg = window.Telegram.WebApp;
+tg.ready();
+
+// 从 startapp 参数中读取推广代码
+const startParam = tg.initDataUnsafe?.start_param || '';
+// startParam 示例: "TG_20251117_8FA5D0"
+
+if (startParam) {
+  // 保存到 localStorage，供注册转化时使用
+  localStorage.setItem('campaignCode', startParam);
+
+  // 记录「点击事件」（进入 TG App 即算点击）
+  axios.post('/api/tracking/advertising/event', {
+    campaignCode: startParam,
+    eventType: 'click',
+    sessionId: getSessionId(),
+    deviceId: getDeviceId()
+    // 此时可能未登录，不传 token 也可以
+  }).catch(err => console.error('记录点击失败:', err));
+}
+```
+
+**第二步：TG 登录成功后记录转化**
+
+```javascript
+async function handleTelegramLogin(initData) {
+  // 1. 调用 TG 登录接口
+  const res = await axios.post('/api/auth/telegram/webapp-login', {
+    initData,
+    deviceInfo: navigator.userAgent
+  });
+  const token = res.data.access_token;
+  localStorage.setItem('access_token', token);
+
+  // 2. 记录「注册转化」
+  const campaignCode = localStorage.getItem('campaignCode');
+  if (campaignCode) {
+    axios.post('/api/tracking/advertising/conversion', {
+      campaignCode,
+      conversionType: 'register',
+      sessionId: getSessionId(),
+      deviceId: getDeviceId()
+    }, {
+      headers: { Authorization: `Bearer ${token}` }
+    }).catch(err => console.error('记录转化失败:', err));
+  }
+}
+```
+
+**TG 推广完整流程图**：
+
+```
+投放人员在管理后台创建推广计划（平台选 telegram）
+    ↓
+生成推广链接: t.me/your_bot/app?startapp=TG_20251117_8FA5D0
+    ↓
+用户点击 TG 推广链接进入 Web App
+    ↓
+TG Web App 初始化，读取 tg.initDataUnsafe.start_param
+    ↓
+解析到 campaignCode → 存入 localStorage
+    ↓
+调用接口记录「点击事件」✅  POST /api/tracking/advertising/event
+    ↓
+用户完成 TG 登录
+    ↓
+调用接口记录「注册转化」✅  POST /api/tracking/advertising/conversion
+    ↓
+后台统计数据更新
+```
+
+> ⚠️ **注意**：如果前端未做第一步（解析 `start_param` 并调用 event 接口），后台将只有转化数，**点击数会一直为 0**，导致转化率计算异常。
+
+---
+
 ## 📊 数据统计
 
 记录的数据会在管理后台实时展示：
-- 总点击数
-- 总转化数
-- 转化率 = 转化数 / 点击数
-- 成本、CPC、CPA等指标
+- 总点击数（`totalClicks`）
+- 总转化数（`totalConversions`）
+- 转化率 = 转化数 / 点击数（`conversionRate`）
+- 成本、CPC、CPA 等指标
+
+查询接口：
+```bash
+# 所有推广计划汇总
+GET /api/admin/advertising/dashboard
+
+# 单个计划详情
+GET /api/admin/advertising/campaigns/:id/stats
+
+# 各平台横向对比
+GET /api/admin/advertising/platform-comparison
+```
 
 ---
 
