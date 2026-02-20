@@ -120,14 +120,13 @@ export class ExportOptimizationService {
     const end = new Date(endDate);
     end.setHours(23, 59, 59, 999);
 
-    // 使用原生SQL优化查询
-    const query = `
+    // Step1: 基础数据（新增用户、DAU、平均时长）
+    const baseQuery = `
       SELECT 
         DATE_FORMAT(date_val, '%Y-%m-%d') as date,
         COALESCE(new_users, 0) as newUsers,
         COALESCE(dau, 0) as dau,
-        COALESCE(avg_duration, 0) as avgWatchDuration,
-        0 as nextDayRetention
+        COALESCE(avg_duration, 0) as avgWatchDuration
       FROM (
         SELECT DATE_ADD(?, INTERVAL seq DAY) as date_val
         FROM (
@@ -164,16 +163,56 @@ export class ExportOptimizationService {
       ORDER BY date ASC
     `;
 
-    const results = await this.userRepo.query(query, [
-      start, start, end,  // 日期序列
-      start, end,          // users
-      start, end           // watch_progress
+    const baseResults = await this.userRepo.query(baseQuery, [
+      start, start, end,
+      start, end,
+      start, end,
     ]);
 
-    return results.map((row: any) => ({
+    // Step2: 逐日计算次日留存率（使用 DATE() 函数避免时区问题）
+    const retentionMap = new Map<string, number>();
+    for (const row of baseResults) {
+      if (!row.date || parseInt(row.newUsers) === 0) {
+        retentionMap.set(row.date, 0);
+        continue;
+      }
+
+      // 次日日期字符串
+      const nextDayDate = new Date(row.date);
+      nextDayDate.setDate(nextDayDate.getDate() + 1);
+      const nextDayStr = nextDayDate.toISOString().split('T')[0];
+
+      // 该日注册的用户 ID 列表
+      const cohortUsers = await this.userRepo.query(
+        `SELECT id FROM users WHERE DATE(created_at) = ?`,
+        [row.date],
+      ) as Array<{ id: number }>;
+
+      if (cohortUsers.length === 0) {
+        retentionMap.set(row.date, 0);
+        continue;
+      }
+
+      const ids = cohortUsers.map(u => u.id);
+      const placeholders = ids.map(() => '?').join(',');
+
+      // 次日有观看进度更新的用户数
+      const retainedResult = await this.userRepo.query(
+        `SELECT COUNT(DISTINCT user_id) as cnt
+         FROM watch_progress
+         WHERE user_id IN (${placeholders})
+           AND DATE(updated_at) = ?`,
+        [...ids, nextDayStr],
+      ) as Array<{ cnt: string }>;
+
+      const retained = parseInt(retainedResult[0]?.cnt || '0');
+      retentionMap.set(row.date, parseFloat((retained / cohortUsers.length).toFixed(4)));
+    }
+
+    return baseResults.map((row: any) => ({
       date: this.formatDate(row.date),
       newUsers: parseInt(row.newUsers) || 0,
-      nextDayRetention: 0, // 次日留存需要单独计算，暂时返回0
+      nextDayRetention: retentionMap.get(row.date) ?? 0,
       dau: parseInt(row.dau) || 0,
       avgWatchDuration: Math.round(parseFloat(row.avgWatchDuration) || 0),
       newUserSource: '自然增长',

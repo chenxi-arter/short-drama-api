@@ -237,14 +237,14 @@ export class AdminExportController {
             .groupBy('date')
             .getRawMany<{ date: string; avgDuration: string }>();
 
-      // 4. 计算次日留存率（需要逐日计算）
+      // 4. 计算次日留存率（逐日计算，使用 DATE() 函数避免时区问题）
       const retentionMap = new Map<string, number>();
       for (const item of newUserStats) {
+        // 计算次日的日期字符串，避免使用 Date 对象的时区偏移
         const cohortDate = new Date(item.date);
-        const nextDay = new Date(cohortDate);
-        nextDay.setDate(nextDay.getDate() + 1);
-        const nextDayEnd = new Date(nextDay);
-        nextDayEnd.setHours(23, 59, 59, 999);
+        const nextDayDate = new Date(cohortDate);
+        nextDayDate.setDate(nextDayDate.getDate() + 1);
+        const nextDayStr = nextDayDate.toISOString().split('T')[0];
 
         // 获取该日注册的用户
         const cohortUsers = await this.userRepo
@@ -260,18 +260,16 @@ export class AdminExportController {
 
         const userIds = cohortUsers.map(u => u.id);
 
-        // 统计次日活跃用户数
-        const retainedCount = await this.wpRepo
+        // 统计次日活跃用户数（watch_progress）
+        const wpRetained = await this.wpRepo
           .createQueryBuilder('wp')
+          .select('DISTINCT wp.user_id', 'userId')
           .where('wp.user_id IN (:...userIds)', { userIds })
-          .andWhere('wp.updated_at BETWEEN :start AND :end', { 
-            start: nextDay, 
-            end: nextDayEnd 
-          })
-          .select('COUNT(DISTINCT wp.user_id)', 'count')
-          .getRawOne<{ count: string }>();
+          .andWhere('DATE(wp.updated_at) = :nextDay', { nextDay: nextDayStr })
+          .getRawMany<{ userId: number }>();
 
-        const retention = parseInt(retainedCount?.count || '0') / cohortUsers.length;
+        const retainedIds = new Set(wpRetained.map(r => r.userId));
+        const retention = retainedIds.size / cohortUsers.length;
         retentionMap.set(item.date, parseFloat(retention.toFixed(4)));
       }
 
