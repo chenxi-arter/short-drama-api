@@ -246,10 +246,10 @@ export class AdminExportController {
         nextDayDate.setDate(nextDayDate.getDate() + 1);
         const nextDayStr = nextDayDate.toISOString().split('T')[0];
 
-        // 获取该日注册的用户
+        // 获取该日注册的用户（select 加别名避免 TypeORM getRawMany 返回 u_id 而非 id）
         const cohortUsers = await this.userRepo
           .createQueryBuilder('u')
-          .select('u.id')
+          .select('u.id', 'id')
           .where('DATE(u.created_at) = :date', { date: item.date })
           .getRawMany<{ id: number }>();
 
