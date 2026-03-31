@@ -1356,7 +1356,260 @@ const relative = dayjs(createdAt).fromNow();
 
 ---
 
+---
+
+## 📤 数据导出 Export
+
+资源路径: `/admin/export`
+
+> 用于运营人员导出 Excel 所需的核心统计数据，所有接口均按日期区间查询，返回 JSON 数组，前端可直接用 xlsx 等库转换为 Excel。
+
+---
+
+### 播放数据统计
+
+`GET /api/admin/export/play-stats?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD`
+
+按日期汇总全平台播放量、完播率、平均观看时长、点赞数、收藏数。
+
+**参数**：
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `startDate` | string | 是 | 开始日期，格式 `YYYY-MM-DD` |
+| `endDate` | string | 是 | 结束日期，格式 `YYYY-MM-DD` |
+
+**响应示例**：
+```json
+{
+  "code": 200,
+  "message": "播放数据统计获取成功",
+  "timestamp": "2026-03-30T15:05:38.103Z",
+  "data": [
+    {
+      "date": "3月28日",
+      "playCount": 3,
+      "avgWatchDuration": 70,
+      "completionRate": 0.0,
+      "likeCount": 0,
+      "shareCount": 0,
+      "favoriteCount": 0
+    }
+  ]
+}
+```
+
+**字段说明**：
+- `date`: 格式化日期（如 `3月28日`）
+- `playCount`: 播放量（所有观看记录总数，不去重）
+- `avgWatchDuration`: 平均观看时长（秒）= 总停止秒数 ÷ 去重用户数
+- `completionRate`: 完播率，观看进度 ≥ 90% 的记录占比（0~1）
+- `likeCount`: 当日点赞数
+- `shareCount`: 分享数（暂无数据，固定返回 0）
+- `favoriteCount`: 当日收藏数
+
+---
+
+### 用户数据统计
+
+`GET /api/admin/export/user-stats?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD`
+
+按日期汇总新增用户、日活（DAU）、次日留存率、平均观影时长。
+
+**响应示例**：
+```json
+{
+  "code": 200,
+  "message": "用户数据统计获取成功",
+  "timestamp": "2026-03-30T15:05:38.344Z",
+  "data": [
+    {
+      "date": "3月28日",
+      "newUsers": 3,
+      "nextDayRetention": 0.3333,
+      "dau": 3,
+      "avgWatchDuration": 0,
+      "newUserSource": "自然增长"
+    }
+  ]
+}
+```
+
+**字段说明**：
+- `date`: 格式化日期
+- `newUsers`: 当日新增注册用户数
+- `nextDayRetention`: 次日留存率（0~1），当天数据次日才可计算，今日返回当前值
+- `dau`: 日活跃用户数（有观看行为的去重用户数）
+- `avgWatchDuration`: 平均观影时长（秒），优先来自 `watch_logs` 表，降级用 `watch_progress`
+- `newUserSource`: 新增来源，当前固定返回 `"自然增长"`
+
+---
+
+### 系列明细数据
+
+`GET /api/admin/export/series-details?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD&categoryId=1`
+
+按日期 × 系列维度返回每个剧集的详细运营数据。
+
+**参数**：
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `startDate` | string | 是 | 开始日期 |
+| `endDate` | string | 是 | 结束日期 |
+| `categoryId` | number | 否 | 按分类筛选，如 1=短剧、2=电影 |
+
+**响应示例**：
+```json
+{
+  "code": 200,
+  "message": "success",
+  "timestamp": "2026-03-30T15:06:00.000Z",
+  "data": [
+    {
+      "date": "2026-03-30",
+      "seriesId": 2015,
+      "seriesTitle": "反诈·猎蜂者",
+      "categoryName": "短剧",
+      "episodeCount": 27,
+      "playCount": 2,
+      "completionRate": 0,
+      "avgWatchDuration": 75,
+      "likeCount": 0,
+      "dislikeCount": 0,
+      "shareCount": 0,
+      "favoriteCount": 0,
+      "commentCount": 0
+    }
+  ]
+}
+```
+
+**字段说明**：
+- `date`: 日期（`YYYY-MM-DD` 格式，保持原始格式方便排序）
+- `seriesId` / `seriesTitle` / `categoryName`: 系列信息
+- `episodeCount`: 系列总集数
+- `playCount`: 当日播放量
+- `completionRate`: 当日完播率（0~1）
+- `avgWatchDuration`: 平均观看时长（秒），优先 `watch_logs`，降级 `watch_progress`
+- `likeCount` / `dislikeCount`: 点赞/点踩数
+- `shareCount`: 分享数（暂无，固定 0）
+- `favoriteCount`: 收藏数
+- `commentCount`: 评论数
+
+**排序规则**：日期降序，同日内按播放量降序。
+
+---
+
+### 运营核心指标总览
+
+`GET /api/admin/export/overview-stats?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD`
+
+按日期返回运营核心指标，按日期**倒序**排列。
+
+**参数**：
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `startDate` | string | 是 | 开始日期 |
+| `endDate` | string | 是 | 结束日期 |
+
+**响应示例**：
+```json
+{
+  "code": 200,
+  "data": [
+    {
+      "date": "2026-03-30",
+      "new_users": 7,
+      "active_users": 3,
+      "launches": 3,
+      "total_users": 1213,
+      "new_user_ratio": 0,
+      "retention_next_day": null,
+      "avg_session_duration": 100,
+      "avg_daily_duration": null,
+      "avg_daily_launches": null
+    },
+    {
+      "date": "2026-03-28",
+      "new_users": 3,
+      "active_users": 0,
+      "launches": 3,
+      "total_users": 1204,
+      "new_user_ratio": 0,
+      "retention_next_day": 0.3333,
+      "avg_session_duration": 70,
+      "avg_daily_duration": null,
+      "avg_daily_launches": null
+    }
+  ]
+}
+```
+
+**字段说明**：
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `date` | string | 日期 `YYYY-MM-DD` |
+| `new_users` | number | 当日新增注册用户数 |
+| `active_users` | number | 日活（优先读 Redis HyperLogLog `dau:YYYYMMDD`，不可用时降级 MySQL COUNT DISTINCT） |
+| `launches` | number | 启动次数代理值（`watch_progress` 记录更新总次数，非去重） |
+| `total_users` | number | 截止当日的累计注册用户总数 |
+| `new_user_ratio` | number | 新用户占比 = `new_users / active_users`（0~1） |
+| `retention_next_day` | number\|null | 次日留存率（0~1）；**今日及未来日期返回 `null`**，次日起才可计算 |
+| `avg_session_duration` | number | 平均单次观看时长（秒），优先 `watch_logs`，降级 `watch_progress` |
+| `avg_daily_duration` | number\|null | 平均每用户日观看总时长（秒）；依赖 `watch_logs`，今日返回 `null` |
+| `avg_daily_launches` | number\|null | 平均每用户日观看次数；依赖 `watch_logs`，今日返回 `null` |
+
+**性能说明**：
+- 次日留存率已优化为**批量 SQL**（2 条）替代原来的逐日 N+1 查询，支持大范围日期查询不超时
+- `active_users` 写入依赖 `watch_progress` 保存时的 Redis PFADD，Redis 不可用时自动降级
+
+**cURL 示例**：
+```bash
+# 获取播放数据统计
+curl "http://localhost:9090/api/admin/export/play-stats?startDate=2026-03-01&endDate=2026-03-30"
+
+# 获取用户数据统计
+curl "http://localhost:9090/api/admin/export/user-stats?startDate=2026-03-01&endDate=2026-03-30"
+
+# 获取系列明细（按分类筛选）
+curl "http://localhost:9090/api/admin/export/series-details?startDate=2026-03-01&endDate=2026-03-30&categoryId=1"
+
+# 获取运营核心指标
+curl "http://localhost:9090/api/admin/export/overview-stats?startDate=2026-03-25&endDate=2026-03-30"
+```
+
+---
+
 ## 📝 更新日志
+
+### v1.3.0 (2026-03-30)
+
+#### ✨ 新增功能
+
+**数据导出模块 `/api/admin/export`**
+- ✅ `GET /api/admin/export/play-stats` — 按日播放量、完播率、平均时长、点赞/收藏
+- ✅ `GET /api/admin/export/user-stats` — 按日新增用户、DAU、次日留存率、平均观影时长
+- ✅ `GET /api/admin/export/series-details` — 按日 × 系列明细（支持 `categoryId` 筛选）
+- ✅ `GET /api/admin/export/overview-stats` — 运营核心指标总览（含 Redis DAU + 次日留存）
+
+#### 🐛 性能修复
+
+**`overview-stats` 次日留存率 N+1 查询优化**
+- 原实现：逐日循环发 SQL，日期范围越长越慢，长范围必然超时
+- 新实现：改为 2 条批量 SQL（JOIN + DATE_ADD），O(N) → O(1) 条查询
+- 效果：10 天范围从超时（>30s）降至正常响应（<2s）
+
+**Redis 连接统一管理**
+- 新增 `RedisModule`（`src/core/redis/redis.module.ts`），全局共享单一 Redis 客户端
+- `DauService` 和 `WatchProgressService` 改为注入 `REDIS_CLIENT`，不再各自建立连接
+- 启动日志：MySQL 和 Redis 连接成功/失败均有彩色 LOG 输出
+
+#### 📌 接口调用注意
+
+`POST /api/video/progress` 保存观看进度，请求体字段名为 `episodeIdentifier`（非 `episodeId`）：
+```json
+{ "episodeIdentifier": "VKeU7SMQ6VV", "stopAtSecond": 100 }
+```
+支持传入 11 位 shortId 或数字 ID，服务端自动识别。
 
 ### v1.1.0 (2025-10-27)
 

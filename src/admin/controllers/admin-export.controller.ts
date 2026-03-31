@@ -11,6 +11,7 @@ import { Series } from '../../video/entity/series.entity';
 import { Comment } from '../../video/entity/comment.entity';
 import { ExportSeriesDetailsDto, SeriesDetailData } from '../dto/export-series-details.dto';
 import { WatchLogService } from '../../video/services/watch-log.service';
+import { DauService } from '../services/dau.service';
 
 /**
  * 数据导出控制器
@@ -36,6 +37,7 @@ export class AdminExportController {
     @InjectRepository(Comment)
     private readonly commentRepo: Repository<Comment>,
     private readonly watchLogService: WatchLogService,
+    private readonly dauService: DauService,
   ) {}
 
   /**
@@ -246,11 +248,17 @@ export class AdminExportController {
         nextDayDate.setDate(nextDayDate.getDate() + 1);
         const nextDayStr = nextDayDate.toISOString().split('T')[0];
 
-        // 获取该日注册的用户（select 加别名避免 TypeORM getRawMany 返回 u_id 而非 id）
+        // 获取该日注册的用户
+        const cohortStart = new Date(item.date);
+        cohortStart.setHours(0, 0, 0, 0);
+        const cohortEnd = new Date(item.date);
+        cohortEnd.setHours(23, 59, 59, 999);
+
         const cohortUsers = await this.userRepo
           .createQueryBuilder('u')
           .select('u.id', 'id')
-          .where('DATE(u.created_at) = :date', { date: item.date })
+          .where('u.created_at >= :cohortStart', { cohortStart })
+          .andWhere('u.created_at <= :cohortEnd', { cohortEnd })
           .getRawMany<{ id: number }>();
 
         if (cohortUsers.length === 0) {
@@ -261,11 +269,17 @@ export class AdminExportController {
         const userIds = cohortUsers.map(u => u.id);
 
         // 统计次日活跃用户数（watch_progress）
+        const nextDayStart = new Date(nextDayStr);
+        nextDayStart.setHours(0, 0, 0, 0);
+        const nextDayEnd = new Date(nextDayStr);
+        nextDayEnd.setHours(23, 59, 59, 999);
+
         const wpRetained = await this.wpRepo
           .createQueryBuilder('wp')
           .select('DISTINCT wp.user_id', 'userId')
           .where('wp.user_id IN (:...userIds)', { userIds })
-          .andWhere('DATE(wp.updated_at) = :nextDay', { nextDay: nextDayStr })
+          .andWhere('wp.updated_at >= :nextDayStart', { nextDayStart })
+          .andWhere('wp.updated_at <= :nextDayEnd', { nextDayEnd })
           .getRawMany<{ userId: number }>();
 
         const retainedIds = new Set(wpRetained.map(r => r.userId));
@@ -581,6 +595,265 @@ export class AdminExportController {
   }
 
   /**
+   * 获取运营核心指标（按日期）
+   * GET /api/admin/export/overview-stats?startDate=2026-03-20&endDate=2026-03-30
+   *
+   * 返回按日期倒序的数组，每项包含：
+   *   date, new_users, active_users, launches, total_users, new_user_ratio,
+   *   retention_next_day, avg_session_duration, avg_daily_duration, avg_daily_launches
+   *
+   * 说明：
+   * - active_users：优先读 Redis HyperLogLog（dau:YYYYMMDD），Redis 不可用时降级到 MySQL COUNT DISTINCT
+   * - retention_next_day：今天的数据次日才能计算，返回 null
+   * - avg_daily_duration / avg_daily_launches：依赖 watch_logs 表，无数据时返回 null
+   */
+  @Get('overview-stats')
+  async getOverviewStats(
+    @Query('startDate') startDate: string,
+    @Query('endDate') endDate: string,
+  ) {
+    try {
+      const start = new Date(startDate);
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+
+      // ── 1. 枚举日期列表 ──────────────────────────────────────────────────
+      // 本地日期字符串工具函数（避免 toISOString() UTC 偏移问题）
+      const toLocalDateStr = (d: Date) =>
+        `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+      const dates: string[] = [];
+      const cur = new Date(start);
+      while (cur <= end) {
+        dates.push(toLocalDateStr(cur));
+        cur.setDate(cur.getDate() + 1);
+      }
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      // 使用本地日期（避免 UTC 与北京时间 UTC+8 的偏移导致今天被误判为明天）
+      const todayStr = toLocalDateStr(today);
+
+
+      // ── 2. 新增用户（按日） ──────────────────────────────────────────────
+      const newUserRows = await this.userRepo
+        .createQueryBuilder('u')
+        .select("DATE_FORMAT(u.created_at, '%Y-%m-%d')", 'date')
+        .addSelect('COUNT(*)', 'cnt')
+        .where('u.created_at >= :start', { start })
+        .andWhere('u.created_at <= :end', { end })
+        .groupBy('date')
+        .getRawMany<{ date: string; cnt: string }>();
+      const newUserMap = new Map(newUserRows.map(r => [r.date, parseInt(r.cnt)]));
+
+      // ── 3. 累计用户（截止每天末尾的总注册数） ───────────────────────────
+      // 一次查询获取每天末尾前的累计数，用 subquery 方式：
+      const cumulativeRows = await this.userRepo
+        .createQueryBuilder('u')
+        .select("DATE_FORMAT(u.created_at, '%Y-%m-%d')", 'date')
+        .addSelect('COUNT(*)', 'daily')
+        .where('u.created_at <= :end', { end })
+        .groupBy('date')
+        .orderBy('date', 'ASC')
+        .getRawMany<{ date: string; daily: string }>();
+
+      // 构建累计map：对全局所有日期做前缀累加
+      const cumulativeMap = new Map<string, number>();
+      let runningTotal = 0;
+      for (const row of cumulativeRows) {
+        runningTotal += parseInt(row.daily);
+        cumulativeMap.set(row.date, runningTotal);
+      }
+      // 对于查询范围内的日期，用最近一个有数据的日期的累计值填充
+      let lastKnownTotal = 0;
+      const sortedCumulativeDates = Array.from(cumulativeMap.keys()).sort();
+      // 找到 startDate 之前的累计基数
+      for (const d of sortedCumulativeDates) {
+        if (d < dates[0]) lastKnownTotal = cumulativeMap.get(d)!;
+      }
+      const totalUsersMap = new Map<string, number>();
+      let rolling = lastKnownTotal;
+      for (const d of dates) {
+        rolling += newUserMap.get(d) ?? 0;
+        totalUsersMap.set(d, rolling);
+      }
+
+      // ── 4. 日活（优先 Redis PFCOUNT，降级 MySQL） ──────────────────────
+      const dauRedisMap = await this.dauService.getDAUBatch(dates);
+
+      // MySQL 降级查询：日活 = 有观看行为的用户 UNION 当天注册的用户（取并集去重）
+      const dauMysqlRows = await this.wpRepo.manager.query(`
+        SELECT date, COUNT(DISTINCT user_id) AS dau FROM (
+          SELECT DATE_FORMAT(wp.updated_at, '%Y-%m-%d') AS date, wp.user_id
+          FROM watch_progress wp
+          WHERE wp.updated_at >= ? AND wp.updated_at <= ?
+          UNION
+          SELECT DATE_FORMAT(u.created_at, '%Y-%m-%d') AS date, u.id AS user_id
+          FROM users u
+          WHERE u.created_at >= ? AND u.created_at <= ?
+        ) t
+        GROUP BY date
+      `, [start, end, start, end]) as { date: string; dau: string }[];
+      const dauMysqlMap = new Map(dauMysqlRows.map(r => [r.date, parseInt(r.dau)]));
+
+
+      // ── 5. 启动次数（watch_progress 更新次数作为代理，非去重） ──────────
+      const launchRows = await this.wpRepo
+        .createQueryBuilder('wp')
+        .select("DATE_FORMAT(wp.updated_at, '%Y-%m-%d')", 'date')
+        .addSelect('COUNT(*)', 'cnt')
+        .where('wp.updated_at >= :start', { start })
+        .andWhere('wp.updated_at <= :end', { end })
+        .groupBy('date')
+        .getRawMany<{ date: string; cnt: string }>();
+      const launchMap = new Map(launchRows.map(r => [r.date, parseInt(r.cnt)]));
+
+      // ── 6. 平均单次观看时长（avg_session_duration）── watch_logs ─────────
+      const sessionRows = await this.watchLogRepo
+        .createQueryBuilder('wl')
+        .select('DATE(wl.watch_date)', 'date')
+        .addSelect('AVG(wl.watch_duration)', 'avgSession')
+        .where('wl.watch_date >= :startD', { startD: dates[0] })
+        .andWhere('wl.watch_date <= :endD', { endD: dates[dates.length - 1] })
+        .groupBy('date')
+        .getRawMany<{ date: string; avgSession: string }>();
+      const sessionMap = new Map(sessionRows.map(r => [r.date, Math.round(parseFloat(r.avgSession) || 0)]));
+
+      // 降级：若 watch_logs 无该日数据，从 watch_progress 取 avg stop_at_second
+      const sessionFallbackRows = await this.wpRepo
+        .createQueryBuilder('wp')
+        .select("DATE_FORMAT(wp.updated_at, '%Y-%m-%d')", 'date')
+        .addSelect('AVG(wp.stop_at_second)', 'avgSession')
+        .where('wp.updated_at >= :start', { start })
+        .andWhere('wp.updated_at <= :end', { end })
+        .groupBy('date')
+        .getRawMany<{ date: string; avgSession: string }>();
+      const sessionFallbackMap = new Map(sessionFallbackRows.map(r => [r.date, Math.round(parseFloat(r.avgSession) || 0)]));
+
+      // ── 7. 平均日观看时长 & 平均日观看次数（watch_logs，今日返回 null） ──
+      const dailyDurationRows = await this.watchLogRepo
+        .createQueryBuilder('wl')
+        .select('DATE(wl.watch_date)', 'date')
+        .addSelect('SUM(wl.watch_duration)', 'totalDur')
+        .addSelect('COUNT(DISTINCT wl.user_id)', 'uniqueUsers')
+        .addSelect('COUNT(*)', 'totalSessions')
+        .where('wl.watch_date >= :startD', { startD: dates[0] })
+        .andWhere('wl.watch_date <= :endD', { endD: dates[dates.length - 1] })
+        .groupBy('date')
+        .getRawMany<{ date: string; totalDur: string; uniqueUsers: string; totalSessions: string }>();
+      const dailyDurMap = new Map(
+        dailyDurationRows.map(r => [
+          r.date,
+          {
+            avgDailyDuration: parseInt(r.uniqueUsers) > 0
+              ? Math.round(parseInt(r.totalDur) / parseInt(r.uniqueUsers))
+              : null,
+            avgDailyLaunches: parseInt(r.uniqueUsers) > 0
+              ? parseFloat((parseInt(r.totalSessions) / parseInt(r.uniqueUsers)).toFixed(2))
+              : null,
+          },
+        ]),
+      );
+
+      // ── 8. 次日留存率（批量计算，当天 = null） ──────────────────────────
+      const retentionMap = new Map<string, number | null>();
+
+      // 找出需要计算留存的日期（排除今天及之后）
+      const retentionDates = dates.filter(d => d < todayStr);
+      dates.filter(d => d >= todayStr).forEach(d => retentionMap.set(d, null));
+
+      if (retentionDates.length > 0) {
+        const retStart = new Date(retentionDates[0]); retStart.setHours(0, 0, 0, 0);
+        const retEnd   = new Date(retentionDates[retentionDates.length - 1]); retEnd.setHours(23, 59, 59, 999);
+
+        // 一次查出范围内每天的新增用户数（cohort size）
+        const cohortRows = await this.userRepo
+          .createQueryBuilder('u')
+          .select("DATE_FORMAT(u.created_at, '%Y-%m-%d')", 'date')
+          .addSelect('COUNT(*)', 'cnt')
+          .where('u.created_at >= :retStart', { retStart })
+          .andWhere('u.created_at <= :retEnd', { retEnd })
+          .groupBy('date')
+          .getRawMany<{ date: string; cnt: string }>();
+        const cohortMap = new Map(cohortRows.map(r => [r.date, parseInt(r.cnt)]));
+
+        // 一次查出：当天注册的用户，次日是否有 watch_progress 记录
+        // 使用 JOIN：u.created_at 在某天，wp.updated_at 在次日
+        const retentionRows = await this.userRepo
+          .createQueryBuilder('u')
+          .select("DATE_FORMAT(u.created_at, '%Y-%m-%d')", 'cohortDate')
+          .addSelect('COUNT(DISTINCT u.id)', 'retained')
+          .innerJoin(
+            'watch_progress',
+            'wp',
+            "wp.user_id = u.id AND DATE(wp.updated_at) = DATE(DATE_ADD(u.created_at, INTERVAL 1 DAY))",
+          )
+          .where('u.created_at >= :retStart', { retStart })
+          .andWhere('u.created_at <= :retEnd', { retEnd })
+          .groupBy('cohortDate')
+          .getRawMany<{ cohortDate: string; retained: string }>();
+        const retainedMap = new Map(retentionRows.map(r => [r.cohortDate, parseInt(r.retained)]));
+
+        for (const d of retentionDates) {
+          const cohortSize = cohortMap.get(d) ?? 0;
+          if (cohortSize === 0) { retentionMap.set(d, 0); continue; }
+          const retained = retainedMap.get(d) ?? 0;
+          retentionMap.set(d, parseFloat((retained / cohortSize).toFixed(4)));
+        }
+      }
+
+      // ── 9. 组装结果 ──────────────────────────────────────────────────────
+      const result = dates
+        .map(d => {
+          const newUsers   = newUserMap.get(d) ?? 0;
+          const totalUsers = totalUsersMap.get(d) ?? 0;
+
+          // 日活：Redis 和 MySQL 取最大值（Redis 可能因时区问题数据不全，MySQL UNION 更准确）
+          const redisDau = dauRedisMap.get(d) ?? 0;
+          const mysqlDau = dauMysqlMap.get(d) ?? 0;
+          const activeUsers = Math.max(redisDau, mysqlDau);
+
+          const launches   = launchMap.get(d) ?? 0;
+          // new_user_ratio：新用户占活跃用户比例，最大不超过 1
+          const newUserRatio = activeUsers > 0
+            ? parseFloat(Math.min(newUsers / activeUsers, 1).toFixed(4))
+            : 0;
+
+          const avgSessionDuration =
+            sessionMap.get(d) ?? sessionFallbackMap.get(d) ?? 0;
+
+          // 今日的 avg_daily_duration / avg_daily_launches 设为 null（次日才可算）
+          const daily = dailyDurMap.get(d);
+          const avgDailyDuration  = d >= todayStr ? null : (daily?.avgDailyDuration  ?? null);
+          const avgDailyLaunches  = d >= todayStr ? null : (daily?.avgDailyLaunches  ?? null);
+
+          return {
+            date: d,
+            new_users:            newUsers,
+            active_users:         activeUsers,
+            launches:             launches,
+            total_users:          totalUsers,
+            new_user_ratio:       newUserRatio,
+            retention_next_day:   retentionMap.get(d) ?? null,
+            avg_session_duration: avgSessionDuration,
+            avg_daily_duration:   avgDailyDuration,
+            avg_daily_launches:   avgDailyLaunches,
+          };
+        })
+        .reverse(); // 按日期倒序
+
+      return { code: 200, data: result };
+    } catch (error) {
+      return {
+        code: 500,
+        data: null,
+        message: `获取运营指标失败: ${error instanceof Error ? error.message : String(error)}`,
+      };
+    }
+  }
+
+  /**
    * 格式化日期为 "11月1日" 格式
    */
   private formatDate(dateStr: string): string {
@@ -590,3 +863,4 @@ export class AdminExportController {
     return `${month}月${day}日`;
   }
 }
+

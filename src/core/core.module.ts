@@ -8,6 +8,7 @@ import { RedisConfig } from './config/redis.config';
 import { CacheModule } from '@nestjs/cache-manager';
 import { redisStore } from 'cache-manager-redis-store';
 import { R2StorageService } from './storage/r2-storage.service';
+import { RedisModule } from './redis/redis.module';
 
 /**
  * 核心基础设施模块
@@ -54,6 +55,9 @@ import { R2StorageService } from './storage/r2-storage.service';
     
     // 健康检查模块
     HealthModule,
+
+    // Redis 模块（全局共享客户端）
+    RedisModule,
   ],
   providers: [R2StorageService],
   exports: [
@@ -63,6 +67,7 @@ import { R2StorageService } from './storage/r2-storage.service';
     ThrottlerModule,
     HealthModule,
     R2StorageService,
+    RedisModule,
   ],
 })
 export class CoreModule {

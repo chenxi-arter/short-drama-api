@@ -1,12 +1,16 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Inject } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
 import { WatchProgress } from '../entity/watch-progress.entity';
 import { Episode } from '../entity/episode.entity';
 import { WatchLog } from '../entity/watch-log.entity';
+import { RedisClientType } from 'redis';
+import { REDIS_CLIENT } from '../../core/redis/redis.module';
 
 @Injectable()
 export class WatchProgressService {
+  private readonly DAU_TTL = 35 * 24 * 60 * 60; // 35天
+
   constructor(
     @InjectRepository(WatchProgress)
     private readonly watchProgressRepo: Repository<WatchProgress>,
@@ -14,7 +18,25 @@ export class WatchProgressService {
     private readonly episodeRepo: Repository<Episode>,
     @InjectRepository(WatchLog)
     private readonly watchLogRepo: Repository<WatchLog>,
+    @Inject(REDIS_CLIENT)
+    private readonly redisClient: RedisClientType | null,
   ) {}
+
+  /** 记录日活：PFADD dau:YYYYMMDD userId */
+  private async trackDau(userId: number): Promise<void> {
+    if (!this.redisClient || !userId) return;
+    try {
+      // 使用北京时间（UTC+8）生成 key，与 MySQL DATE_FORMAT 保持一致
+      const d = new Date(Date.now() + 8 * 60 * 60 * 1000);
+      const key = `dau:${d.getUTCFullYear()}${String(d.getUTCMonth() + 1).padStart(2, '0')}${String(d.getUTCDate()).padStart(2, '0')}`;
+      await this.redisClient.multi()
+        .pfAdd(key, String(userId))
+        .expire(key, this.DAU_TTL)
+        .exec();
+    } catch (e) {
+      // 静默忽略，不影响主流程
+    }
+  }
 
   /**
    * 更新观看进度（通过episode ID）
@@ -66,6 +88,9 @@ export class WatchProgressService {
 
     // 保存观看进度
     await this.watchProgressRepo.save(watchProgress);
+
+    // 记录日活（PFADD dau:YYYYMMDD userId）
+    void this.trackDau(userId);
 
     // 记录观看日志（用于统计）
     // 只有当 stopAtSecond > startPosition 时才记录（说明确实观看了内容）
