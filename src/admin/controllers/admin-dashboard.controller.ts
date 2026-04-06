@@ -282,6 +282,11 @@ export class AdminDashboardController {
   /**
    * 获取活跃用户统计（DAU/WAU/MAU）
    * GET /api/admin/dashboard/active-users
+   *
+   * 统计口径说明：
+   * - dau：与 export/overview-stats 单日 active_users 完全一致
+   * - 单日实现：优先读 Redis HyperLogLog，再与 MySQL（当天观看用户 ∪ 当天注册用户）取较大值
+   * - wau / mau：分别按最近 7 / 30 天窗口内的 观看用户 ∪ 注册用户 去重
    */
   @Get('active-users')
   async getActiveUsers() {

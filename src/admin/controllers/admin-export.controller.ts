@@ -11,7 +11,7 @@ import { Series } from '../../video/entity/series.entity';
 import { Comment } from '../../video/entity/comment.entity';
 import { ExportSeriesDetailsDto, SeriesDetailData } from '../dto/export-series-details.dto';
 import { WatchLogService } from '../../video/services/watch-log.service';
-import { DauService } from '../services/dau.service';
+import { AnalyticsService } from '../services/analytics.service';
 
 /**
  * 数据导出控制器
@@ -37,7 +37,7 @@ export class AdminExportController {
     @InjectRepository(Comment)
     private readonly commentRepo: Repository<Comment>,
     private readonly watchLogService: WatchLogService,
-    private readonly dauService: DauService,
+    private readonly analyticsService: AnalyticsService,
   ) {}
 
   /**
@@ -603,7 +603,8 @@ export class AdminExportController {
    *   retention_next_day, avg_session_duration, avg_daily_duration, avg_daily_launches
    *
    * 说明：
-   * - active_users：优先读 Redis HyperLogLog（dau:YYYYMMDD），Redis 不可用时降级到 MySQL COUNT DISTINCT
+   * - active_users：与 dashboard/active-users 的单日 dau 完全一致
+   * - 单日实现：优先读 Redis HyperLogLog（dau:YYYYMMDD），再与 MySQL（当天观看用户 ∪ 当天注册用户）结果取较大值
    * - retention_next_day：今天的数据次日才能计算，返回 null
    * - avg_daily_duration / avg_daily_launches：依赖 watch_logs 表，无数据时返回 null
    */
@@ -619,21 +620,12 @@ export class AdminExportController {
       end.setHours(23, 59, 59, 999);
 
       // ── 1. 枚举日期列表 ──────────────────────────────────────────────────
-      // 本地日期字符串工具函数（避免 toISOString() UTC 偏移问题）
-      const toLocalDateStr = (d: Date) =>
-        `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-
-      const dates: string[] = [];
-      const cur = new Date(start);
-      while (cur <= end) {
-        dates.push(toLocalDateStr(cur));
-        cur.setDate(cur.getDate() + 1);
-      }
+      const dates = this.analyticsService.enumerateLocalDates(start, end);
 
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       // 使用本地日期（避免 UTC 与北京时间 UTC+8 的偏移导致今天被误判为明天）
-      const todayStr = toLocalDateStr(today);
+      const todayStr = this.analyticsService.getLocalDateStr(today);
 
 
       // ── 2. 新增用户（按日） ──────────────────────────────────────────────
@@ -679,23 +671,8 @@ export class AdminExportController {
         totalUsersMap.set(d, rolling);
       }
 
-      // ── 4. 日活（优先 Redis PFCOUNT，降级 MySQL） ──────────────────────
-      const dauRedisMap = await this.dauService.getDAUBatch(dates);
-
-      // MySQL 降级查询：日活 = 有观看行为的用户 UNION 当天注册的用户（取并集去重）
-      const dauMysqlRows = await this.wpRepo.manager.query(`
-        SELECT date, COUNT(DISTINCT user_id) AS dau FROM (
-          SELECT DATE_FORMAT(wp.updated_at, '%Y-%m-%d') AS date, wp.user_id
-          FROM watch_progress wp
-          WHERE wp.updated_at >= ? AND wp.updated_at <= ?
-          UNION
-          SELECT DATE_FORMAT(u.created_at, '%Y-%m-%d') AS date, u.id AS user_id
-          FROM users u
-          WHERE u.created_at >= ? AND u.created_at <= ?
-        ) t
-        GROUP BY date
-      `, [start, end, start, end]) as { date: string; dau: string }[];
-      const dauMysqlMap = new Map(dauMysqlRows.map(r => [r.date, parseInt(r.dau)]));
+      // ── 4. 日活（复用 AnalyticsService 统一口径） ─────────────────────
+      const activeUsersMap = await this.analyticsService.getActiveUsersForDates(dates);
 
 
       // ── 5. 启动次数（watch_progress 更新次数作为代理，非去重） ──────────
@@ -809,10 +786,8 @@ export class AdminExportController {
           const newUsers   = newUserMap.get(d) ?? 0;
           const totalUsers = totalUsersMap.get(d) ?? 0;
 
-          // 日活：Redis 和 MySQL 取最大值（Redis 可能因时区问题数据不全，MySQL UNION 更准确）
-          const redisDau = dauRedisMap.get(d) ?? 0;
-          const mysqlDau = dauMysqlMap.get(d) ?? 0;
-          const activeUsers = Math.max(redisDau, mysqlDau);
+          // 日活：复用 AnalyticsService 统一口径
+          const activeUsers = activeUsersMap.get(d) ?? 0;
 
           const launches   = launchMap.get(d) ?? 0;
           // new_user_ratio：新用户占活跃用户比例，最大不超过 1

@@ -951,14 +951,20 @@ curl "http://localhost:9090/api/admin/series/validation/check-duplicate-names"
 ```
 
 **字段说明**：
-- `dau`: 日活跃用户数（当天有观看行为的唯一用户数）
-- `wau`: 周活跃用户数（最近7天有观看行为的唯一用户数）
-- `mau`: 月活跃用户数（最近30天有观看行为的唯一用户数）
+- `dau`: 日活跃用户数，统计口径与 `overview-stats` 单日 `active_users` 一致：优先读 Redis HyperLogLog，之后与 MySQL（当天观看用户 ∪ 当天注册用户）结果取较大值
+- `wau`: 周活跃用户数（最近7天窗口内，观看用户 ∪ 注册用户 去重）
+- `mau`: 月活跃用户数（最近30天窗口内，观看用户 ∪ 注册用户 去重）
 - `sticky`: 粘性系数（DAU/MAU × 100），衡量用户活跃度，>20%为优秀
 - `retentionRate`: 留存率（回访用户数/注册用户数 × 100）
 - `completionRate`: 完播率（观看进度≥90%的记录数/总记录数 × 100）
 
 #### 活跃用户统计
+
+**口径补充说明**：
+- `dashboard/active-users` 中的 `dau` 与 `export/overview-stats` 单日 `active_users` 完全一致。
+- 单日实现：优先读取 Redis HyperLogLog 的 DAU，再与 MySQL 计算值比较并取较大值。
+- MySQL 计算口径：当天 **有观看行为的用户** 与 **当天新注册用户** 的并集去重。
+- `wau` / `mau` 不做“按天相加”，而是分别按最近 7 / 30 天窗口内的 **观看用户 ∪ 注册用户** 做窗口去重。
 
 - **获取DAU/WAU/MAU详细数据**
   - `GET /api/admin/dashboard/active-users`
@@ -967,14 +973,46 @@ curl "http://localhost:9090/api/admin/series/validation/check-duplicate-names"
 {
   "code": 200,
   "data": {
-    "dau": 1250,           // 今日活跃用户数
-    "wau": 5430,           // 本周活跃用户数
-    "mau": 18900,          // 本月活跃用户数
-    "dau7DayAvg": 1180,    // 7天平均DAU
-    "sticky": 6.61         // 粘性系数
-  }
+    "dau": 1250,
+    "wau": 5430,
+    "mau": 18900,
+    "dau7DayAvg": 1180,
+    "sticky": 6.61
+  },
+  "message": "活跃用户统计获取成功",
+  "timestamp": "2026-04-06T08:00:00.000Z"
 }
 ```
+
+**返回字段说明**：
+
+| 字段 | 类型 | 含义 | 前端处理建议 |
+|------|------|------|--------------|
+| `code` | `number` | 业务状态码，`200` 表示成功 | 先判断 `code === 200`，失败时展示 `message` |
+| `data.dau` | `number` | 今日活跃用户数。实现与 `overview-stats` 单日 `active_users` 完全一致：Redis DAU 与 MySQL（当天观看用户 ∪ 当天注册用户）取较大值 | 直接按整数展示，建议显示为“今日日活” |
+| `data.wau` | `number` | 最近 7 天活跃用户数（最近 7 天窗口内，观看用户 ∪ 注册用户 去重） | 直接展示；不要与自然周混淆，它是“近 7 天滚动窗口” |
+| `data.mau` | `number` | 最近 30 天活跃用户数（最近 30 天窗口内，观看用户 ∪ 注册用户 去重） | 直接展示；不要理解为自然月 |
+| `data.dau7DayAvg` | `number` | 最近 7 天 DAU 平均值，已四舍五入 | 可用于和 `dau` 对比，展示趋势高低 |
+| `data.sticky` | `number` | 粘性系数，计算方式为 `DAU / MAU × 100`，保留 2 位小数 | 建议前端展示为百分比，如 `6.61%` |
+| `message` | `string` | 接口返回说明 | 失败提示直接透传即可 |
+| `timestamp` | `string` | 服务端返回时间，ISO 8601 格式 | 如需展示，转本地时区格式 |
+
+**处理办法 / 使用建议**：
+
+- 建议卡片展示：
+  - `dau`：今日活跃
+  - `wau`：近7日活跃
+  - `mau`：近30日活跃
+  - `dau7DayAvg`：7日平均日活
+  - `sticky`：用户粘性
+- `sticky` 是数值型百分比，不是小数比值；前端不要再乘以 `100`。
+- 该接口返回的 `dau`、`wau`、`mau` 全部为整数，适合直接做概览卡片，不建议做货币/小数格式化。
+- 若接口失败：
+  - `code !== 200` 时展示 `message`
+  - `data === null` 时使用 `--` 占位
+- 若要做人性化展示，建议统一格式：
+  - `< 10000`：原样展示
+  - `>= 10000`：可转为 `1.2万` 这类简写
 
 #### 用户留存率
 
@@ -1501,6 +1539,11 @@ const relative = dayjs(createdAt).fromNow();
 
 ### 运营核心指标总览
 
+**口径补充说明**：
+- `active_users` 与 `dashboard/active-users` 中的单日 `dau` 完全一致。
+- 单日实现：优先读取 Redis HyperLogLog `dau:YYYYMMDD`，再与 MySQL（当天观看用户 ∪ 当天注册用户）的结果取较大值。
+- 因此调用方不需要自行二次去重，也不需要前端再兜底重算。
+
 `GET /api/admin/export/overview-stats?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD`
 
 按日期返回运营核心指标，按日期**倒序**排列。
@@ -1549,7 +1592,7 @@ const relative = dayjs(createdAt).fromNow();
 |------|------|------|
 | `date` | string | 日期 `YYYY-MM-DD` |
 | `new_users` | number | 当日新增注册用户数 |
-| `active_users` | number | 日活（优先读 Redis HyperLogLog `dau:YYYYMMDD`，不可用时降级 MySQL COUNT DISTINCT） |
+| `active_users` | number | 日活。与 `dashboard/active-users` 中的单日 `dau` 完全一致：优先读 Redis HyperLogLog `dau:YYYYMMDD`，再与 MySQL（当天观看用户 ∪ 当天注册用户）结果取较大值 |
 | `launches` | number | 启动次数代理值（`watch_progress` 记录更新总次数，非去重） |
 | `total_users` | number | 截止当日的累计注册用户总数 |
 | `new_user_ratio` | number | 新用户占比 = `new_users / active_users`（0~1） |
@@ -1560,7 +1603,7 @@ const relative = dayjs(createdAt).fromNow();
 
 **性能说明**：
 - 次日留存率已优化为**批量 SQL**（2 条）替代原来的逐日 N+1 查询，支持大范围日期查询不超时
-- `active_users` 写入依赖 `watch_progress` 保存时的 Redis PFADD，Redis 不可用时自动降级
+- `active_users` 的单日统计优先读取 Redis HyperLogLog，并与 MySQL（当天观看用户 ∪ 当天注册用户）的去重结果取较大值；Redis 写入依赖 `watch_progress` 保存时的 `PFADD`，即使 Redis 不可用，读取时仍可由 MySQL 结果兜底
 
 **cURL 示例**：
 ```bash

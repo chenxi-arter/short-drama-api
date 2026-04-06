@@ -6,6 +6,7 @@ import { WatchProgress } from '../../video/entity/watch-progress.entity';
 import { WatchLog } from '../../video/entity/watch-log.entity';
 import { BrowseHistory } from '../../video/entity/browse-history.entity';
 import { Episode } from '../../video/entity/episode.entity';
+import { DauService } from './dau.service';
 
 /**
  * 数据分析服务
@@ -13,6 +14,9 @@ import { Episode } from '../../video/entity/episode.entity';
  */
 @Injectable()
 export class AnalyticsService {
+  private readonly toLocalDateStr = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
   constructor(
     @InjectRepository(User)
     private readonly userRepo: Repository<User>,
@@ -24,80 +28,149 @@ export class AnalyticsService {
     private readonly bhRepo: Repository<BrowseHistory>,
     @InjectRepository(Episode)
     private readonly episodeRepo: Repository<Episode>,
+    private readonly dauService: DauService,
   ) {}
 
   /**
-   * 获取DAU（日活跃用户数）
-   * 基于观看进度更新时间统计
+   * 获取 DAU（日活跃用户数）
+   * 统计口径与 export/overview-stats 的 active_users 保持一致：
+   * 当天观看用户 ∪ 当天注册用户（去重）
    */
   async getDAU(date?: Date): Promise<number> {
     const targetDate = date || new Date();
-    const dateStr = targetDate.toISOString().split('T')[0];
-
-    const startDate = new Date(dateStr);
+    const startDate = new Date(targetDate);
     startDate.setHours(0, 0, 0, 0);
-    const endDate = new Date(dateStr);
+    const endDate = new Date(targetDate);
     endDate.setHours(23, 59, 59, 999);
 
-    // 统计当天有观看行为的唯一用户数
-    const result = await this.wpRepo
-      .createQueryBuilder('wp')
-      .select('COUNT(DISTINCT wp.user_id)', 'count')
-      .where('wp.updated_at >= :startDate', { startDate })
-      .andWhere('wp.updated_at <= :endDate', { endDate })
-      .getRawOne<{ count: string }>();
-
-    return parseInt(result?.count || '0', 10);
+    return this.getActiveUsersForDay(startDate);
   }
 
   /**
-   * 获取WAU（周活跃用户数）
-   * 基于最近7天的观看行为
+   * 获取 WAU（周活跃用户数）
+   * 统计口径与 export/overview-stats 的 active_users 保持一致：
+   * 最近 7 天观看用户 ∪ 最近 7 天注册用户（去重）
    */
   async getWAU(endDate?: Date): Promise<number> {
     const end = endDate || new Date();
-    const start = new Date(end);
-    start.setDate(start.getDate() - 7);
-    
-    const startStr = start.toISOString().split('T')[0];
-    const endStr = end.toISOString().split('T')[0];
+    const rangeEnd = new Date(end);
+    rangeEnd.setHours(23, 59, 59, 999);
+    const rangeStart = new Date(end);
+    rangeStart.setDate(rangeStart.getDate() - 6);
+    rangeStart.setHours(0, 0, 0, 0);
 
-    // 统计最近7天有观看行为的唯一用户数
-    const result = await this.wpRepo
-      .createQueryBuilder('wp')
-      .select('COUNT(DISTINCT wp.user_id)', 'count')
-      .where('DATE(wp.updated_at) BETWEEN :start AND :end', {
-        start: startStr,
-        end: endStr,
-      })
-      .getRawOne<{ count: string }>();
-
-    return parseInt(result?.count || '0', 10);
+    return this.getUniqueActiveUsersInRange(rangeStart, rangeEnd);
   }
 
   /**
-   * 获取MAU（月活跃用户数）
-   * 基于最近30天的观看行为
+   * 获取 MAU（月活跃用户数）
+   * 统计口径与 export/overview-stats 的 active_users 保持一致：
+   * 最近 30 天观看用户 ∪ 最近 30 天注册用户（去重）
    */
   async getMAU(endDate?: Date): Promise<number> {
     const end = endDate || new Date();
-    const start = new Date(end);
-    start.setDate(start.getDate() - 30);
-    
-    const startStr = start.toISOString().split('T')[0];
-    const endStr = end.toISOString().split('T')[0];
+    const rangeEnd = new Date(end);
+    rangeEnd.setHours(23, 59, 59, 999);
+    const rangeStart = new Date(end);
+    rangeStart.setDate(rangeStart.getDate() - 29);
+    rangeStart.setHours(0, 0, 0, 0);
 
-    // 统计最近30天有观看行为的唯一用户数
-    const result = await this.wpRepo
-      .createQueryBuilder('wp')
-      .select('COUNT(DISTINCT wp.user_id)', 'count')
-      .where('DATE(wp.updated_at) BETWEEN :start AND :end', {
-        start: startStr,
-        end: endStr,
-      })
-      .getRawOne<{ count: string }>();
+    return this.getUniqueActiveUsersInRange(rangeStart, rangeEnd);
+  }
 
-    return parseInt(result?.count || '0', 10);
+  async getActiveUsersForDay(date: Date): Promise<number> {
+    const startDate = new Date(date);
+    startDate.setHours(0, 0, 0, 0);
+    const endDate = new Date(date);
+    endDate.setHours(23, 59, 59, 999);
+
+    const dateStr = this.toLocalDateStr(startDate);
+    const redisCount = (await this.dauService.getDAU(dateStr)) ?? 0;
+    const mysqlCount = await this.getUniqueActiveUsersInRange(startDate, endDate);
+
+    return Math.max(redisCount, mysqlCount);
+  }
+
+  async getActiveUsersForDates(dates: string[]): Promise<Map<string, number>> {
+    const result = new Map<string, number>();
+    if (dates.length === 0) return result;
+
+    const dauRedisMap = await this.dauService.getDAUBatch(dates);
+
+    const startDate = new Date(dates[0]);
+    startDate.setHours(0, 0, 0, 0);
+    const endDate = new Date(dates[dates.length - 1]);
+    endDate.setHours(23, 59, 59, 999);
+
+    const rows = await this.wpRepo.manager.query(
+      `
+        SELECT date, COUNT(DISTINCT user_id) AS count FROM (
+          SELECT DATE_FORMAT(wp.updated_at, '%Y-%m-%d') AS date, wp.user_id
+          FROM watch_progress wp
+          WHERE wp.updated_at >= ? AND wp.updated_at <= ?
+          UNION
+          SELECT DATE_FORMAT(u.created_at, '%Y-%m-%d') AS date, u.id AS user_id
+          FROM users u
+          WHERE u.created_at >= ? AND u.created_at <= ?
+        ) t
+        GROUP BY date
+      `,
+      [startDate, endDate, startDate, endDate],
+    ) as Array<{ date: string; count: string | number }>;
+
+    const mysqlMap = new Map(
+      rows.map(row => [
+        row.date,
+        typeof row.count === 'number' ? row.count : parseInt(row.count, 10) || 0,
+      ]),
+    );
+
+    dates.forEach(date => {
+      const redisCount = dauRedisMap.get(date) ?? 0;
+      const mysqlCount = mysqlMap.get(date) ?? 0;
+      result.set(date, Math.max(redisCount, mysqlCount));
+    });
+
+    return result;
+  }
+
+  getLocalDateStr(date: Date): string {
+    return this.toLocalDateStr(date);
+  }
+
+  enumerateLocalDates(startDate: Date, endDate: Date): string[] {
+    const dates: string[] = [];
+    const cursor = new Date(startDate);
+    cursor.setHours(0, 0, 0, 0);
+    const lastDate = new Date(endDate);
+    lastDate.setHours(0, 0, 0, 0);
+
+    while (cursor <= lastDate) {
+      dates.push(this.toLocalDateStr(cursor));
+      cursor.setDate(cursor.getDate() + 1);
+    }
+
+    return dates;
+  }
+
+  async getUniqueActiveUsersInRange(startDate: Date, endDate: Date): Promise<number> {
+    const rows = await this.wpRepo.manager.query(
+      `
+        SELECT COUNT(DISTINCT user_id) AS count FROM (
+          SELECT wp.user_id
+          FROM watch_progress wp
+          WHERE wp.updated_at >= ? AND wp.updated_at <= ?
+          UNION
+          SELECT u.id AS user_id
+          FROM users u
+          WHERE u.created_at >= ? AND u.created_at <= ?
+        ) t
+      `,
+      [startDate, endDate, startDate, endDate],
+    ) as Array<{ count: string | number }>;
+
+    const count = rows?.[0]?.count ?? 0;
+    return typeof count === 'number' ? count : parseInt(count, 10) || 0;
   }
 
   /**
