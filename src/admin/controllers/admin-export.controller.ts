@@ -675,7 +675,7 @@ export class AdminExportController {
       const activeUsersMap = await this.analyticsService.getActiveUsersForDates(dates);
 
 
-      // ── 5. 启动次数（watch_progress 更新次数作为代理，非去重） ──────────
+      // ── 5. 观看次数（watch_progress 更新次数作为代理，非去重） ──────────
       const launchRows = await this.wpRepo
         .createQueryBuilder('wp')
         .select("DATE_FORMAT(wp.updated_at, '%Y-%m-%d')", 'date')

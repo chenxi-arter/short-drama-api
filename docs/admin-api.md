@@ -1593,13 +1593,13 @@ const relative = dayjs(createdAt).fromNow();
 | `date` | string | 日期 `YYYY-MM-DD` |
 | `new_users` | number | 当日新增注册用户数 |
 | `active_users` | number | 日活。与 `dashboard/active-users` 中的单日 `dau` 完全一致：优先读 Redis HyperLogLog `dau:YYYYMMDD`，再与 MySQL（当天观看用户 ∪ 当天注册用户）结果取较大值 |
-| `launches` | number | 启动次数代理值（`watch_progress` 记录更新总次数，非去重） |
+| `launches` | number | 当日观看次数代理值（`watch_progress` 记录更新总次数，非去重） |
 | `total_users` | number | 截止当日的累计注册用户总数 |
 | `new_user_ratio` | number | 新用户占比 = `new_users / active_users`（0~1） |
 | `retention_next_day` | number\|null | 次日留存率（0~1）；**今日及未来日期返回 `null`**，次日起才可计算 |
 | `avg_session_duration` | number | 平均单次观看时长（秒），优先 `watch_logs`，降级 `watch_progress` |
-| `avg_daily_duration` | number\|null | 平均每用户日观看总时长（秒）；依赖 `watch_logs`，今日返回 `null` |
-| `avg_daily_launches` | number\|null | 平均每用户日观看次数；依赖 `watch_logs`，今日返回 `null` |
+| `avg_daily_duration` | number\|null | 人均观看时长 = 当天总观看时长 ÷ 当天有观看记录的去重用户数；依赖 `watch_logs`，今日返回 `null` |
+| `avg_daily_launches` | number\|null | 人均观看次数 = 当天观看日志总条数 ÷ 当天有观看记录的去重用户数；依赖 `watch_logs`，今日返回 `null` |
 
 **性能说明**：
 - 次日留存率已优化为**批量 SQL**（2 条）替代原来的逐日 N+1 查询，支持大范围日期查询不超时
