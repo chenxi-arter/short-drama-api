@@ -1283,6 +1283,9 @@ curl -X GET "http://localhost:9090/api/admin/series/validation/episodes/2455"
 # 获取综合数据统计（包含所有核心指标）
 curl -X GET "http://localhost:8080/api/admin/dashboard/stats"
 
+# 获取 Dashboard 概览卡片数据
+curl -X GET "http://localhost:8080/api/admin/dashboard/overview"
+
 # 获取活跃用户统计（DAU/WAU/MAU）
 curl -X GET "http://localhost:8080/api/admin/dashboard/active-users"
 
@@ -1393,6 +1396,44 @@ const relative = dayjs(createdAt).fromNow();
   - 删除操作返回成功消息而非简单的 `{success: true}`
 
 ---
+
+---
+
+### Dashboard 概览卡片
+
+`GET /api/admin/dashboard/overview`
+
+返回管理后台首页概览卡片数据。
+
+**口径说明（已与核心运营数据统一的字段）**：
+- `users.new24h`：字段名保留历史命名，但**实际表示今日业务日新增用户数**，不是滚动最近 24 小时。
+- `comments.new24h`：字段名保留历史命名，但**实际表示今日业务日新增评论数**，不是滚动最近 24 小时。
+- `plays.last24hVisits`：字段名保留历史命名，但**实际表示今日业务日访问数**，不是滚动最近 24 小时。
+- 以上“业务日”统一按北京时间（UTC+8）自然日边界计算，与核心运营数据导出保持一致。
+
+**响应示例**：
+```json
+{
+  "users": { "total": 40689, "new24h": 123, "activeLogins": 2040, "lastLoginAtLatest": "2025-09-05T12:34:56.000Z" },
+  "series": { "total": 1150 },
+  "episodes": { "total": 26640 },
+  "banners": { "total": 6, "totalClicks": 7, "totalImpressions": 5, "ctr": 1.4 },
+  "comments": { "total": 302613, "new24h": 18 },
+  "plays": { "totalPlayCount": 45352229, "last24hVisits": 321 }
+}
+```
+
+**字段说明**：
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `users.total` | number | 用户总数 |
+| `users.new24h` | number | **今日业务日新增用户数**（字段名历史保留） |
+| `users.activeLogins` | number | 当前未撤销且未过期的活跃登录会话数 |
+| `users.lastLoginAtLatest` | string\|null | 最近一次登录时间 |
+| `comments.total` | number | 评论总数 |
+| `comments.new24h` | number | **今日业务日新增评论数**（字段名历史保留） |
+| `plays.totalPlayCount` | number | 播放总量（按 `episodes.play_count` 汇总） |
+| `plays.last24hVisits` | number | **今日业务日访问数**（字段名历史保留） |
 
 ---
 

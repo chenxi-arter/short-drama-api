@@ -48,7 +48,8 @@ export class AdminDashboardController {
     const start = toDateStart(from);
     const end = toDateEnd(to);
     const now = new Date();
-    const dayAgo = new Date(Date.now() - 24 * 3600 * 1000);
+    const todayDateStr = this.analyticsService.getLocalDateStr(now);
+    const { startDate: todayStart, endDate: todayEnd } = this.analyticsService.getLocalDateRange(todayDateStr);
 
     // 基础计数
     const [usersTotal, seriesTotal, episodesTotal, bannersTotal, commentsTotal] = await Promise.all([
@@ -70,20 +71,25 @@ export class AdminDashboardController {
       .andWhere('rt.expires_at > :now', { now })
       .getCount();
 
-    // 24h 新增和活跃
+    // 今日业务日新增用户（与核心运营数据口径一致；字段名 new24h 为历史保留）
     const newUsers24h = await this.userRepo
       .createQueryBuilder('u')
-      .where('u.created_at > :dayAgo', { dayAgo })
+      .where('u.created_at >= :todayStart', { todayStart })
+      .andWhere('u.created_at <= :todayEnd', { todayEnd })
       .getCount();
 
+    // 今日业务日新增评论（与核心运营数据口径一致；字段名 new24h 为历史保留）
     const comments24h = await this.commentRepo
       .createQueryBuilder('c')
-      .where('c.created_at > :dayAgo', { dayAgo })
+      .where('c.created_at >= :todayStart', { todayStart })
+      .andWhere('c.created_at <= :todayEnd', { todayEnd })
       .getCount();
 
+    // 今日业务日访问数（与核心运营数据口径一致；字段名 last24hVisits 为历史保留）
     const visits24h = await this.bhRepo
       .createQueryBuilder('bh')
-      .where('bh.updated_at > :dayAgo', { dayAgo })
+      .where('bh.updated_at >= :todayStart', { todayStart })
+      .andWhere('bh.updated_at <= :todayEnd', { todayEnd })
       .getCount();
 
     // 播放总量（按 episode.playCount 汇总）
