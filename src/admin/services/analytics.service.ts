@@ -14,8 +14,34 @@ import { DauService } from './dau.service';
  */
 @Injectable()
 export class AnalyticsService {
-  private readonly toLocalDateStr = (d: Date) =>
-    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  private readonly TZ_OFFSET_MS = 8 * 60 * 60 * 1000;
+
+  private toBusinessDateStr(date: Date): string {
+    const businessDate = new Date(date.getTime() + this.TZ_OFFSET_MS);
+    const y = businessDate.getUTCFullYear();
+    const m = String(businessDate.getUTCMonth() + 1).padStart(2, '0');
+    const d = String(businessDate.getUTCDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+
+  private getBusinessDayRangeByDateStr(dateStr: string): { startDate: Date; endDate: Date } {
+    const [year, month, day] = dateStr.split('-').map(Number);
+    const startDate = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0) - this.TZ_OFFSET_MS);
+    const endDate = new Date(startDate.getTime() + 24 * 60 * 60 * 1000 - 1);
+    return { startDate, endDate };
+  }
+
+  private getBusinessDayRange(date: Date): { dateStr: string; startDate: Date; endDate: Date } {
+    const dateStr = this.toBusinessDateStr(date);
+    const { startDate, endDate } = this.getBusinessDayRangeByDateStr(dateStr);
+    return { dateStr, startDate, endDate };
+  }
+
+  private shiftBusinessDate(dateStr: string, deltaDays: number): string {
+    const { startDate } = this.getBusinessDayRangeByDateStr(dateStr);
+    const shifted = new Date(startDate.getTime() + deltaDays * 24 * 60 * 60 * 1000);
+    return this.toBusinessDateStr(shifted);
+  }
 
   constructor(
     @InjectRepository(User)
@@ -37,13 +63,7 @@ export class AnalyticsService {
    * 当天观看用户 ∪ 当天注册用户（去重）
    */
   async getDAU(date?: Date): Promise<number> {
-    const targetDate = date || new Date();
-    const startDate = new Date(targetDate);
-    startDate.setHours(0, 0, 0, 0);
-    const endDate = new Date(targetDate);
-    endDate.setHours(23, 59, 59, 999);
-
-    return this.getActiveUsersForDay(startDate);
+    return this.getActiveUsersForDay(date || new Date());
   }
 
   /**
@@ -52,12 +72,8 @@ export class AnalyticsService {
    * 最近 7 天观看用户 ∪ 最近 7 天注册用户（去重）
    */
   async getWAU(endDate?: Date): Promise<number> {
-    const end = endDate || new Date();
-    const rangeEnd = new Date(end);
-    rangeEnd.setHours(23, 59, 59, 999);
-    const rangeStart = new Date(end);
-    rangeStart.setDate(rangeStart.getDate() - 6);
-    rangeStart.setHours(0, 0, 0, 0);
+    const { dateStr, endDate: rangeEnd } = this.getBusinessDayRange(endDate || new Date());
+    const { startDate: rangeStart } = this.getBusinessDayRangeByDateStr(this.shiftBusinessDate(dateStr, -6));
 
     return this.getUniqueActiveUsersInRange(rangeStart, rangeEnd);
   }
@@ -68,23 +84,14 @@ export class AnalyticsService {
    * 最近 30 天观看用户 ∪ 最近 30 天注册用户（去重）
    */
   async getMAU(endDate?: Date): Promise<number> {
-    const end = endDate || new Date();
-    const rangeEnd = new Date(end);
-    rangeEnd.setHours(23, 59, 59, 999);
-    const rangeStart = new Date(end);
-    rangeStart.setDate(rangeStart.getDate() - 29);
-    rangeStart.setHours(0, 0, 0, 0);
+    const { dateStr, endDate: rangeEnd } = this.getBusinessDayRange(endDate || new Date());
+    const { startDate: rangeStart } = this.getBusinessDayRangeByDateStr(this.shiftBusinessDate(dateStr, -29));
 
     return this.getUniqueActiveUsersInRange(rangeStart, rangeEnd);
   }
 
   async getActiveUsersForDay(date: Date): Promise<number> {
-    const startDate = new Date(date);
-    startDate.setHours(0, 0, 0, 0);
-    const endDate = new Date(date);
-    endDate.setHours(23, 59, 59, 999);
-
-    const dateStr = this.toLocalDateStr(startDate);
+    const { dateStr, startDate, endDate } = this.getBusinessDayRange(date);
     const redisCount = (await this.dauService.getDAU(dateStr)) ?? 0;
     const mysqlCount = await this.getUniqueActiveUsersInRange(startDate, endDate);
 
@@ -97,19 +104,17 @@ export class AnalyticsService {
 
     const dauRedisMap = await this.dauService.getDAUBatch(dates);
 
-    const startDate = new Date(dates[0]);
-    startDate.setHours(0, 0, 0, 0);
-    const endDate = new Date(dates[dates.length - 1]);
-    endDate.setHours(23, 59, 59, 999);
+    const { startDate } = this.getBusinessDayRangeByDateStr(dates[0]);
+    const { endDate } = this.getBusinessDayRangeByDateStr(dates[dates.length - 1]);
 
     const rows = await this.wpRepo.manager.query(
       `
         SELECT date, COUNT(DISTINCT user_id) AS count FROM (
-          SELECT DATE_FORMAT(wp.updated_at, '%Y-%m-%d') AS date, wp.user_id
+          SELECT DATE_FORMAT(DATE_ADD(wp.updated_at, INTERVAL 8 HOUR), '%Y-%m-%d') AS date, wp.user_id
           FROM watch_progress wp
           WHERE wp.updated_at >= ? AND wp.updated_at <= ?
           UNION
-          SELECT DATE_FORMAT(u.created_at, '%Y-%m-%d') AS date, u.id AS user_id
+          SELECT DATE_FORMAT(DATE_ADD(u.created_at, INTERVAL 8 HOUR), '%Y-%m-%d') AS date, u.id AS user_id
           FROM users u
           WHERE u.created_at >= ? AND u.created_at <= ?
         ) t
@@ -135,19 +140,17 @@ export class AnalyticsService {
   }
 
   getLocalDateStr(date: Date): string {
-    return this.toLocalDateStr(date);
+    return this.toBusinessDateStr(date);
   }
 
   enumerateLocalDates(startDate: Date, endDate: Date): string[] {
     const dates: string[] = [];
-    const cursor = new Date(startDate);
-    cursor.setHours(0, 0, 0, 0);
-    const lastDate = new Date(endDate);
-    lastDate.setHours(0, 0, 0, 0);
+    let current = this.toBusinessDateStr(startDate);
+    const last = this.toBusinessDateStr(endDate);
 
-    while (cursor <= lastDate) {
-      dates.push(this.toLocalDateStr(cursor));
-      cursor.setDate(cursor.getDate() + 1);
+    while (current <= last) {
+      dates.push(current);
+      current = this.shiftBusinessDate(current, 1);
     }
 
     return dates;
