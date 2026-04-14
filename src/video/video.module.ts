@@ -53,6 +53,7 @@ import { EpisodeInteractionService } from './services/episode-interaction.servic
 import { CategoryValidator } from '../common/validators/category-validator';
 import { SearchSuggestionsService } from './services/search-suggestions.service';
 import { SearchController } from './controllers/search.controller';
+import { DauService } from '../admin/services/dau.service';
 @Module({
   imports: [
     // 子模块装载（在不改变现有路由前提下分层）
@@ -109,6 +110,7 @@ import { SearchController } from './controllers/search.controller';
     BrowseHistoryService,
     BrowseHistoryCleanupService,
     SearchSuggestionsService,
+    DauService,
     
     // 工具和配置服务
     AppLoggerService,

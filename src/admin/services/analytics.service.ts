@@ -143,6 +143,22 @@ export class AnalyticsService {
     return this.toBusinessDateStr(date);
   }
 
+  getLocalDateRange(dateStr: string): { startDate: Date; endDate: Date } {
+    return this.getBusinessDayRangeByDateStr(dateStr);
+  }
+
+  enumerateLocalDateStrings(startDateStr: string, endDateStr: string): string[] {
+    const dates: string[] = [];
+    let current = startDateStr;
+
+    while (current <= endDateStr) {
+      dates.push(current);
+      current = this.shiftBusinessDate(current, 1);
+    }
+
+    return dates;
+  }
+
   enumerateLocalDates(startDate: Date, endDate: Date): string[] {
     const dates: string[] = [];
     let current = this.toBusinessDateStr(startDate);

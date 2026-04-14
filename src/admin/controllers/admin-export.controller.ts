@@ -614,13 +614,15 @@ export class AdminExportController {
     @Query('endDate') endDate: string,
   ) {
     try {
-      const start = new Date(startDate);
-      start.setHours(0, 0, 0, 0);
-      const end = new Date(endDate);
-      end.setHours(23, 59, 59, 999);
+      const dates = this.analyticsService.enumerateLocalDateStrings(startDate, endDate);
+      if (dates.length === 0) {
+        return { code: 200, data: [] };
+      }
+
+      const { startDate: start } = this.analyticsService.getLocalDateRange(startDate);
+      const { endDate: end } = this.analyticsService.getLocalDateRange(endDate);
 
       // ── 1. 枚举日期列表 ──────────────────────────────────────────────────
-      const dates = this.analyticsService.enumerateLocalDates(start, end);
 
       const today = new Date();
       today.setHours(0, 0, 0, 0);

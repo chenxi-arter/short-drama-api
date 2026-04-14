@@ -64,6 +64,7 @@ import { FilterOption } from '../entity/filter-option.entity';
 // import { BrowseHistory } from '../entity/browse-history.entity';
 import { SeriesGenreOption } from '../entity/series-genre-option.entity';
 import { User } from '../../user/entity/user.entity';
+import { DauService } from '../../admin/services/dau.service';
 
 @Module({
   imports: [
@@ -127,6 +128,7 @@ import { User } from '../../user/entity/user.entity';
     CommentLikeService,
     NotificationService,
     RecommendService,
+    DauService,
     AppLoggerService,
     AppConfigService,
   ],

@@ -10,6 +10,8 @@ import { BannerMetricDaily } from '../entity/banner-metric-daily.entity';
 import { BrowseHistory } from '../entity/browse-history.entity';
 import { Comment } from '../entity/comment.entity';
 import { CommentLike } from '../entity/comment-like.entity';
+import { WatchProgress } from '../entity/watch-progress.entity';
+import { WatchLog } from '../entity/watch-log.entity';
 import { SeriesService } from '../services/series.service';
 import { EpisodeService } from '../services/episode.service';
 import { BrowseHistoryService } from '../services/browse-history.service';
@@ -19,17 +21,19 @@ import { CommentService } from '../services/comment.service';
 import { CommentLikeService } from '../services/comment-like.service';
 import { FakeCommentService } from '../services/fake-comment.service';
 import { CatalogModule } from './catalog.module';
+import { DauService } from '../../admin/services/dau.service';
 
 @Module({
   imports: [
     CatalogModule,
-    TypeOrmModule.forFeature([Series, Episode, EpisodeUrl, Category, FilterOption, BrowseHistory, Banner, BannerMetricDaily, Comment, CommentLike])
+    TypeOrmModule.forFeature([Series, Episode, EpisodeUrl, Category, FilterOption, BrowseHistory, Banner, BannerMetricDaily, Comment, CommentLike, WatchProgress, WatchLog])
   ],
   providers: [
     SeriesService,
     EpisodeService,
     BrowseHistoryService,
     WatchProgressService,
+    DauService,
     BannerService,
     FakeCommentService,  // 必须在 CommentService 之前
     CommentService,
