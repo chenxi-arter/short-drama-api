@@ -13,6 +13,9 @@ import { UpdateNicknameDto, UpdateNicknameResponseDto } from './dto/update-nickn
 import { UpdatePasswordDto, UpdatePasswordResponseDto } from './dto/update-password.dto';
 import { UpdateAvatarDto, UpdateAvatarResponseDto } from './dto/update-avatar.dto';
 import { DefaultAvatarUtil } from '../common/utils/default-avatar.util';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { UserOnlineDaily } from './entity/user-online-daily.entity';
 
 interface AuthenticatedRequest extends Request {
   user: {
@@ -26,7 +29,18 @@ export class UserController {
   constructor(
     private readonly userService: UserService,
     private readonly authService: AuthService,
+    @InjectRepository(UserOnlineDaily)
+    private readonly onlineDailyRepo: Repository<UserOnlineDaily>,
   ) {}
+
+  @UseGuards(JwtAuthGuard)
+  @Post('heartbeat')
+  async heartbeat(@Req() req: AuthenticatedRequest) {
+    const userId = req.user.userId;
+    const today = new Date().toISOString().slice(0, 10);
+    await this.userService.recordHeartbeat(userId, today);
+    return { ok: true };
+  }
 
   // Telegram 登录已统一到 /auth/telegram/login
   // src/user/user.controller.ts

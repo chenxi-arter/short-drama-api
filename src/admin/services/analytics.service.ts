@@ -6,6 +6,7 @@ import { WatchProgress } from '../../video/entity/watch-progress.entity';
 import { WatchLog } from '../../video/entity/watch-log.entity';
 import { BrowseHistory } from '../../video/entity/browse-history.entity';
 import { Episode } from '../../video/entity/episode.entity';
+import { UserOnlineDaily } from '../../user/entity/user-online-daily.entity';
 import { DauService } from './dau.service';
 
 /**
@@ -54,6 +55,8 @@ export class AnalyticsService {
     private readonly bhRepo: Repository<BrowseHistory>,
     @InjectRepository(Episode)
     private readonly episodeRepo: Repository<Episode>,
+    @InjectRepository(UserOnlineDaily)
+    private readonly onlineDailyRepo: Repository<UserOnlineDaily>,
     private readonly dauService: DauService,
   ) {}
 
@@ -439,37 +442,61 @@ export class AnalyticsService {
     wau: number;
     mau: number;
     dau7DayAvg: number;
-    sticky: number; // DAU/MAU 粘性系数
+    sticky: number;
   }> {
-    const today = new Date();
-    
-    // 并发查询
-    const [dau, wau, mau] = await Promise.all([
-      this.getDAU(today),
-      this.getWAU(today),
-      this.getMAU(today),
+    const today = new Date().toISOString().slice(0, 10);
+    const d7 = new Date(Date.now() - 6 * 86400000).toISOString().slice(0, 10);
+    const d30 = new Date(Date.now() - 29 * 86400000).toISOString().slice(0, 10);
+
+    const [dauResult, wauResult, mauResult, dau7Avg] = await Promise.all([
+      this.onlineDailyRepo
+        .createQueryBuilder('od')
+        .select('COUNT(DISTINCT od.user_id)', 'cnt')
+        .where('od.date = :today', { today })
+        .getRawOne<{ cnt: string }>(),
+      this.onlineDailyRepo
+        .createQueryBuilder('od')
+        .select('COUNT(DISTINCT od.user_id)', 'cnt')
+        .where('od.date >= :d7', { d7 })
+        .andWhere('od.date <= :today', { today })
+        .getRawOne<{ cnt: string }>(),
+      this.onlineDailyRepo
+        .createQueryBuilder('od')
+        .select('COUNT(DISTINCT od.user_id)', 'cnt')
+        .where('od.date >= :d30', { d30 })
+        .andWhere('od.date <= :today', { today })
+        .getRawOne<{ cnt: string }>(),
+      this.onlineDailyRepo
+        .createQueryBuilder('od')
+        .select('od.date', 'date')
+        .addSelect('COUNT(DISTINCT od.user_id)', 'cnt')
+        .where('od.date >= :d7', { d7 })
+        .andWhere('od.date <= :today', { today })
+        .groupBy('od.date')
+        .getRawMany<{ date: string; cnt: string }>(),
     ]);
 
-    // 计算7天平均DAU
-    const last7DaysDAU: number[] = [];
-    for (let i = 0; i < 7; i++) {
-      const date = new Date(today);
-      date.setDate(date.getDate() - i);
-      const dauValue = await this.getDAU(date);
-      last7DaysDAU.push(dauValue);
+    const dau = Number(dauResult?.cnt || 0);
+    const wau = Number(wauResult?.cnt || 0);
+    const mau = Number(mauResult?.cnt || 0);
+
+    // 如果 online_daily 表没数据，fallback 到旧逻辑（Redis HyperLogLog）
+    if (dau === 0 && wau === 0 && mau === 0) {
+      const [fallbackDau, fallbackWau, fallbackMau] = await Promise.all([
+        this.getDAU(new Date()),
+        this.getWAU(new Date()),
+        this.getMAU(new Date()),
+      ]);
+      const sticky = fallbackMau > 0 ? Math.round((fallbackDau / fallbackMau) * 10000) / 100 : 0;
+      return { dau: fallbackDau, wau: fallbackWau, mau: fallbackMau, dau7DayAvg: fallbackDau, sticky };
     }
-    const dau7DayAvg = Math.round(last7DaysDAU.reduce((a, b) => a + b, 0) / 7);
 
-    // 计算粘性系数（DAU/MAU）
-    const sticky = mau > 0 ? Math.round((dau / mau) * 100 * 100) / 100 : 0;
+    const dau7DayAvg = dau7Avg.length > 0
+      ? Math.round(dau7Avg.reduce((sum, r) => sum + Number(r.cnt || 0), 0) / dau7Avg.length)
+      : dau;
+    const sticky = mau > 0 ? Math.round((dau / mau) * 10000) / 100 : 0;
 
-    return {
-      dau,
-      wau,
-      mau,
-      dau7DayAvg,
-      sticky,
-    };
+    return { dau, wau, mau, dau7DayAvg, sticky };
   }
 
   /**

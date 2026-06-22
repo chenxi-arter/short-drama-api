@@ -16,6 +16,7 @@ import { BrowseHistory } from '../video/entity/browse-history.entity';
 import { EpisodeReaction } from '../video/entity/episode-reaction.entity';
 import { Favorite } from '../user/entity/favorite.entity';
 import { UserOperationLog } from '../user/entity/user-operation-log.entity';
+import { UserOnlineDaily } from '../user/entity/user-online-daily.entity';
 import { FilterOption } from '../video/entity/filter-option.entity';
 
 // Controllers
@@ -64,6 +65,7 @@ import { DauService } from './services/dau.service';
       EpisodeReaction,
       Favorite,
       UserOperationLog,
+      UserOnlineDaily,
       FilterOption,
     ])
   ],

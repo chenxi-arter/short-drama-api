@@ -1,10 +1,14 @@
 /**
  * 用户服务 - 资料管理/注册/邮箱绑定
  */
-import { Injectable, UnauthorizedException, ConflictException, BadRequestException, Logger } from '@nestjs/common';
+import { Injectable, UnauthorizedException, ConflictException, BadRequestException, Logger, Inject } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { Cron } from '@nestjs/schedule';
 import { User } from './entity/user.entity';
+import { UserOnlineDaily } from './entity/user-online-daily.entity';
+import { REDIS_CLIENT } from '../core/redis/redis.module';
+import { RedisClientType } from 'redis';
 import { TelegramUserDto, LoginType } from './dto/telegram-user.dto';
 import { RegisterDto, RegisterResponseDto } from './dto/register.dto';
 import { EmailLoginDto, EmailLoginResponseDto } from './dto/email-login.dto';
@@ -50,10 +54,73 @@ export class UserService {
 
   constructor(
     @InjectRepository(User) private readonly userRepo: Repository<User>,
+    @InjectRepository(UserOnlineDaily) private readonly onlineDailyRepo: Repository<UserOnlineDaily>,
+    @Inject(REDIS_CLIENT) private readonly redisClient: RedisClientType | null,
     private readonly authService: AuthService,
     private readonly telegramAuthService: TelegramAuthService,
     private readonly accountMergeService: AccountMergeService,
   ) {}
+
+  /**
+   * 心跳记录 - 写入 Redis，不直接写 MySQL
+   * Redis key: online:{date}  field: {userId}  value: 累加秒数
+   */
+  async recordHeartbeat(userId: number, date: string): Promise<void> {
+    if (this.redisClient) {
+      try {
+        const key = `online:${date}`;
+        await this.redisClient.hIncrBy(key, String(userId), 60);
+        await this.redisClient.expire(key, 2 * 86400);
+        return;
+      } catch (e) {
+        this.logger.warn(`Redis heartbeat failed, fallback to MySQL: ${(e as Error)?.message}`);
+      }
+    }
+    // Redis 不可用时直接写 MySQL
+    await this.flushHeartbeatToDb(userId, date, 60);
+  }
+
+  /**
+   * 每 5 分钟把 Redis 中的在线时长数据批量刷入 MySQL
+   */
+  @Cron('0 */5 * * * *')
+  async flushOnlineDataToDb(): Promise<void> {
+    if (!this.redisClient) return;
+
+    const today = new Date().toISOString().slice(0, 10);
+    const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+
+    for (const date of [yesterday, today]) {
+      try {
+        const key = `online:${date}`;
+        const data = await this.redisClient.hGetAll(key);
+        if (!data || Object.keys(data).length === 0) continue;
+
+        const entries = Object.entries(data);
+        for (let i = 0; i < entries.length; i += 100) {
+          const batch = entries.slice(i, i + 100);
+          const values = batch.map(([uid, dur]) => `(${Number(uid)}, '${date}', ${Number(dur)})`).join(',');
+          await this.onlineDailyRepo.query(
+            `INSERT INTO user_online_daily (user_id, date, duration) VALUES ${values}
+             ON DUPLICATE KEY UPDATE duration = VALUES(duration)`,
+          );
+        }
+
+        await this.redisClient.del(key);
+        this.logger.log(`Flushed ${entries.length} online records for ${date} to MySQL`);
+      } catch (e) {
+        this.logger.error(`flushOnlineDataToDb error for ${date}: ${(e as Error)?.message}`);
+      }
+    }
+  }
+
+  private async flushHeartbeatToDb(userId: number, date: string, duration: number): Promise<void> {
+    await this.onlineDailyRepo.query(
+      `INSERT INTO user_online_daily (user_id, date, duration) VALUES (?, ?, ?)
+       ON DUPLICATE KEY UPDATE duration = duration + ?`,
+      [userId, date, duration, duration],
+    );
+  }
 
   async telegramLogin(dto: TelegramUserDto): Promise<TokenResult> {
     // 1. 验证Bot Token配置

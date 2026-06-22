@@ -4,6 +4,7 @@ import { PassportModule } from '@nestjs/passport';
 import { User } from './entity/user.entity';
 import { Favorite } from './entity/favorite.entity';
 import { UserOperationLog } from './entity/user-operation-log.entity';
+import { UserOnlineDaily } from './entity/user-online-daily.entity';
 import { Episode } from '../video/entity/episode.entity';
 import { EpisodeReaction } from '../video/entity/episode-reaction.entity';
 import { UserService } from './user.service';
@@ -20,7 +21,7 @@ import { VideoModule } from '../video/video.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([User, Favorite, UserOperationLog, Episode, EpisodeReaction]),
+    TypeOrmModule.forFeature([User, Favorite, UserOperationLog, UserOnlineDaily, Episode, EpisodeReaction]),
     PassportModule,
     forwardRef(() => AuthModule), // 使用forwardRef避免循环依赖，AuthModule已经提供了JwtModule
     forwardRef(() => VideoModule), // 导入VideoModule以使用CategoryValidator

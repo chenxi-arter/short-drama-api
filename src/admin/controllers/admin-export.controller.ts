@@ -13,6 +13,7 @@ import { Favorite } from '../../user/entity/favorite.entity';
 import { Episode } from '../../video/entity/episode.entity';
 import { Series } from '../../video/entity/series.entity';
 import { Comment } from '../../video/entity/comment.entity';
+import { UserOnlineDaily } from '../../user/entity/user-online-daily.entity';
 import { ExportSeriesDetailsDto, SeriesDetailData } from '../dto/export-series-details.dto';
 import { WatchLogService } from '../../video/services/watch-log.service';
 import { AnalyticsService } from '../services/analytics.service';
@@ -42,6 +43,8 @@ export class AdminExportController {
     private readonly seriesRepo: Repository<Series>,
     @InjectRepository(Comment)
     private readonly commentRepo: Repository<Comment>,
+    @InjectRepository(UserOnlineDaily)
+    private readonly onlineDailyRepo: Repository<UserOnlineDaily>,
     private readonly watchLogService: WatchLogService,
     private readonly analyticsService: AnalyticsService,
   ) {}
@@ -212,14 +215,25 @@ export class AdminExportController {
         .orderBy('date', 'ASC')
         .getRawMany<{ date: string; newUsers: string }>();
 
-      // 2. 按日期统计日活（DAU）
-      const dauStats = await this.wpRepo
-        .createQueryBuilder('wp')
-        .select("DATE_FORMAT(wp.updated_at, '%Y-%m-%d')", 'date')
-        .addSelect('COUNT(DISTINCT wp.user_id)', 'dau')
-        .where('wp.updated_at BETWEEN :start AND :end', { start, end })
-        .groupBy('date')
+      // 2. 按日期统计日活（DAU）- 优先从 user_online_daily 取，fallback 到 watch_progress
+      const onlineDauStats = await this.onlineDailyRepo
+        .createQueryBuilder('od')
+        .select('od.date', 'date')
+        .addSelect('COUNT(DISTINCT od.user_id)', 'dau')
+        .where('od.date >= :startD', { startD: start.toISOString().split('T')[0] })
+        .andWhere('od.date <= :endD', { endD: end.toISOString().split('T')[0] })
+        .groupBy('od.date')
         .getRawMany<{ date: string; dau: string }>();
+
+      const dauStats = onlineDauStats.length > 0
+        ? onlineDauStats
+        : await this.wpRepo
+            .createQueryBuilder('wp')
+            .select("DATE_FORMAT(wp.updated_at, '%Y-%m-%d')", 'date')
+            .addSelect('COUNT(DISTINCT wp.user_id)', 'dau')
+            .where('wp.updated_at BETWEEN :start AND :end', { start, end })
+            .groupBy('date')
+            .getRawMany<{ date: string; dau: string }>();
 
       // 3. 按日期统计平均观影时长（优先使用 watch_logs 表的数据）
       // 策略：先尝试从 watch_logs 获取，如果没有数据则降级到 watch_progress

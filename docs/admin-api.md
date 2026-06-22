@@ -108,7 +108,7 @@ curl -X POST "http://localhost:8080/api/admin/categories/123?_method=DELETE"
 
 - 列表
   - `GET /api/admin/users?page=1&size=20`
-  - 每个用户项附带最近登录信息、在线数与登录次数：`lastLoginAt`、`lastLoginIp`、`lastLoginDevice`、`activeLogins`、`loginCount`
+  - 每个用户项附带登录信息、观看时长、在线状态
   - 响应示例：
 ```json
 {
@@ -120,13 +120,18 @@ curl -X POST "http://localhost:8080/api/admin/categories/123?_method=DELETE"
       "first_name": "Tom",
       "last_name": "",
       "username": "tom",
+      "nickname": "游客042857",
       "is_active": true,
+      "isGuest": false,
       "created_at": "2025-01-01T12:00:00.000Z",
       "lastLoginAt": "2025-09-05T12:34:56.000Z",
       "lastLoginIp": "203.0.113.10",
       "lastLoginDevice": "iPhone 15 iOS 18",
       "activeLogins": 2,
-      "loginCount": 18
+      "loginCount": 18,
+      "totalWatchDuration": 12580,
+      "lastActiveAt": "2026-06-22T14:30:00.000Z",
+      "isOnline": true
     }
   ],
   "page": 1,
@@ -134,9 +139,21 @@ curl -X POST "http://localhost:8080/api/admin/categories/123?_method=DELETE"
 }
 ```
 
+- 字段说明：
+  | 字段 | 类型 | 说明 |
+  |------|------|------|
+  | `lastLoginAt` | string/null | 最后一次登录时间 |
+  | `lastLoginIp` | string/null | 最后登录 IP |
+  | `lastLoginDevice` | string/null | 最后登录设备信息 |
+  | `activeLogins` | number | 当前有效的登录会话数 |
+  | `loginCount` | number | 历史总登录次数 |
+  | `totalWatchDuration` | number | 总观看时长（秒），来源：watch_logs 表 SUM(watch_duration) |
+  | `lastActiveAt` | string/null | 最后活跃时间（最后一条观看记录时间） |
+  | `isOnline` | boolean | 是否在线（最后活跃时间距今 < 5分钟视为在线） |
+
 - 详情
   - `GET /api/admin/users/:id`
-  - 返回同样包含 `lastLoginAt`、`lastLoginIp`、`lastLoginDevice`、`activeLogins`、`loginCount`
+  - 返回字段与列表项一致，包含 `totalWatchDuration`、`lastActiveAt`、`isOnline`
 
 - 登录日志
   - `GET /api/admin/users/:id/login-logs?page=1&size=20`

@@ -8,6 +8,8 @@ import { Repository } from 'typeorm';
 import { User } from '../../user/entity/user.entity';
 import { RefreshToken } from '../../auth/entity/refresh-token.entity';
 import { UserOperationLog } from '../../user/entity/user-operation-log.entity';
+import { WatchLog } from '../../video/entity/watch-log.entity';
+import { UserOnlineDaily } from '../../user/entity/user-online-daily.entity';
 import { AdminJwtAuthGuard } from '../guards/admin-jwt-auth.guard';
 
 @UseGuards(AdminJwtAuthGuard)
@@ -20,6 +22,10 @@ export class AdminUsersController {
     private readonly refreshTokenRepo: Repository<RefreshToken>,
     @InjectRepository(UserOperationLog)
     private readonly operationLogRepo: Repository<UserOperationLog>,
+    @InjectRepository(WatchLog)
+    private readonly watchLogRepo: Repository<WatchLog>,
+    @InjectRepository(UserOnlineDaily)
+    private readonly onlineDailyRepo: Repository<UserOnlineDaily>,
   ) {}
 
   @Get()
@@ -32,7 +38,7 @@ export class AdminUsersController {
     const now = new Date();
     const items = await Promise.all(
       users.map(async (u) => {
-        const [lastToken, loginCount, activeLogins] = await Promise.all([
+        const [lastToken, loginCount, activeLogins, watchStats] = await Promise.all([
           this.refreshTokenRepo.findOne({
             where: { userId: u.id },
             order: { createdAt: 'DESC' },
@@ -43,7 +49,16 @@ export class AdminUsersController {
             .andWhere('rt.is_revoked = 0')
             .andWhere('rt.expires_at > :now', { now })
             .getCount(),
+          this.watchLogRepo.createQueryBuilder('wl')
+            .select('COALESCE(SUM(wl.watch_duration), 0)', 'totalDuration')
+            .addSelect('MAX(wl.created_at)', 'lastActiveAt')
+            .where('wl.user_id = :uid', { uid: u.id })
+            .getRawOne(),
         ]);
+
+        const totalWatchDuration = Number(watchStats?.totalDuration || 0);
+        const lastActiveAt = watchStats?.lastActiveAt ? new Date(watchStats.lastActiveAt) : null;
+        const isOnline = lastActiveAt && (now.getTime() - lastActiveAt.getTime()) < 5 * 60 * 1000;
 
         return {
           ...u,
@@ -52,6 +67,9 @@ export class AdminUsersController {
           lastLoginDevice: lastToken?.deviceInfo || null,
           activeLogins,
           loginCount,
+          totalWatchDuration,
+          lastActiveAt,
+          isOnline: !!isOnline,
         } as any;
       })
     );
@@ -64,7 +82,7 @@ export class AdminUsersController {
     const user = await this.userRepo.findOne({ where: { id: Number(id) } });
     if (!user) return null;
     const now = new Date();
-    const [lastToken, loginCount, activeLogins] = await Promise.all([
+    const [lastToken, loginCount, activeLogins, watchStats] = await Promise.all([
       this.refreshTokenRepo.findOne({
         where: { userId: user.id },
         order: { createdAt: 'DESC' },
@@ -75,7 +93,16 @@ export class AdminUsersController {
         .andWhere('rt.is_revoked = 0')
         .andWhere('rt.expires_at > :now', { now })
         .getCount(),
+      this.watchLogRepo.createQueryBuilder('wl')
+        .select('COALESCE(SUM(wl.watch_duration), 0)', 'totalDuration')
+        .addSelect('MAX(wl.created_at)', 'lastActiveAt')
+        .where('wl.user_id = :uid', { uid: user.id })
+        .getRawOne(),
     ]);
+
+    const totalWatchDuration = Number(watchStats?.totalDuration || 0);
+    const lastActiveAt = watchStats?.lastActiveAt ? new Date(watchStats.lastActiveAt) : null;
+    const isOnline = lastActiveAt && (now.getTime() - lastActiveAt.getTime()) < 5 * 60 * 1000;
 
     return {
       ...user,
@@ -84,6 +111,9 @@ export class AdminUsersController {
       lastLoginDevice: lastToken?.deviceInfo || null,
       activeLogins,
       loginCount,
+      totalWatchDuration,
+      lastActiveAt,
+      isOnline: !!isOnline,
     } as any;
   }
 
@@ -154,5 +184,39 @@ export class AdminUsersController {
   async remove(@Param('id') id: string) {
     await this.userRepo.delete({ id: Number(id) });
     return { success: true };
+  }
+
+  @Get(':id/online-daily')
+  async onlineDaily(
+    @Param('id') id: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    const userId = Number(id);
+    const end = endDate || new Date().toISOString().slice(0, 10);
+    const start = startDate || (() => { const d = new Date(); d.setDate(d.getDate() - 30); return d.toISOString().slice(0, 10); })();
+
+    const records = await this.onlineDailyRepo
+      .createQueryBuilder('od')
+      .where('od.user_id = :userId', { userId })
+      .andWhere('od.date >= :start', { start })
+      .andWhere('od.date <= :end', { end })
+      .orderBy('od.date', 'DESC')
+      .getMany();
+
+    const totalDuration = records.reduce((sum, r) => sum + r.duration, 0);
+
+    return {
+      userId,
+      startDate: start,
+      endDate: end,
+      totalDuration,
+      days: records.map((r) => ({
+        date: r.date,
+        duration: r.duration,
+        hours: Math.floor(r.duration / 3600),
+        minutes: Math.floor((r.duration % 3600) / 60),
+      })),
+    };
   }
 }
