@@ -1,3 +1,7 @@
+/**
+ * 用户通知控制器（评论回复/点赞通知）
+ * 路由前缀: /api/video/notifications
+ */
 import { Controller, Get, Query, UseGuards, Req } from '@nestjs/common';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { BaseController } from './base.controller';

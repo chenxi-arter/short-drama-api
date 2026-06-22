@@ -1,12 +1,16 @@
+/**
+ * 视频主控制器（兼容层）
+ * 保留所有原始 /api/video/* 路径以确保向后兼容
+ */
 import { Controller, Post, Body, Get, Query, UseGuards, Req, Param, BadRequestException, HttpStatus } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { VideoService } from './video.service';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { MediaQueryDto } from './dto/media-query.dto';
-import { EpisodeListDto } from './dto/episode-list.dto';
-import { BaseController } from './controllers/base.controller';
-import { User } from '../user/entity/user.entity';
+import { VideoService } from '../video.service';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { MediaQueryDto } from '../dto/media-query.dto';
+import { EpisodeListDto } from '../dto/episode-list.dto';
+import { BaseController } from './base.controller';
+import { User } from '../../user/entity/user.entity';
 
 /**
  * 视频控制器（兼容层）

@@ -1,3 +1,7 @@
+/**
+ * 剧集互动控制器（点赞/点踩/收藏）
+ * 路由前缀: /api/video
+ */
 import { Body, Controller, Post, Get, Param, Query, BadRequestException, UseGuards, Req, HttpStatus } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';

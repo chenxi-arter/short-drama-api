@@ -1,3 +1,7 @@
+/**
+ * 点赞剧集列表控制器
+ * 路由前缀: /api/user/liked-episodes
+ */
 import { Controller, Get, Query, UseGuards, Req } from '@nestjs/common';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { LikedEpisodesService } from '../services/liked-episodes.service';

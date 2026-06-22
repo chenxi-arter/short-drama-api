@@ -1,3 +1,6 @@
+/**
+ * 用户服务 - 资料管理/注册/邮箱绑定
+ */
 import { Injectable, UnauthorizedException, ConflictException, BadRequestException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';

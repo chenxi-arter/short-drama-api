@@ -1,3 +1,6 @@
+/**
+ * 播放计数服务 - 基于内存队列的异步播放量统计
+ */
 import { Inject, Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';

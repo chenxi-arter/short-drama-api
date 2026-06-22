@@ -1,3 +1,7 @@
+/**
+ * 管理员认证控制器 - 登录/初始化/用户管理
+ * 路由前缀: /api/admin/auth
+ */
 import { Body, Controller, Delete, Get, Param, ParseIntPipe, Post, Put, Req, UseGuards } from '@nestjs/common';
 import { AdminAuthService } from '../services/admin-auth.service';
 import { AdminJwtAuthGuard } from '../guards/admin-jwt-auth.guard';

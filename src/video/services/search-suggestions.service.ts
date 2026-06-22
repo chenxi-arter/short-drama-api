@@ -1,3 +1,6 @@
+/**
+ * 搜索建议服务 - 热词/联想搜索
+ */
 import { Injectable, Inject } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';

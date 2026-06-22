@@ -1,8 +1,12 @@
+/**
+ * 公开视频接口控制器（无需登录）
+ * 路由前缀: /api/public/video
+ */
 // src/video/public-video.controller.ts
 import { Controller, Get, Query, Param } from '@nestjs/common';
-import { VideoService } from './video.service';
-import { MediaQueryDto } from './dto/media-query.dto';
-import { EpisodeListDto } from './dto/episode-list.dto'; 
+import { VideoService } from '../video.service';
+import { MediaQueryDto } from '../dto/media-query.dto';
+import { EpisodeListDto } from '../dto/episode-list.dto'; 
 
 @Controller('public/video')   // 统一 /public 前缀，语义清晰
 export class PublicVideoController {

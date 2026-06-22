@@ -1,3 +1,6 @@
+/**
+ * 浏览历史服务 - 记录/查询/删除用户浏览记录
+ */
 // src/video/services/browse-history.service.ts
 import { Injectable, Inject } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';

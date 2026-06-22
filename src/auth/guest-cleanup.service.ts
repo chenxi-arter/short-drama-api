@@ -1,3 +1,6 @@
+/**
+ * 游客账号定时清理服务（清理过期未转化的游客用户）
+ */
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { GuestService } from './guest.service';

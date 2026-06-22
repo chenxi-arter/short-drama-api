@@ -1,10 +1,13 @@
+/**
+ * 视频 API 子模块 - 注册所有前端调用的控制器
+ */
 import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { VideoController } from '../video.controller';
-import { PublicVideoController } from '../public-video.controller';
-import { HomeController } from '../home.controller';
-import { ListController } from '../list.controller';
-import { CategoryController } from '../category.controller';
+import { VideoController } from '../controllers/video.controller';
+import { PublicVideoController } from '../controllers/public-video.controller';
+import { HomeController } from '../controllers/home.controller';
+import { ListController } from '../controllers/list.controller';
+import { CategoryController } from '../controllers/category.controller';
 import { BannerController } from '../controllers/banner.controller';
 
 // 新增的专门控制器

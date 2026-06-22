@@ -1,6 +1,6 @@
 import { Get, Query } from '@nestjs/common';
-import { VideoService } from './video.service';
-import { HomeVideosDto } from './dto/home-videos.dto';
+import { VideoService } from '../video.service';
+import { HomeVideosDto } from '../dto/home-videos.dto';
 
 /**
  * 模块控制器基类

@@ -1,3 +1,7 @@
+/**
+ * 认证控制器 - 登录/注册/Token刷新/Telegram绑定
+ * 路由前缀: /api/auth
+ */
 import {
   Controller,
   Post,

@@ -1,3 +1,6 @@
+/**
+ * 评论点赞服务 - 点赞/取消/通知
+ */
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';

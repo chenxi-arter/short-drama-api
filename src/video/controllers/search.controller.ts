@@ -1,3 +1,7 @@
+/**
+ * 搜索控制器（关键词搜索/搜索建议）
+ * 路由前缀: /api/search
+ */
 import { Controller, Get, Query } from '@nestjs/common';
 import { SearchSuggestionsService } from '../services/search-suggestions.service';
 import { BaseController } from './base.controller';

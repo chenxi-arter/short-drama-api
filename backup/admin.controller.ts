@@ -1,5 +1,5 @@
 import { Controller, Delete, Param, Post, Get, Query, ParseIntPipe } from '@nestjs/common';
-import { VideoService } from './video.service';
+import { VideoService } from '../video.service';
 
 /**
  * 管理员剧集管理控制器

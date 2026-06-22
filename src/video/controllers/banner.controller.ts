@@ -1,3 +1,7 @@
+/**
+ * Banner 管理控制器（前端展示）
+ * 路由前缀: /api/banner
+ */
 import {
   Controller,
   Get,
@@ -11,7 +15,7 @@ import {
   ValidationPipe,
 } from '@nestjs/common';
 import { BannerService } from '../services/banner.service';
-import { AdminResponseUtil } from '../../common/utils/admin-response.util';
+import { ResponseUtil } from '../../common/utils/response.util';
 import { CreateBannerDto, UpdateBannerDto, BannerQueryDto, BannerResponseDto } from '../dto/banner.dto';
 
 @Controller('banners')
@@ -23,7 +27,7 @@ export class BannerController {
     @Body(ValidationPipe) createBannerDto: CreateBannerDto,
   ): Promise<{ code: number; msg: string; data: BannerResponseDto; success: boolean; timestamp: number; }> {
     const banner = await this.bannerService.createBanner(createBannerDto);
-    const resp = AdminResponseUtil.success(banner, '创建成功');
+    const resp = ResponseUtil.success(banner, '创建成功');
     return { code: resp.code, msg: '创建成功', data: resp.data, success: resp.success, timestamp: resp.timestamp };
   }
 
@@ -33,7 +37,7 @@ export class BannerController {
     @Body(ValidationPipe) updateBannerDto: UpdateBannerDto,
   ): Promise<{ code: number; msg: string; data: BannerResponseDto; success: boolean; timestamp: number; }> {
     const banner = await this.bannerService.updateBanner(id, updateBannerDto);
-    const resp = AdminResponseUtil.success(banner, '更新成功');
+    const resp = ResponseUtil.success(banner, '更新成功');
     return { code: resp.code, msg: '更新成功', data: resp.data, success: resp.success, timestamp: resp.timestamp };
   }
 
@@ -42,7 +46,7 @@ export class BannerController {
     @Param('id', ParseIntPipe) id: number,
   ): Promise<{ code: number; msg: string; success: boolean; timestamp: number; }> {
     await this.bannerService.deleteBanner(id);
-    const resp = AdminResponseUtil.success(null as any, '删除成功');
+    const resp = ResponseUtil.success(null as any, '删除成功');
     return { code: resp.code, msg: '删除成功', success: resp.success, timestamp: resp.timestamp };
   }
 
@@ -51,7 +55,7 @@ export class BannerController {
     @Param('id', ParseIntPipe) id: number,
   ): Promise<{ code: number; msg: string; data: BannerResponseDto; success: boolean; timestamp: number; }> {
     const banner = await this.bannerService.getBannerById(id);
-    const resp = AdminResponseUtil.success(banner, '获取成功');
+    const resp = ResponseUtil.success(banner, '获取成功');
     return { code: resp.code, msg: '获取成功', data: resp.data, success: resp.success, timestamp: resp.timestamp };
   }
 
@@ -60,7 +64,7 @@ export class BannerController {
     @Query(ValidationPipe) queryDto: BannerQueryDto,
   ): Promise<{ code: number; msg: string; data: { data: BannerResponseDto[]; total: number; page: number; size: number; }; success: boolean; timestamp: number; }> {
     const result = await this.bannerService.getBanners(queryDto);
-    const resp = AdminResponseUtil.success(result, '获取成功');
+    const resp = ResponseUtil.success(result, '获取成功');
     return { code: resp.code, msg: '获取成功', data: resp.data, success: resp.success, timestamp: resp.timestamp };
   }
 
@@ -70,7 +74,7 @@ export class BannerController {
     @Body('isActive') isActive: boolean,
   ): Promise<{ code: number; msg: string; data: BannerResponseDto; success: boolean; timestamp: number; }> {
     const banner = await this.bannerService.toggleBannerStatus(id, isActive);
-    const resp = AdminResponseUtil.success(banner, '操作成功');
+    const resp = ResponseUtil.success(banner, '操作成功');
     return { code: resp.code, msg: '操作成功', data: resp.data, success: resp.success, timestamp: resp.timestamp };
   }
 
@@ -79,7 +83,7 @@ export class BannerController {
     @Body('updates') updates: { id: number; weight: number }[],
   ): Promise<{ code: number; msg: string; success: boolean; timestamp: number; }> {
     await this.bannerService.updateBannerWeights(updates);
-    const resp = AdminResponseUtil.success(null as any, '更新成功');
+    const resp = ResponseUtil.success(null as any, '更新成功');
     return { code: resp.code, msg: '更新成功', success: resp.success, timestamp: resp.timestamp };
   }
 
@@ -89,7 +93,7 @@ export class BannerController {
     @Query('limit') limit: number = 5,
   ): Promise<{ code: number; msg: string; data: any[]; success: boolean; timestamp: number; }> {
     const banners = await this.bannerService.getActiveBanners(categoryId, limit);
-    const resp = AdminResponseUtil.success(banners, '获取成功');
+    const resp = ResponseUtil.success(banners, '获取成功');
     return { code: resp.code, msg: '获取成功', data: resp.data, success: resp.success, timestamp: resp.timestamp };
   }
 
@@ -99,7 +103,7 @@ export class BannerController {
     @Param('id', ParseIntPipe) id: number,
   ): Promise<{ code: number; msg: string; success: boolean; timestamp: number; }> {
     await this.bannerService.incrementImpression(id);
-    const resp = AdminResponseUtil.success(null as any, 'ok');
+    const resp = ResponseUtil.success(null as any, 'ok');
     return { code: resp.code, msg: 'ok', success: resp.success, timestamp: resp.timestamp };
   }
 
@@ -116,7 +120,7 @@ export class BannerController {
       await this.bannerService.incrementImpression(id);
     }
     
-    const resp = AdminResponseUtil.success(null as any, 'ok');
+    const resp = ResponseUtil.success(null as any, 'ok');
     return { code: resp.code, msg: 'ok', success: resp.success, timestamp: resp.timestamp };
   }
 
@@ -126,7 +130,7 @@ export class BannerController {
     @Param('id', ParseIntPipe) id: number,
   ): Promise<{ code: number; msg: string; success: boolean; timestamp: number; }> {
     await this.bannerService.incrementClick(id);
-    const resp = AdminResponseUtil.success(null as any, 'ok');
+    const resp = ResponseUtil.success(null as any, 'ok');
     return { code: resp.code, msg: 'ok', success: resp.success, timestamp: resp.timestamp };
   }
 
@@ -138,7 +142,7 @@ export class BannerController {
     @Query('to') to: string,
   ): Promise<{ code: number; msg: string; data: any; success: boolean; timestamp: number; }> {
     const data = await this.bannerService.getBannerDailyStats(id, from, to);
-    const resp = AdminResponseUtil.success(data, 'ok');
+    const resp = ResponseUtil.success(data, 'ok');
     return { code: resp.code, msg: 'ok', data: resp.data, success: resp.success, timestamp: resp.timestamp };
   }
 }

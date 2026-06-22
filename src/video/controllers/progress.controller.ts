@@ -1,3 +1,7 @@
+/**
+ * 观看进度控制器
+ * 路由前缀: /api/video/progress
+ */
 import { Controller, Post, Body, Get, Query, UseGuards, Req, BadRequestException } from '@nestjs/common';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { VideoService } from '../video.service';

@@ -1,3 +1,6 @@
+/**
+ * 播放地址服务 - CDN URL 获取/签名/缓存
+ */
 import { Injectable, Inject } from '@nestjs/common';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';

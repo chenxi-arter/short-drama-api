@@ -1,11 +1,11 @@
 import { Controller, Get, Query } from '@nestjs/common';
-import { AdminResponseUtil } from '../common/utils/admin-response.util';
-import { VideoService } from './video.service';
-import { FilterTagsDto } from './dto/filter-tags.dto';
-import { FilterDataDto } from './dto/filter-data.dto';
-import { ConditionFilterDto } from './dto/condition-filter.dto';
-import { FuzzySearchDto } from './dto/fuzzy-search.dto';
-import { CategoryValidator } from '../common/validators/category-validator';
+import { ResponseUtil } from '../../common/utils/response.util';
+import { VideoService } from '../video.service';
+import { FilterTagsDto } from '../dto/filter-tags.dto';
+import { FilterDataDto } from '../dto/filter-data.dto';
+import { ConditionFilterDto } from '../dto/condition-filter.dto';
+import { FuzzySearchDto } from '../dto/fuzzy-search.dto';
+import { CategoryValidator } from '../../common/validators/category-validator';
 
 /**
  * 列表筛选相关控制器
@@ -61,7 +61,7 @@ export class ListController {
   @Get('fuzzysearch')
   async fuzzySearch(@Query() dto: FuzzySearchDto) {
     if (!dto.keyword || dto.keyword.trim() === '') {
-      const resp = AdminResponseUtil.error('搜索关键词不能为空', 400);
+      const resp = ResponseUtil.error('搜索关键词不能为空', 400);
       return { code: resp.code, msg: '搜索关键词不能为空', data: null, success: resp.success, timestamp: resp.timestamp };
     }
     
@@ -69,7 +69,7 @@ export class ListController {
     if (dto.categoryId) {
       const categoryIdNum = parseInt(dto.categoryId, 10);
       if (isNaN(categoryIdNum) || categoryIdNum <= 0) {
-        const resp = AdminResponseUtil.error('无效的分类ID格式', 400);
+        const resp = ResponseUtil.error('无效的分类ID格式', 400);
         return { code: resp.code, msg: '无效的分类ID格式', data: null, success: resp.success, timestamp: resp.timestamp };
       }
       
@@ -77,7 +77,7 @@ export class ListController {
       const validation = await this.categoryValidator.validateCategoryId(categoryIdNum);
       if (!validation.valid) {
         const availableMsg = await this.categoryValidator.formatAvailableCategoriesMessage();
-        const resp = AdminResponseUtil.error(`${validation.message}。${availableMsg}`, 400);
+        const resp = ResponseUtil.error(`${validation.message}。${availableMsg}`, 400);
         return { code: resp.code, msg: `${validation.message}。${availableMsg}`, data: null, success: resp.success, timestamp: resp.timestamp };
       }
     }
@@ -98,7 +98,7 @@ export class ListController {
   async clearFilterCache(@Query('channeid') channeid?: string) {
     await this.videoService.clearFilterCache(channeid);
     const message = channeid ? `已清除频道 ${channeid} 的筛选器缓存` : '已清除所有筛选器缓存';
-    const resp = AdminResponseUtil.success(null, message);
+    const resp = ResponseUtil.success(null, message);
     return { code: resp.code, msg: message, data: null, success: resp.success, timestamp: resp.timestamp };
   }
 }

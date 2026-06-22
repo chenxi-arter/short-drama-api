@@ -1,3 +1,7 @@
+/**
+ * 评论发布控制器
+ * 路由前缀: /api/video/comment
+ */
 import { Controller, Post, Body, UseGuards, Req, HttpStatus } from '@nestjs/common';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { VideoService } from '../video.service';

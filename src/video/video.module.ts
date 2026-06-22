@@ -1,3 +1,6 @@
+/**
+ * 视频业务主模块 - 注册所有子模块和核心 Provider
+ */
 // src/video/video.module.ts
 import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -18,7 +21,7 @@ import { FilterType } from './entity/filter-type.entity';      // 筛选器类�
 import { FilterOption } from './entity/filter-option.entity';  // 筛选器选项实体
 import { SeriesGenreOption } from './entity/series-genre-option.entity'; // 系列题材中间表
 import { VideoService } from './video.service';                // 视频业务逻辑服务
-import { CacheMonitorController } from './cache-monitor.controller'; // 缓存监控API控制器
+import { CacheMonitorController } from './controllers/cache-monitor.controller'; // 缓存监控API控制器
 import { VideoApiModule } from './modules/video-api.module';
 import { WatchProgressService } from './services/watch-progress.service';
 import { CommentService } from './services/comment.service';

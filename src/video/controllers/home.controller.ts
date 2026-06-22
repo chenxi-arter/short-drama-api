@@ -1,7 +1,7 @@
 import { Controller, Get } from '@nestjs/common';
-import { VideoService } from './video.service';
+import { VideoService } from '../video.service';
 import { BaseModuleController } from './base-module.controller';
-import { CategoryService } from './services/category.service';
+import { CategoryService } from '../services/category.service';
 
 /**
  * 首页相关控制器

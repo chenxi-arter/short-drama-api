@@ -1,3 +1,6 @@
+/**
+ * 广告追踪服务 - 事件存储/归因分析
+ */
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';

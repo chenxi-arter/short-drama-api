@@ -21,6 +21,7 @@
   "exclude": [
     "node_modules",
     "dist",
+    "backup",
     "ecosystem.config.js",
     "deploy.sh"
   ]

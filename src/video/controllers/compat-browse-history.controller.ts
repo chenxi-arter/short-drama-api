@@ -1,3 +1,7 @@
+/**
+ * 浏览历史兼容层控制器
+ * 路由前缀: /api/video/browse-history（旧路径兼容）
+ */
 import { Controller, Get, Query, UseGuards, Req } from '@nestjs/common';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { InjectRepository } from '@nestjs/typeorm';

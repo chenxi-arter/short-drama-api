@@ -1,3 +1,6 @@
+/**
+ * DAU 服务 - 基于 Redis HyperLogLog 的日活统计
+ */
 import { Injectable, Inject, Logger } from '@nestjs/common';
 import { RedisClientType } from 'redis';
 import { REDIS_CLIENT } from '../../core/redis/redis.module';

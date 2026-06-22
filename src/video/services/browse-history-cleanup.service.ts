@@ -1,3 +1,6 @@
+/**
+ * 浏览历史定时清理服务（Cron 自动清理过期记录）
+ */
 // src/video/services/browse-history-cleanup.service.ts
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';

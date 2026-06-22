@@ -1,3 +1,7 @@
+/**
+ * 评论列表控制器（公开）
+ * 路由前缀: /api/video/comments
+ */
 import { Controller, Get, Query, Req, UseGuards } from '@nestjs/common';
 import { BaseController } from './base.controller';
 import { VideoService } from '../video.service';

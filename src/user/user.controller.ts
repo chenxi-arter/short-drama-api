@@ -1,3 +1,7 @@
+/**
+ * 用户控制器 - 个人资料/修改信息
+ * 路由前缀: /api/user
+ */
 import { Body, Controller, Post, Get, UseGuards, Req } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { UserService } from './user.service';

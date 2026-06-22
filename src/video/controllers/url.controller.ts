@@ -1,3 +1,7 @@
+/**
+ * 播放地址控制器
+ * 路由前缀: /api/video/url
+ */
 import { Controller, Post, Body, Get, Param, BadRequestException } from '@nestjs/common';
 import { VideoService } from '../video.service';
 import { BaseController } from './base.controller';

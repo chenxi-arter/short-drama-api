@@ -1,3 +1,6 @@
+/**
+ * 推荐服务 - 基于用户观看历史的内容推荐
+ */
 import { Injectable, Inject, forwardRef } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';

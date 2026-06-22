@@ -1,11 +1,11 @@
 // src/video/browse-history.controller.ts
 import { Controller, Get, Query, Delete, UseGuards, Req, Param, Post } from '@nestjs/common';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RateLimitGuard, RateLimit, RateLimitConfigs } from '../common/guards/rate-limit.guard';
-import { BrowseHistoryService } from './services/browse-history.service';
-import { BrowseHistoryCleanupService } from './services/browse-history-cleanup.service';
-import { BaseController } from './controllers/base.controller';
-import { CategoryValidator } from '../common/validators/category-validator';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { RateLimitGuard, RateLimit, RateLimitConfigs } from '../../common/guards/rate-limit.guard';
+import { BrowseHistoryService } from '../services/browse-history.service';
+import { BrowseHistoryCleanupService } from '../services/browse-history-cleanup.service';
+import { BaseController } from './base.controller';
+import { CategoryValidator } from '../../common/validators/category-validator';
 
 /**
  * 私有浏览记录控制器

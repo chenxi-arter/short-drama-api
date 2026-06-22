@@ -1,3 +1,7 @@
+/**
+ * 管理后台 - 仪表盘控制器（概览/统计/趋势）
+ * 路由前缀: /api/admin/dashboard
+ */
 import { Controller, Get, Query, Post, Body, UseGuards } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';

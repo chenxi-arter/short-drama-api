@@ -1,3 +1,7 @@
+/**
+ * 管理后台 - 用户管理控制器（列表/详情/封禁）
+ * 路由前缀: /api/admin/users
+ */
 import { Controller, Get, Post, Put, Delete, Param, Body, Query, UseGuards } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';

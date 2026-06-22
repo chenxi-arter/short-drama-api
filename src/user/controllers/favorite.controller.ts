@@ -1,3 +1,7 @@
+/**
+ * 收藏控制器 - 系列/剧集收藏管理
+ * 路由前缀: /api/user/favorites
+ */
 import { Controller, Get, Post, Query, Body, UseGuards, Req } from '@nestjs/common';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { FavoriteService } from '../services/favorite.service';

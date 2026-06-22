@@ -1,3 +1,7 @@
+/**
+ * 数据导入控制器（系列/剧集批量入库）
+ * 路由前缀: /api/ingest
+ */
 import { Body, Controller, Get, Param, Post, UseInterceptors, UsePipes, ValidationPipe } from '@nestjs/common';
 import { IngestResultInterceptor } from '../../common/interceptors/ingest-result.interceptor';
 import { ValidationToItemsPipe } from '../../common/pipes/validation-to-items.pipe';

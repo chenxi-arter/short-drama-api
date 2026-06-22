@@ -1,3 +1,6 @@
+/**
+ * 剧集服务 - 剧集 CRUD/排序/播放统计
+ */
 import { Injectable, Inject, BadRequestException, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';

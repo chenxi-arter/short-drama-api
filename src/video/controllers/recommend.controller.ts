@@ -1,3 +1,7 @@
+/**
+ * 推荐内容控制器
+ * 路由前缀: /api/video/recommend
+ */
 import { Controller, Get, Query, Req, UseGuards } from '@nestjs/common';
 import { RecommendService } from '../services/recommend.service';
 import { RecommendQueryDto } from '../dto/recommend.dto';

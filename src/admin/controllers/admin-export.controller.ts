@@ -1,3 +1,7 @@
+/**
+ * 管理后台 - 数据导出控制器
+ * 路由前缀: /api/admin/export
+ */
 import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between } from 'typeorm';

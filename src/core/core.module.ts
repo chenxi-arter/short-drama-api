@@ -1,3 +1,6 @@
+/**
+ * 核心模块 - 全局基础设施（限流/缓存/配置/数据库/Redis）
+ */
 import { Global, Module } from '@nestjs/common';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { ConfigModule } from './config/config.module';

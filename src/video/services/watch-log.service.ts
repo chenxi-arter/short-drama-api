@@ -1,3 +1,6 @@
+/**
+ * 观看日志服务 - 用户观看行为记录
+ */
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between } from 'typeorm';

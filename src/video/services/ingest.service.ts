@@ -1,3 +1,6 @@
+/**
+ * 数据导入服务 - 系列/剧集批量入库、URL绑定
+ */
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';

@@ -1,3 +1,6 @@
+/**
+ * 剧集互动服务 - 点赞/点踩/收藏计数
+ */
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';

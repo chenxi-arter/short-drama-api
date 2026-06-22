@@ -1,7 +1,7 @@
 // src/video/category.controller.ts
 import { Controller, Get, Query } from '@nestjs/common';
-import { CategoryService } from './services/category.service';
-import { CategoryListDto, CategoryListResponse } from './dto/category-list.dto';
+import { CategoryService } from '../services/category.service';
+import { CategoryListDto, CategoryListResponse } from '../dto/category-list.dto';
 
 /**
  * 分类控制器

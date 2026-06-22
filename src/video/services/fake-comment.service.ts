@@ -1,3 +1,6 @@
+/**
+ * 假评论生成服务 - 用于内容冷启动填充评论
+ */
 import { Injectable } from '@nestjs/common';
 import { DefaultAvatarUtil } from '../../common/utils/default-avatar.util';
 

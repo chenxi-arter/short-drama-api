@@ -1,8 +1,11 @@
+/**
+ * 管理员认证服务 - 登录/注册/Token管理/密码重置
+ */
 import { Injectable, OnModuleInit, UnauthorizedException, BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { AdminUser } from '../entities/admin-user.entity';
+import { AdminUser } from '../entity/admin-user.entity';
 import { PasswordUtil } from '../../common/utils/password.util';
 
 type AdminLoginDto = {

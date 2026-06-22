@@ -1,3 +1,7 @@
+/**
+ * 广告追踪控制器 - 曝光/点击上报
+ * 路由前缀: /api/advertising/tracking
+ */
 import { Controller, Post, Body, Req, UseGuards } from '@nestjs/common';
 import { Request } from 'express';
 import { TrackingService } from '../services';

@@ -1,3 +1,6 @@
+/**
+ * 视频核心服务 - 系列列表/筛选/搜索/首页模块
+ */
 import { Injectable, Inject } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';

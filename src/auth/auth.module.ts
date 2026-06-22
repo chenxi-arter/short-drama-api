@@ -1,3 +1,6 @@
+/**
+ * 认证模块 - JWT/Telegram/游客/邮箱认证
+ */
 import { Module, forwardRef } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';

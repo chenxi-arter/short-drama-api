@@ -1,3 +1,7 @@
+/**
+ * 内容查询控制器（系列详情/剧集信息）
+ * 路由前缀: /api/video
+ */
 import { Controller, Get, Query, UseGuards, Req } from '@nestjs/common';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { VideoService } from '../video.service';

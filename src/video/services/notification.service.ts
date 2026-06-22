@@ -1,3 +1,6 @@
+/**
+ * 通知聚合服务 - 评论回复/点赞通知查询
+ */
 import { Injectable } from '@nestjs/common';
 import { CommentService } from './comment.service';
 import { CommentLikeService } from './comment-like.service';

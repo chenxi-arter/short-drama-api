@@ -1,3 +1,6 @@
+/**
+ * 广告活动服务 - 广告投放/CRUD/状态管理
+ */
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, SelectQueryBuilder } from 'typeorm';

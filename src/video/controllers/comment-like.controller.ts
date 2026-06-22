@@ -1,3 +1,7 @@
+/**
+ * 评论点赞控制器
+ * 路由前缀: /api/video/comment-like
+ */
 import { Controller, Post, Get, Body, Query, UseGuards, Req } from '@nestjs/common';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { BaseController } from './base.controller';

@@ -1,3 +1,6 @@
+/**
+ * 内容查询服务 - 系列详情/剧集信息/关联数据
+ */
 import { Injectable, Inject, BadRequestException, forwardRef } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';

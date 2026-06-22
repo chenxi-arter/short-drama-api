@@ -1,3 +1,6 @@
+/**
+ * Telegram 认证服务 - initData 验签/用户绑定
+ */
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as crypto from 'crypto';

@@ -1,3 +1,6 @@
+/**
+ * 评论服务 - 发布/查询/楼层/回复树
+ */
 import { Injectable, Inject } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, IsNull, MoreThan } from 'typeorm';

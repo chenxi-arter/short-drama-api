@@ -1,3 +1,6 @@
+/**
+ * 账号合并服务 - 游客数据迁移到正式账号
+ */
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';

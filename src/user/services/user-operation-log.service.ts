@@ -1,3 +1,6 @@
+/**
+ * 用户操作日志服务 - 记录关键用户行为
+ */
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';

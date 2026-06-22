@@ -7,7 +7,7 @@ import { WatchProgress } from '../entity/watch-progress.entity';
 import { Episode } from '../entity/episode.entity';
 import { BrowseHistoryService } from '../services/browse-history.service';
 import { BrowseHistoryCleanupService } from '../services/browse-history-cleanup.service';
-import { BrowseHistoryController } from '../browse-history.controller';
+import { BrowseHistoryController } from '../controllers/browse-history.controller';
 import { CategoryValidator } from '../../common/validators/category-validator';
 import { CategoryService } from '../services/category.service';
 import { Category } from '../entity/category.entity';

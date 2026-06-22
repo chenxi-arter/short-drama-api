@@ -1,3 +1,6 @@
+/**
+ * 游客账号服务 - 匿名用户创建/Token签发
+ */
 import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, LessThan, MoreThan, Not, IsNull, In } from 'typeorm';
@@ -60,7 +63,7 @@ export class GuestService {
       last_name: '',
       photo_url: defaultAvatar,
       is_active: true,
-      username: `guest_${guestToken}`,
+      username: `guest_${guestNumber.toString().padStart(6, '0')}`,
     });
 
     return await this.userRepo.save(user);

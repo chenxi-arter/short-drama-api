@@ -1,3 +1,6 @@
+/**
+ * Banner 服务 - CRUD/查询/统计
+ */
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, FindManyOptions, Between } from 'typeorm';

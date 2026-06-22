@@ -1,3 +1,6 @@
+/**
+ * 控制器基类 - 提供统一的成功/错误响应方法
+ */
 import { Controller, HttpException, HttpStatus } from '@nestjs/common';
 import { Response } from 'express';
 

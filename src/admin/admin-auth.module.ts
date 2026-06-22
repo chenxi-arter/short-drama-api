@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { AdminUser } from './entities/admin-user.entity';
+import { AdminUser } from './entity/admin-user.entity';
 import { AdminAuthService } from './services/admin-auth.service';
 import { AdminJwtAuthGuard } from './guards/admin-jwt-auth.guard';
 
