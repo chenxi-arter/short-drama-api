@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Delete, Param, Body, Query, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Param, Body, Query, BadRequestException, NotFoundException, UseGuards } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, FindOptionsWhere, LessThanOrEqual, MoreThanOrEqual, Between } from 'typeorm';
 import { Episode } from '../../video/entity/episode.entity';
@@ -7,7 +7,9 @@ import { R2StorageService } from '../../core/storage/r2-storage.service';
 import { EpisodeService } from '../../video/services/episode.service';
 import { GetVideoPresignedUrlDto, VideoUploadCompleteDto } from '../dto/presigned-upload.dto';
 import { randomUUID } from 'crypto';
+import { AdminJwtAuthGuard } from '../guards/admin-jwt-auth.guard';
 
+@UseGuards(AdminJwtAuthGuard)
 @Controller('admin/episodes')
 export class AdminEpisodesController {
   constructor(

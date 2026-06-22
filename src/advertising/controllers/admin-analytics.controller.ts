@@ -1,7 +1,9 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { AnalyticsService } from '../services';
 import { AnalyticsQueryDto, DashboardResponseDto, PlatformComparisonDto } from '../dto';
+import { AdminJwtAuthGuard } from '../../admin/guards/admin-jwt-auth.guard';
 
+@UseGuards(AdminJwtAuthGuard)
 @Controller('admin/advertising')
 export class AdminAnalyticsController {
   constructor(private readonly analyticsService: AnalyticsService) {}

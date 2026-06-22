@@ -47,6 +47,7 @@ import { CatalogModule } from './catalog.module';
 import { SeriesModule } from './series.module';
 import { EpisodeModule } from './episode.module';
 import { BannerModule } from './banner.module';
+import { AuthModule } from '../../auth/auth.module';
 // import { HistoryModule } from './history.module';
 import { Series } from '../entity/series.entity';
 import { Episode } from '../entity/episode.entity';
@@ -72,6 +73,7 @@ import { DauService } from '../../admin/services/dau.service';
     SeriesModule,
     EpisodeModule,
     BannerModule,
+    forwardRef(() => AuthModule),
     // HistoryModule,
     TypeOrmModule.forFeature([
       Series, Episode, EpisodeUrl, EpisodeReaction, Comment, CommentLike, WatchProgress, WatchLog, Category, ShortVideo, Banner, FilterType, FilterOption,

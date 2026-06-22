@@ -13,10 +13,13 @@ import { CategoryService } from '../services/category.service';
 import { Category } from '../entity/category.entity';
 import { AppLoggerService } from '../../common/logger/app-logger.service';
 import { AppConfigService } from '../../common/config/app-config.service';
+import { UserOperationLog } from '../../user/entity/user-operation-log.entity';
+import { UserOperationLogService } from '../../user/services/user-operation-log.service';
+import { DauService } from '../../admin/services/dau.service';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([BrowseHistory, User, Series, Category, WatchProgress, Episode]),
+    TypeOrmModule.forFeature([BrowseHistory, User, Series, Category, WatchProgress, Episode, UserOperationLog]),
   ],
   controllers: [BrowseHistoryController],
   providers: [
@@ -26,9 +29,12 @@ import { AppConfigService } from '../../common/config/app-config.service';
     CategoryValidator,
     AppLoggerService,
     AppConfigService,
+    UserOperationLogService,
+    DauService,
   ],
   exports: [BrowseHistoryService, BrowseHistoryCleanupService, TypeOrmModule],
 })
 export class HistoryModule {}
+
 
 

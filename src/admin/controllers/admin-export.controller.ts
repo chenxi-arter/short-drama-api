@@ -1,4 +1,4 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between } from 'typeorm';
 import { WatchProgress } from '../../video/entity/watch-progress.entity';
@@ -12,11 +12,13 @@ import { Comment } from '../../video/entity/comment.entity';
 import { ExportSeriesDetailsDto, SeriesDetailData } from '../dto/export-series-details.dto';
 import { WatchLogService } from '../../video/services/watch-log.service';
 import { AnalyticsService } from '../services/analytics.service';
+import { AdminJwtAuthGuard } from '../guards/admin-jwt-auth.guard';
 
 /**
  * 数据导出控制器
  * 用于运维导出Excel所需的统计数据
  */
+@UseGuards(AdminJwtAuthGuard)
 @Controller('admin/export')
 export class AdminExportController {
   constructor(
@@ -606,7 +608,7 @@ export class AdminExportController {
    * - active_users：与 dashboard/active-users 的单日 dau 完全一致
    * - 单日实现：优先读 Redis HyperLogLog（dau:YYYYMMDD），再与 MySQL（当天观看用户 ∪ 当天注册用户）结果取较大值
    * - retention_next_day：今天的数据次日才能计算，返回 null
-   * - avg_daily_duration / avg_daily_launches：依赖 watch_logs 表，无数据时返回 null
+   * - avg_daily_duration / avg_daily_watch_sessions：依赖 watch_logs 表，无数据时返回 null
    */
   @Get('overview-stats')
   async getOverviewStats(
@@ -633,7 +635,7 @@ export class AdminExportController {
       // ── 2. 新增用户（按日） ──────────────────────────────────────────────
       const newUserRows = await this.userRepo
         .createQueryBuilder('u')
-        .select("DATE_FORMAT(u.created_at, '%Y-%m-%d')", 'date')
+        .select("DATE_FORMAT(DATE_ADD(u.created_at, INTERVAL 8 HOUR), '%Y-%m-%d')", 'date')
         .addSelect('COUNT(*)', 'cnt')
         .where('u.created_at >= :start', { start })
         .andWhere('u.created_at <= :end', { end })
@@ -645,7 +647,7 @@ export class AdminExportController {
       // 一次查询获取每天末尾前的累计数，用 subquery 方式：
       const cumulativeRows = await this.userRepo
         .createQueryBuilder('u')
-        .select("DATE_FORMAT(u.created_at, '%Y-%m-%d')", 'date')
+        .select("DATE_FORMAT(DATE_ADD(u.created_at, INTERVAL 8 HOUR), '%Y-%m-%d')", 'date')
         .addSelect('COUNT(*)', 'daily')
         .where('u.created_at <= :end', { end })
         .groupBy('date')
@@ -677,10 +679,10 @@ export class AdminExportController {
       const activeUsersMap = await this.analyticsService.getActiveUsersForDates(dates);
 
 
-      // ── 5. 观看次数（watch_progress 更新次数作为代理，非去重） ──────────
+      // ── 5. 观看次数（watch_progress 更新次数作为代理，非去重；按业务日 UTC+8 聚合） ──────────
       const launchRows = await this.wpRepo
         .createQueryBuilder('wp')
-        .select("DATE_FORMAT(wp.updated_at, '%Y-%m-%d')", 'date')
+        .select("DATE_FORMAT(DATE_ADD(wp.updated_at, INTERVAL 8 HOUR), '%Y-%m-%d')", 'date')
         .addSelect('COUNT(*)', 'cnt')
         .where('wp.updated_at >= :start', { start })
         .andWhere('wp.updated_at <= :end', { end })
@@ -688,7 +690,7 @@ export class AdminExportController {
         .getRawMany<{ date: string; cnt: string }>();
       const launchMap = new Map(launchRows.map(r => [r.date, parseInt(r.cnt)]));
 
-      // ── 6. 平均单次观看时长（avg_session_duration）── watch_logs ─────────
+      // ── 6. 平均单次观看时长（avg_session_duration）── 优先 watch_logs.watch_date；降级 watch_progress(updated_at 按业务日聚合) ─────────
       const sessionRows = await this.watchLogRepo
         .createQueryBuilder('wl')
         .select('DATE(wl.watch_date)', 'date')
@@ -702,7 +704,7 @@ export class AdminExportController {
       // 降级：若 watch_logs 无该日数据，从 watch_progress 取 avg stop_at_second
       const sessionFallbackRows = await this.wpRepo
         .createQueryBuilder('wp')
-        .select("DATE_FORMAT(wp.updated_at, '%Y-%m-%d')", 'date')
+        .select("DATE_FORMAT(DATE_ADD(wp.updated_at, INTERVAL 8 HOUR), '%Y-%m-%d')", 'date')
         .addSelect('AVG(wp.stop_at_second)', 'avgSession')
         .where('wp.updated_at >= :start', { start })
         .andWhere('wp.updated_at <= :end', { end })
@@ -710,7 +712,7 @@ export class AdminExportController {
         .getRawMany<{ date: string; avgSession: string }>();
       const sessionFallbackMap = new Map(sessionFallbackRows.map(r => [r.date, Math.round(parseFloat(r.avgSession) || 0)]));
 
-      // ── 7. 平均日观看时长 & 平均日观看次数（watch_logs，今日返回 null） ──
+      // ── 7. 平均日观看时长 & 平均日观看次数（以 watch_logs.watch_date 为准，今日返回 null） ──
       const dailyDurationRows = await this.watchLogRepo
         .createQueryBuilder('wl')
         .select('DATE(wl.watch_date)', 'date')
@@ -735,7 +737,7 @@ export class AdminExportController {
         ]),
       );
 
-      // ── 8. 次日留存率（批量计算，当天 = null） ──────────────────────────
+      // ── 8. 次日内容留存率（批量计算，当天 = null） ──────────────────────────
       const retentionMap = new Map<string, number | null>();
 
       // 找出需要计算留存的日期（排除今天及之后）
@@ -743,13 +745,13 @@ export class AdminExportController {
       dates.filter(d => d >= todayStr).forEach(d => retentionMap.set(d, null));
 
       if (retentionDates.length > 0) {
-        const retStart = new Date(retentionDates[0]); retStart.setHours(0, 0, 0, 0);
-        const retEnd   = new Date(retentionDates[retentionDates.length - 1]); retEnd.setHours(23, 59, 59, 999);
+        const { startDate: retStart } = this.analyticsService.getLocalDateRange(retentionDates[0]);
+        const { endDate: retEnd } = this.analyticsService.getLocalDateRange(retentionDates[retentionDates.length - 1]);
 
         // 一次查出范围内每天的新增用户数（cohort size）
         const cohortRows = await this.userRepo
           .createQueryBuilder('u')
-          .select("DATE_FORMAT(u.created_at, '%Y-%m-%d')", 'date')
+          .select("DATE_FORMAT(DATE_ADD(u.created_at, INTERVAL 8 HOUR), '%Y-%m-%d')", 'date')
           .addSelect('COUNT(*)', 'cnt')
           .where('u.created_at >= :retStart', { retStart })
           .andWhere('u.created_at <= :retEnd', { retEnd })
@@ -757,16 +759,15 @@ export class AdminExportController {
           .getRawMany<{ date: string; cnt: string }>();
         const cohortMap = new Map(cohortRows.map(r => [r.date, parseInt(r.cnt)]));
 
-        // 一次查出：当天注册的用户，次日是否有 watch_progress 记录
-        // 使用 JOIN：u.created_at 在某天，wp.updated_at 在次日
+        // 一次查出：某业务日注册的用户，在下一业务日是否有 watch_progress 记录
         const retentionRows = await this.userRepo
           .createQueryBuilder('u')
-          .select("DATE_FORMAT(u.created_at, '%Y-%m-%d')", 'cohortDate')
+          .select("DATE_FORMAT(DATE_ADD(u.created_at, INTERVAL 8 HOUR), '%Y-%m-%d')", 'cohortDate')
           .addSelect('COUNT(DISTINCT u.id)', 'retained')
           .innerJoin(
             'watch_progress',
             'wp',
-            "wp.user_id = u.id AND DATE(wp.updated_at) = DATE(DATE_ADD(u.created_at, INTERVAL 1 DAY))",
+            "wp.user_id = u.id AND DATE_FORMAT(DATE_ADD(wp.updated_at, INTERVAL 8 HOUR), '%Y-%m-%d') = DATE_FORMAT(DATE_ADD(DATE_ADD(u.created_at, INTERVAL 8 HOUR), INTERVAL 1 DAY), '%Y-%m-%d')",
           )
           .where('u.created_at >= :retStart', { retStart })
           .andWhere('u.created_at <= :retEnd', { retEnd })
@@ -807,15 +808,15 @@ export class AdminExportController {
 
           return {
             date: d,
-            new_users:            newUsers,
-            active_users:         activeUsers,
-            launches:             launches,
-            total_users:          totalUsers,
-            new_user_ratio:       newUserRatio,
-            retention_next_day:   retentionMap.get(d) ?? null,
-            avg_session_duration: avgSessionDuration,
-            avg_daily_duration:   avgDailyDuration,
-            avg_daily_launches:   avgDailyLaunches,
+            new_users:                 newUsers,
+            content_active_users:      activeUsers,
+            watch_progress_updates:    launches,
+            total_users:               totalUsers,
+            new_user_ratio:            newUserRatio,
+            next_day_content_retention: retentionMap.get(d) ?? null,
+            avg_session_duration:      avgSessionDuration,
+            avg_daily_duration:        avgDailyDuration,
+            avg_daily_watch_sessions:  avgDailyLaunches,
           };
         })
         .reverse(); // 按日期倒序

@@ -1,5 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { AuthModule } from '../auth/auth.module';
+import { AdminAuthModule } from '../admin/admin-auth.module';
 
 // Entities
 import {
@@ -28,6 +30,8 @@ import {
 
 @Module({
   imports: [
+    AuthModule,
+    AdminAuthModule,
     TypeOrmModule.forFeature([
       AdvertisingPlatform,
       AdvertisingCampaign,

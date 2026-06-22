@@ -1,8 +1,10 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { FilterOption } from '../../video/entity/filter-option.entity';
+import { AdminJwtAuthGuard } from '../guards/admin-jwt-auth.guard';
 
+@UseGuards(AdminJwtAuthGuard)
 @Controller('admin/options')
 export class AdminOptionsController {
   constructor(

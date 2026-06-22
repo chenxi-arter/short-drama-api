@@ -1,8 +1,10 @@
-import { Controller, Get, Post, Delete, Param, Body, Query } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Param, Body, Query, UseGuards } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Category } from '../../video/entity/category.entity';
+import { AdminJwtAuthGuard } from '../guards/admin-jwt-auth.guard';
 
+@UseGuards(AdminJwtAuthGuard)
 @Controller('admin/categories')
 export class AdminCategoriesController {
   constructor(

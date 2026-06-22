@@ -59,8 +59,8 @@ export class AnalyticsService {
 
   /**
    * 获取 DAU（日活跃用户数）
-   * 统计口径与 export/overview-stats 的 active_users 保持一致：
-   * 当天观看用户 ∪ 当天注册用户（去重）
+   * 统计口径与 export/overview-stats 的 content_active_users 保持一致：
+   * 某业务日内所有鉴权成功请求的去重用户数（Redis HyperLogLog）
    */
   async getDAU(date?: Date): Promise<number> {
     return this.getActiveUsersForDay(date || new Date());
@@ -68,74 +68,44 @@ export class AnalyticsService {
 
   /**
    * 获取 WAU（周活跃用户数）
-   * 统计口径与 export/overview-stats 的 active_users 保持一致：
-   * 最近 7 天观看用户 ∪ 最近 7 天注册用户（去重）
+   * 统计口径：最近 7 个业务日内的访问型 DAU 之和（按天去重结果求和）
    */
   async getWAU(endDate?: Date): Promise<number> {
-    const { dateStr, endDate: rangeEnd } = this.getBusinessDayRange(endDate || new Date());
-    const { startDate: rangeStart } = this.getBusinessDayRangeByDateStr(this.shiftBusinessDate(dateStr, -6));
-
-    return this.getUniqueActiveUsersInRange(rangeStart, rangeEnd);
+    const dates = this.enumerateLocalDates(
+      new Date((this.getBusinessDayRange(endDate || new Date()).startDate).getTime() - 6 * 24 * 60 * 60 * 1000),
+      endDate || new Date(),
+    );
+    const dailyMap = await this.getActiveUsersForDates(dates);
+    return dates.reduce((sum, date) => sum + (dailyMap.get(date) ?? 0), 0);
   }
 
   /**
    * 获取 MAU（月活跃用户数）
-   * 统计口径与 export/overview-stats 的 active_users 保持一致：
-   * 最近 30 天观看用户 ∪ 最近 30 天注册用户（去重）
+   * 统计口径：最近 30 个业务日内的访问型 DAU 之和（按天去重结果求和）
    */
   async getMAU(endDate?: Date): Promise<number> {
-    const { dateStr, endDate: rangeEnd } = this.getBusinessDayRange(endDate || new Date());
-    const { startDate: rangeStart } = this.getBusinessDayRangeByDateStr(this.shiftBusinessDate(dateStr, -29));
-
-    return this.getUniqueActiveUsersInRange(rangeStart, rangeEnd);
+    const dates = this.enumerateLocalDates(
+      new Date((this.getBusinessDayRange(endDate || new Date()).startDate).getTime() - 29 * 24 * 60 * 60 * 1000),
+      endDate || new Date(),
+    );
+    const dailyMap = await this.getActiveUsersForDates(dates);
+    return dates.reduce((sum, date) => sum + (dailyMap.get(date) ?? 0), 0);
   }
 
   async getActiveUsersForDay(date: Date): Promise<number> {
-    const { dateStr, startDate, endDate } = this.getBusinessDayRange(date);
-    const redisCount = (await this.dauService.getDAU(dateStr)) ?? 0;
-    const mysqlCount = await this.getUniqueActiveUsersInRange(startDate, endDate);
-
-    return Math.max(redisCount, mysqlCount);
+    const { dateStr } = this.getBusinessDayRange(date);
+    return (await this.dauService.getDAU(dateStr)) ?? 0;
   }
 
   async getActiveUsersForDates(dates: string[]): Promise<Map<string, number>> {
     const result = new Map<string, number>();
     if (dates.length === 0) return result;
 
-    const dauRedisMap = await this.dauService.getDAUBatch(dates);
-
-    const { startDate } = this.getBusinessDayRangeByDateStr(dates[0]);
-    const { endDate } = this.getBusinessDayRangeByDateStr(dates[dates.length - 1]);
-
-    const rows = await this.wpRepo.manager.query(
-      `
-        SELECT date, COUNT(DISTINCT user_id) AS count FROM (
-          SELECT DATE_FORMAT(DATE_ADD(wp.updated_at, INTERVAL 8 HOUR), '%Y-%m-%d') AS date, wp.user_id
-          FROM watch_progress wp
-          WHERE wp.updated_at >= ? AND wp.updated_at <= ?
-          UNION
-          SELECT DATE_FORMAT(DATE_ADD(u.created_at, INTERVAL 8 HOUR), '%Y-%m-%d') AS date, u.id AS user_id
-          FROM users u
-          WHERE u.created_at >= ? AND u.created_at <= ?
-        ) t
-        GROUP BY date
-      `,
-      [startDate, endDate, startDate, endDate],
-    ) as Array<{ date: string; count: string | number }>;
-
-    const mysqlMap = new Map(
-      rows.map(row => [
-        row.date,
-        typeof row.count === 'number' ? row.count : parseInt(row.count, 10) || 0,
-      ]),
+    const redisPairs = await Promise.all(
+      dates.map(async date => [date, (await this.dauService.getDAU(date)) ?? 0] as const),
     );
 
-    dates.forEach(date => {
-      const redisCount = dauRedisMap.get(date) ?? 0;
-      const mysqlCount = mysqlMap.get(date) ?? 0;
-      result.set(date, Math.max(redisCount, mysqlCount));
-    });
-
+    redisPairs.forEach(([date, count]) => result.set(date, count));
     return result;
   }
 
@@ -173,7 +143,7 @@ export class AnalyticsService {
   }
 
   async getUniqueActiveUsersInRange(startDate: Date, endDate: Date): Promise<number> {
-    const rows = await this.wpRepo.manager.query(
+    const rows: { count: string | number }[] = await this.wpRepo.manager.query(
       `
         SELECT COUNT(DISTINCT user_id) AS count FROM (
           SELECT wp.user_id
@@ -186,9 +156,10 @@ export class AnalyticsService {
         ) t
       `,
       [startDate, endDate, startDate, endDate],
-    ) as Array<{ count: string | number }>;
+    );
 
-    const count = rows?.[0]?.count ?? 0;
+    const firstRow = rows[0];
+    const count = firstRow?.count ?? 0;
     return typeof count === 'number' ? count : parseInt(count, 10) || 0;
   }
 

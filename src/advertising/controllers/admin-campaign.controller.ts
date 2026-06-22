@@ -1,7 +1,9 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, ParseIntPipe } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, ParseIntPipe, UseGuards } from '@nestjs/common';
 import { CampaignService, AnalyticsService } from '../services';
 import { CreateCampaignDto, UpdateCampaignDto, UpdateCampaignStatusDto, CampaignQueryDto, CampaignListResponseDto, CampaignResponseDto, CampaignStatsResponseDto, AnalyticsQueryDto } from '../dto';
+import { AdminJwtAuthGuard } from '../../admin/guards/admin-jwt-auth.guard';
 
+@UseGuards(AdminJwtAuthGuard)
 @Controller('admin/advertising/campaigns')
 export class AdminCampaignController {
   constructor(

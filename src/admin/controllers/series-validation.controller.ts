@@ -1,13 +1,15 @@
-import { Controller, Get, Query, Param } from '@nestjs/common';
+import { Controller, Get, Query, Param, UseGuards } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Series } from '../../video/entity/series.entity';
 import { Episode } from '../../video/entity/episode.entity';
+import { AdminJwtAuthGuard } from '../guards/admin-jwt-auth.guard';
 
 /**
  * 系列数据验证控制器
  * 用于检测系列中的数据问题（如缺集）
  */
+@UseGuards(AdminJwtAuthGuard)
 @Controller('admin/series/validation')
 export class SeriesValidationController {
   constructor(

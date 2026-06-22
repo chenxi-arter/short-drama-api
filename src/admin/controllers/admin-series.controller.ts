@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Delete, Param, Body, Query, UseInterceptors, UploadedFile, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Param, Body, Query, UseInterceptors, UploadedFile, BadRequestException, NotFoundException, UseGuards } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Series } from '../../video/entity/series.entity';
@@ -10,7 +10,9 @@ import { GetPresignedUrlDto, UploadCompleteDto } from '../dto/presigned-upload.d
 import { randomUUID } from 'crypto';
 import axios from 'axios';
 import * as https from 'https';
+import { AdminJwtAuthGuard } from '../guards/admin-jwt-auth.guard';
 
+@UseGuards(AdminJwtAuthGuard)
 @Controller('admin/series')
 export class AdminSeriesController {
   constructor(

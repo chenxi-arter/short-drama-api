@@ -1,7 +1,9 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, ParseIntPipe } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, ParseIntPipe, UseGuards } from '@nestjs/common';
 import { PlatformService } from '../services';
 import { CreatePlatformDto, UpdatePlatformDto, UpdatePlatformStatusDto, UpdatePlatformSortDto, PlatformResponseDto } from '../dto';
+import { AdminJwtAuthGuard } from '../../admin/guards/admin-jwt-auth.guard';
 
+@UseGuards(AdminJwtAuthGuard)
 @Controller('admin/advertising/platforms')
 export class AdminPlatformController {
   constructor(private readonly platformService: PlatformService) {}

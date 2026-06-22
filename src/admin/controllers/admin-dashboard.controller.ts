@@ -1,4 +1,4 @@
-import { Controller, Get, Query, Post, Body } from '@nestjs/common';
+import { Controller, Get, Query, Post, Body, UseGuards } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from '../../user/entity/user.entity';
@@ -11,6 +11,7 @@ import { WatchProgress } from '../../video/entity/watch-progress.entity';
 import { BrowseHistory } from '../../video/entity/browse-history.entity';
 import { AnalyticsService } from '../services/analytics.service';
 import { WatchLogsCleanupService } from '../../video/services/watch-logs-cleanup.service';
+import { AdminJwtAuthGuard } from '../guards/admin-jwt-auth.guard';
 
 function toDateStart(d?: string): Date | undefined {
   if (!d) return undefined;
@@ -28,6 +29,7 @@ function toDateEnd(d?: string): Date | undefined {
   return dt;
 }
 
+@UseGuards(AdminJwtAuthGuard)
 @Controller('admin/dashboard')
 export class AdminDashboardController {
   constructor(
@@ -71,21 +73,21 @@ export class AdminDashboardController {
       .andWhere('rt.expires_at > :now', { now })
       .getCount();
 
-    // 今日业务日新增用户（与核心运营数据口径一致；字段名 new24h 为历史保留）
+    // 今日业务日新增用户
     const newUsers24h = await this.userRepo
       .createQueryBuilder('u')
       .where('u.created_at >= :todayStart', { todayStart })
       .andWhere('u.created_at <= :todayEnd', { todayEnd })
       .getCount();
 
-    // 今日业务日新增评论（与核心运营数据口径一致；字段名 new24h 为历史保留）
+    // 今日业务日新增评论
     const comments24h = await this.commentRepo
       .createQueryBuilder('c')
       .where('c.created_at >= :todayStart', { todayStart })
       .andWhere('c.created_at <= :todayEnd', { todayEnd })
       .getCount();
 
-    // 今日业务日访问数（与核心运营数据口径一致；字段名 last24hVisits 为历史保留）
+    // 今日业务日访问数
     const visits24h = await this.bhRepo
       .createQueryBuilder('bh')
       .where('bh.updated_at >= :todayStart', { todayStart })
@@ -131,7 +133,7 @@ export class AdminDashboardController {
     return {
       users: {
         total: usersTotal,
-        new24h: newUsers24h,
+        newToday: newUsers24h,
         activeLogins,
         lastLoginAtLatest: latestRt?.createdAt ?? null,
       },
@@ -143,8 +145,8 @@ export class AdminDashboardController {
         totalImpressions,
         ctr: totalImpressions > 0 ? totalClicks / totalImpressions : 0,
       },
-      comments: { total: commentsTotal, new24h: comments24h },
-      plays: { totalPlayCount, last24hVisits: visits24h },
+      comments: { total: commentsTotal, newToday: comments24h },
+      plays: { totalPlayCount, todayVisits: visits24h },
       range,
     };
   }
@@ -290,7 +292,7 @@ export class AdminDashboardController {
    * GET /api/admin/dashboard/active-users
    *
    * 统计口径说明：
-   * - dau：与 export/overview-stats 单日 active_users 完全一致
+   * - dau：与 export/overview-stats 单日 content_active_users 完全一致
    * - 单日实现：优先读 Redis HyperLogLog，再与 MySQL（当天观看用户 ∪ 当天注册用户）取较大值
    * - wau / mau：分别按最近 7 / 30 天窗口内的 观看用户 ∪ 注册用户 去重
    */

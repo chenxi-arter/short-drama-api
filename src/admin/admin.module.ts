@@ -15,6 +15,7 @@ import { WatchLog } from '../video/entity/watch-log.entity';
 import { BrowseHistory } from '../video/entity/browse-history.entity';
 import { EpisodeReaction } from '../video/entity/episode-reaction.entity';
 import { Favorite } from '../user/entity/favorite.entity';
+import { UserOperationLog } from '../user/entity/user-operation-log.entity';
 import { FilterOption } from '../video/entity/filter-option.entity';
 
 // Controllers
@@ -27,11 +28,13 @@ import { AdminSeriesController } from './controllers/admin-series.controller';
 import { AdminDashboardController } from './controllers/admin-dashboard.controller';
 import { SeriesValidationController } from './controllers/series-validation.controller';
 import { AdminExportController } from './controllers/admin-export.controller';
+import { AdminAuthController } from './controllers/admin-auth.controller';
 
 // Modules
 import { VideoModule } from '../video/video.module';
 import { CoreModule } from '../core/core.module';
 import { AdvertisingModule } from '../advertising/advertising.module';
+import { AdminAuthModule } from './admin-auth.module';
 
 // Services
 import { AnalyticsService } from './services/analytics.service';
@@ -45,6 +48,7 @@ import { DauService } from './services/dau.service';
     VideoModule,
     CoreModule,
     AdvertisingModule,
+    AdminAuthModule,
     TypeOrmModule.forFeature([
       User,
       Banner,
@@ -59,10 +63,12 @@ import { DauService } from './services/dau.service';
       Category,
       EpisodeReaction,
       Favorite,
+      UserOperationLog,
       FilterOption,
     ])
   ],
   controllers: [
+    AdminAuthController,
     AdminUsersController,
     AdminBannersController,
     AdminCategoriesController,

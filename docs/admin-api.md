@@ -1,6 +1,6 @@
 ## Admin API 文档（供前端调用）
 
-本模块提供基础的管理端 CRUD 接口，无需鉴权与参数验证（临时方案，后续可能增加）。
+本模块提供管理端 CRUD 与数据统计接口。除管理员认证接口外，所有 `/admin/**` 管理端接口都需要携带管理员登录 token。
 
 - 基础前缀（根据运行方式不同）
   - 拆分部署（推荐）：
@@ -9,10 +9,64 @@
   - 单进程（main.ts 全量运行）：
     - 所有接口: `http://localhost:3000/api`
 - Admin 路由前缀: `/admin`
+- 鉴权方式：`Authorization: Bearer <admin_access_token>`
 - 统一返回：
   - 列表：`{ total, items, page, size }`
   - 详情/创建/更新：返回实体对象
   - 删除：`{ success: true }`
+
+---
+
+### 管理员认证 Admin Auth
+
+资源路径: `/admin/auth`
+
+- 初始化第一个管理员
+  - `POST /api/admin/auth/init`
+  - 仅当 `admin_users` 表为空时可用；已有管理员后会返回冲突错误
+  - 请求示例：
+```json
+{
+  "username": "admin",
+  "password": "Admin123",
+  "name": "超级管理员"
+}
+```
+
+- 管理员登录
+  - `POST /api/admin/auth/login`
+  - 请求示例：
+```json
+{
+  "username": "admin",
+  "password": "Admin123"
+}
+```
+  - 响应示例：
+```json
+{
+  "access_token": "eyJ...",
+  "token_type": "Bearer",
+  "expires_in": 28800,
+  "admin": {
+    "id": 1,
+    "username": "admin",
+    "name": "超级管理员",
+    "role": "super_admin",
+    "isActive": true
+  }
+}
+```
+
+- 获取当前管理员信息
+  - `GET /api/admin/auth/me`
+  - 请求头：`Authorization: Bearer <admin_access_token>`
+
+- 调用其他管理端接口
+```bash
+curl "http://localhost:8080/api/admin/users?page=1&size=20" \
+  -H "Authorization: Bearer <admin_access_token>"
+```
 
 ---
 
@@ -54,7 +108,7 @@ curl -X POST "http://localhost:8080/api/admin/categories/123?_method=DELETE"
 
 - 列表
   - `GET /api/admin/users?page=1&size=20`
-  - 每个用户项附带最近登录信息与活跃会话数：`lastLoginAt`、`lastLoginIp`、`lastLoginDevice`、`activeLogins`
+  - 每个用户项附带最近登录信息、在线数与登录次数：`lastLoginAt`、`lastLoginIp`、`lastLoginDevice`、`activeLogins`、`loginCount`
   - 响应示例：
 ```json
 {
@@ -71,7 +125,8 @@ curl -X POST "http://localhost:8080/api/admin/categories/123?_method=DELETE"
       "lastLoginAt": "2025-09-05T12:34:56.000Z",
       "lastLoginIp": "203.0.113.10",
       "lastLoginDevice": "iPhone 15 iOS 18",
-      "activeLogins": 2
+      "activeLogins": 2,
+      "loginCount": 18
     }
   ],
   "page": 1,
@@ -81,7 +136,53 @@ curl -X POST "http://localhost:8080/api/admin/categories/123?_method=DELETE"
 
 - 详情
   - `GET /api/admin/users/:id`
-  - 返回同样包含 `lastLoginAt`、`lastLoginIp`、`lastLoginDevice`、`activeLogins`
+  - 返回同样包含 `lastLoginAt`、`lastLoginIp`、`lastLoginDevice`、`activeLogins`、`loginCount`
+
+- 登录日志
+  - `GET /api/admin/users/:id/login-logs?page=1&size=20`
+  - 数据来源：`refresh_tokens`，每次登录签发 refresh token 时产生一条记录
+  - 响应示例：
+```json
+{
+  "total": 18,
+  "items": [
+    {
+      "id": 9001,
+      "createdAt": "2026-06-20T11:34:00.000Z",
+      "expiresAt": "2026-06-27T11:34:00.000Z",
+      "isRevoked": false,
+      "deviceInfo": "Guest User",
+      "ipAddress": "203.0.113.10"
+    }
+  ],
+  "page": 1,
+  "size": 20
+}
+```
+
+- 操作日志
+  - `GET /api/admin/users/:id/operation-logs?page=1&size=20`
+  - 数据来源：`user_operation_logs`，用户访问受 `JwtAuthGuard` 保护的接口时异步记录
+  - 响应示例：
+```json
+{
+  "total": 120,
+  "items": [
+    {
+      "id": 3001,
+      "userId": 1001,
+      "method": "GET",
+      "path": "/api/video/progress/123",
+      "action": "GET /api/video/progress/123",
+      "ipAddress": "203.0.113.10",
+      "userAgent": "Mozilla/5.0 ...",
+      "createdAt": "2026-06-20T11:36:00.000Z"
+    }
+  ],
+  "page": 1,
+  "size": 20
+}
+```
 
 - 新增（注意：`id` 为 bigint 主键，必填）
   - `POST /api/admin/users`
@@ -849,12 +950,12 @@ curl "http://localhost:9090/api/admin/series/validation/check-duplicate-names"
   - 返回：用户、系列、单集、轮播、评论、播放等核心指标，以及可选时间区间内的统计
 ```json
 {
-  "users": { "total": 40689, "new24h": 123, "activeLogins": 2040, "lastLoginAtLatest": "2025-09-05T12:34:56.000Z" },
+  "users": { "total": 40689, "newToday": 123, "activeLogins": 2040, "lastLoginAtLatest": "2025-09-05T12:34:56.000Z" },
   "series": { "total": 1200 },
   "episodes": { "total": 100293 },
   "banners": { "total": 18 },
-  "comments": { "total": 89000, "new24h": 450 },
-  "plays": { "totalPlayCount": 1234567, "last24hVisits": 34567 },
+  "comments": { "total": 89000, "newToday": 450 },
+  "plays": { "totalPlayCount": 1234567, "todayVisits": 34567 },
   "range": { "usersInRange": 1000, "visitsInRange": 45000, "playActiveInRange": 22000 }
 }
 ```
@@ -951,7 +1052,7 @@ curl "http://localhost:9090/api/admin/series/validation/check-duplicate-names"
 ```
 
 **字段说明**：
-- `dau`: 日活跃用户数，统计口径与 `overview-stats` 单日 `active_users` 一致：优先读 Redis HyperLogLog，之后与 MySQL（当天观看用户 ∪ 当天注册用户）结果取较大值
+- `dau`: 日活跃用户数，统计口径与 `overview-stats` 单日 `content_active_users` 一致：优先读 Redis HyperLogLog，之后与 MySQL（当天观看用户 ∪ 当天注册用户）结果取较大值
 - `wau`: 周活跃用户数（最近7天窗口内，观看用户 ∪ 注册用户 去重）
 - `mau`: 月活跃用户数（最近30天窗口内，观看用户 ∪ 注册用户 去重）
 - `sticky`: 粘性系数（DAU/MAU × 100），衡量用户活跃度，>20%为优秀
@@ -961,10 +1062,9 @@ curl "http://localhost:9090/api/admin/series/validation/check-duplicate-names"
 #### 活跃用户统计
 
 **口径补充说明**：
-- `dashboard/active-users` 中的 `dau` 与 `export/overview-stats` 单日 `active_users` 完全一致。
-- 单日实现：优先读取 Redis HyperLogLog 的 DAU，再与 MySQL 计算值比较并取较大值。
-- MySQL 计算口径：当天 **有观看行为的用户** 与 **当天新注册用户** 的并集去重。
-- `wau` / `mau` 不做“按天相加”，而是分别按最近 7 / 30 天窗口内的 **观看用户 ∪ 注册用户** 做窗口去重。
+- `dashboard/active-users` 中的 `dau` 与 `export/overview-stats` 单日 `content_active_users` 完全一致。
+- 单日实现：以 Redis HyperLogLog 为准，凡是当日带 token 且鉴权成功的请求用户都会计入去重 DAU。
+- `wau` / `mau` 当前基于最近 7 / 30 个业务日的访问型 DAU 累加计算，反映近 7 / 30 日访问活跃规模。
 
 - **获取DAU/WAU/MAU详细数据**
   - `GET /api/admin/dashboard/active-users`
@@ -989,9 +1089,9 @@ curl "http://localhost:9090/api/admin/series/validation/check-duplicate-names"
 | 字段 | 类型 | 含义 | 前端处理建议 |
 |------|------|------|--------------|
 | `code` | `number` | 业务状态码，`200` 表示成功 | 先判断 `code === 200`，失败时展示 `message` |
-| `data.dau` | `number` | 今日活跃用户数。实现与 `overview-stats` 单日 `active_users` 完全一致：Redis DAU 与 MySQL（当天观看用户 ∪ 当天注册用户）取较大值 | 直接按整数展示，建议显示为“今日日活” |
-| `data.wau` | `number` | 最近 7 天活跃用户数（最近 7 天窗口内，观看用户 ∪ 注册用户 去重） | 直接展示；不要与自然周混淆，它是“近 7 天滚动窗口” |
-| `data.mau` | `number` | 最近 30 天活跃用户数（最近 30 天窗口内，观看用户 ∪ 注册用户 去重） | 直接展示；不要理解为自然月 |
+| `data.dau` | `number` | 今日活跃用户数。实现与 `overview-stats` 单日 `content_active_users` 完全一致：当日带 token 且鉴权成功的请求用户去重数（Redis HyperLogLog） | 直接按整数展示，建议显示为“今日日活” |
+| `data.wau` | `number` | 最近 7 个业务日访问活跃规模，当前按最近 7 日 DAU 累加计算 | 直接展示；不要与自然周混淆，它是“近 7 天访问活跃规模” |
+| `data.mau` | `number` | 最近 30 个业务日访问活跃规模，当前按最近 30 日 DAU 累加计算 | 直接展示；不要理解为自然月 |
 | `data.dau7DayAvg` | `number` | 最近 7 天 DAU 平均值，已四舍五入 | 可用于和 `dau` 对比，展示趋势高低 |
 | `data.sticky` | `number` | 粘性系数，计算方式为 `DAU / MAU × 100`，保留 2 位小数 | 建议前端展示为百分比，如 `6.61%` |
 | `message` | `string` | 接口返回说明 | 失败提示直接透传即可 |
@@ -1187,12 +1287,40 @@ curl "http://localhost:9090/api/admin/series/validation/check-duplicate-names"
 ### cURL 示例
 
 ```bash
-# 列出轮播图（标准化）
+# ========== 管理员认证 ==========
+
+# 初始化第一个管理员（仅首次部署时调用一次）
+curl -X POST "http://localhost:8080/api/admin/auth/init" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "admin",
+    "password": "Admin123",
+    "name": "超级管理员"
+  }'
+
+# 管理员登录（获取 token）
+curl -X POST "http://localhost:8080/api/admin/auth/login" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "admin",
+    "password": "Admin123"
+  }'
+# 响应中 access_token 即为后续所有管理端接口的鉴权凭证
+
+# 获取当前管理员信息
+curl -X GET "http://localhost:8080/api/admin/auth/me" \
+  -H "Authorization: Bearer <admin_access_token>"
+
+# ========== 以下所有管理端接口均需带 Authorization 头 ==========
+# 示例中用 $TOKEN 代替实际 token，使用时替换为登录返回的 access_token
+
+# 列出轮播图（标准化，前台接口无需管理员 token）
 curl -X GET "http://localhost:3000/api/banners?page=1&size=10"
 
-# 新建轮播图（标准化）
-curl -X POST "http://localhost:3000/api/banners" \
+# 新建轮播图（管理端）
+curl -X POST "http://localhost:8080/api/admin/banners" \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
   -d '{
     "title": "首页 Banner",
     "imageUrl": "https://cdn.example.com/banner.png",
@@ -1204,6 +1332,7 @@ curl -X POST "http://localhost:3000/api/banners" \
 # 新建用户（注意 bigint 主键）
 curl -X POST "http://localhost:8080/api/admin/users" \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
   -d '{
     "id": 6702079700,
     "first_name": "随风",
@@ -1212,9 +1341,18 @@ curl -X POST "http://localhost:8080/api/admin/users" \
     "is_active": true
   }'
 
+# 获取用户登录日志
+curl -X GET "http://localhost:8080/api/admin/users/1001/login-logs?page=1&size=20" \
+  -H "Authorization: Bearer $TOKEN"
+
+# 获取用户操作日志
+curl -X GET "http://localhost:8080/api/admin/users/1001/operation-logs?page=1&size=20" \
+  -H "Authorization: Bearer $TOKEN"
+
 # 新建剧集
 curl -X POST "http://localhost:8080/api/admin/episodes" \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
   -d '{
     "seriesId": 12,
     "episodeNumber": 1,
@@ -1224,97 +1362,120 @@ curl -X POST "http://localhost:8080/api/admin/episodes" \
 
 # 获取剧集列表（返回包含 seriesTitle 字段）
 curl -X GET "http://localhost:8080/api/admin/episodes?page=1&size=5" \
-  -H "Content-Type: application/json"
+  -H "Authorization: Bearer $TOKEN"
 
 # 获取剧集下载地址
 curl -X GET "http://localhost:8080/api/admin/episodes/2136/download-urls" \
-  -H "Content-Type: application/json"
+  -H "Authorization: Bearer $TOKEN"
 
 # 系列管理 - 软删除功能示例
 
 # 获取所有系列（仅未删除）
-curl -X GET "http://localhost:8080/api/admin/series?page=1&size=20"
+curl -X GET "http://localhost:8080/api/admin/series?page=1&size=20" \
+  -H "Authorization: Bearer $TOKEN"
 
 # 获取所有系列（包括已删除）
-curl -X GET "http://localhost:8080/api/admin/series?page=1&size=20&includeDeleted=true"
+curl -X GET "http://localhost:8080/api/admin/series?page=1&size=20&includeDeleted=true" \
+  -H "Authorization: Bearer $TOKEN"
 
 # 按分类筛选系列（短剧）
-curl -X GET "http://localhost:8080/api/admin/series?page=1&size=20&categoryId=1"
+curl -X GET "http://localhost:8080/api/admin/series?page=1&size=20&categoryId=1" \
+  -H "Authorization: Bearer $TOKEN"
 
 # 按分类筛选系列（电影）
-curl -X GET "http://localhost:8080/api/admin/series?page=1&size=20&categoryId=2"
+curl -X GET "http://localhost:8080/api/admin/series?page=1&size=20&categoryId=2" \
+  -H "Authorization: Bearer $TOKEN"
 
 # 按分类筛选系列（电视剧）
-curl -X GET "http://localhost:8080/api/admin/series?page=1&size=20&categoryId=3"
+curl -X GET "http://localhost:8080/api/admin/series?page=1&size=20&categoryId=3" \
+  -H "Authorization: Bearer $TOKEN"
 
 # 获取已删除系列列表
-curl -X GET "http://localhost:8080/api/admin/series/deleted?page=1&size=20"
+curl -X GET "http://localhost:8080/api/admin/series/deleted?page=1&size=20" \
+  -H "Authorization: Bearer $TOKEN"
 
 # 软删除系列（推荐使用，不会出现外键约束错误）
 curl -X DELETE "http://localhost:8080/api/admin/series/2455" \
-  -H "Content-Type: application/json"
+  -H "Authorization: Bearer $TOKEN"
 
 # 恢复已删除的系列
 curl -X POST "http://localhost:8080/api/admin/series/2455/restore" \
-  -H "Content-Type: application/json"
+  -H "Authorization: Bearer $TOKEN"
 
 # 系列数据验证 ⭐ (默认全量扫描)
 
 # 获取数据质量统计
-curl -X GET "http://localhost:9090/api/admin/series/validation/stats"
+curl -X GET "http://localhost:9090/api/admin/series/validation/stats" \
+  -H "Authorization: Bearer $TOKEN"
 
 # 检查缺集和重复集数（全量扫描所有系列）
-curl -X GET "http://localhost:9090/api/admin/series/validation/check-missing-episodes"
+curl -X GET "http://localhost:9090/api/admin/series/validation/check-missing-episodes" \
+  -H "Authorization: Bearer $TOKEN"
 
 # 检查指定系列的缺集问题
-curl -X GET "http://localhost:9090/api/admin/series/validation/check-missing-episodes?seriesId=2455"
+curl -X GET "http://localhost:9090/api/admin/series/validation/check-missing-episodes?seriesId=2455" \
+  -H "Authorization: Bearer $TOKEN"
 
 # 检查重复系列名（全量扫描）
-curl -X GET "http://localhost:9090/api/admin/series/validation/check-duplicate-names"
+curl -X GET "http://localhost:9090/api/admin/series/validation/check-duplicate-names" \
+  -H "Authorization: Bearer $TOKEN"
 
 # 检查重复外部ID（全量扫描）
-curl -X GET "http://localhost:9090/api/admin/series/validation/check-duplicate-external-ids"
+curl -X GET "http://localhost:9090/api/admin/series/validation/check-duplicate-external-ids" \
+  -H "Authorization: Bearer $TOKEN"
 
 # 查看指定系列的详细集数信息
-curl -X GET "http://localhost:9090/api/admin/series/validation/episodes/2455"
+curl -X GET "http://localhost:9090/api/admin/series/validation/episodes/2455" \
+  -H "Authorization: Bearer $TOKEN"
 
 # 数据分析接口 ⭐ (高级统计)
 
 # 获取综合数据统计（包含所有核心指标）
-curl -X GET "http://localhost:8080/api/admin/dashboard/stats"
+curl -X GET "http://localhost:8080/api/admin/dashboard/stats" \
+  -H "Authorization: Bearer $TOKEN"
 
 # 获取 Dashboard 概览卡片数据
-curl -X GET "http://localhost:8080/api/admin/dashboard/overview"
+curl -X GET "http://localhost:8080/api/admin/dashboard/overview" \
+  -H "Authorization: Bearer $TOKEN"
 
 # 获取活跃用户统计（DAU/WAU/MAU）
-curl -X GET "http://localhost:8080/api/admin/dashboard/active-users"
+curl -X GET "http://localhost:8080/api/admin/dashboard/active-users" \
+  -H "Authorization: Bearer $TOKEN"
 
 # 获取昨天注册用户的次日留存率
-curl -X GET "http://localhost:8080/api/admin/dashboard/retention?retentionDays=1"
+curl -X GET "http://localhost:8080/api/admin/dashboard/retention?retentionDays=1" \
+  -H "Authorization: Bearer $TOKEN"
 
 # 获取7天前注册用户的7日留存率
-curl -X GET "http://localhost:8080/api/admin/dashboard/retention?retentionDays=7&cohortDate=2025-10-28"
+curl -X GET "http://localhost:8080/api/admin/dashboard/retention?retentionDays=7&cohortDate=2025-10-28" \
+  -H "Authorization: Bearer $TOKEN"
 
 # 获取最近7天的次日留存率趋势
-curl -X GET "http://localhost:8080/api/admin/dashboard/retention-trend?days=7&retentionDays=1"
+curl -X GET "http://localhost:8080/api/admin/dashboard/retention-trend?days=7&retentionDays=1" \
+  -H "Authorization: Bearer $TOKEN"
 
 # 获取内容播放统计（包含Top10热门剧集）
-curl -X GET "http://localhost:8080/api/admin/dashboard/content-stats"
+curl -X GET "http://localhost:8080/api/admin/dashboard/content-stats" \
+  -H "Authorization: Bearer $TOKEN"
 
 # 获取完播率和平均观影时长
-curl -X GET "http://localhost:8080/api/admin/dashboard/watch-stats"
+curl -X GET "http://localhost:8080/api/admin/dashboard/watch-stats" \
+  -H "Authorization: Bearer $TOKEN"
 
 # 获取观看日志统计信息
-curl -X GET "http://localhost:8080/api/admin/dashboard/watch-logs-stats"
+curl -X GET "http://localhost:8080/api/admin/dashboard/watch-logs-stats" \
+  -H "Authorization: Bearer $TOKEN"
 
 # 手动触发观看日志归档（删除1年前的数据）
 curl -X POST "http://localhost:8080/api/admin/dashboard/archive-watch-logs" \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
   -d '{"daysToKeep": 365, "archiveBeforeDelete": false}'
 
 # 归档并保存历史数据（先保存到archive表，再删除）
 curl -X POST "http://localhost:8080/api/admin/dashboard/archive-watch-logs" \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
   -d '{"daysToKeep": 365, "archiveBeforeDelete": true}'
 ```
 
@@ -1322,7 +1483,7 @@ curl -X POST "http://localhost:8080/api/admin/dashboard/archive-watch-logs" \
 
 ### 备注
 
-- 当前接口未做鉴权与验证，前端需自行保证传参正确性。
+- 所有 `/admin/**` 管理端接口均需携带管理员 token（`Authorization: Bearer <admin_access_token>`），认证接口 `/admin/auth/login` 和 `/admin/auth/init` 除外。
 - 所有时间字段请使用 ISO 8601 字符串（如 `2025-09-05T12:00:00Z`）。
 - `users` 的 `id` 为 bigint，若前端使用 JavaScript，请注意大整数精度问题（建议在 UI 层以字符串管理；传输时可用数字或字符串，按后端实际配置调整）。
 
@@ -1644,7 +1805,7 @@ const relative = dayjs(createdAt).fromNow();
 
 **性能说明**：
 - 次日留存率已优化为**批量 SQL**（2 条）替代原来的逐日 N+1 查询，支持大范围日期查询不超时
-- `active_users` 的单日统计优先读取 Redis HyperLogLog，并与 MySQL（当天观看用户 ∪ 当天注册用户）的去重结果取较大值；Redis 写入依赖 `watch_progress` 保存时的 `PFADD`，即使 Redis 不可用，读取时仍可由 MySQL 结果兜底
+- `content_active_users` 的单日统计优先读取 Redis HyperLogLog，并与 MySQL（当天观看用户 ∪ 当天注册用户）的去重结果取较大值；Redis 写入依赖 `watch_progress` 保存时的 `PFADD`，即使 Redis 不可用，读取时仍可由 MySQL 结果兜底
 
 **cURL 示例**：
 ```bash
@@ -1664,6 +1825,36 @@ curl "http://localhost:9090/api/admin/export/overview-stats?startDate=2026-03-25
 ---
 
 ## 📝 更新日志
+
+### v1.4.0 (2026-06-22)
+
+#### ✨ 新增功能
+
+**管理员认证体系 `/api/admin/auth`**
+- ✅ `POST /api/admin/auth/init` — 初始化首个管理员账号（仅可调用一次）
+- ✅ `POST /api/admin/auth/login` — 管理员登录，返回 JWT token
+- ✅ `GET /api/admin/auth/me` — 获取当前管理员信息
+- ✅ 独立 `admin_users` 表，不与前台用户混用
+- ✅ 支持 `ADMIN_JWT_SECRET` / `ADMIN_JWT_EXPIRES_IN` 环境变量（可选，回退 `JWT_SECRET`）
+
+**管理端接口全局鉴权保护**
+- ✅ 所有 `/admin/**` 管理端接口（除 login/init 外）已加 `AdminJwtAuthGuard`
+- ✅ 未携带有效管理员 token 时返回 `401 Unauthorized`
+- ✅ 覆盖范围：users、series、episodes、banners、categories、options、dashboard、export、ingest、advertising
+
+**用户登录次数与日志**
+- ✅ 用户列表/详情新增 `loginCount` 字段（基于 refresh_tokens 统计）
+- ✅ `GET /api/admin/users/:id/login-logs` — 查看用户登录日志
+- ✅ `GET /api/admin/users/:id/operation-logs` — 查看用户操作日志
+- ✅ `user_operation_logs` 表自动建表，`JwtAuthGuard` 通过时异步写入操作日志
+
+#### 🔒 安全改进
+
+- 管理端不再无鉴权暴露，公网部署安全性大幅提升
+- 管理员密码使用 bcrypt（12 轮 salt）加密存储
+- token 中嵌入 `typ: "admin"` 标识，与前台用户 token 互不通用
+
+---
 
 ### v1.3.0 (2026-03-30)
 
