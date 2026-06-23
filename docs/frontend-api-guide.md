@@ -29,6 +29,7 @@
 - [10. 轮播图统计](#10-轮播图统计) ⭐ 新增
 - [11. 通知系统](#11-通知系统)
 - [12. 短链接服务](#12-短链接服务) ⭐ 新增
+- [13. 上报接口](#13-上报接口) ⭐ 新增
 
 ---
 
@@ -3292,5 +3293,256 @@ const shortUrl = await createShortLink(seriesUrl);
 
 ---
 
+## 13. 上报接口
+
+**概述**:
+
+前端需要在用户观看或保持在线时主动上报数据，用于后端统计在线时长、观看进度、DAU（日活）和用户活跃状态。
+
+**认证要求**:
+
+本章节接口都需要携带用户 Token：
+
+```http
+Authorization: Bearer <access_token>
+```
+
+---
+
+### 13.1 在线心跳上报
+
+**接口**: `POST /api/user/heartbeat`
+
+**功能**: 上报用户在线心跳，用于统计在线时长和在线状态。
+
+**认证**: 必需
+
+**请求参数**: 无
+
+**请求示例**:
+```javascript
+async function reportHeartbeat() {
+  const token = localStorage.getItem('access_token');
+  if (!token) return;
+
+  const res = await fetch('/api/user/heartbeat', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  });
+
+  return res.json();
+}
+```
+
+**返回数据**:
+```json
+{
+  "ok": true
+}
+```
+
+**统计逻辑**:
+
+- 每调用一次心跳，后端累计在线时长 **60 秒**
+- 在线时长先写入 Redis：`online:YYYY-MM-DD`
+- 后端每 5 分钟将 Redis 中的数据批量刷入 MySQL 的 `user_online_daily` 表
+- 同时写入 `online:last:{userId}`，用于管理后台判断用户是否在线
+- 5 分钟内有心跳记录则视为在线
+- 调用心跳接口会经过 JWT 鉴权，因此也会触发 DAU HyperLogLog 统计，但同一用户同一天只计一次 DAU
+
+**推荐调用频率**:
+
+```javascript
+// 登录成功后或进入应用后启动心跳
+let heartbeatTimer = null;
+
+function startHeartbeat() {
+  if (heartbeatTimer) return;
+
+  // 进入页面先上报一次
+  reportHeartbeat().catch(console.error);
+
+  // 每 60 秒上报一次
+  heartbeatTimer = setInterval(() => {
+    reportHeartbeat().catch(console.error);
+  }, 60 * 1000);
+}
+
+function stopHeartbeat() {
+  if (heartbeatTimer) {
+    clearInterval(heartbeatTimer);
+    heartbeatTimer = null;
+  }
+}
+
+// 页面隐藏时可暂停，恢复可继续
+window.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    stopHeartbeat();
+  } else {
+    startHeartbeat();
+  }
+});
+
+window.addEventListener('beforeunload', stopHeartbeat);
+```
+
+**注意事项**:
+
+- 不建议低于 60-5min 秒频率调用，避免重复累计在线时长
+- 如果用户未登录或 Token 过期，会返回 401
+- 游客登录后也可以上报心跳，只要携带游客登录返回的 `access_token`
+
+---
+
+### 13.2 观看进度上报
+
+**接口**: `POST /api/video/progress`
+
+**功能**: 上报当前剧集观看进度，用于恢复播放位置、统计观看时长和更新用户活跃度。
+
+**认证**: 必需
+
+**请求参数**:
+```json
+{
+  "episodeIdentifier": "string | number",
+  "stopAtSecond": 120
+}
+```
+
+| 参数 | 类型 | 必填 | 说明 |
+|---|---|---|---|
+| `episodeIdentifier` | string/number | 是 | 剧集 ShortID 或数字 ID |
+| `stopAtSecond` | number | 是 | 当前观看到的秒数 |
+
+**请求示例**:
+```javascript
+async function reportWatchProgress(episodeIdentifier, stopAtSecond) {
+  const token = localStorage.getItem('access_token');
+  if (!token) return;
+
+  const res = await fetch('/api/video/progress', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      episodeIdentifier,
+      stopAtSecond: Math.floor(stopAtSecond)
+    })
+  });
+
+  return res.json();
+}
+```
+
+**成功返回示例**:
+```json
+{
+  "code": 200,
+  "data": {
+    "ok": true
+  },
+  "message": "观看进度保存成功",
+  "timestamp": "2026-06-23T05:48:32.411Z"
+}
+```
+
+**剧集不存在返回示例**:
+```json
+{
+  "code": 200,
+  "data": {
+    "ok": false,
+    "reason": "episode_not_found"
+  },
+  "message": "观看进度保存成功",
+  "timestamp": "2026-06-23T05:48:32.411Z"
+}
+```
+
+**推荐调用时机**:
+
+```javascript
+let progressTimer = null;
+
+function startProgressReport(videoElement, episodeIdentifier) {
+  if (progressTimer) clearInterval(progressTimer);
+
+  // 播放中每 15 秒上报一次
+  progressTimer = setInterval(() => {
+    if (!videoElement.paused && !videoElement.ended) {
+      reportWatchProgress(episodeIdentifier, videoElement.currentTime)
+        .catch(console.error);
+    }
+  }, 15 * 1000);
+}
+
+function stopProgressReport(videoElement, episodeIdentifier) {
+  if (progressTimer) {
+    clearInterval(progressTimer);
+    progressTimer = null;
+  }
+
+  // 暂停、切集、退出页面时补报一次
+  if (videoElement) {
+    reportWatchProgress(episodeIdentifier, videoElement.currentTime)
+      .catch(console.error);
+  }
+}
+```
+
+**观看时长统计逻辑**:
+
+- 第一次上报 `stopAtSecond = 120`，记录观看时长 120 秒
+- 下次从 120 秒上报到 360 秒，会记录新增观看时长 240 秒
+- 如果上报进度小于或等于上次进度，不会新增观看时长
+- 观看进度保存在 `watch_progress` 表
+- 观看日志/统计数据用于管理后台计算用户总观看时长
+
+---
+
+### 13.3 前端完整接入建议
+
+进入应用或登录成功后：
+
+```javascript
+async function afterLogin(accessToken) {
+  localStorage.setItem('access_token', accessToken);
+
+  // 启动在线心跳
+  startHeartbeat();
+}
+```
+
+进入播放页后：
+
+```javascript
+function onEnterPlayer(videoElement, episodeIdentifier) {
+  // 播放页继续心跳，统计在线时长
+  startHeartbeat();
+
+  // 启动观看进度上报，统计观看进度和观看时长
+  startProgressReport(videoElement, episodeIdentifier);
+}
+```
+
+离开播放页时：
+
+```javascript
+function onLeavePlayer(videoElement, episodeIdentifier) {
+  stopProgressReport(videoElement, episodeIdentifier);
+  // 是否停止心跳取决于用户是否仍在应用内
+}
+```
+
+---
+
 **文档结束**
+
 
