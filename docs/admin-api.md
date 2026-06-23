@@ -145,11 +145,11 @@ curl -X POST "http://localhost:8080/api/admin/categories/123?_method=DELETE"
   | `lastLoginAt` | string/null | 最后一次登录时间 |
   | `lastLoginIp` | string/null | 最后登录 IP |
   | `lastLoginDevice` | string/null | 最后登录设备信息 |
-  | `activeLogins` | number | 当前有效的登录会话数 |
-  | `loginCount` | number | 历史总登录次数 |
+  | `activeLogins` | number | 当前有效的登录会话数（有效 refresh token 数量） |
+  | `loginCount` | number | 历史总登录次数（refresh token 创建总数） |
   | `totalWatchDuration` | number | 总观看时长（秒），来源：watch_logs 表 SUM(watch_duration) |
-  | `lastActiveAt` | string/null | 最后活跃时间（最后一条观看记录时间） |
-  | `isOnline` | boolean | 是否在线（最后活跃时间距今 < 5分钟视为在线） |
+  | `lastActiveAt` | string/null | 最后活跃时间（优先显示心跳时间；无心跳时显示最后观看时间） |
+  | `isOnline` | boolean | 是否在线（5分钟内有心跳上报则为 true；通过 Redis `online:last:{userId}` 判断） |
 
 - 详情
   - `GET /api/admin/users/:id`
@@ -173,9 +173,19 @@ curl -X POST "http://localhost:8080/api/admin/categories/123?_method=DELETE"
     }
   ],
   "page": 1,
-  "size": 20
+  "size": 20,
+  "userSummary": {
+    "userId": 1001,
+    "totalOnlineDuration": 7200,
+    "isOnline": true,
+    "lastActiveAt": "2026-06-23T12:30:00.000Z"
+  }
 }
 ```
+  - `userSummary` 字段说明：
+    - `totalOnlineDuration`: 用户总在线时长（秒），来自 `user_online_daily` 表汇总
+    - `isOnline`: 当前是否在线（5分钟内有心跳则为 true）
+    - `lastActiveAt`: 最后一次心跳时间（来自 Redis `online:last:{userId}`）
 
 - 操作日志
   - `GET /api/admin/users/:id/operation-logs?page=1&size=20`
@@ -200,6 +210,41 @@ curl -X POST "http://localhost:8080/api/admin/categories/123?_method=DELETE"
   "size": 20
 }
 ```
+
+- 每日在线时长统计
+  - `GET /api/admin/users/:id/online-daily?startDate=2026-06-01&endDate=2026-06-23`
+  - 数据来源：`user_online_daily` 表，前端每 60 秒调用一次心跳接口 `POST /api/user/heartbeat`，后端累加在线时长并每 5 分钟刷入 MySQL
+  - 查询参数：
+    - `startDate`: 开始日期（可选，默认最近 30 天）
+    - `endDate`: 结束日期（可选，默认今天）
+  - 响应示例：
+```json
+{
+  "userId": 1001,
+  "startDate": "2026-06-01",
+  "endDate": "2026-06-23",
+  "totalDuration": 54000,
+  "days": [
+    {
+      "date": "2026-06-23",
+      "duration": 3600,
+      "hours": 1,
+      "minutes": 0
+    },
+    {
+      "date": "2026-06-22",
+      "duration": 7200,
+      "hours": 2,
+      "minutes": 0
+    }
+  ]
+}
+```
+  - 字段说明：
+    - `totalDuration`: 时间范围内总在线时长（秒）
+    - `days`: 按日期倒序的每日在线记录
+    - `duration`: 当天在线秒数
+    - `hours` / `minutes`: 格式化后的小时和分钟数，方便前端展示
 
 - 新增（注意：`id` 为 bigint 主键，必填）
   - `POST /api/admin/users`

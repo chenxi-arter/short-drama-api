@@ -69,8 +69,13 @@ export class UserService {
     if (this.redisClient) {
       try {
         const key = `online:${date}`;
-        await this.redisClient.hIncrBy(key, String(userId), 60);
-        await this.redisClient.expire(key, 2 * 86400);
+        const lastKey = `online:last:${userId}`;
+        const now = new Date().toISOString();
+        await this.redisClient.multi()
+          .hIncrBy(key, String(userId), 60)
+          .expire(key, 2 * 86400)
+          .set(lastKey, now, { EX: 5 * 60 })
+          .exec();
         return;
       } catch (e) {
         this.logger.warn(`Redis heartbeat failed, fallback to MySQL: ${(e as Error)?.message}`);
@@ -102,7 +107,7 @@ export class UserService {
           const values = batch.map(([uid, dur]) => `(${Number(uid)}, '${date}', ${Number(dur)})`).join(',');
           await this.onlineDailyRepo.query(
             `INSERT INTO user_online_daily (user_id, date, duration) VALUES ${values}
-             ON DUPLICATE KEY UPDATE duration = VALUES(duration)`,
+             ON DUPLICATE KEY UPDATE duration = duration + VALUES(duration)`,
           );
         }
 
@@ -120,6 +125,23 @@ export class UserService {
        ON DUPLICATE KEY UPDATE duration = duration + ?`,
       [userId, date, duration, duration],
     );
+  }
+
+  /**
+   * 记录用户活跃（登录/注册时调用）
+   * 确保今天在 user_online_daily 有记录，即使 duration=0 也算活跃
+   */
+  async recordUserActive(userId: number): Promise<void> {
+    const today = new Date().toISOString().slice(0, 10);
+    try {
+      await this.onlineDailyRepo.query(
+        `INSERT INTO user_online_daily (user_id, date, duration) VALUES (?, ?, 0)
+         ON DUPLICATE KEY UPDATE user_id = user_id`,
+        [userId, today],
+      );
+    } catch (e) {
+      this.logger.warn(`recordUserActive failed for user ${userId}: ${(e as Error)?.message}`);
+    }
   }
 
   async telegramLogin(dto: TelegramUserDto): Promise<TokenResult> {
@@ -414,11 +436,13 @@ export class UserService {
   /**
    * 生成用户令牌
    */
-  private generateUserTokens(user: User, deviceInfo?: string): Promise<TokensOnly> {
-    return this.authService.generateTokens(
+  private async generateUserTokens(user: User, deviceInfo?: string): Promise<TokensOnly> {
+    const tokens = await this.authService.generateTokens(
       user,
       deviceInfo || user.username || 'Telegram User',
     );
+    await this.recordUserActive(user.id).catch(() => {});
+    return tokens;
   }
   // src/user/user.service.ts
   async findUserById(id: number): Promise<User | null> {
@@ -548,6 +572,9 @@ export class UserService {
       user,
       dto.deviceInfo || 'Email Login',
     );
+
+    // 记录用户活跃
+    await this.recordUserActive(user.id).catch(() => {});
 
     return {
       ...tokens,
@@ -768,6 +795,9 @@ export class UserService {
       // 生成正式用户的令牌
       const tokens = await this.authService.generateTokens(existingUser, 'Email Login After Merge');
       
+      // 记录用户活跃
+      await this.recordUserActive(existingUser.id).catch(() => {});
+      
       return {
         success: true,
         message: '检测到该邮箱已注册，已将您的游客数据合并到现有账号',
@@ -804,6 +834,9 @@ export class UserService {
 
     // 8. 生成新的令牌
     const tokens = await this.authService.generateTokens(guestUser, 'Email Registration');
+    
+    // 记录用户活跃
+    await this.recordUserActive(guestUser.id).catch(() => {});
 
     return {
       success: true,

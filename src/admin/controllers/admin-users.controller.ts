@@ -2,14 +2,16 @@
  * 管理后台 - 用户管理控制器（列表/详情/封禁）
  * 路由前缀: /api/admin/users
  */
-import { Controller, Get, Post, Put, Delete, Param, Body, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Param, Body, Query, UseGuards, Inject } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { RedisClientType } from 'redis';
 import { User } from '../../user/entity/user.entity';
 import { RefreshToken } from '../../auth/entity/refresh-token.entity';
 import { UserOperationLog } from '../../user/entity/user-operation-log.entity';
 import { WatchLog } from '../../video/entity/watch-log.entity';
 import { UserOnlineDaily } from '../../user/entity/user-online-daily.entity';
+import { REDIS_CLIENT } from '../../core/redis/redis.module';
 import { AdminJwtAuthGuard } from '../guards/admin-jwt-auth.guard';
 
 @UseGuards(AdminJwtAuthGuard)
@@ -26,6 +28,8 @@ export class AdminUsersController {
     private readonly watchLogRepo: Repository<WatchLog>,
     @InjectRepository(UserOnlineDaily)
     private readonly onlineDailyRepo: Repository<UserOnlineDaily>,
+    @Inject(REDIS_CLIENT)
+    private readonly redisClient: RedisClientType | null,
   ) {}
 
   @Get()
@@ -57,8 +61,12 @@ export class AdminUsersController {
         ]);
 
         const totalWatchDuration = Number(watchStats?.totalDuration || 0);
-        const lastActiveAt = watchStats?.lastActiveAt ? new Date(watchStats.lastActiveAt) : null;
-        const isOnline = lastActiveAt && (now.getTime() - lastActiveAt.getTime()) < 5 * 60 * 1000;
+        const lastWatchAt = watchStats?.lastActiveAt ? new Date(watchStats.lastActiveAt) : null;
+        const onlineLastActiveAt = this.redisClient
+          ? await this.redisClient.get(`online:last:${u.id}`).catch(() => null)
+          : null;
+        const lastActiveAt = onlineLastActiveAt ? new Date(onlineLastActiveAt) : lastWatchAt;
+        const isOnline = !!onlineLastActiveAt;
 
         return {
           ...u,
@@ -69,7 +77,7 @@ export class AdminUsersController {
           loginCount,
           totalWatchDuration,
           lastActiveAt,
-          isOnline: !!isOnline,
+          isOnline,
         } as any;
       })
     );
@@ -101,8 +109,12 @@ export class AdminUsersController {
     ]);
 
     const totalWatchDuration = Number(watchStats?.totalDuration || 0);
-    const lastActiveAt = watchStats?.lastActiveAt ? new Date(watchStats.lastActiveAt) : null;
-    const isOnline = lastActiveAt && (now.getTime() - lastActiveAt.getTime()) < 5 * 60 * 1000;
+    const lastWatchAt = watchStats?.lastActiveAt ? new Date(watchStats.lastActiveAt) : null;
+    const onlineLastActiveAt = this.redisClient
+      ? await this.redisClient.get(`online:last:${user.id}`).catch(() => null)
+      : null;
+    const lastActiveAt = onlineLastActiveAt ? new Date(onlineLastActiveAt) : lastWatchAt;
+    const isOnline = !!onlineLastActiveAt;
 
     return {
       ...user,
@@ -113,7 +125,7 @@ export class AdminUsersController {
       loginCount,
       totalWatchDuration,
       lastActiveAt,
-      isOnline: !!isOnline,
+      isOnline,
     } as any;
   }
 
@@ -135,11 +147,30 @@ export class AdminUsersController {
       take,
     });
 
+    // 查询用户总在线时长（来自 user_online_daily 表）
+    const onlineStats = await this.onlineDailyRepo
+      .createQueryBuilder('od')
+      .select('SUM(od.duration)', 'totalOnlineDuration')
+      .where('od.user_id = :userId', { userId })
+      .getRawOne<{ totalOnlineDuration: string }>();
+
+    // 查询在线状态（来自 Redis）
+    const onlineLastActiveAt = this.redisClient
+      ? await this.redisClient.get(`online:last:${userId}`).catch(() => null)
+      : null;
+    const isOnline = !!onlineLastActiveAt;
+
     return {
       total,
       items: logs,
       page: currentPage,
       size: take,
+      userSummary: {
+        userId,
+        totalOnlineDuration: Number(onlineStats?.totalOnlineDuration || 0),
+        isOnline,
+        lastActiveAt: onlineLastActiveAt || null,
+      },
     };
   }
 

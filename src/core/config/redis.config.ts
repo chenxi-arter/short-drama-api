@@ -39,22 +39,34 @@ export class RedisConfig {
 
   @IsOptional()
   @IsNumber()
-  @Transform(({ value }) => parseInt(value) || 5000)
+  @Transform(({ value }) => {
+    const parsed = parseInt(value);
+    return !isNaN(parsed) && parsed > 0 ? parsed : 5000;
+  })
   connectTimeout?: number = 5000;
 
   @IsOptional()
   @IsNumber()
-  @Transform(({ value }) => parseInt(value) || 3000)
+  @Transform(({ value }) => {
+    const parsed = parseInt(value);
+    return !isNaN(parsed) && parsed > 0 ? parsed : 3000;
+  })
   lazyConnect?: number = 3000;
 
   @IsOptional()
   @IsNumber()
-  @Transform(({ value }) => parseInt(value) || 3)
+  @Transform(({ value }) => {
+    const parsed = parseInt(value);
+    return !isNaN(parsed) && parsed > 0 ? parsed : 3;
+  })
   retryAttempts?: number = 3;
 
   @IsOptional()
   @IsNumber()
-  @Transform(({ value }) => parseInt(value) || 3000)
+  @Transform(({ value }) => {
+    const parsed = parseInt(value);
+    return !isNaN(parsed) && parsed > 0 ? parsed : 3000;
+  })
   retryDelay?: number = 3000;
 
   @IsOptional()

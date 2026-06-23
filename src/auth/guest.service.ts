@@ -5,6 +5,7 @@ import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, LessThan, MoreThan, Not, IsNull, In } from 'typeorm';
 import { User } from '../user/entity/user.entity';
+import { UserOnlineDaily } from '../user/entity/user-online-daily.entity';
 import { AuthService } from './auth.service';
 import { randomBytes } from 'crypto';
 
@@ -15,6 +16,8 @@ export class GuestService {
   constructor(
     @InjectRepository(User)
     private readonly userRepo: Repository<User>,
+    @InjectRepository(UserOnlineDaily)
+    private readonly onlineDailyRepo: Repository<UserOnlineDaily>,
     private readonly authService: AuthService,
   ) {}
 
@@ -37,6 +40,18 @@ export class GuestService {
       user,
       deviceInfo || 'Guest User',
     );
+
+    // 记录用户活跃
+    const today = new Date().toISOString().slice(0, 10);
+    try {
+      await this.onlineDailyRepo.query(
+        `INSERT INTO user_online_daily (user_id, date, duration) VALUES (?, ?, 0)
+         ON DUPLICATE KEY UPDATE user_id = user_id`,
+        [user.id, today],
+      );
+    } catch (e) {
+      this.logger.warn(`recordUserActive failed for guest user ${user.id}`);
+    }
 
     return {
       ...tokens,

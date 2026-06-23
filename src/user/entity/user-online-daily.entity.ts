@@ -6,7 +6,7 @@ export class UserOnlineDaily {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column({ name: 'user_id' })
+  @Column({ name: 'user_id', type: 'bigint' })
   userId: number;
 
   @Column({ type: 'date' })

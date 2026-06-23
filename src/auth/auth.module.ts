@@ -16,6 +16,7 @@ import { AuthController } from './auth.controller';
 import { RefreshToken } from './entity/refresh-token.entity';
 import { User } from '../user/entity/user.entity';
 import { UserOperationLog } from '../user/entity/user-operation-log.entity';
+import { UserOnlineDaily } from '../user/entity/user-online-daily.entity';
 import { WatchProgress } from '../video/entity/watch-progress.entity';
 import { Favorite } from '../user/entity/favorite.entity';
 import { EpisodeReaction } from '../video/entity/episode-reaction.entity';
@@ -36,6 +37,7 @@ import { UserOperationLogService } from '../user/services/user-operation-log.ser
       RefreshToken,
       User,
       UserOperationLog,
+      UserOnlineDaily,
       WatchProgress,
       Favorite,
       EpisodeReaction,
