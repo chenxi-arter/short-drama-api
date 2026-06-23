@@ -6,26 +6,17 @@ import {
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { DauService } from '../../admin/services/dau.service';
-import { UserOperationLogService } from '../../user/services/user-operation-log.service';
 
 type JwtGuardUser = { id?: number | string };
 type JwtGuardInfo = { name?: string };
 type HttpRequestLike = {
-  method?: string;
-  originalUrl?: string;
-  url?: string;
-  ip?: string;
-  connection?: { remoteAddress?: string };
-  socket?: { remoteAddress?: string };
   get(name: string): string | undefined;
-  headers?: Record<string, string | string[] | undefined>;
 };
 
 @Injectable()
 export class JwtAuthGuard extends AuthGuard('jwt') {
   constructor(
     private readonly dauService: DauService,
-    private readonly operationLogService: UserOperationLogService,
   ) {
     super();
   }
@@ -54,24 +45,8 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
     const userId = typeof user.id === 'number' ? user.id : Number(user.id);
     if (Number.isFinite(userId) && userId > 0) {
       void this.dauService.trackUser(userId);
-      void this.operationLogService.record({
-        userId,
-        method: req?.method || 'UNKNOWN',
-        path: req?.originalUrl || req?.url || '',
-        action: `${req?.method || 'UNKNOWN'} ${req?.originalUrl || req?.url || ''}`.trim(),
-        ipAddress: this.getClientIp(req),
-        userAgent: ua,
-      });
     }
 
     return user as TUser;
-  }
-
-  private getClientIp(req?: HttpRequestLike): string | null {
-    if (!req) return null;
-    const forwardedFor = req.headers?.['x-forwarded-for'];
-    if (Array.isArray(forwardedFor)) return forwardedFor[0]?.split(',')[0]?.trim() || null;
-    if (typeof forwardedFor === 'string') return forwardedFor.split(',')[0]?.trim() || null;
-    return req.ip || req.connection?.remoteAddress || req.socket?.remoteAddress || null;
   }
 }

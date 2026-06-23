@@ -187,30 +187,6 @@ curl -X POST "http://localhost:8080/api/admin/categories/123?_method=DELETE"
     - `isOnline`: 当前是否在线（5分钟内有心跳则为 true）
     - `lastActiveAt`: 最后一次心跳时间（来自 Redis `online:last:{userId}`）
 
-- 操作日志
-  - `GET /api/admin/users/:id/operation-logs?page=1&size=20`
-  - 数据来源：`user_operation_logs`，用户访问受 `JwtAuthGuard` 保护的接口时异步记录
-  - 响应示例：
-```json
-{
-  "total": 120,
-  "items": [
-    {
-      "id": 3001,
-      "userId": 1001,
-      "method": "GET",
-      "path": "/api/video/progress/123",
-      "action": "GET /api/video/progress/123",
-      "ipAddress": "203.0.113.10",
-      "userAgent": "Mozilla/5.0 ...",
-      "createdAt": "2026-06-20T11:36:00.000Z"
-    }
-  ],
-  "page": 1,
-  "size": 20
-}
-```
-
 - 每日在线时长统计
   - `GET /api/admin/users/:id/online-daily?startDate=2026-06-01&endDate=2026-06-23`
   - 数据来源：`user_online_daily` 表，前端每 60 秒调用一次心跳接口 `POST /api/user/heartbeat`，后端累加在线时长并每 5 分钟刷入 MySQL
@@ -1407,10 +1383,6 @@ curl -X POST "http://localhost:8080/api/admin/users" \
 curl -X GET "http://localhost:8080/api/admin/users/1001/login-logs?page=1&size=20" \
   -H "Authorization: Bearer $TOKEN"
 
-# 获取用户操作日志
-curl -X GET "http://localhost:8080/api/admin/users/1001/operation-logs?page=1&size=20" \
-  -H "Authorization: Bearer $TOKEN"
-
 # 新建剧集
 curl -X POST "http://localhost:8080/api/admin/episodes" \
   -H "Content-Type: application/json" \
@@ -1907,8 +1879,6 @@ curl "http://localhost:9090/api/admin/export/overview-stats?startDate=2026-03-25
 **用户登录次数与日志**
 - ✅ 用户列表/详情新增 `loginCount` 字段（基于 refresh_tokens 统计）
 - ✅ `GET /api/admin/users/:id/login-logs` — 查看用户登录日志
-- ✅ `GET /api/admin/users/:id/operation-logs` — 查看用户操作日志
-- ✅ `user_operation_logs` 表自动建表，`JwtAuthGuard` 通过时异步写入操作日志
 
 #### 🔒 安全改进
 

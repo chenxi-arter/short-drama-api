@@ -8,7 +8,6 @@ import { Repository } from 'typeorm';
 import { RedisClientType } from 'redis';
 import { User } from '../../user/entity/user.entity';
 import { RefreshToken } from '../../auth/entity/refresh-token.entity';
-import { UserOperationLog } from '../../user/entity/user-operation-log.entity';
 import { WatchLog } from '../../video/entity/watch-log.entity';
 import { UserOnlineDaily } from '../../user/entity/user-online-daily.entity';
 import { REDIS_CLIENT } from '../../core/redis/redis.module';
@@ -22,8 +21,6 @@ export class AdminUsersController {
     private readonly userRepo: Repository<User>,
     @InjectRepository(RefreshToken)
     private readonly refreshTokenRepo: Repository<RefreshToken>,
-    @InjectRepository(UserOperationLog)
-    private readonly operationLogRepo: Repository<UserOperationLog>,
     @InjectRepository(WatchLog)
     private readonly watchLogRepo: Repository<WatchLog>,
     @InjectRepository(UserOnlineDaily)
@@ -171,31 +168,6 @@ export class AdminUsersController {
         isOnline,
         lastActiveAt: onlineLastActiveAt || null,
       },
-    };
-  }
-
-  @Get(':id/operation-logs')
-  async operationLogs(
-    @Param('id') id: string,
-    @Query('page') page = 1,
-    @Query('size') size = 20,
-  ) {
-    const userId = Number(id);
-    const take = Math.max(Number(size) || 20, 1);
-    const currentPage = Math.max(Number(page) || 1, 1);
-    const skip = (currentPage - 1) * take;
-    const [logs, total] = await this.operationLogRepo.findAndCount({
-      where: { userId },
-      order: { createdAt: 'DESC' },
-      skip,
-      take,
-    });
-
-    return {
-      total,
-      items: logs,
-      page: currentPage,
-      size: take,
     };
   }
 
