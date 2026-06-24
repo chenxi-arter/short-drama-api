@@ -108,7 +108,50 @@ curl -X POST "http://localhost:8080/api/admin/categories/123?_method=DELETE"
 
 - 列表
   - `GET /api/admin/users?page=1&size=20`
-  - 每个用户项附带登录信息、观看时长、在线状态
+  - 每个用户项附带累计登录次数、当前有效会话数、时间窗口内在线时长、时间窗口内观看时长、在线状态
+  - 支持筛选参数：
+    | 参数 | 类型 | 必填 | 说明 |
+    |------|------|------|------|
+    | `page` | number | 否 | 页码，默认 `1` |
+    | `size` | number | 否 | 每页数量，默认 `20` |
+    | `startDate` | string | 否 | 统计开始日期，用于框定在线时长和观看时长，格式 `YYYY-MM-DD`，例如 `2026-06-22` |
+    | `endDate` | string | 否 | 统计结束日期，格式 `YYYY-MM-DD`，例如 `2026-06-22`；服务端按自然日结束开区间处理，即 `< 次日 00:00` |
+    | `loginCount` | number | 否 | 精确筛选累计登录次数，来源 `refresh_tokens` 计数 |
+    | `minLoginCount` | number | 否 | 累计登录次数最小值 |
+    | `maxLoginCount` | number | 否 | 累计登录次数最大值 |
+    | `watchDurationRange` | string | 否 | 时间窗口内总播放时长区间，单位分钟，例如 `0-60`、`60-120`、`120-180`，来源 `watch_logs.watch_duration` |
+    | `minWatchMinutes` | number | 否 | 自定义时间窗口内总播放时长最小值，单位分钟 |
+    | `maxWatchMinutes` | number | 否 | 自定义时间窗口内总播放时长最大值，单位分钟 |
+    | `onlineDurationRange` | string | 否 | 时间窗口内心跳在线时长区间，单位分钟，例如 `0-60`、`60-120`、`120-180`，来源 `user_online_daily.duration` |
+    | `minOnlineMinutes` | number | 否 | 自定义时间窗口内心跳在线时长最小值，单位分钟 |
+    | `maxOnlineMinutes` | number | 否 | 自定义时间窗口内心跳在线时长最大值，单位分钟 |
+  - 日期口径：`startDate` / `endDate` 不筛用户注册时间，只作为统计窗口作用于 `user_online_daily.duration` 和 `watch_logs.watch_duration`
+  - 在线时长筛选口径：`onlineDurationRange` / `minOnlineMinutes` / `maxOnlineMinutes` 筛的是心跳在线时长，来源 `user_online_daily.duration`；传入在线时长筛选时，会排除统计窗口内在线时长为 `0` 的用户；`0-60` 表示 `>0` 且 `<=60` 分钟，包含 60 分钟
+  - 播放时长筛选口径：`watchDurationRange` / `minWatchMinutes` / `maxWatchMinutes` 筛的是实际观看时长，来源 `watch_logs.watch_duration`；传入播放时长筛选时，会排除统计窗口内观看时长为 `0` 的用户；`0-60` 表示 `>0` 且 `<=60` 分钟，包含 60 分钟
+  - 请求示例：
+```http
+GET /api/admin/users?page=1&size=10&startDate=2026-06-22&endDate=2026-06-22&watchDurationRange=0-60
+```
+  - 更多示例：
+```http
+# 统计 2026-06-22 当天在线/观看时长
+GET /api/admin/users?page=1&size=10&startDate=2026-06-22&endDate=2026-06-22
+
+# 统计窗口内观看 60-120 分钟的用户
+GET /api/admin/users?page=1&size=10&startDate=2026-06-22&endDate=2026-06-22&watchDurationRange=60-120
+
+# 统计窗口内心跳在线 0-60 分钟的用户
+GET /api/admin/users?page=1&size=10&startDate=2026-06-22&endDate=2026-06-22&onlineDurationRange=0-60
+
+# 同时筛选心跳在线 0-60 分钟且实际观看 0-60 分钟的用户
+GET /api/admin/users?page=1&size=10&startDate=2026-06-22&endDate=2026-06-22&onlineDurationRange=0-60&watchDurationRange=0-60
+
+# 累计登录次数 1-5 次的用户
+GET /api/admin/users?page=1&size=10&minLoginCount=1&maxLoginCount=5
+
+# 精确筛选累计登录次数为 3 次的用户
+GET /api/admin/users?page=1&size=10&loginCount=3
+```
   - 响应示例：
 ```json
 {
@@ -128,7 +171,11 @@ curl -X POST "http://localhost:8080/api/admin/categories/123?_method=DELETE"
       "lastLoginIp": "203.0.113.10",
       "lastLoginDevice": "iPhone 15 iOS 18",
       "activeLogins": 2,
+      "loginCount": 8,
+      "totalOnlineDuration": 7200,
+      "totalOnlineMinutes": 120,
       "totalWatchDuration": 12580,
+      "totalWatchMinutes": 209,
       "lastActiveAt": "2026-06-22T14:30:00.000Z",
       "isOnline": true
     }
@@ -144,9 +191,13 @@ curl -X POST "http://localhost:8080/api/admin/categories/123?_method=DELETE"
   | `lastLoginAt` | string/null | 最后一次登录时间 |
   | `lastLoginIp` | string/null | 最后登录 IP |
   | `lastLoginDevice` | string/null | 最后登录设备信息 |
-  | `activeLogins` | number | 当前有效的登录会话数（有效 refresh token 数量） |
-  | `totalWatchDuration` | number | 总观看时长（秒），来源：watch_logs 表 SUM(watch_duration) |
-  | `lastActiveAt` | string/null | 最后活跃时间（优先显示心跳时间；无心跳时显示最后观看时间） |
+  | `activeLogins` | number | 当前有效的登录会话数（未撤销且未过期 refresh token 数量） |
+  | `loginCount` | number | 累计登录次数，来源：refresh_tokens 表 COUNT(*) |
+  | `totalOnlineDuration` | number | 统计窗口内总在线时长（秒），来源：user_online_daily 表 SUM(duration) |
+  | `totalOnlineMinutes` | number | 统计窗口内总在线时长（分钟，向下取整） |
+  | `totalWatchDuration` | number | 统计窗口内总观看时长（秒），来源：watch_logs 表 SUM(watch_duration) |
+  | `totalWatchMinutes` | number | 统计窗口内总观看时长（分钟，向下取整） |
+  | `lastActiveAt` | string/null | 最后活跃时间（优先显示心跳时间；无心跳时显示统计窗口内最后观看时间） |
   | `isOnline` | boolean | 是否在线（5分钟内有心跳上报则为 true；通过 Redis `online:last:{userId}` 判断） |
 
 - 详情
@@ -1900,8 +1951,15 @@ curl "http://localhost:9090/api/admin/export/overview-stats?startDate=2026-03-25
 - ✅ 覆盖范围：users、series、episodes、banners、categories、options、dashboard、export、ingest、advertising
 
 **用户在线时长与登录日志**
-- ✅ 用户列表/详情使用 `activeLogins` 表示当前有效登录会话数，不再提供 `loginCount` 登录次数统计
-- ✅ `GET /api/admin/users/:id/login-logs` — 查看用户登录日志，仅用于设备/token 状态查看，不作为在线天数或登录次数统计口径
+- ✅ `GET /api/admin/users` 用户列表新增筛选参数：
+  - `startDate` / `endDate`：作为统计时间窗口使用，用来框定 `user_online_daily.duration` 在线时长和 `watch_logs.watch_duration` 观看时长；不筛用户注册时间
+  - `loginCount`：精确筛选累计登录次数
+  - `minLoginCount` / `maxLoginCount`：按累计登录次数区间筛选
+  - `watchDurationRange`：按时间窗口内总播放时长筛选，单位为分钟，例如 `0-60`、`60-120`、`120-180`；传入播放时长筛选时会排除窗口内观看时长为 0 的用户
+  - `minWatchMinutes` / `maxWatchMinutes`：按时间窗口内总播放时长分钟区间筛选，适合自定义范围
+- ✅ 用户列表新增返回 `loginCount`、`totalOnlineDuration`、`totalOnlineMinutes`、`totalWatchMinutes`，其中 `totalOnlineDuration` 和 `totalWatchDuration` 均为秒
+- ✅ 用户列表/详情使用 `activeLogins` 表示当前有效登录会话数
+- ✅ `GET /api/admin/users/:id/login-logs` — 查看用户登录日志，仅用于设备/token 状态查看
 - ✅ 用户在线/观看明细以 `user_online_daily` 和 `watch_logs` 为准
 
 #### 🔒 安全改进
