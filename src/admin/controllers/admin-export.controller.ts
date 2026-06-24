@@ -4,18 +4,15 @@
  */
 import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Between } from 'typeorm';
-import { WatchProgress } from '../../video/entity/watch-progress.entity';
+import { Repository } from 'typeorm';
 import { WatchLog } from '../../video/entity/watch-log.entity';
 import { User } from '../../user/entity/user.entity';
 import { EpisodeReaction } from '../../video/entity/episode-reaction.entity';
 import { Favorite } from '../../user/entity/favorite.entity';
-import { Episode } from '../../video/entity/episode.entity';
 import { Series } from '../../video/entity/series.entity';
 import { Comment } from '../../video/entity/comment.entity';
 import { UserOnlineDaily } from '../../user/entity/user-online-daily.entity';
 import { ExportSeriesDetailsDto, SeriesDetailData } from '../dto/export-series-details.dto';
-import { WatchLogService } from '../../video/services/watch-log.service';
 import { AnalyticsService } from '../services/analytics.service';
 import { AdminJwtAuthGuard } from '../guards/admin-jwt-auth.guard';
 
@@ -27,8 +24,6 @@ import { AdminJwtAuthGuard } from '../guards/admin-jwt-auth.guard';
 @Controller('admin/export')
 export class AdminExportController {
   constructor(
-    @InjectRepository(WatchProgress)
-    private readonly wpRepo: Repository<WatchProgress>,
     @InjectRepository(WatchLog)
     private readonly watchLogRepo: Repository<WatchLog>,
     @InjectRepository(User)
@@ -37,15 +32,12 @@ export class AdminExportController {
     private readonly reactionRepo: Repository<EpisodeReaction>,
     @InjectRepository(Favorite)
     private readonly favoriteRepo: Repository<Favorite>,
-    @InjectRepository(Episode)
-    private readonly episodeRepo: Repository<Episode>,
     @InjectRepository(Series)
     private readonly seriesRepo: Repository<Series>,
     @InjectRepository(Comment)
     private readonly commentRepo: Repository<Comment>,
     @InjectRepository(UserOnlineDaily)
     private readonly onlineDailyRepo: Repository<UserOnlineDaily>,
-    private readonly watchLogService: WatchLogService,
     private readonly analyticsService: AnalyticsService,
   ) {}
 
@@ -72,100 +64,66 @@ export class AdminExportController {
     @Query('endDate') endDate: string,
   ) {
     try {
-      const start = new Date(startDate);
-      const end = new Date(endDate);
-      end.setHours(23, 59, 59, 999);
+      const dates = this.analyticsService.enumerateLocalDateStrings(startDate, endDate);
+      const start = dates[0] || startDate;
+      const end = dates[dates.length - 1] || endDate;
+      const { startDate: startTime } = this.analyticsService.getLocalDateRange(start);
+      const { endDate: endTime } = this.analyticsService.getLocalDateRange(end);
 
-      // 1. 按日期统计播放量（所有观看记录的总数）
-      const playStats = await this.wpRepo
-        .createQueryBuilder('wp')
-        .select("DATE_FORMAT(wp.updated_at, '%Y-%m-%d')", 'date')
-        .addSelect('COUNT(*)', 'playCount')  // 改为统计所有记录，不去重
-        .addSelect('SUM(wp.stop_at_second) / COUNT(DISTINCT wp.user_id)', 'avgDuration')
-        .where('wp.updated_at BETWEEN :start AND :end', { start, end })
-        .groupBy('date')
-        .orderBy('date', 'ASC')
-        .getRawMany<{ date: string; playCount: string; avgDuration: string }>();
-
-      // 2. 按日期统计完播率
-      const completionStats = await this.wpRepo
-        .createQueryBuilder('wp')
-        .innerJoin('wp.episode', 'episode')
-        .select("DATE_FORMAT(wp.updated_at, '%Y-%m-%d')", 'date')
-        .addSelect('COUNT(*)', 'total')
-        .addSelect(
-          'SUM(CASE WHEN wp.stop_at_second >= episode.duration * 0.9 THEN 1 ELSE 0 END)',
-          'completed'
-        )
-        .where('wp.updated_at BETWEEN :start AND :end', { start, end })
-        .andWhere('episode.duration > 0')
-        .groupBy('date')
-        .getRawMany<{ date: string; total: string; completed: string }>();
-
-      // 3. 按日期统计点赞数
-      const likeStats = await this.reactionRepo
-        .createQueryBuilder('r')
-        .select("DATE_FORMAT(r.created_at, '%Y-%m-%d')", 'date')
-        .addSelect('COUNT(*)', 'likeCount')
-        .where('r.created_at BETWEEN :start AND :end', { start, end })
-        .andWhere('r.reaction_type = :type', { type: 'like' })
-        .groupBy('date')
-        .getRawMany<{ date: string; likeCount: string }>();
-
-      // 4. 按日期统计收藏数
-      const favoriteStats = await this.favoriteRepo
-        .createQueryBuilder('f')
-        .select("DATE_FORMAT(f.created_at, '%Y-%m-%d')", 'date')
-        .addSelect('COUNT(*)', 'favoriteCount')
-        .where('f.created_at BETWEEN :start AND :end', { start, end })
-        .groupBy('date')
-        .getRawMany<{ date: string; favoriteCount: string }>();
-
-      // 合并数据
       const statsMap = new Map<string, any>();
-      
-      playStats.forEach(item => {
-        statsMap.set(item.date, {
-          date: this.formatDate(item.date),
-          playCount: parseInt(item.playCount),
-          avgWatchDuration: Math.round(parseFloat(item.avgDuration) || 0),
-          completionRate: 0,
-          likeCount: 0,
-          shareCount: 0,
-          favoriteCount: 0,
-        });
+      dates.forEach(d => statsMap.set(d, {
+        date: this.formatDate(d),
+        playCount: 0,
+        completionRate: 0,
+        avgWatchDuration: 0,
+        likeCount: 0,
+        shareCount: 0,
+        favoriteCount: 0,
+      }));
+
+      const watchRows = await this.watchLogRepo.query(
+        `SELECT DATE_FORMAT(wl.watch_date, '%Y-%m-%d') date,
+                COUNT(*) playCount,
+                AVG(wl.watch_duration) avgWatchDuration,
+                SUM(CASE WHEN ep.duration > 0 AND wl.end_position >= ep.duration * 0.9 THEN 1 ELSE 0 END) completedCount,
+                SUM(CASE WHEN ep.duration > 0 THEN 1 ELSE 0 END) completableCount
+         FROM watch_logs wl
+         INNER JOIN episodes ep ON ep.id = wl.episode_id
+         WHERE wl.watch_date >= ? AND wl.watch_date <= ?
+         GROUP BY DATE_FORMAT(wl.watch_date, '%Y-%m-%d')`,
+        [start, end],
+      ) as Array<{ date: string; playCount: string; avgWatchDuration: string; completedCount: string; completableCount: string }>;
+
+      watchRows.forEach(row => {
+        const item = statsMap.get(row.date);
+        if (!item) return;
+        const total = Number(row.completableCount || 0);
+        item.playCount = Number(row.playCount || 0);
+        item.avgWatchDuration = Math.round(Number(row.avgWatchDuration || 0));
+        item.completionRate = total > 0 ? Number((Number(row.completedCount || 0) / total).toFixed(4)) : 0;
       });
 
-      completionStats.forEach(item => {
-        const stats = statsMap.get(item.date);
-        if (stats) {
-          const total = parseInt(item.total);
-          const completed = parseInt(item.completed);
-          stats.completionRate = total > 0 ? parseFloat((completed / total).toFixed(4)) : 0;
-        }
-      });
+      const likeRows = await this.reactionRepo.query(
+        `SELECT DATE_FORMAT(DATE_ADD(created_at, INTERVAL 8 HOUR), '%Y-%m-%d') date, COUNT(*) likeCount
+         FROM episode_reactions
+         WHERE created_at >= ? AND created_at <= ? AND reaction_type = 'like'
+         GROUP BY DATE_FORMAT(DATE_ADD(created_at, INTERVAL 8 HOUR), '%Y-%m-%d')`,
+        [startTime, endTime],
+      ) as Array<{ date: string; likeCount: string }>;
+      likeRows.forEach(row => { const item = statsMap.get(row.date); if (item) item.likeCount = Number(row.likeCount || 0); });
 
-      likeStats.forEach(item => {
-        const stats = statsMap.get(item.date);
-        if (stats) {
-          stats.likeCount = parseInt(item.likeCount);
-        }
-      });
-
-      favoriteStats.forEach(item => {
-        const stats = statsMap.get(item.date);
-        if (stats) {
-          stats.favoriteCount = parseInt(item.favoriteCount);
-        }
-      });
-
-      const result = Array.from(statsMap.values()).sort((a, b) => 
-        a.date.localeCompare(b.date)
-      );
+      const favoriteRows = await this.favoriteRepo.query(
+        `SELECT DATE_FORMAT(DATE_ADD(created_at, INTERVAL 8 HOUR), '%Y-%m-%d') date, COUNT(*) favoriteCount
+         FROM favorites
+         WHERE created_at >= ? AND created_at <= ?
+         GROUP BY DATE_FORMAT(DATE_ADD(created_at, INTERVAL 8 HOUR), '%Y-%m-%d')`,
+        [startTime, endTime],
+      ) as Array<{ date: string; favoriteCount: string }>;
+      favoriteRows.forEach(row => { const item = statsMap.get(row.date); if (item) item.favoriteCount = Number(row.favoriteCount || 0); });
 
       return {
         code: 200,
-        data: result,
+        data: dates.map(d => statsMap.get(d)),
         message: '播放数据统计获取成功',
         timestamp: new Date().toISOString(),
       };
@@ -201,147 +159,83 @@ export class AdminExportController {
     @Query('endDate') endDate: string,
   ) {
     try {
-      const start = new Date(startDate);
-      const end = new Date(endDate);
-      end.setHours(23, 59, 59, 999);
+      const dates = this.analyticsService.enumerateLocalDateStrings(startDate, endDate);
+      const start = dates[0] || startDate;
+      const end = dates[dates.length - 1] || endDate;
+      const { startDate: startTime } = this.analyticsService.getLocalDateRange(start);
+      const { endDate: endTime } = this.analyticsService.getLocalDateRange(end);
 
-      // 1. 按日期统计新增用户
-      const newUserStats = await this.userRepo
-        .createQueryBuilder('u')
-        .select("DATE_FORMAT(u.created_at, '%Y-%m-%d')", 'date')
-        .addSelect('COUNT(*)', 'newUsers')
-        .where('u.created_at BETWEEN :start AND :end', { start, end })
-        .groupBy('date')
-        .orderBy('date', 'ASC')
-        .getRawMany<{ date: string; newUsers: string }>();
-
-      // 2. 按日期统计日活（DAU）- 优先从 user_online_daily 取，fallback 到 watch_progress
-      const onlineDauStats = await this.onlineDailyRepo
-        .createQueryBuilder('od')
-        .select('od.date', 'date')
-        .addSelect('COUNT(DISTINCT od.user_id)', 'dau')
-        .where('od.date >= :startD', { startD: start.toISOString().split('T')[0] })
-        .andWhere('od.date <= :endD', { endD: end.toISOString().split('T')[0] })
-        .groupBy('od.date')
-        .getRawMany<{ date: string; dau: string }>();
-
-      const dauStats = onlineDauStats.length > 0
-        ? onlineDauStats
-        : await this.wpRepo
-            .createQueryBuilder('wp')
-            .select("DATE_FORMAT(wp.updated_at, '%Y-%m-%d')", 'date')
-            .addSelect('COUNT(DISTINCT wp.user_id)', 'dau')
-            .where('wp.updated_at BETWEEN :start AND :end', { start, end })
-            .groupBy('date')
-            .getRawMany<{ date: string; dau: string }>();
-
-      // 3. 按日期统计平均观影时长（优先使用 watch_logs 表的数据）
-      // 策略：先尝试从 watch_logs 获取，如果没有数据则降级到 watch_progress
-      const watchLogStats = await this.watchLogRepo
-        .createQueryBuilder('wl')
-        .select("DATE(wl.watch_date)", 'date')
-        .addSelect('SUM(wl.watch_duration) / COUNT(DISTINCT wl.user_id)', 'avgDuration')
-        .where('wl.watch_date BETWEEN :start AND :end', { 
-          start: start.toISOString().split('T')[0], 
-          end: end.toISOString().split('T')[0] 
-        })
-        .groupBy('date')
-        .getRawMany<{ date: string; avgDuration: string }>();
-
-      // 如果 watch_logs 没有数据，降级使用 watch_progress
-      const avgDurationStats = watchLogStats.length > 0 
-        ? watchLogStats 
-        : await this.wpRepo
-            .createQueryBuilder('wp')
-            .select("DATE_FORMAT(wp.updated_at, '%Y-%m-%d')", 'date')
-            .addSelect('SUM(wp.stop_at_second) / COUNT(DISTINCT wp.user_id)', 'avgDuration')
-            .where('wp.updated_at BETWEEN :start AND :end', { start, end })
-            .groupBy('date')
-            .getRawMany<{ date: string; avgDuration: string }>();
-
-      // 4. 计算次日留存率（逐日计算，使用 DATE() 函数避免时区问题）
-      const retentionMap = new Map<string, number>();
-      for (const item of newUserStats) {
-        // 计算次日的日期字符串，避免使用 Date 对象的时区偏移
-        const cohortDate = new Date(item.date);
-        const nextDayDate = new Date(cohortDate);
-        nextDayDate.setDate(nextDayDate.getDate() + 1);
-        const nextDayStr = nextDayDate.toISOString().split('T')[0];
-
-        // 获取该日注册的用户
-        const cohortStart = new Date(item.date);
-        cohortStart.setHours(0, 0, 0, 0);
-        const cohortEnd = new Date(item.date);
-        cohortEnd.setHours(23, 59, 59, 999);
-
-        const cohortUsers = await this.userRepo
-          .createQueryBuilder('u')
-          .select('u.id', 'id')
-          .where('u.created_at >= :cohortStart', { cohortStart })
-          .andWhere('u.created_at <= :cohortEnd', { cohortEnd })
-          .getRawMany<{ id: number }>();
-
-        if (cohortUsers.length === 0) {
-          retentionMap.set(item.date, 0);
-          continue;
-        }
-
-        const userIds = cohortUsers.map(u => u.id);
-
-        // 统计次日活跃用户数（watch_progress）
-        const nextDayStart = new Date(nextDayStr);
-        nextDayStart.setHours(0, 0, 0, 0);
-        const nextDayEnd = new Date(nextDayStr);
-        nextDayEnd.setHours(23, 59, 59, 999);
-
-        const wpRetained = await this.wpRepo
-          .createQueryBuilder('wp')
-          .select('DISTINCT wp.user_id', 'userId')
-          .where('wp.user_id IN (:...userIds)', { userIds })
-          .andWhere('wp.updated_at >= :nextDayStart', { nextDayStart })
-          .andWhere('wp.updated_at <= :nextDayEnd', { nextDayEnd })
-          .getRawMany<{ userId: number }>();
-
-        const retainedIds = new Set(wpRetained.map(r => r.userId));
-        const retention = retainedIds.size / cohortUsers.length;
-        retentionMap.set(item.date, parseFloat(retention.toFixed(4)));
-      }
-
-      // 合并数据
       const statsMap = new Map<string, any>();
-      
-      newUserStats.forEach(item => {
-        statsMap.set(item.date, {
-          date: this.formatDate(item.date),
-          newUsers: parseInt(item.newUsers),
-          nextDayRetention: retentionMap.get(item.date) || 0,
-          dau: 0,
-          avgWatchDuration: 0,
-          newUserSource: '自然增长', // 暂时固定值，后续可扩展
-        });
-      });
+      dates.forEach(d => statsMap.set(d, {
+        date: this.formatDate(d),
+        newUsers: 0,
+        nextDayRetention: null,
+        dau: 0,
+        avgWatchDuration: 0,
+        newUserSource: '自然增长',
+      }));
 
-      dauStats.forEach(item => {
-        const stats = statsMap.get(item.date);
-        if (stats) {
-          stats.dau = parseInt(item.dau);
-        }
-      });
+      const newUserRows = await this.userRepo.query(
+        `SELECT DATE_FORMAT(DATE_ADD(created_at, INTERVAL 8 HOUR), '%Y-%m-%d') date, COUNT(*) newUsers
+         FROM users
+         WHERE created_at >= ? AND created_at <= ?
+         GROUP BY DATE_FORMAT(DATE_ADD(created_at, INTERVAL 8 HOUR), '%Y-%m-%d')`,
+        [startTime, endTime],
+      ) as Array<{ date: string; newUsers: string }>;
+      newUserRows.forEach(row => { const item = statsMap.get(row.date); if (item) item.newUsers = Number(row.newUsers || 0); });
 
-      avgDurationStats.forEach(item => {
-        const stats = statsMap.get(item.date);
-        if (stats) {
-          stats.avgWatchDuration = Math.round(parseFloat(item.avgDuration) || 0);
-        }
-      });
+      const dauRows = await this.onlineDailyRepo.query(
+        `SELECT date, COUNT(DISTINCT user_id) dau
+         FROM user_online_daily
+         WHERE date >= ? AND date <= ? AND duration > 0
+         GROUP BY date`,
+        [start, end],
+      ) as Array<{ date: string; dau: string }>;
+      dauRows.forEach(row => { const item = statsMap.get(this.formatDateOnly(row.date)); if (item) item.dau = Number(row.dau || 0); });
 
-      const result = Array.from(statsMap.values()).sort((a, b) => 
-        a.date.localeCompare(b.date)
-      );
+      const avgWatchRows = await this.watchLogRepo.query(
+        `SELECT DATE_FORMAT(watch_date, '%Y-%m-%d') date,
+                SUM(watch_duration) / COUNT(DISTINCT user_id) avgWatchDuration
+         FROM watch_logs
+         WHERE watch_date >= ? AND watch_date <= ?
+         GROUP BY DATE_FORMAT(watch_date, '%Y-%m-%d')`,
+        [start, end],
+      ) as Array<{ date: string; avgWatchDuration: string }>;
+      avgWatchRows.forEach(row => { const item = statsMap.get(row.date); if (item) item.avgWatchDuration = Math.round(Number(row.avgWatchDuration || 0)); });
+
+      const cohortRows = await this.userRepo.query(
+        `SELECT DATE_FORMAT(DATE_ADD(created_at, INTERVAL 8 HOUR), '%Y-%m-%d') cohortDate, COUNT(*) cohortSize
+         FROM users
+         WHERE created_at >= ? AND created_at <= ?
+         GROUP BY DATE_FORMAT(DATE_ADD(created_at, INTERVAL 8 HOUR), '%Y-%m-%d')`,
+        [startTime, endTime],
+      ) as Array<{ cohortDate: string; cohortSize: string }>;
+      const retainedRows = await this.userRepo.query(
+        `SELECT DATE_FORMAT(DATE_ADD(u.created_at, INTERVAL 8 HOUR), '%Y-%m-%d') cohortDate,
+                COUNT(DISTINCT u.id) retainedUsers
+         FROM users u
+         INNER JOIN user_online_daily od
+           ON od.user_id = u.id
+          AND od.duration > 0
+          AND od.date = DATE_FORMAT(DATE_ADD(DATE_ADD(u.created_at, INTERVAL 8 HOUR), INTERVAL 1 DAY), '%Y-%m-%d')
+         WHERE u.created_at >= ? AND u.created_at <= ?
+         GROUP BY DATE_FORMAT(DATE_ADD(u.created_at, INTERVAL 8 HOUR), '%Y-%m-%d')`,
+        [startTime, endTime],
+      ) as Array<{ cohortDate: string; retainedUsers: string }>;
+      const cohortMap = new Map(cohortRows.map(r => [r.cohortDate, Number(r.cohortSize || 0)]));
+      const retainedMap = new Map(retainedRows.map(r => [r.cohortDate, Number(r.retainedUsers || 0)]));
+      const todayStr = this.analyticsService.getLocalDateStr(new Date());
+      dates.forEach(d => {
+        const item = statsMap.get(d);
+        if (!item) return;
+        if (d >= todayStr) { item.nextDayRetention = null; return; }
+        const cohortSize = cohortMap.get(d) || 0;
+        item.nextDayRetention = cohortSize > 0 ? Number(((retainedMap.get(d) || 0) / cohortSize).toFixed(4)) : 0;
+      });
 
       return {
         code: 200,
-        data: result,
+        data: dates.map(d => statsMap.get(d)),
         message: '用户数据统计获取成功',
         timestamp: new Date().toISOString(),
       };
@@ -365,245 +259,133 @@ export class AdminExportController {
   async getSeriesDetails(@Query() query: ExportSeriesDetailsDto) {
     try {
       const { startDate, endDate, categoryId } = query;
-      const start = new Date(startDate);
-      const end = new Date(endDate);
-      end.setHours(23, 59, 59, 999);
+      const dates = this.analyticsService.enumerateLocalDateStrings(startDate, endDate);
+      const start = dates[0] || startDate;
+      const end = dates[dates.length - 1] || endDate;
+      const { startDate: startTime } = this.analyticsService.getLocalDateRange(start);
+      const { endDate: endTime } = this.analyticsService.getLocalDateRange(end);
 
-      // 1. 获取所有符合条件的系列
       const seriesQuery = this.seriesRepo
         .createQueryBuilder('series')
         .leftJoinAndSelect('series.category', 'category')
-        .leftJoinAndSelect('series.episodes', 'episodes')
-        .where('series.id IS NOT NULL');
+        .leftJoinAndSelect('series.episodes', 'episodes');
 
       if (categoryId) {
-        seriesQuery.andWhere('series.category_id = :categoryId', { categoryId });
+        seriesQuery.where('series.category_id = :categoryId', { categoryId });
       }
 
       const seriesList = await seriesQuery.getMany();
-
-      if (seriesList.length === 0) {
-        return {
-          code: 200,
-          message: 'success',
-          timestamp: new Date().toISOString(),
-          data: [],
-        };
-      }
-
       const seriesIds = seriesList.map(s => s.id);
-      const episodeIds = seriesList.flatMap(s => s.episodes.map(e => e.id));
-
-      if (episodeIds.length === 0) {
-        return {
-          code: 200,
-          message: 'success',
-          timestamp: new Date().toISOString(),
-          data: [],
-        };
+      if (seriesIds.length === 0) {
+        return { code: 200, message: 'success', timestamp: new Date().toISOString(), data: [] };
       }
 
-      // 2. 按日期和系列统计观看数据（优先使用 watch_logs）
-      // 先尝试从 watch_logs 获取平均观看时长
-      const watchLogStatsByDate = await this.watchLogRepo
-        .createQueryBuilder('wl')
-        .innerJoin('wl.episode', 'episode')
-        .select("DATE(wl.watch_date)", 'date')
-        .addSelect('episode.series_id', 'seriesId')
-        .addSelect('SUM(wl.watch_duration) / COUNT(DISTINCT wl.user_id)', 'avgDuration')
-        .where('wl.watch_date BETWEEN :start AND :end', { 
-          start: start.toISOString().split('T')[0], 
-          end: end.toISOString().split('T')[0] 
-        })
-        .andWhere('episode.series_id IN (:...seriesIds)', { seriesIds })
-        .groupBy('date, episode.series_id')
-        .getRawMany<{
-          date: string;
-          seriesId: number;
-          avgDuration: string;
-        }>();
-
-      // 创建日志数据映射（用于快速查找）
-      const logDataMap = new Map<string, number>();
-      watchLogStatsByDate.forEach(item => {
-        const key = `${item.date}-${item.seriesId}`;
-        logDataMap.set(key, parseFloat(item.avgDuration || '0'));
-      });
-
-      // 从 watch_progress 获取播放量和完播率
-      const watchStats = await this.wpRepo
-        .createQueryBuilder('wp')
-        .innerJoin('wp.episode', 'episode')
-        .select("DATE_FORMAT(wp.updated_at, '%Y-%m-%d')", 'date')
-        .addSelect('episode.series_id', 'seriesId')
-        .addSelect('COUNT(*)', 'playCount')
-        .addSelect('SUM(wp.stop_at_second) / COUNT(DISTINCT wp.user_id)', 'avgDurationFallback')
-        .addSelect(
-          'AVG(CASE WHEN wp.stop_at_second >= episode.duration * 0.9 THEN 1 ELSE 0 END)',
-          'completionRate'
-        )
-        .where('wp.updated_at BETWEEN :start AND :end', { start, end })
-        .andWhere('episode.series_id IN (:...seriesIds)', { seriesIds })
-        .groupBy('date, episode.series_id')
-        .getRawMany<{
-          date: string;
-          seriesId: number;
-          playCount: string;
-          avgDurationFallback: string;
-          completionRate: string;
-        }>();
-
-      // 3. 按日期和系列统计点赞/踩数
-      const reactionStats = await this.reactionRepo
-        .createQueryBuilder('r')
-        .innerJoin('r.episode', 'episode')
-        .select("DATE_FORMAT(r.created_at, '%Y-%m-%d')", 'date')
-        .addSelect('episode.series_id', 'seriesId')
-        .addSelect(
-          'SUM(CASE WHEN r.reaction_type = "like" THEN 1 ELSE 0 END)',
-          'likeCount'
-        )
-        .addSelect(
-          'SUM(CASE WHEN r.reaction_type = "dislike" THEN 1 ELSE 0 END)',
-          'dislikeCount'
-        )
-        .where('r.created_at BETWEEN :start AND :end', { start, end })
-        .andWhere('episode.series_id IN (:...seriesIds)', { seriesIds })
-        .groupBy('date, episode.series_id')
-        .getRawMany<{
-          date: string;
-          seriesId: number;
-          likeCount: string;
-          dislikeCount: string;
-        }>();
-
-      // 4. 按日期和系列统计收藏数
-      const favoriteStats = await this.favoriteRepo
-        .createQueryBuilder('f')
-        .select("DATE_FORMAT(f.created_at, '%Y-%m-%d')", 'date')
-        .addSelect('f.series_id', 'seriesId')
-        .addSelect('COUNT(*)', 'favoriteCount')
-        .where('f.created_at BETWEEN :start AND :end', { start, end })
-        .andWhere('f.series_id IN (:...seriesIds)', { seriesIds })
-        .groupBy('date, f.series_id')
-        .getRawMany<{
-          date: string;
-          seriesId: number;
-          favoriteCount: string;
-        }>();
-
-      // 5. 按日期统计评论数（通过episodeShortId关联）
-      const episodeShortIds = seriesList.flatMap(s => 
-        s.episodes.map(e => e.shortId).filter(Boolean)
-      );
-
-      let commentStats: Array<{
-        date: string;
-        episodeShortId: string;
-        commentCount: string;
-      }> = [];
-
-      if (episodeShortIds.length > 0) {
-        commentStats = await this.commentRepo
-          .createQueryBuilder('c')
-          .select("DATE_FORMAT(c.created_at, '%Y-%m-%d')", 'date')
-          .addSelect('c.episode_short_id', 'episodeShortId')
-          .addSelect('COUNT(*)', 'commentCount')
-          .where('c.created_at BETWEEN :start AND :end', { start, end })
-          .andWhere('c.episode_short_id IN (:...episodeShortIds)', { episodeShortIds })
-          .groupBy('date, c.episode_short_id')
-          .getRawMany();
-      }
-
-      // 创建episodeShortId到seriesId的映射
-      const shortIdToSeriesMap = new Map<string, number>();
-      seriesList.forEach(series => {
-        series.episodes.forEach(episode => {
-          if (episode.shortId) {
-            shortIdToSeriesMap.set(episode.shortId, series.id);
-          }
-        });
-      });
-
-      // 按日期和系列聚合评论数
-      const commentStatsBySeriesMap = new Map<string, number>();
-      commentStats.forEach(stat => {
-        const seriesId = shortIdToSeriesMap.get(stat.episodeShortId);
-        if (seriesId) {
-          const key = `${stat.date}-${seriesId}`;
-          commentStatsBySeriesMap.set(
-            key,
-            (commentStatsBySeriesMap.get(key) || 0) + parseInt(stat.commentCount)
-          );
-        }
-      });
-
-      // 6. 合并所有数据
+      const seriesMap = new Map(seriesList.map(s => [s.id, s]));
       const resultMap = new Map<string, SeriesDetailData>();
-
-      watchStats.forEach(stat => {
-        const key = `${stat.date}-${stat.seriesId}`;
-        const series = seriesList.find(s => s.id === stat.seriesId);
-        if (!series) return;
-
-        // 优先使用 watch_logs 的数据，如果没有则降级到 watch_progress
-        const avgDuration = logDataMap.get(key) || parseFloat(stat.avgDurationFallback || '0');
-
-        resultMap.set(key, {
-          date: stat.date,
-          seriesId: stat.seriesId,
+      const ensureItem = (date: string, seriesId: number): SeriesDetailData | null => {
+        const series = seriesMap.get(seriesId);
+        if (!series) return null;
+        const key = `${date}-${seriesId}`;
+        const existing = resultMap.get(key);
+        if (existing) return existing;
+        const item: SeriesDetailData = {
+          date,
+          seriesId,
           seriesTitle: series.title,
           categoryName: series.category?.name || '未分类',
           episodeCount: series.episodes.length,
-          playCount: parseInt(stat.playCount),
-          completionRate: parseFloat(parseFloat(stat.completionRate).toFixed(4)),
-          avgWatchDuration: Math.round(avgDuration),
+          playCount: 0,
+          completionRate: 0,
+          avgWatchDuration: 0,
           likeCount: 0,
           dislikeCount: 0,
-          shareCount: 0, // 暂无分享数据
+          shareCount: 0,
           favoriteCount: 0,
           commentCount: 0,
-        });
-      });
-
-      reactionStats.forEach(stat => {
-        const key = `${stat.date}-${stat.seriesId}`;
-        const data = resultMap.get(key);
-        if (data) {
-          data.likeCount = parseInt(stat.likeCount);
-          data.dislikeCount = parseInt(stat.dislikeCount);
-        }
-      });
-
-      favoriteStats.forEach(stat => {
-        const key = `${stat.date}-${stat.seriesId}`;
-        const data = resultMap.get(key);
-        if (data) {
-          data.favoriteCount = parseInt(stat.favoriteCount);
-        }
-      });
-
-      commentStatsBySeriesMap.forEach((count, key) => {
-        const data = resultMap.get(key);
-        if (data) {
-          data.commentCount = count;
-        }
-      });
-
-      // 7. 转换为数组并排序
-      const result = Array.from(resultMap.values()).sort((a, b) => {
-        if (a.date !== b.date) {
-          return b.date.localeCompare(a.date); // 日期降序
-        }
-        return b.playCount - a.playCount; // 播放量降序
-      });
-
-      return {
-        code: 200,
-        message: 'success',
-        timestamp: new Date().toISOString(),
-        data: result,
+        };
+        resultMap.set(key, item);
+        return item;
       };
+
+      const watchRows = await this.watchLogRepo.query(
+        `SELECT DATE_FORMAT(wl.watch_date, '%Y-%m-%d') date,
+                ep.series_id seriesId,
+                COUNT(*) playCount,
+                AVG(wl.watch_duration) avgWatchDuration,
+                SUM(CASE WHEN ep.duration > 0 AND wl.end_position >= ep.duration * 0.9 THEN 1 ELSE 0 END) completedCount,
+                SUM(CASE WHEN ep.duration > 0 THEN 1 ELSE 0 END) completableCount
+         FROM watch_logs wl
+         INNER JOIN episodes ep ON ep.id = wl.episode_id
+         WHERE wl.watch_date >= ? AND wl.watch_date <= ? AND ep.series_id IN (?)
+         GROUP BY DATE_FORMAT(wl.watch_date, '%Y-%m-%d'), ep.series_id`,
+        [start, end, seriesIds],
+      ) as Array<{ date: string; seriesId: number; playCount: string; avgWatchDuration: string; completedCount: string; completableCount: string }>;
+
+      watchRows.forEach(row => {
+        const item = ensureItem(row.date, Number(row.seriesId));
+        if (!item) return;
+        const total = Number(row.completableCount || 0);
+        item.playCount = Number(row.playCount || 0);
+        item.avgWatchDuration = Math.round(Number(row.avgWatchDuration || 0));
+        item.completionRate = total > 0 ? Number((Number(row.completedCount || 0) / total).toFixed(4)) : 0;
+      });
+
+      const reactionRows = await this.reactionRepo.query(
+        `SELECT DATE_FORMAT(DATE_ADD(r.created_at, INTERVAL 8 HOUR), '%Y-%m-%d') date,
+                ep.series_id seriesId,
+                SUM(CASE WHEN r.reaction_type = 'like' THEN 1 ELSE 0 END) likeCount,
+                SUM(CASE WHEN r.reaction_type = 'dislike' THEN 1 ELSE 0 END) dislikeCount
+         FROM episode_reactions r
+         INNER JOIN episodes ep ON ep.id = r.episode_id
+         WHERE r.created_at >= ? AND r.created_at <= ? AND ep.series_id IN (?)
+         GROUP BY DATE_FORMAT(DATE_ADD(r.created_at, INTERVAL 8 HOUR), '%Y-%m-%d'), ep.series_id`,
+        [startTime, endTime, seriesIds],
+      ) as Array<{ date: string; seriesId: number; likeCount: string; dislikeCount: string }>;
+
+      reactionRows.forEach(row => {
+        const item = ensureItem(row.date, Number(row.seriesId));
+        if (!item) return;
+        item.likeCount = Number(row.likeCount || 0);
+        item.dislikeCount = Number(row.dislikeCount || 0);
+      });
+
+      const favoriteRows = await this.favoriteRepo.query(
+        `SELECT DATE_FORMAT(DATE_ADD(created_at, INTERVAL 8 HOUR), '%Y-%m-%d') date,
+                series_id seriesId,
+                COUNT(*) favoriteCount
+         FROM favorites
+         WHERE created_at >= ? AND created_at <= ? AND series_id IN (?)
+         GROUP BY DATE_FORMAT(DATE_ADD(created_at, INTERVAL 8 HOUR), '%Y-%m-%d'), series_id`,
+        [startTime, endTime, seriesIds],
+      ) as Array<{ date: string; seriesId: number; favoriteCount: string }>;
+
+      favoriteRows.forEach(row => {
+        const item = ensureItem(row.date, Number(row.seriesId));
+        if (item) item.favoriteCount = Number(row.favoriteCount || 0);
+      });
+
+      const commentRows = await this.commentRepo.query(
+        `SELECT DATE_FORMAT(DATE_ADD(c.created_at, INTERVAL 8 HOUR), '%Y-%m-%d') date,
+                ep.series_id seriesId,
+                COUNT(*) commentCount
+         FROM comments c
+         INNER JOIN episodes ep ON ep.short_id = c.episode_short_id
+         WHERE c.created_at >= ? AND c.created_at <= ? AND ep.series_id IN (?)
+         GROUP BY DATE_FORMAT(DATE_ADD(c.created_at, INTERVAL 8 HOUR), '%Y-%m-%d'), ep.series_id`,
+        [startTime, endTime, seriesIds],
+      ) as Array<{ date: string; seriesId: number; commentCount: string }>;
+
+      commentRows.forEach(row => {
+        const item = ensureItem(row.date, Number(row.seriesId));
+        if (item) item.commentCount = Number(row.commentCount || 0);
+      });
+
+      const result = Array.from(resultMap.values()).sort((a, b) => {
+        if (a.date !== b.date) return b.date.localeCompare(a.date);
+        return b.playCount - a.playCount;
+      });
+
+      return { code: 200, message: 'success', timestamp: new Date().toISOString(), data: result };
     } catch (error) {
       return {
         code: 500,
@@ -639,205 +421,104 @@ export class AdminExportController {
         return { code: 200, data: [] };
       }
 
-      const { startDate: start } = this.analyticsService.getLocalDateRange(startDate);
-      const { endDate: end } = this.analyticsService.getLocalDateRange(endDate);
+      const start = dates[0] || startDate;
+      const end = dates[dates.length - 1] || endDate;
+      const { startDate: startTime } = this.analyticsService.getLocalDateRange(start);
+      const { endDate: endTime } = this.analyticsService.getLocalDateRange(end);
+      const todayStr = this.analyticsService.getLocalDateStr(new Date());
 
-      // ── 1. 枚举日期列表 ──────────────────────────────────────────────────
+      const newUserRows = await this.userRepo.query(
+        `SELECT DATE_FORMAT(DATE_ADD(created_at, INTERVAL 8 HOUR), '%Y-%m-%d') date, COUNT(*) cnt
+         FROM users
+         WHERE created_at >= ? AND created_at <= ?
+         GROUP BY DATE_FORMAT(DATE_ADD(created_at, INTERVAL 8 HOUR), '%Y-%m-%d')`,
+        [startTime, endTime],
+      ) as Array<{ date: string; cnt: string }>;
+      const newUserMap = new Map(newUserRows.map(r => [r.date, Number(r.cnt || 0)]));
 
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      // 使用本地日期（避免 UTC 与北京时间 UTC+8 的偏移导致今天被误判为明天）
-      const todayStr = this.analyticsService.getLocalDateStr(today);
-
-
-      // ── 2. 新增用户（按日） ──────────────────────────────────────────────
-      const newUserRows = await this.userRepo
-        .createQueryBuilder('u')
-        .select("DATE_FORMAT(DATE_ADD(u.created_at, INTERVAL 8 HOUR), '%Y-%m-%d')", 'date')
-        .addSelect('COUNT(*)', 'cnt')
-        .where('u.created_at >= :start', { start })
-        .andWhere('u.created_at <= :end', { end })
-        .groupBy('date')
-        .getRawMany<{ date: string; cnt: string }>();
-      const newUserMap = new Map(newUserRows.map(r => [r.date, parseInt(r.cnt)]));
-
-      // ── 3. 累计用户（截止每天末尾的总注册数） ───────────────────────────
-      // 一次查询获取每天末尾前的累计数，用 subquery 方式：
-      const cumulativeRows = await this.userRepo
-        .createQueryBuilder('u')
-        .select("DATE_FORMAT(DATE_ADD(u.created_at, INTERVAL 8 HOUR), '%Y-%m-%d')", 'date')
-        .addSelect('COUNT(*)', 'daily')
-        .where('u.created_at <= :end', { end })
-        .groupBy('date')
-        .orderBy('date', 'ASC')
-        .getRawMany<{ date: string; daily: string }>();
-
-      // 构建累计map：对全局所有日期做前缀累加
-      const cumulativeMap = new Map<string, number>();
-      let runningTotal = 0;
-      for (const row of cumulativeRows) {
-        runningTotal += parseInt(row.daily);
-        cumulativeMap.set(row.date, runningTotal);
-      }
-      // 对于查询范围内的日期，用最近一个有数据的日期的累计值填充
-      let lastKnownTotal = 0;
-      const sortedCumulativeDates = Array.from(cumulativeMap.keys()).sort();
-      // 找到 startDate 之前的累计基数
-      for (const d of sortedCumulativeDates) {
-        if (d < dates[0]) lastKnownTotal = cumulativeMap.get(d)!;
-      }
+      const beforeRows = await this.userRepo.query(
+        'SELECT COUNT(*) cnt FROM users WHERE created_at < ?',
+        [startTime],
+      ) as Array<{ cnt: string }>;
       const totalUsersMap = new Map<string, number>();
-      let rolling = lastKnownTotal;
-      for (const d of dates) {
-        rolling += newUserMap.get(d) ?? 0;
-        totalUsersMap.set(d, rolling);
-      }
+      let totalUsers = Number(beforeRows[0]?.cnt || 0);
+      dates.forEach(d => {
+        totalUsers += newUserMap.get(d) || 0;
+        totalUsersMap.set(d, totalUsers);
+      });
 
-      // ── 4. 日活（复用 AnalyticsService 统一口径） ─────────────────────
-      const activeUsersMap = await this.analyticsService.getActiveUsersForDates(dates);
+      const activeRows = await this.onlineDailyRepo.query(
+        `SELECT date, COUNT(DISTINCT user_id) activeUsers
+         FROM user_online_daily
+         WHERE date >= ? AND date <= ? AND duration > 0
+         GROUP BY date`,
+        [start, end],
+      ) as Array<{ date: string; activeUsers: string }>;
+      const activeUsersMap = new Map(activeRows.map(r => [this.formatDateOnly(r.date), Number(r.activeUsers || 0)]));
 
+      const sessionRows = await this.watchLogRepo.query(
+        `SELECT DATE_FORMAT(watch_date, '%Y-%m-%d') date,
+                SUM(watch_duration) totalDuration,
+                COUNT(*) totalSessions,
+                COUNT(DISTINCT user_id) uniqueUsers
+         FROM watch_logs
+         WHERE watch_date >= ? AND watch_date <= ?
+         GROUP BY DATE_FORMAT(watch_date, '%Y-%m-%d')`,
+        [start, end],
+      ) as Array<{ date: string; totalDuration: string; totalSessions: string; uniqueUsers: string }>;
+      const sessionMap = new Map(sessionRows.map(r => [r.date, {
+        totalDuration: Number(r.totalDuration || 0),
+        totalSessions: Number(r.totalSessions || 0),
+        uniqueUsers: Number(r.uniqueUsers || 0),
+      }]));
 
-      // ── 5. 观看次数（watch_progress 更新次数作为代理，非去重；按业务日 UTC+8 聚合） ──────────
-      const launchRows = await this.wpRepo
-        .createQueryBuilder('wp')
-        .select("DATE_FORMAT(DATE_ADD(wp.updated_at, INTERVAL 8 HOUR), '%Y-%m-%d')", 'date')
-        .addSelect('COUNT(*)', 'cnt')
-        .where('wp.updated_at >= :start', { start })
-        .andWhere('wp.updated_at <= :end', { end })
-        .groupBy('date')
-        .getRawMany<{ date: string; cnt: string }>();
-      const launchMap = new Map(launchRows.map(r => [r.date, parseInt(r.cnt)]));
+      const cohortRows = await this.userRepo.query(
+        `SELECT DATE_FORMAT(DATE_ADD(created_at, INTERVAL 8 HOUR), '%Y-%m-%d') cohortDate, COUNT(*) cohortSize
+         FROM users
+         WHERE created_at >= ? AND created_at <= ?
+         GROUP BY DATE_FORMAT(DATE_ADD(created_at, INTERVAL 8 HOUR), '%Y-%m-%d')`,
+        [startTime, endTime],
+      ) as Array<{ cohortDate: string; cohortSize: string }>;
+      const retainedRows = await this.userRepo.query(
+        `SELECT DATE_FORMAT(DATE_ADD(u.created_at, INTERVAL 8 HOUR), '%Y-%m-%d') cohortDate,
+                COUNT(DISTINCT u.id) retainedUsers
+         FROM users u
+         INNER JOIN user_online_daily od
+           ON od.user_id = u.id
+          AND od.duration > 0
+          AND od.date = DATE_FORMAT(DATE_ADD(DATE_ADD(u.created_at, INTERVAL 8 HOUR), INTERVAL 1 DAY), '%Y-%m-%d')
+         WHERE u.created_at >= ? AND u.created_at <= ?
+         GROUP BY DATE_FORMAT(DATE_ADD(u.created_at, INTERVAL 8 HOUR), '%Y-%m-%d')`,
+        [startTime, endTime],
+      ) as Array<{ cohortDate: string; retainedUsers: string }>;
+      const cohortMap = new Map(cohortRows.map(r => [r.cohortDate, Number(r.cohortSize || 0)]));
+      const retainedMap = new Map(retainedRows.map(r => [r.cohortDate, Number(r.retainedUsers || 0)]));
 
-      // ── 6. 平均单次观看时长（avg_session_duration）── 优先 watch_logs.watch_date；降级 watch_progress(updated_at 按业务日聚合) ─────────
-      const sessionRows = await this.watchLogRepo
-        .createQueryBuilder('wl')
-        .select('DATE(wl.watch_date)', 'date')
-        .addSelect('AVG(wl.watch_duration)', 'avgSession')
-        .where('wl.watch_date >= :startD', { startD: dates[0] })
-        .andWhere('wl.watch_date <= :endD', { endD: dates[dates.length - 1] })
-        .groupBy('date')
-        .getRawMany<{ date: string; avgSession: string }>();
-      const sessionMap = new Map(sessionRows.map(r => [r.date, Math.round(parseFloat(r.avgSession) || 0)]));
+      const result = dates.map(d => {
+        const newUsers = newUserMap.get(d) || 0;
+        const activeUsers = activeUsersMap.get(d) || 0;
+        const session = sessionMap.get(d);
+        const totalDuration = session?.totalDuration || 0;
+        const totalSessions = session?.totalSessions || 0;
+        const uniqueUsers = session?.uniqueUsers || 0;
+        const cohortSize = cohortMap.get(d) || 0;
+        const retention = d >= todayStr
+          ? null
+          : (cohortSize > 0 ? Number(((retainedMap.get(d) || 0) / cohortSize).toFixed(4)) : 0);
 
-      // 降级：若 watch_logs 无该日数据，从 watch_progress 取 avg stop_at_second
-      const sessionFallbackRows = await this.wpRepo
-        .createQueryBuilder('wp')
-        .select("DATE_FORMAT(DATE_ADD(wp.updated_at, INTERVAL 8 HOUR), '%Y-%m-%d')", 'date')
-        .addSelect('AVG(wp.stop_at_second)', 'avgSession')
-        .where('wp.updated_at >= :start', { start })
-        .andWhere('wp.updated_at <= :end', { end })
-        .groupBy('date')
-        .getRawMany<{ date: string; avgSession: string }>();
-      const sessionFallbackMap = new Map(sessionFallbackRows.map(r => [r.date, Math.round(parseFloat(r.avgSession) || 0)]));
-
-      // ── 7. 平均日观看时长 & 平均日观看次数（以 watch_logs.watch_date 为准，今日返回 null） ──
-      const dailyDurationRows = await this.watchLogRepo
-        .createQueryBuilder('wl')
-        .select('DATE(wl.watch_date)', 'date')
-        .addSelect('SUM(wl.watch_duration)', 'totalDur')
-        .addSelect('COUNT(DISTINCT wl.user_id)', 'uniqueUsers')
-        .addSelect('COUNT(*)', 'totalSessions')
-        .where('wl.watch_date >= :startD', { startD: dates[0] })
-        .andWhere('wl.watch_date <= :endD', { endD: dates[dates.length - 1] })
-        .groupBy('date')
-        .getRawMany<{ date: string; totalDur: string; uniqueUsers: string; totalSessions: string }>();
-      const dailyDurMap = new Map(
-        dailyDurationRows.map(r => [
-          r.date,
-          {
-            avgDailyDuration: parseInt(r.uniqueUsers) > 0
-              ? Math.round(parseInt(r.totalDur) / parseInt(r.uniqueUsers))
-              : null,
-            avgDailyLaunches: parseInt(r.uniqueUsers) > 0
-              ? parseFloat((parseInt(r.totalSessions) / parseInt(r.uniqueUsers)).toFixed(2))
-              : null,
-          },
-        ]),
-      );
-
-      // ── 8. 次日内容留存率（批量计算，当天 = null） ──────────────────────────
-      const retentionMap = new Map<string, number | null>();
-
-      // 找出需要计算留存的日期（排除今天及之后）
-      const retentionDates = dates.filter(d => d < todayStr);
-      dates.filter(d => d >= todayStr).forEach(d => retentionMap.set(d, null));
-
-      if (retentionDates.length > 0) {
-        const { startDate: retStart } = this.analyticsService.getLocalDateRange(retentionDates[0]);
-        const { endDate: retEnd } = this.analyticsService.getLocalDateRange(retentionDates[retentionDates.length - 1]);
-
-        // 一次查出范围内每天的新增用户数（cohort size）
-        const cohortRows = await this.userRepo
-          .createQueryBuilder('u')
-          .select("DATE_FORMAT(DATE_ADD(u.created_at, INTERVAL 8 HOUR), '%Y-%m-%d')", 'date')
-          .addSelect('COUNT(*)', 'cnt')
-          .where('u.created_at >= :retStart', { retStart })
-          .andWhere('u.created_at <= :retEnd', { retEnd })
-          .groupBy('date')
-          .getRawMany<{ date: string; cnt: string }>();
-        const cohortMap = new Map(cohortRows.map(r => [r.date, parseInt(r.cnt)]));
-
-        // 一次查出：某业务日注册的用户，在下一业务日是否有 watch_progress 记录
-        const retentionRows = await this.userRepo
-          .createQueryBuilder('u')
-          .select("DATE_FORMAT(DATE_ADD(u.created_at, INTERVAL 8 HOUR), '%Y-%m-%d')", 'cohortDate')
-          .addSelect('COUNT(DISTINCT u.id)', 'retained')
-          .innerJoin(
-            'watch_progress',
-            'wp',
-            "wp.user_id = u.id AND DATE_FORMAT(DATE_ADD(wp.updated_at, INTERVAL 8 HOUR), '%Y-%m-%d') = DATE_FORMAT(DATE_ADD(DATE_ADD(u.created_at, INTERVAL 8 HOUR), INTERVAL 1 DAY), '%Y-%m-%d')",
-          )
-          .where('u.created_at >= :retStart', { retStart })
-          .andWhere('u.created_at <= :retEnd', { retEnd })
-          .groupBy('cohortDate')
-          .getRawMany<{ cohortDate: string; retained: string }>();
-        const retainedMap = new Map(retentionRows.map(r => [r.cohortDate, parseInt(r.retained)]));
-
-        for (const d of retentionDates) {
-          const cohortSize = cohortMap.get(d) ?? 0;
-          if (cohortSize === 0) { retentionMap.set(d, 0); continue; }
-          const retained = retainedMap.get(d) ?? 0;
-          retentionMap.set(d, parseFloat((retained / cohortSize).toFixed(4)));
-        }
-      }
-
-      // ── 9. 组装结果 ──────────────────────────────────────────────────────
-      const result = dates
-        .map(d => {
-          const newUsers   = newUserMap.get(d) ?? 0;
-          const totalUsers = totalUsersMap.get(d) ?? 0;
-
-          // 日活：复用 AnalyticsService 统一口径
-          const activeUsers = activeUsersMap.get(d) ?? 0;
-
-          const launches   = launchMap.get(d) ?? 0;
-          // new_user_ratio：新用户占活跃用户比例，最大不超过 1
-          const newUserRatio = activeUsers > 0
-            ? parseFloat(Math.min(newUsers / activeUsers, 1).toFixed(4))
-            : 0;
-
-          const avgSessionDuration =
-            sessionMap.get(d) ?? sessionFallbackMap.get(d) ?? 0;
-
-          // 今日的 avg_daily_duration / avg_daily_launches 设为 null（次日才可算）
-          const daily = dailyDurMap.get(d);
-          const avgDailyDuration  = d >= todayStr ? null : (daily?.avgDailyDuration  ?? null);
-          const avgDailyLaunches  = d >= todayStr ? null : (daily?.avgDailyLaunches  ?? null);
-
-          return {
-            date: d,
-            new_users:                 newUsers,
-            content_active_users:      activeUsers,
-            watch_progress_updates:    launches,
-            total_users:               totalUsers,
-            new_user_ratio:            newUserRatio,
-            next_day_content_retention: retentionMap.get(d) ?? null,
-            avg_session_duration:      avgSessionDuration,
-            avg_daily_duration:        avgDailyDuration,
-            avg_daily_watch_sessions:  avgDailyLaunches,
-          };
-        })
-        .reverse(); // 按日期倒序
+        return {
+          date: d,
+          new_users: newUsers,
+          content_active_users: activeUsers,
+          watch_progress_updates: totalSessions,
+          total_users: totalUsersMap.get(d) || 0,
+          new_user_ratio: activeUsers > 0 ? Number(Math.min(newUsers / activeUsers, 1).toFixed(4)) : 0,
+          next_day_content_retention: retention,
+          avg_session_duration: totalSessions > 0 ? Math.round(totalDuration / totalSessions) : 0,
+          avg_daily_duration: uniqueUsers > 0 ? Math.round(totalDuration / uniqueUsers) : null,
+          avg_daily_watch_sessions: uniqueUsers > 0 ? Number((totalSessions / uniqueUsers).toFixed(2)) : null,
+        };
+      }).reverse();
 
       return { code: 200, data: result };
     } catch (error) {
@@ -853,10 +534,13 @@ export class AdminExportController {
    * 格式化日期为 "11月1日" 格式
    */
   private formatDate(dateStr: string): string {
-    const date = new Date(dateStr);
-    const month = date.getMonth() + 1;
-    const day = date.getDate();
+    const [, month, day] = dateStr.split('-').map(Number);
     return `${month}月${day}日`;
+  }
+
+  private formatDateOnly(value: string | Date): string {
+    if (value instanceof Date) return value.toISOString().slice(0, 10);
+    return String(value).slice(0, 10);
   }
 }
 

@@ -128,7 +128,6 @@ curl -X POST "http://localhost:8080/api/admin/categories/123?_method=DELETE"
       "lastLoginIp": "203.0.113.10",
       "lastLoginDevice": "iPhone 15 iOS 18",
       "activeLogins": 2,
-      "loginCount": 18,
       "totalWatchDuration": 12580,
       "lastActiveAt": "2026-06-22T14:30:00.000Z",
       "isOnline": true
@@ -146,18 +145,43 @@ curl -X POST "http://localhost:8080/api/admin/categories/123?_method=DELETE"
   | `lastLoginIp` | string/null | 最后登录 IP |
   | `lastLoginDevice` | string/null | 最后登录设备信息 |
   | `activeLogins` | number | 当前有效的登录会话数（有效 refresh token 数量） |
-  | `loginCount` | number | 历史总登录次数（refresh token 创建总数） |
   | `totalWatchDuration` | number | 总观看时长（秒），来源：watch_logs 表 SUM(watch_duration) |
   | `lastActiveAt` | string/null | 最后活跃时间（优先显示心跳时间；无心跳时显示最后观看时间） |
   | `isOnline` | boolean | 是否在线（5分钟内有心跳上报则为 true；通过 Redis `online:last:{userId}` 判断） |
 
 - 详情
-  - `GET /api/admin/users/:id`
+  - `GET /api/admin/users/:id?startDate=2026-06-01&endDate=2026-06-23`
   - 返回字段与列表项一致，包含 `totalWatchDuration`、`lastActiveAt`、`isOnline`
+  - 额外返回 `onlineDaily`：按天统计在线时长和观看时长；`startDate` / `endDate` 可选，默认最近 30 天
+  - `onlineDaily.days` 只包含有心跳在线时长的日期，不用登录次数做统计
+  - `onlineDaily.days[].watchDuration` 就是每一天的观看时长，按同一天 `watch_logs.watch_date` 汇总
+  - 详情响应中的 `onlineDaily` 示例：
+```json
+{
+  "onlineDaily": {
+    "userId": 1001,
+    "startDate": "2026-06-01",
+    "endDate": "2026-06-23",
+    "totalOnlineDuration": 54000,
+    "totalWatchDuration": 12580,
+    "days": [
+      {
+        "date": "2026-06-23",
+        "onlineDuration": 3600,
+        "watchDuration": 1800,
+        "onlineHours": 1,
+        "onlineMinutes": 0,
+        "watchHours": 0,
+        "watchMinutes": 30
+      }
+    ]
+  }
+}
+```
 
 - 登录日志
   - `GET /api/admin/users/:id/login-logs?page=1&size=20`
-  - 数据来源：`refresh_tokens`，每次登录签发 refresh token 时产生一条记录
+  - 数据来源：`refresh_tokens`，用于查看最近登录设备和 token 状态，不作为在线天数或登录次数统计口径
   - 响应示例：
 ```json
 {
@@ -199,28 +223,38 @@ curl -X POST "http://localhost:8080/api/admin/categories/123?_method=DELETE"
   "userId": 1001,
   "startDate": "2026-06-01",
   "endDate": "2026-06-23",
-  "totalDuration": 54000,
+  "totalOnlineDuration": 54000,
+  "totalWatchDuration": 12580,
   "days": [
     {
       "date": "2026-06-23",
-      "duration": 3600,
-      "hours": 1,
-      "minutes": 0
+      "onlineDuration": 3600,
+      "watchDuration": 1800,
+      "onlineHours": 1,
+      "onlineMinutes": 0,
+      "watchHours": 0,
+      "watchMinutes": 30
     },
     {
       "date": "2026-06-22",
-      "duration": 7200,
-      "hours": 2,
-      "minutes": 0
+      "onlineDuration": 7200,
+      "watchDuration": 5400,
+      "onlineHours": 2,
+      "onlineMinutes": 0,
+      "watchHours": 1,
+      "watchMinutes": 30
     }
   ]
 }
 ```
   - 字段说明：
-    - `totalDuration`: 时间范围内总在线时长（秒）
-    - `days`: 按日期倒序的每日在线记录
-    - `duration`: 当天在线秒数
-    - `hours` / `minutes`: 格式化后的小时和分钟数，方便前端展示
+    - `totalOnlineDuration`: 时间范围内总在线时长（秒），只统计有心跳的日期，来源 `user_online_daily.duration`
+    - `totalWatchDuration`: 返回的在线日期内总观看时长（秒），来源 `watch_logs.watch_duration`
+    - `days`: 按日期倒序的每日在线记录；只包含有心跳在线时长的日期
+    - `days[].onlineDuration`: 当天在线时长（秒），来源 `user_online_daily.duration` + Redis 未刷库心跳
+    - `days[].watchDuration`: 当天观看时长（秒），来源 `watch_logs` 按 `watch_date` 汇总
+    - `days[].onlineHours` / `days[].onlineMinutes`: 当天在线时长的小时和分钟展示值
+    - `days[].watchHours` / `days[].watchMinutes`: 当天观看时长的小时和分钟展示值
 
 - 新增（注意：`id` 为 bigint 主键，必填）
   - `POST /api/admin/users`
@@ -1090,7 +1124,7 @@ curl "http://localhost:9090/api/admin/series/validation/check-duplicate-names"
 ```
 
 **字段说明**：
-- `dau`: 日活跃用户数，统计口径与 `overview-stats` 单日 `content_active_users` 一致：优先读 Redis HyperLogLog，之后与 MySQL（当天观看用户 ∪ 当天注册用户）结果取较大值
+- `dau`: 日活跃用户数。导出接口 `overview-stats.content_active_users` 现在以 `user_online_daily.duration > 0` 为准；dashboard 侧如未同步重写，可能仍包含访问型活跃口径，前端展示时不要把两者混为同一个指标
 - `wau`: 周活跃用户数（最近7天窗口内，观看用户 ∪ 注册用户 去重）
 - `mau`: 月活跃用户数（最近30天窗口内，观看用户 ∪ 注册用户 去重）
 - `sticky`: 粘性系数（DAU/MAU × 100），衡量用户活跃度，>20%为优秀
@@ -1100,9 +1134,9 @@ curl "http://localhost:9090/api/admin/series/validation/check-duplicate-names"
 #### 活跃用户统计
 
 **口径补充说明**：
-- `dashboard/active-users` 中的 `dau` 与 `export/overview-stats` 单日 `content_active_users` 完全一致。
-- 单日实现：以 Redis HyperLogLog 为准，凡是当日带 token 且鉴权成功的请求用户都会计入去重 DAU。
-- `wau` / `mau` 当前基于最近 7 / 30 个业务日的访问型 DAU 累加计算，反映近 7 / 30 日访问活跃规模。
+- `dashboard/active-users` 是概览卡片接口；`export/overview-stats.content_active_users` 是导出统计接口。
+- 当前导出统计已统一改为 `user_online_daily.duration > 0` 的心跳落库口径。
+- 如果需要 dashboard 与 export 完全一致，后续也应把 dashboard 活跃用户统计同步为 `user_online_daily` 口径。
 
 - **获取DAU/WAU/MAU详细数据**
   - `GET /api/admin/dashboard/active-users`
@@ -1127,7 +1161,7 @@ curl "http://localhost:9090/api/admin/series/validation/check-duplicate-names"
 | 字段 | 类型 | 含义 | 前端处理建议 |
 |------|------|------|--------------|
 | `code` | `number` | 业务状态码，`200` 表示成功 | 先判断 `code === 200`，失败时展示 `message` |
-| `data.dau` | `number` | 今日活跃用户数。实现与 `overview-stats` 单日 `content_active_users` 完全一致：当日带 token 且鉴权成功的请求用户去重数（Redis HyperLogLog） | 直接按整数展示，建议显示为“今日日活” |
+| `data.dau` | `number` | 今日活跃用户数。注意：导出接口 `overview-stats.content_active_users` 已改为 `user_online_daily` 心跳落库口径，dashboard 如需完全一致需另行同步 | 直接按整数展示，建议显示为“今日日活” |
 | `data.wau` | `number` | 最近 7 个业务日访问活跃规模，当前按最近 7 日 DAU 累加计算 | 直接展示；不要与自然周混淆，它是“近 7 天访问活跃规模” |
 | `data.mau` | `number` | 最近 30 个业务日访问活跃规模，当前按最近 30 日 DAU 累加计算 | 直接展示；不要理解为自然月 |
 | `data.dau7DayAvg` | `number` | 最近 7 天 DAU 平均值，已四舍五入 | 可用于和 `dau` 对比，展示趋势高低 |
@@ -1674,12 +1708,12 @@ const relative = dayjs(createdAt).fromNow();
 
 **字段说明**：
 - `date`: 格式化日期（如 `3月28日`）
-- `playCount`: 播放量（所有观看记录总数，不去重）
-- `avgWatchDuration`: 平均观看时长（秒）= 总停止秒数 ÷ 去重用户数
-- `completionRate`: 完播率，观看进度 ≥ 90% 的记录占比（0~1）
-- `likeCount`: 当日点赞数
+- `playCount`: 播放量，来源 `watch_logs` 记录数，不去重
+- `avgWatchDuration`: 平均单次观看时长（秒），来源 `AVG(watch_logs.watch_duration)`
+- `completionRate`: 完播率，来源 `watch_logs.end_position >= episodes.duration * 0.9` 的记录占比（0~1）
+- `likeCount`: 当日点赞数，按 UTC+8 业务日统计 `episode_reactions.created_at`
 - `shareCount`: 分享数（暂无数据，固定返回 0）
-- `favoriteCount`: 当日收藏数
+- `favoriteCount`: 当日收藏数，按 UTC+8 业务日统计 `favorites.created_at`
 
 ---
 
@@ -1710,10 +1744,10 @@ const relative = dayjs(createdAt).fromNow();
 
 **字段说明**：
 - `date`: 格式化日期
-- `newUsers`: 当日新增注册用户数
-- `nextDayRetention`: 次日留存率（0~1），当天数据次日才可计算，今日返回当前值
-- `dau`: 日活跃用户数（有观看行为的去重用户数）
-- `avgWatchDuration`: 平均观影时长（秒），优先来自 `watch_logs` 表，降级用 `watch_progress`
+- `newUsers`: 当日新增注册用户数，按 UTC+8 业务日统计 `users.created_at`
+- `nextDayRetention`: 次日留存率（0~1）。以当日新增用户为 cohort，统计次日 `user_online_daily.duration > 0` 的去重用户数；今日及未来日期返回 `null`
+- `dau`: 日活跃用户数，来源 `user_online_daily`，按 `duration > 0` 的 `user_id` 去重
+- `avgWatchDuration`: 人均观影时长（秒），来源 `watch_logs`：当天总 `watch_duration` ÷ 当天有观看日志的去重用户数
 - `newUserSource`: 新增来源，当前固定返回 `"自然增长"`
 
 ---
@@ -1761,13 +1795,13 @@ const relative = dayjs(createdAt).fromNow();
 - `date`: 日期（`YYYY-MM-DD` 格式，保持原始格式方便排序）
 - `seriesId` / `seriesTitle` / `categoryName`: 系列信息
 - `episodeCount`: 系列总集数
-- `playCount`: 当日播放量
-- `completionRate`: 当日完播率（0~1）
-- `avgWatchDuration`: 平均观看时长（秒），优先 `watch_logs`，降级 `watch_progress`
-- `likeCount` / `dislikeCount`: 点赞/点踩数
+- `playCount`: 当日播放量，来源该系列下所有剧集的 `watch_logs` 记录数
+- `completionRate`: 当日完播率，来源 `watch_logs.end_position >= episodes.duration * 0.9` 的记录占比（0~1）
+- `avgWatchDuration`: 平均单次观看时长（秒），来源 `AVG(watch_logs.watch_duration)`
+- `likeCount` / `dislikeCount`: 点赞/点踩数，按 UTC+8 业务日统计
 - `shareCount`: 分享数（暂无，固定 0）
-- `favoriteCount`: 收藏数
-- `commentCount`: 评论数
+- `favoriteCount`: 收藏数，按 UTC+8 业务日统计
+- `commentCount`: 评论数，按 UTC+8 业务日统计
 
 **排序规则**：日期降序，同日内按播放量降序。
 
@@ -1775,14 +1809,15 @@ const relative = dayjs(createdAt).fromNow();
 
 ### 运营核心指标总览
 
-**口径补充说明**：
-- `active_users` 与 `dashboard/active-users` 中的单日 `dau` 完全一致。
-- 单日实现：优先读取 Redis HyperLogLog `dau:YYYYMMDD`，再与 MySQL（当天观看用户 ∪ 当天注册用户）的结果取较大值。
-- 因此调用方不需要自行二次去重，也不需要前端再兜底重算。
-
 `GET /api/admin/export/overview-stats?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD`
 
 按日期返回运营核心指标，按日期**倒序**排列。
+
+**统一口径**：
+- 日期均按 UTC+8 业务日统计。
+- `content_active_users` / DAU 来源 `user_online_daily`，只统计 `duration > 0` 的去重用户。
+- 观看次数和观看时长来源 `watch_logs`，不再用 `watch_progress` 作为播放量主口径。
+- 次日留存以新增用户为 cohort，统计次日 `user_online_daily.duration > 0` 的用户。
 
 **参数**：
 | 参数 | 类型 | 必填 | 说明 |
@@ -1796,28 +1831,16 @@ const relative = dayjs(createdAt).fromNow();
   "code": 200,
   "data": [
     {
-      "date": "2026-03-30",
+      "date": "2026-06-24",
       "new_users": 7,
-      "active_users": 3,
-      "launches": 3,
+      "content_active_users": 3,
+      "watch_progress_updates": 5,
       "total_users": 1213,
-      "new_user_ratio": 0,
-      "retention_next_day": null,
-      "avg_session_duration": 100,
-      "avg_daily_duration": null,
-      "avg_daily_launches": null
-    },
-    {
-      "date": "2026-03-28",
-      "new_users": 3,
-      "active_users": 0,
-      "launches": 3,
-      "total_users": 1204,
-      "new_user_ratio": 0,
-      "retention_next_day": 0.3333,
-      "avg_session_duration": 70,
-      "avg_daily_duration": null,
-      "avg_daily_launches": null
+      "new_user_ratio": 1,
+      "next_day_content_retention": null,
+      "avg_session_duration": 55,
+      "avg_daily_duration": 92,
+      "avg_daily_watch_sessions": 1.67
     }
   ]
 }
@@ -1827,19 +1850,19 @@ const relative = dayjs(createdAt).fromNow();
 | 字段 | 类型 | 说明 |
 |------|------|------|
 | `date` | string | 日期 `YYYY-MM-DD` |
-| `new_users` | number | 当日新增注册用户数 |
-| `active_users` | number | 日活。与 `dashboard/active-users` 中的单日 `dau` 完全一致：优先读 Redis HyperLogLog `dau:YYYYMMDD`，再与 MySQL（当天观看用户 ∪ 当天注册用户）结果取较大值 |
-| `launches` | number | 当日观看次数代理值（`watch_progress` 记录更新总次数，非去重） |
+| `new_users` | number | 当日新增注册用户数，按 UTC+8 业务日统计 `users.created_at` |
+| `content_active_users` | number | 日活跃用户数，来源 `user_online_daily`，按 `duration > 0` 的 `user_id` 去重 |
+| `watch_progress_updates` | number | 字段名历史保留；当前含义为当天观看会话数，即 `watch_logs` 记录数 |
 | `total_users` | number | 截止当日的累计注册用户总数 |
-| `new_user_ratio` | number | 新用户占比 = `new_users / active_users`（0~1） |
-| `retention_next_day` | number\|null | 次日留存率（0~1）；**今日及未来日期返回 `null`**，次日起才可计算 |
-| `avg_session_duration` | number | 平均单次观看时长（秒），优先 `watch_logs`，降级 `watch_progress` |
-| `avg_daily_duration` | number\|null | 人均观看时长 = 当天总观看时长 ÷ 当天有观看记录的去重用户数；依赖 `watch_logs`，今日返回 `null` |
-| `avg_daily_launches` | number\|null | 人均观看次数 = 当天观看日志总条数 ÷ 当天有观看记录的去重用户数；依赖 `watch_logs`，今日返回 `null` |
+| `new_user_ratio` | number | 新用户占比 = `new_users / content_active_users`（0~1，最大不超过 1） |
+| `next_day_content_retention` | number\|null | 次日留存率（0~1）；今日及未来日期返回 `null`，次日起才可计算 |
+| `avg_session_duration` | number | 平均单次观看时长（秒）= `SUM(watch_logs.watch_duration) / COUNT(watch_logs)` |
+| `avg_daily_duration` | number\|null | 人均观看时长（秒）= 当天总观看时长 ÷ 当天有观看日志的去重用户数 |
+| `avg_daily_watch_sessions` | number\|null | 人均观看次数 = 当天观看日志总条数 ÷ 当天有观看日志的去重用户数 |
 
 **性能说明**：
-- 次日留存率已优化为**批量 SQL**（2 条）替代原来的逐日 N+1 查询，支持大范围日期查询不超时
-- `content_active_users` 的单日统计优先读取 Redis HyperLogLog，并与 MySQL（当天观看用户 ∪ 当天注册用户）的去重结果取较大值；Redis 写入依赖 `watch_progress` 保存时的 `PFADD`，即使 Redis 不可用，读取时仍可由 MySQL 结果兜底
+- 接口使用批量 SQL 按日期聚合，不再逐日 N+1 查询。
+- 若当天心跳尚未从 Redis 刷入 `user_online_daily`，DAU/留存会在下一次心跳刷库后体现。
 
 **cURL 示例**：
 ```bash
@@ -1876,9 +1899,10 @@ curl "http://localhost:9090/api/admin/export/overview-stats?startDate=2026-03-25
 - ✅ 未携带有效管理员 token 时返回 `401 Unauthorized`
 - ✅ 覆盖范围：users、series、episodes、banners、categories、options、dashboard、export、ingest、advertising
 
-**用户登录次数与日志**
-- ✅ 用户列表/详情新增 `loginCount` 字段（基于 refresh_tokens 统计）
-- ✅ `GET /api/admin/users/:id/login-logs` — 查看用户登录日志
+**用户在线时长与登录日志**
+- ✅ 用户列表/详情使用 `activeLogins` 表示当前有效登录会话数，不再提供 `loginCount` 登录次数统计
+- ✅ `GET /api/admin/users/:id/login-logs` — 查看用户登录日志，仅用于设备/token 状态查看，不作为在线天数或登录次数统计口径
+- ✅ 用户在线/观看明细以 `user_online_daily` 和 `watch_logs` 为准
 
 #### 🔒 安全改进
 
@@ -1896,7 +1920,7 @@ curl "http://localhost:9090/api/admin/export/overview-stats?startDate=2026-03-25
 - ✅ `GET /api/admin/export/play-stats` — 按日播放量、完播率、平均时长、点赞/收藏
 - ✅ `GET /api/admin/export/user-stats` — 按日新增用户、DAU、次日留存率、平均观影时长
 - ✅ `GET /api/admin/export/series-details` — 按日 × 系列明细（支持 `categoryId` 筛选）
-- ✅ `GET /api/admin/export/overview-stats` — 运营核心指标总览（含 Redis DAU + 次日留存）
+- ✅ `GET /api/admin/export/overview-stats` — 运营核心指标总览（心跳 DAU + 次日留存）
 
 #### 🐛 性能修复
 

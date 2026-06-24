@@ -127,23 +127,6 @@ export class UserService {
     );
   }
 
-  /**
-   * 记录用户活跃（登录/注册时调用）
-   * 确保今天在 user_online_daily 有记录，即使 duration=0 也算活跃
-   */
-  async recordUserActive(userId: number): Promise<void> {
-    const today = new Date().toISOString().slice(0, 10);
-    try {
-      await this.onlineDailyRepo.query(
-        `INSERT INTO user_online_daily (user_id, date, duration) VALUES (?, ?, 0)
-         ON DUPLICATE KEY UPDATE user_id = user_id`,
-        [userId, today],
-      );
-    } catch (e) {
-      this.logger.warn(`recordUserActive failed for user ${userId}: ${(e as Error)?.message}`);
-    }
-  }
-
   async telegramLogin(dto: TelegramUserDto): Promise<TokenResult> {
     // 1. 验证Bot Token配置
     this.validateBotToken();
@@ -441,7 +424,6 @@ export class UserService {
       user,
       deviceInfo || user.username || 'Telegram User',
     );
-    await this.recordUserActive(user.id).catch(() => {});
     return tokens;
   }
   // src/user/user.service.ts
@@ -572,9 +554,6 @@ export class UserService {
       user,
       dto.deviceInfo || 'Email Login',
     );
-
-    // 记录用户活跃
-    await this.recordUserActive(user.id).catch(() => {});
 
     return {
       ...tokens,
@@ -795,9 +774,6 @@ export class UserService {
       // 生成正式用户的令牌
       const tokens = await this.authService.generateTokens(existingUser, 'Email Login After Merge');
       
-      // 记录用户活跃
-      await this.recordUserActive(existingUser.id).catch(() => {});
-      
       return {
         success: true,
         message: '检测到该邮箱已注册，已将您的游客数据合并到现有账号',
@@ -834,9 +810,6 @@ export class UserService {
 
     // 8. 生成新的令牌
     const tokens = await this.authService.generateTokens(guestUser, 'Email Registration');
-    
-    // 记录用户活跃
-    await this.recordUserActive(guestUser.id).catch(() => {});
 
     return {
       success: true,

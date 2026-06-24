@@ -1,5 +1,4 @@
 import { Module } from '@nestjs/common';
-import { ScheduleModule } from '@nestjs/schedule';
 
 import { CoreModule } from './core/core.module';
 import { SharedModule } from './common/shared.module';
@@ -9,7 +8,6 @@ import { AdminModule } from './admin/admin.module';
 
 @Module({
   imports: [
-    ScheduleModule.forRoot(),
     CoreModule,
     SharedModule,
     AuthModule,      // ✅ 添加 AuthModule
