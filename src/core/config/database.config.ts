@@ -101,10 +101,9 @@ export class DatabaseConfig {
         queueLimit: 0,
         enableKeepAlive: true,
         keepAliveInitialDelay: 0,
-        // 连接空闲超时（毫秒），应小于 MySQL 的 wait_timeout
-        idleTimeoutMillis: 28800000, // 8小时
-        // 连接最大生命周期（毫秒），定期刷新连接
-        maxLifetime: 1800000, // 30分钟
+        // MySQL2 连接池空闲配置
+        maxIdle: this.minConnections || Math.ceil((this.maxConnections ?? 10) * 0.3),
+        idleTimeout: 300000,
         typeCast: function (field: any, next: () => any) {
           if (field.type === 'DATETIME' || field.type === 'TIMESTAMP') {
             const val = field.string();
