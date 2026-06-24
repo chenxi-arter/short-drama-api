@@ -291,7 +291,7 @@ export class FilterService {
    * 解析筛选条件ID字符串
    * @param ids 筛选条件的“序号”组合（display_order），格式："typeId,genreId,regionId,languageId,yearId,statusId"
    * - 位置含义：[类型, 题材, 地区, 语言, 年份, 状态]
-   * - 类型选项：1=最近上传，3=人气最高，4=评分最高
+   * - 类型选项：0=默认/最新，1=人气最高，2=评分最高
    * - 映射原则：先用每一位的 display_order 去 filter_options 中定位对应选项，再取该选项的 option.id 参与查询
    * - 重要：ids 中的值是 display_order（序号），不是 filter_options.id
    * - 特殊规则：当 channelId 为数值且 > 0 时，会忽略 ids 中的"类型(type)"位，避免与频道分类冲突；channelId=0 表示全库筛选
@@ -560,82 +560,92 @@ export class FilterService {
       };
     }
 
-    // 说明：关键词搜索不使用Redis缓存，避免热点键导致的内存压力与键爆炸
-
     try {
-      const offset = (page - 1) * size;
-      console.log('查询参数:', { offset, size });
-      
-      // 构建查询条件
+      const pageNum = Math.max(Number(page) || 1, 1);
+      const pageSize = Math.min(Math.max(Number(size) || 20, 1), 50);
+      const offset = (pageNum - 1) * pageSize;
       const trimmedKeyword = keyword.trim();
-      const queryBuilder = this.seriesRepo.createQueryBuilder('series')
+      const likeKeyword = `%${trimmedKeyword}%`;
+      const parsedCategoryId = categoryId && categoryId.trim() !== '' ? parseInt(categoryId, 10) : undefined;
+      const hasCategoryFilter = Number.isFinite(parsedCategoryId) && Number(parsedCategoryId) > 0;
+
+      const baseWhere = (qb: any) => {
+        qb.where('series.title LIKE :likeKeyword', { likeKeyword })
+          .andWhere('series.isActive = :isActive', { isActive: 1 });
+
+        if (hasCategoryFilter) {
+          qb.andWhere('series.category_id = :categoryId', { categoryId: parsedCategoryId });
+        }
+      };
+
+      const countQuery = this.seriesRepo.createQueryBuilder('series');
+      baseWhere(countQuery);
+      const total = await countQuery.getCount();
+
+      if (total === 0) {
+        console.log('未找到相关结果');
+        return {
+          code: 200,
+          data: { list: [], total: 0, page: pageNum, size: pageSize, hasMore: false },
+          msg: '未找到相关结果'
+        };
+      }
+
+      const idQuery = this.seriesRepo.createQueryBuilder('series')
+        .select('series.id', 'id')
+        .addSelect(`
+          CASE 
+            WHEN series.title = :exactKeyword THEN 1
+            WHEN series.title LIKE :prefixKeyword THEN 2
+            WHEN series.title LIKE :likeKeyword THEN 3
+            ELSE 4
+          END
+        `, 'matchPriority')
+        .addSelect('LOCATE(:exactKeyword, series.title)', 'matchPosition')
+        .addSelect('CHAR_LENGTH(series.title)', 'titleLength')
+        .setParameters({
+          exactKeyword: trimmedKeyword,
+          prefixKeyword: `${trimmedKeyword}%`,
+          likeKeyword,
+        });
+
+      baseWhere(idQuery);
+
+      const idRows = await idQuery
+        .orderBy('matchPriority', 'ASC')
+        .addOrderBy('matchPosition', 'ASC')
+        .addOrderBy('titleLength', 'ASC')
+        .addOrderBy('series.createdAt', 'DESC')
+        .addOrderBy('series.id', 'DESC')
+        .offset(offset)
+        .limit(pageSize)
+        .getRawMany<{ id: number }>();
+
+      const seriesIds = idRows.map(row => Number(row.id)).filter(Boolean);
+      if (seriesIds.length === 0) {
+        return {
+          code: 200,
+          data: { list: [], total, page: pageNum, size: pageSize, hasMore: total > pageNum * pageSize },
+          msg: null
+        };
+      }
+
+      const series = await this.seriesRepo.createQueryBuilder('series')
         .leftJoinAndSelect('series.category', 'category')
-        .leftJoinAndSelect('series.episodes', 'episodes')
         .leftJoinAndSelect('series.regionOption', 'regionOption')
         .leftJoinAndSelect('series.languageOption', 'languageOption')
         .leftJoinAndSelect('series.statusOption', 'statusOption')
         .leftJoinAndSelect('series.yearOption', 'yearOption')
-        .where('series.title LIKE :keyword', { keyword: `%${trimmedKeyword}%` })
-        .andWhere('series.isActive = :isActive', { isActive: 1 }); // 只查询未删除的剧集
+        .where('series.id IN (:...seriesIds)', { seriesIds })
+        .getMany();
 
-      // 如果指定了分类ID，则添加分类筛选条件
-      if (categoryId && categoryId.trim() !== '') {
-        queryBuilder.andWhere('series.category_id = :categoryId', { categoryId: parseInt(categoryId) });
-      }
+      const orderMap = new Map(seriesIds.map((id, index) => [id, index]));
+      series.sort((a, b) => (orderMap.get(a.id) ?? 0) - (orderMap.get(b.id) ?? 0));
 
-      // 排序：按相关性（标题匹配度）优先，然后按创建时间
-      // 使用 MySQL 的 LOCATE 函数计算匹配位置，位置越靠前匹配度越高
-      // 同时考虑完全匹配和部分匹配的优先级
-      queryBuilder
-        .addSelect(`
-          CASE 
-            WHEN series.title = :keyword THEN 1
-            WHEN series.title LIKE CONCAT(:keyword, '%') THEN 2
-            WHEN series.title LIKE CONCAT('%', :keyword, '%') THEN 3
-            ELSE 4
-          END
-        `, 'matchPriority')
-        .addSelect('LOCATE(:keyword, series.title)', 'matchPosition')
-        .addSelect('CHAR_LENGTH(series.title)', 'titleLength')
-        .orderBy('matchPriority', 'ASC') // 完全匹配 > 前缀匹配 > 包含匹配
-        .addOrderBy('matchPosition', 'ASC') // 相同优先级时，匹配位置越靠前越好
-        .addOrderBy('titleLength', 'ASC') // 相同匹配度时，标题越短越好（精确匹配）
-        .addOrderBy('series.createdAt', 'DESC'); // 最后按创建时间排序
+      console.log('查询结果:', { count: series.length, total });
 
-      console.log('SQL查询:', queryBuilder.getSql());
-      console.log('查询参数:', queryBuilder.getParameters());
-
-      // 分页
-      const [series, total] = await queryBuilder
-        .skip(offset)
-        .take(size)
-        .getManyAndCount();
-
-      console.log('查询结果:', { count: series?.length || 0, total });
-
-      // 如果没有查询到数据，返回空数据
-      if (!series || series.length === 0) {
-        console.log('未找到相关结果');
-        const response: FuzzySearchResponse = {
-          code: 200,
-          data: {
-            list: [],
-            total: 0,
-            page,
-            size,
-            hasMore: false
-          },
-          msg: '未找到相关结果'
-        };
-        
-        return response;
-      }
-
-      // 批量获取系列标签
-      const seriesIds = series.map(s => s.id);
       const seriesTagsMap = await this.getSeriesTagsBatch(seriesIds);
 
-      // 转换为响应格式（tags = 题材 + 地区 + 语言 + 年份 + 状态）
       const items: FuzzySearchItem[] = series.map(s => {
         const genreTags = seriesTagsMap.get(s.id) || [];
         const optionTags = [
@@ -652,19 +662,19 @@ export class FilterService {
           title: s.title,
           score: s.score?.toString() || '0.0',
           playCount: s.playCount || 0,
-          url: s.id.toString(), // 使用ID作为URL
-          type: s.category?.name || '未分类', // 使用分类名称作为类型
-          contentType: s.category?.name || '', // 内容类型
-          isSerial: (s.episodes && s.episodes.length > 1) || false,
+          url: s.id.toString(),
+          type: s.category?.name || '未分类',
+          contentType: s.category?.name || '',
+          isSerial: (s.totalEpisodes && s.totalEpisodes > 1) || false,
           upStatus: s.upStatus || (s.statusOption?.name ? `${s.statusOption.name}` : '已完结'),
           upCount: 0,
-          author: s.starring || s.actor || '', // 使用主演或演员作为作者
-          description: s.description || '', // 使用描述字段
+          author: s.starring || s.actor || '',
+          description: s.description || '',
           cidMapper: s.category?.id?.toString() || '0',
-          isRecommend: false, // 默认不推荐，可根据实际业务逻辑调整
+          isRecommend: false,
           createdAt: s.createdAt ? DateUtil.formatDateTime(s.createdAt) : DateUtil.formatDateTime(new Date()),
-          channeid: s.categoryId || 0, // 添加频道ID标识
-          tags, // 系列标签（题材+地区+语言+年份+状态）
+          channeid: s.categoryId || 0,
+          tags,
         };
       });
 
@@ -673,9 +683,9 @@ export class FilterService {
         data: {
           list: items,
           total,
-          page,
-          size,
-          hasMore: total > page * size
+          page: pageNum,
+          size: pageSize,
+          hasMore: total > pageNum * pageSize
         },
         msg: null
       };

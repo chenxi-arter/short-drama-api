@@ -191,9 +191,9 @@ export class HomeService {
       const queryBuilder = this.seriesRepo.createQueryBuilder('series')
         .leftJoinAndSelect('series.category', 'category')
         .where('series.isActive = :isActive', { isActive: 1 })
-        .orderBy('series.updatedAt', 'DESC')
-        .addOrderBy('series.createdAt', 'DESC')
+        .orderBy('series.createdAt', 'DESC')
         .addOrderBy('series.id', 'DESC')
+        .addOrderBy('series.updatedAt', 'DESC')
         .skip(offset)
         .take(size);
 

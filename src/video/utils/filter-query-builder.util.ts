@@ -4,15 +4,20 @@ export class FilterQueryBuilderUtil {
   static applySorting(qb: SelectQueryBuilder<any>, sortType: number) {
     switch (sortType) {
       case 1:
-        qb.orderBy('series.playCount', 'DESC'); // 人气最高
+        qb.orderBy('series.playCount', 'DESC')
+          .addOrderBy('series.createdAt', 'DESC')
+          .addOrderBy('series.id', 'DESC');
         break;
       case 2:
-        qb.orderBy('series.score', 'DESC'); // 评分最高
-        break;
-      default:
-        qb.orderBy('series.updatedAt', 'DESC')
+        qb.orderBy('series.score', 'DESC')
           .addOrderBy('series.createdAt', 'DESC')
-          .addOrderBy('series.id', 'DESC'); // 默认按更新时间排序
+          .addOrderBy('series.id', 'DESC');
+        break;
+      case 0:
+      default:
+        qb.orderBy('series.createdAt', 'DESC')
+          .addOrderBy('series.id', 'DESC')
+          .addOrderBy('series.updatedAt', 'DESC');
     }
   }
 

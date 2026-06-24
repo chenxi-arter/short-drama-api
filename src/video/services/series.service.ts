@@ -161,9 +161,9 @@ export class SeriesService {
         .createQueryBuilder('series')
         .leftJoinAndSelect('series.category', 'category')
         .leftJoinAndSelect('series.episodes', 'episodes')
-        .orderBy('series.updatedAt', 'DESC')
-        .addOrderBy('series.createdAt', 'DESC')
+        .orderBy('series.createdAt', 'DESC')
         .addOrderBy('series.id', 'DESC')
+        .addOrderBy('series.updatedAt', 'DESC')
         .limit(limit);
 
       if (categoryId) {
@@ -229,8 +229,8 @@ export class SeriesService {
    */
   async getRecommendedSeries(userId?: number, limit: number = 10): Promise<Series[]> {
     const cacheKey = userId 
-      ? `recommended_series_${userId}_${limit}`
-      : `recommended_series_${limit}`;
+      ? `recommended_series_v2_${userId}_${limit}`
+      : `recommended_series_v2_${limit}`;
     
     // 尝试从缓存获取
     const cached = await this.cacheManager.get<Series[]>(cacheKey);
@@ -239,15 +239,17 @@ export class SeriesService {
     }
 
     try {
-      // 简单的推荐逻辑：返回高评分且播放量较高的系列
-      // 实际项目中可以根据用户行为数据进行个性化推荐
       const series = await this.seriesRepo
         .createQueryBuilder('series')
         .leftJoinAndSelect('series.category', 'category')
         .leftJoinAndSelect('series.episodes', 'episodes')
-        .where('series.score >= :minScore', { minScore: 7.0 })
-        .orderBy('series.score', 'DESC')
+        .where('series.isActive = :isActive', { isActive: 1 })
+        .andWhere('series.score >= :minScore', { minScore: 7.0 })
+        .orderBy('series.createdAt', 'DESC')
+        .addOrderBy('series.id', 'DESC')
+        .addOrderBy('series.score', 'DESC')
         .addOrderBy('series.playCount', 'DESC')
+        .addOrderBy('series.updatedAt', 'DESC')
         .limit(limit)
         .getMany();
 

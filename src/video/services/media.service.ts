@@ -62,9 +62,9 @@ export class MediaService {
       // 排序
       switch (sort) {
         case 'latest':
-          queryBuilder.orderBy('series.updatedAt', 'DESC')
-                     .addOrderBy('series.createdAt', 'DESC')
-                     .addOrderBy('series.id', 'DESC');
+          queryBuilder.orderBy('series.createdAt', 'DESC')
+                     .addOrderBy('series.id', 'DESC')
+                     .addOrderBy('series.updatedAt', 'DESC');
           break;
         case 'like':
           queryBuilder.orderBy('series.score', 'DESC');
@@ -73,9 +73,9 @@ export class MediaService {
           queryBuilder.orderBy('series.playCount', 'DESC');
           break;
         default:
-          queryBuilder.orderBy('series.updatedAt', 'DESC')
-                     .addOrderBy('series.createdAt', 'DESC')
-                     .addOrderBy('series.id', 'DESC');
+          queryBuilder.orderBy('series.createdAt', 'DESC')
+                     .addOrderBy('series.id', 'DESC')
+                     .addOrderBy('series.updatedAt', 'DESC');
       }
 
       const [series, total] = await queryBuilder
@@ -139,9 +139,9 @@ export class MediaService {
       const queryBuilder = this.seriesRepo.createQueryBuilder('series')
         .leftJoinAndSelect('series.category', 'category')
         .where('series.isActive = :isActive', { isActive: 1 })
-        .orderBy('series.updatedAt', 'DESC')
-        .addOrderBy('series.createdAt', 'DESC')
-        .addOrderBy('series.id', 'DESC');
+        .orderBy('series.createdAt', 'DESC')
+        .addOrderBy('series.id', 'DESC')
+        .addOrderBy('series.updatedAt', 'DESC');
 
       if (categoryId && categoryId > 0) {
         queryBuilder.andWhere('series.categoryId = :categoryId', { categoryId });
@@ -257,9 +257,9 @@ export class MediaService {
       const queryBuilder = this.seriesRepo.createQueryBuilder('series')
         .leftJoinAndSelect('series.category', 'category')
         .where('series.isActive = :isActive', { isActive: 1 })
-        .orderBy('series.updatedAt', 'DESC')
-        .addOrderBy('series.createdAt', 'DESC')
+        .orderBy('series.createdAt', 'DESC')
         .addOrderBy('series.id', 'DESC')
+        .addOrderBy('series.updatedAt', 'DESC')
         .skip(offset)
         .take(size);
 
