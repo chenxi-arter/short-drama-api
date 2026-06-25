@@ -97,18 +97,55 @@ export class AnalyticsService {
 
   async getActiveUsersForDay(date: Date): Promise<number> {
     const { dateStr } = this.getBusinessDayRange(date);
-    return (await this.dauService.getDAU(dateStr)) ?? 0;
+    const dailyMap = await this.getActiveUsersForDates([dateStr]);
+    return dailyMap.get(dateStr) ?? 0;
   }
 
   async getActiveUsersForDates(dates: string[]): Promise<Map<string, number>> {
     const result = new Map<string, number>();
     if (dates.length === 0) return result;
 
-    const redisPairs = await Promise.all(
-      dates.map(async date => [date, (await this.dauService.getDAU(date)) ?? 0] as const),
-    );
+    dates.forEach(date => result.set(date, 0));
+    const start = dates[0];
+    const end = dates[dates.length - 1];
+    const { startDate: startTime } = this.getLocalDateRange(start);
+    const { endDate: endTime } = this.getLocalDateRange(end);
 
-    redisPairs.forEach(([date, count]) => result.set(date, count));
+    const rows = await this.userRepo.query(
+      `SELECT active_date date, COUNT(DISTINCT user_id) cnt
+       FROM (
+         SELECT DATE_FORMAT(DATE_ADD(u.created_at, INTERVAL 8 HOUR), '%Y-%m-%d') active_date,
+                u.id user_id
+         FROM users u
+         WHERE u.created_at >= ? AND u.created_at <= ?
+         UNION ALL
+         SELECT DATE_FORMAT(od.date, '%Y-%m-%d') active_date,
+                od.user_id user_id
+         FROM user_online_daily od
+         WHERE od.date >= ? AND od.date <= ? AND od.duration > 0
+         UNION ALL
+         SELECT DATE_FORMAT(wl.watch_date, '%Y-%m-%d') active_date,
+                wl.user_id user_id
+         FROM watch_logs wl
+         WHERE wl.watch_date >= ? AND wl.watch_date <= ?
+       ) t
+       WHERE active_date >= ? AND active_date <= ?
+       GROUP BY active_date`,
+      [startTime, endTime, start, end, start, end, start, end],
+    ) as Array<{ date: string; cnt: string }>;
+
+    rows.forEach(row => {
+      if (result.has(row.date)) result.set(row.date, Number(row.cnt || 0));
+    });
+
+    const redisMap = await this.dauService.getDAUBatch(dates);
+    dates.forEach(date => {
+      const redisCount = redisMap.get(date);
+      if (typeof redisCount === 'number') {
+        result.set(date, Math.max(result.get(date) ?? 0, redisCount));
+      }
+    });
+
     return result;
   }
 
@@ -444,55 +481,18 @@ export class AnalyticsService {
     dau7DayAvg: number;
     sticky: number;
   }> {
-    const today = new Date().toISOString().slice(0, 10);
-    const d7 = new Date(Date.now() - 6 * 86400000).toISOString().slice(0, 10);
-    const d30 = new Date(Date.now() - 29 * 86400000).toISOString().slice(0, 10);
+    const today = this.getLocalDateStr(new Date());
+    const d7Start = this.shiftBusinessDate(today, -6);
+    const d30Start = this.shiftBusinessDate(today, -29);
+    const last7Dates = this.enumerateLocalDateStrings(d7Start, today);
+    const last30Dates = this.enumerateLocalDateStrings(d30Start, today);
 
-    const [dauResult, wauResult, mauResult, dau7Avg] = await Promise.all([
-      this.onlineDailyRepo
-        .createQueryBuilder('od')
-        .select('COUNT(DISTINCT od.user_id)', 'cnt')
-        .where('od.date = :today', { today })
-        .getRawOne<{ cnt: string }>(),
-      this.onlineDailyRepo
-        .createQueryBuilder('od')
-        .select('COUNT(DISTINCT od.user_id)', 'cnt')
-        .where('od.date >= :d7', { d7 })
-        .andWhere('od.date <= :today', { today })
-        .getRawOne<{ cnt: string }>(),
-      this.onlineDailyRepo
-        .createQueryBuilder('od')
-        .select('COUNT(DISTINCT od.user_id)', 'cnt')
-        .where('od.date >= :d30', { d30 })
-        .andWhere('od.date <= :today', { today })
-        .getRawOne<{ cnt: string }>(),
-      this.onlineDailyRepo
-        .createQueryBuilder('od')
-        .select('od.date', 'date')
-        .addSelect('COUNT(DISTINCT od.user_id)', 'cnt')
-        .where('od.date >= :d7', { d7 })
-        .andWhere('od.date <= :today', { today })
-        .groupBy('od.date')
-        .getRawMany<{ date: string; cnt: string }>(),
-    ]);
-
-    const dau = Number(dauResult?.cnt || 0);
-    const wau = Number(wauResult?.cnt || 0);
-    const mau = Number(mauResult?.cnt || 0);
-
-    // 如果 online_daily 表没数据，fallback 到旧逻辑（Redis HyperLogLog）
-    if (dau === 0 && wau === 0 && mau === 0) {
-      const [fallbackDau, fallbackWau, fallbackMau] = await Promise.all([
-        this.getDAU(new Date()),
-        this.getWAU(new Date()),
-        this.getMAU(new Date()),
-      ]);
-      const sticky = fallbackMau > 0 ? Math.round((fallbackDau / fallbackMau) * 10000) / 100 : 0;
-      return { dau: fallbackDau, wau: fallbackWau, mau: fallbackMau, dau7DayAvg: fallbackDau, sticky };
-    }
-
-    const dau7DayAvg = dau7Avg.length > 0
-      ? Math.round(dau7Avg.reduce((sum, r) => sum + Number(r.cnt || 0), 0) / dau7Avg.length)
+    const activeMap = await this.getActiveUsersForDates(last30Dates);
+    const dau = activeMap.get(today) || 0;
+    const wau = last7Dates.reduce((sum, date) => sum + (activeMap.get(date) || 0), 0);
+    const mau = last30Dates.reduce((sum, date) => sum + (activeMap.get(date) || 0), 0);
+    const dau7DayAvg = last7Dates.length > 0
+      ? Math.round(wau / last7Dates.length)
       : dau;
     const sticky = mau > 0 ? Math.round((dau / mau) * 10000) / 100 : 0;
 
