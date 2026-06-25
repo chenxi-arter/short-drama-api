@@ -1175,7 +1175,7 @@ curl "http://localhost:9090/api/admin/series/validation/check-duplicate-names"
 ```
 
 **字段说明**：
-- `dau`: 日活跃用户数。导出接口 `overview-stats.content_active_users` 现在以 `user_online_daily.duration > 0` 为准；dashboard 侧如未同步重写，可能仍包含访问型活跃口径，前端展示时不要把两者混为同一个指标
+- `dau`: 日活跃用户数，统一口径为当日新增注册用户 ∪ 当日心跳在线用户 ∪ 当日观看用户，按 `user_id` 去重
 - `wau`: 周活跃用户数（最近7天窗口内，观看用户 ∪ 注册用户 去重）
 - `mau`: 月活跃用户数（最近30天窗口内，观看用户 ∪ 注册用户 去重）
 - `sticky`: 粘性系数（DAU/MAU × 100），衡量用户活跃度，>20%为优秀
@@ -1185,9 +1185,10 @@ curl "http://localhost:9090/api/admin/series/validation/check-duplicate-names"
 #### 活跃用户统计
 
 **口径补充说明**：
-- `dashboard/active-users` 是概览卡片接口；`export/overview-stats.content_active_users` 是导出统计接口。
-- 当前导出统计已统一改为 `user_online_daily.duration > 0` 的心跳落库口径。
-- 如果需要 dashboard 与 export 完全一致，后续也应把 dashboard 活跃用户统计同步为 `user_online_daily` 口径。
+- `dashboard/active-users` 是概览卡片接口；`export/overview-stats.content_active_users` 和 `export/user-stats.dau` 是导出统计接口。
+- 三个接口的 DAU 已统一为同一口径：当日新增注册用户 ∪ 当日心跳在线用户 ∪ 当日观看用户，按 `user_id` 去重。
+- 因此当日新增用户会计入活跃用户；如果某天只有注册、没有心跳或观看，DAU 也会至少包含这些新增用户。
+- `dashboard/active-users` 不接收日期参数，返回“今天 / 近 7 个业务日 / 近 30 个业务日”的统计；如果要看指定日期，请使用 `export/overview-stats` 或 `export/user-stats`。
 
 - **获取DAU/WAU/MAU详细数据**
   - `GET /api/admin/dashboard/active-users`
@@ -1212,7 +1213,7 @@ curl "http://localhost:9090/api/admin/series/validation/check-duplicate-names"
 | 字段 | 类型 | 含义 | 前端处理建议 |
 |------|------|------|--------------|
 | `code` | `number` | 业务状态码，`200` 表示成功 | 先判断 `code === 200`，失败时展示 `message` |
-| `data.dau` | `number` | 今日活跃用户数。注意：导出接口 `overview-stats.content_active_users` 已改为 `user_online_daily` 心跳落库口径，dashboard 如需完全一致需另行同步 | 直接按整数展示，建议显示为“今日日活” |
+| `data.dau` | `number` | 今日活跃用户数，口径为：今日新增注册用户 ∪ 今日心跳在线用户 ∪ 今日观看用户，按 `user_id` 去重 | 直接按整数展示，建议显示为“今日日活” |
 | `data.wau` | `number` | 最近 7 个业务日访问活跃规模，当前按最近 7 日 DAU 累加计算 | 直接展示；不要与自然周混淆，它是“近 7 天访问活跃规模” |
 | `data.mau` | `number` | 最近 30 个业务日访问活跃规模，当前按最近 30 日 DAU 累加计算 | 直接展示；不要理解为自然月 |
 | `data.dau7DayAvg` | `number` | 最近 7 天 DAU 平均值，已四舍五入 | 可用于和 `dau` 对比，展示趋势高低 |
@@ -1236,6 +1237,27 @@ curl "http://localhost:9090/api/admin/series/validation/check-duplicate-names"
 - 若要做人性化展示，建议统一格式：
   - `< 10000`：原样展示
   - `>= 10000`：可转为 `1.2万` 这类简写
+
+**前端更新建议**：
+
+- 首页概览卡片：
+  - `GET /api/admin/dashboard/overview` 的 `users.newToday` 展示为“今日新增用户”。
+  - `GET /api/admin/dashboard/active-users` 的 `data.dau` 展示为“今日日活”。
+  - 两者都是“今天”的指标，可以并排展示，但含义不同：新增用户是注册人数，DAU 是新增 ∪ 心跳 ∪ 观看后的去重活跃人数。
+- 导出/运营趋势页：
+  - 指定日期区间请使用 `GET /api/admin/export/overview-stats?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD`。
+  - 使用 `new_users` 展示“新增用户”。
+  - 使用 `content_active_users` 展示“活跃用户 / DAU”。
+  - 使用 `new_user_ratio` 展示“新增占比”，前端展示百分比时需要乘以 `100`，例如 `0.7895` 展示为 `78.95%`。
+- 用户统计导出页：
+  - `GET /api/admin/export/user-stats` 中的 `dau` 与 `overview-stats.content_active_users` 口径一致。
+  - 该接口的 `date` 是中文展示格式，例如 `6月23日`；如果前端需要排序或和其他接口合并，建议以请求区间生成的原始 `YYYY-MM-DD` 作为内部 key。
+- 不要把 `series-details` 当作 DAU 来源：
+  - `GET /api/admin/export/series-details` 是“日期 × 系列”的内容明细接口，不返回平台级 DAU。
+  - 如果前端当前在系列明细页展示“活跃用户”，应改为从 `overview-stats.content_active_users` 或 `user-stats.dau` 读取。
+- 缓存刷新：
+  - 如果前端用了 React Query / SWR / Pinia / Vue Query 等缓存，请在接口口径变更后清理旧缓存，或给相关 query key 加上日期区间参数。
+  - 推荐 query key：`['dashboard-active-users']`、`['dashboard-overview']`、`['export-overview-stats', startDate, endDate]`、`['export-user-stats', startDate, endDate]`。
 
 #### 用户留存率
 
@@ -1686,20 +1708,20 @@ const relative = dayjs(createdAt).fromNow();
 返回管理后台首页概览卡片数据。
 
 **口径说明（已与核心运营数据统一的字段）**：
-- `users.new24h`：字段名保留历史命名，但**实际表示今日业务日新增用户数**，不是滚动最近 24 小时。
-- `comments.new24h`：字段名保留历史命名，但**实际表示今日业务日新增评论数**，不是滚动最近 24 小时。
-- `plays.last24hVisits`：字段名保留历史命名，但**实际表示今日业务日访问数**，不是滚动最近 24 小时。
+- `users.newToday`：今日业务日新增用户数。
+- `comments.newToday`：今日业务日新增评论数。
+- `plays.todayVisits`：今日业务日访问数。
 - 以上“业务日”统一按北京时间（UTC+8）自然日边界计算，与核心运营数据导出保持一致。
 
 **响应示例**：
 ```json
 {
-  "users": { "total": 40689, "new24h": 123, "activeLogins": 2040, "lastLoginAtLatest": "2025-09-05T12:34:56.000Z" },
+  "users": { "total": 40689, "newToday": 123, "activeLogins": 2040, "lastLoginAtLatest": "2025-09-05T12:34:56.000Z" },
   "series": { "total": 1150 },
   "episodes": { "total": 26640 },
   "banners": { "total": 6, "totalClicks": 7, "totalImpressions": 5, "ctr": 1.4 },
-  "comments": { "total": 302613, "new24h": 18 },
-  "plays": { "totalPlayCount": 45352229, "last24hVisits": 321 }
+  "comments": { "total": 302613, "newToday": 18 },
+  "plays": { "totalPlayCount": 45352229, "todayVisits": 321 }
 }
 ```
 
@@ -1707,13 +1729,13 @@ const relative = dayjs(createdAt).fromNow();
 | 字段 | 类型 | 说明 |
 |------|------|------|
 | `users.total` | number | 用户总数 |
-| `users.new24h` | number | **今日业务日新增用户数**（字段名历史保留） |
+| `users.newToday` | number | 今日业务日新增用户数 |
 | `users.activeLogins` | number | 当前未撤销且未过期的活跃登录会话数 |
 | `users.lastLoginAtLatest` | string\|null | 最近一次登录时间 |
 | `comments.total` | number | 评论总数 |
-| `comments.new24h` | number | **今日业务日新增评论数**（字段名历史保留） |
+| `comments.newToday` | number | 今日业务日新增评论数 |
 | `plays.totalPlayCount` | number | 播放总量（按 `episodes.play_count` 汇总） |
-| `plays.last24hVisits` | number | **今日业务日访问数**（字段名历史保留） |
+| `plays.todayVisits` | number | 今日业务日访问数 |
 
 ---
 
@@ -1797,7 +1819,7 @@ const relative = dayjs(createdAt).fromNow();
 - `date`: 格式化日期
 - `newUsers`: 当日新增注册用户数，按 UTC+8 业务日统计 `users.created_at`
 - `nextDayRetention`: 次日留存率（0~1）。以当日新增用户为 cohort，统计次日 `user_online_daily.duration > 0` 的去重用户数；今日及未来日期返回 `null`
-- `dau`: 日活跃用户数，来源 `user_online_daily`，按 `duration > 0` 的 `user_id` 去重
+- `dau`: 日活跃用户数，统一口径为：当日新增注册用户 ∪ 当日心跳在线用户 ∪ 当日观看用户，按 `user_id` 去重。数据来源包括 `users.created_at`、`user_online_daily.duration > 0`、`watch_logs.watch_date`
 - `avgWatchDuration`: 人均观影时长（秒），来源 `watch_logs`：当天总 `watch_duration` ÷ 当天有观看日志的去重用户数
 - `newUserSource`: 新增来源，当前固定返回 `"自然增长"`
 
@@ -1856,6 +1878,8 @@ const relative = dayjs(createdAt).fromNow();
 
 **排序规则**：日期降序，同日内按播放量降序。
 
+**注意**：该接口是内容/系列维度明细，不返回平台级 DAU / 活跃用户。如果前端需要在同一页面展示活跃用户，请额外请求 `GET /api/admin/export/overview-stats`，使用对应日期的 `content_active_users` 字段。
+
 ---
 
 ### 运营核心指标总览
@@ -1866,7 +1890,12 @@ const relative = dayjs(createdAt).fromNow();
 
 **统一口径**：
 - 日期均按 UTC+8 业务日统计。
-- `content_active_users` / DAU 来源 `user_online_daily`，只统计 `duration > 0` 的去重用户。
+- `content_active_users` / DAU 统一表示当日活跃用户数，口径为：当日新增注册用户 ∪ 当日心跳在线用户 ∪ 当日观看用户，按 `user_id` 去重。
+- 具体数据来源：
+  - 当日新增注册用户：`users.created_at` 落在该 UTC+8 业务日内；
+  - 当日心跳在线用户：`user_online_daily.date = 当日` 且 `duration > 0`；
+  - 当日观看用户：`watch_logs.watch_date = 当日`。
+- 因此当日新增用户会计入 DAU；`content_active_users` 通常应大于或等于 `new_users`，除非存在数据清洗或跨时区脏数据。
 - 观看次数和观看时长来源 `watch_logs`，不再用 `watch_progress` 作为播放量主口径。
 - 次日留存以新增用户为 cohort，统计次日 `user_online_daily.duration > 0` 的用户。
 
@@ -1884,10 +1913,10 @@ const relative = dayjs(createdAt).fromNow();
     {
       "date": "2026-06-24",
       "new_users": 7,
-      "content_active_users": 3,
+      "content_active_users": 12,
       "watch_progress_updates": 5,
       "total_users": 1213,
-      "new_user_ratio": 1,
+      "new_user_ratio": 0.5833,
       "next_day_content_retention": null,
       "avg_session_duration": 55,
       "avg_daily_duration": 92,
@@ -1902,7 +1931,7 @@ const relative = dayjs(createdAt).fromNow();
 |------|------|------|
 | `date` | string | 日期 `YYYY-MM-DD` |
 | `new_users` | number | 当日新增注册用户数，按 UTC+8 业务日统计 `users.created_at` |
-| `content_active_users` | number | 日活跃用户数，来源 `user_online_daily`，按 `duration > 0` 的 `user_id` 去重 |
+| `content_active_users` | number | 日活跃用户数，统一口径为：当日新增注册用户 ∪ 当日心跳在线用户 ∪ 当日观看用户，按 `user_id` 去重 |
 | `watch_progress_updates` | number | 字段名历史保留；当前含义为当天观看会话数，即 `watch_logs` 记录数 |
 | `total_users` | number | 截止当日的累计注册用户总数 |
 | `new_user_ratio` | number | 新用户占比 = `new_users / content_active_users`（0~1，最大不超过 1） |
@@ -1913,7 +1942,8 @@ const relative = dayjs(createdAt).fromNow();
 
 **性能说明**：
 - 接口使用批量 SQL 按日期聚合，不再逐日 N+1 查询。
-- 若当天心跳尚未从 Redis 刷入 `user_online_daily`，DAU/留存会在下一次心跳刷库后体现。
+- DAU 会同时合并新增、心跳、观看三类用户，并按用户去重。
+- 当天心跳尚未从 Redis 刷入 `user_online_daily` 时，DAU 仍会包含当天新增用户和观看用户；心跳部分会在下一次心跳刷库后体现。
 
 **cURL 示例**：
 ```bash
@@ -1962,6 +1992,12 @@ curl "http://localhost:9090/api/admin/export/overview-stats?startDate=2026-03-25
 - ✅ `GET /api/admin/users/:id/login-logs` — 查看用户登录日志，仅用于设备/token 状态查看
 - ✅ 用户在线/观看明细以 `user_online_daily` 和 `watch_logs` 为准
 
+**Dashboard / Export 活跃用户口径统一**
+- ✅ `GET /api/admin/dashboard/active-users` 的 `dau` 与导出接口统一口径
+- ✅ `GET /api/admin/export/user-stats` 的 `dau` 与 `GET /api/admin/export/overview-stats` 的 `content_active_users` 统一口径
+- ✅ DAU / 活跃用户 = 当日新增注册用户 ∪ 当日心跳在线用户 ∪ 当日观看用户，按 `user_id` 去重
+- ✅ 当日新增用户会计入活跃用户，避免出现“新增用户大于活跃用户”的展示问题
+
 #### 🔒 安全改进
 
 - 管理端不再无鉴权暴露，公网部署安全性大幅提升
@@ -1978,7 +2014,7 @@ curl "http://localhost:9090/api/admin/export/overview-stats?startDate=2026-03-25
 - ✅ `GET /api/admin/export/play-stats` — 按日播放量、完播率、平均时长、点赞/收藏
 - ✅ `GET /api/admin/export/user-stats` — 按日新增用户、DAU、次日留存率、平均观影时长
 - ✅ `GET /api/admin/export/series-details` — 按日 × 系列明细（支持 `categoryId` 筛选）
-- ✅ `GET /api/admin/export/overview-stats` — 运营核心指标总览（心跳 DAU + 次日留存）
+- ✅ `GET /api/admin/export/overview-stats` — 运营核心指标总览（统一 DAU：新增注册用户 ∪ 心跳在线用户 ∪ 观看用户）
 
 #### 🐛 性能修复
 
