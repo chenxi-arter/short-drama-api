@@ -20,6 +20,7 @@ type AdminUserListRaw = {
   activeLogins?: string | number | null;
   totalWatchDuration?: string | number | null;
   totalOnlineDuration?: string | number | null;
+  onlineDays?: string | number | null;
   lastActiveAt?: string | Date | null;
 };
 
@@ -59,6 +60,8 @@ export class AdminUsersController {
     @Query('onlineDurationRange') onlineDurationRange?: string,
     @Query('minOnlineMinutes') minOnlineMinutes?: string,
     @Query('maxOnlineMinutes') maxOnlineMinutes?: string,
+    @Query('minOnlineDays') minOnlineDays?: string,
+    @Query('maxOnlineDays') maxOnlineDays?: string,
   ) {
     const take = Math.max(Number(size) || 20, 1);
     const currentPage = Math.max(Number(page) || 1, 1);
@@ -71,12 +74,27 @@ export class AdminUsersController {
 
     const queryBuilder = this.userRepo.createQueryBuilder('u')
       .leftJoin(
-        qb => qb
-          .select('rt.user_id', 'userId')
-          .addSelect('COUNT(*)', 'loginCount')
-          .addSelect('MAX(rt.created_at)', 'lastLoginAt')
-          .from(RefreshToken, 'rt')
-          .groupBy('rt.user_id'),
+        qb => {
+          const loginQb = qb
+            .select('rt.user_id', 'userId')
+            .addSelect('COUNT(*)', 'loginCount')
+            .addSelect('MAX(rt.created_at)', 'lastLoginAt')
+            .from(RefreshToken, 'rt');
+
+          if (parsedStartDate) {
+            loginQb.where('rt.created_at >= :loginStartDate', { loginStartDate: parsedStartDate });
+          }
+
+          if (parsedEndDate) {
+            if (parsedStartDate) {
+              loginQb.andWhere('rt.created_at < :loginEndDate', { loginEndDate: parsedEndDate });
+            } else {
+              loginQb.where('rt.created_at < :loginEndDate', { loginEndDate: parsedEndDate });
+            }
+          }
+
+          return loginQb.groupBy('rt.user_id');
+        },
         'login_stats',
         'login_stats.userId = u.id',
       )
@@ -121,18 +139,16 @@ export class AdminUsersController {
           const onlineQb = qb
             .select('od.user_id', 'userId')
             .addSelect('COALESCE(SUM(od.duration), 0)', 'totalOnlineDuration')
-            .from(UserOnlineDaily, 'od');
+            .addSelect('COUNT(*)', 'onlineDays')
+            .from(UserOnlineDaily, 'od')
+            .where('od.duration > 0');
 
           if (startDateOnly) {
-            onlineQb.where('od.date >= :onlineStartDate', { onlineStartDate: startDateOnly });
+            onlineQb.andWhere('od.date >= :onlineStartDate', { onlineStartDate: startDateOnly });
           }
 
           if (endDateOnly) {
-            if (startDateOnly) {
-              onlineQb.andWhere('od.date < :onlineEndDate', { onlineEndDate: endDateOnly });
-            } else {
-              onlineQb.where('od.date < :onlineEndDate', { onlineEndDate: endDateOnly });
-            }
+            onlineQb.andWhere('od.date < :onlineEndDate', { onlineEndDate: endDateOnly });
           }
 
           return onlineQb.groupBy('od.user_id');
@@ -146,6 +162,7 @@ export class AdminUsersController {
       .addSelect('COALESCE(watch_stats.totalWatchDuration, 0)', 'totalWatchDuration')
       .addSelect('watch_stats.lastActiveAt', 'lastActiveAt')
       .addSelect('COALESCE(online_stats.totalOnlineDuration, 0)', 'totalOnlineDuration')
+      .addSelect('COALESCE(online_stats.onlineDays, 0)', 'onlineDays')
       .orderBy('u.id', 'DESC');
 
     const exactLoginCount = this.parseOptionalNumber(loginCount);
@@ -200,6 +217,15 @@ export class AdminUsersController {
       });
     }
 
+    const onlineDaysMin = this.parseOptionalNumber(minOnlineDays);
+    const onlineDaysMax = this.parseOptionalNumber(maxOnlineDays);
+    if (onlineDaysMin !== null) {
+      queryBuilder.andWhere('COALESCE(online_stats.onlineDays, 0) >= :minOnlineDays', { minOnlineDays: onlineDaysMin });
+    }
+    if (onlineDaysMax !== null) {
+      queryBuilder.andWhere('COALESCE(online_stats.onlineDays, 0) <= :maxOnlineDays', { maxOnlineDays: onlineDaysMax });
+    }
+
     const total = await queryBuilder.clone().getCount();
     const { entities: users, raw } = await queryBuilder
       .skip(skip)
@@ -227,6 +253,7 @@ export class AdminUsersController {
 
         const totalWatchDuration = Number(stats?.totalWatchDuration || 0);
         const totalOnlineDuration = Number(stats?.totalOnlineDuration || 0);
+        const onlineDays = Number(stats?.onlineDays || 0);
         const lastWatchAt = stats?.lastActiveAt ? new Date(stats.lastActiveAt) : null;
         const lastActiveAt = onlineLastActiveAt ? new Date(onlineLastActiveAt) : lastWatchAt;
         const isOnline = !!onlineLastActiveAt;
@@ -240,6 +267,7 @@ export class AdminUsersController {
           activeLogins: Number(stats?.activeLogins || 0),
           totalOnlineDuration,
           totalOnlineMinutes: Math.floor(totalOnlineDuration / 60),
+          onlineDays,
           totalWatchDuration,
           totalWatchMinutes: Math.floor(totalWatchDuration / 60),
           lastActiveAt,

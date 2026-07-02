@@ -116,17 +116,21 @@ curl -X POST "http://localhost:8080/api/admin/categories/123?_method=DELETE"
     | `size` | number | 否 | 每页数量，默认 `20` |
     | `startDate` | string | 否 | 统计开始日期，用于框定在线时长和观看时长，格式 `YYYY-MM-DD`，例如 `2026-06-22` |
     | `endDate` | string | 否 | 统计结束日期，格式 `YYYY-MM-DD`，例如 `2026-06-22`；服务端按自然日结束开区间处理，即 `< 次日 00:00` |
-    | `loginCount` | number | 否 | 精确筛选累计登录次数，来源 `refresh_tokens` 计数 |
-    | `minLoginCount` | number | 否 | 累计登录次数最小值 |
-    | `maxLoginCount` | number | 否 | 累计登录次数最大值 |
+    | `loginCount` | number | 否 | ⚠️ 不推荐用于运营筛选。技术筛选项：精确筛选时间窗口内 refresh token 创建次数，受 `startDate/endDate` 限制；不等同于用户主动登录次数 |
+    | `minLoginCount` | number | 否 | ⚠️ 不推荐用于运营筛选。技术筛选项：时间窗口内 refresh token 创建次数最小值 |
+    | `maxLoginCount` | number | 否 | ⚠️ 不推荐用于运营筛选。技术筛选项：时间窗口内 refresh token 创建次数最大值 |
     | `watchDurationRange` | string | 否 | 时间窗口内总播放时长区间，单位分钟，例如 `0-60`、`60-120`、`120-180`，来源 `watch_logs.watch_duration` |
     | `minWatchMinutes` | number | 否 | 自定义时间窗口内总播放时长最小值，单位分钟 |
     | `maxWatchMinutes` | number | 否 | 自定义时间窗口内总播放时长最大值，单位分钟 |
     | `onlineDurationRange` | string | 否 | 时间窗口内心跳在线时长区间，单位分钟，例如 `0-60`、`60-120`、`120-180`，来源 `user_online_daily.duration` |
     | `minOnlineMinutes` | number | 否 | 自定义时间窗口内心跳在线时长最小值，单位分钟 |
     | `maxOnlineMinutes` | number | 否 | 自定义时间窗口内心跳在线时长最大值，单位分钟 |
-  - 日期口径：`startDate` / `endDate` 不筛用户注册时间，只作为统计窗口作用于 `user_online_daily.duration` 和 `watch_logs.watch_duration`
+    | `minOnlineDays` | number | 否 | 时间窗口内在线天数最小值，来源 `user_online_daily` 中 `duration > 0` 的日期数 |
+    | `maxOnlineDays` | number | 否 | 时间窗口内在线天数最大值，来源 `user_online_daily` 中 `duration > 0` 的日期数 |
+  - 日期口径：`startDate` / `endDate` 不筛用户注册时间，只作为统计窗口作用于 `user_online_daily.duration`、`watch_logs.watch_duration` 和 refresh token 创建时间
+  - 登录次数参数弃用说明：`loginCount` / `minLoginCount` / `maxLoginCount` 保留兼容，但不建议运营侧继续使用；它们统计的是 `refresh_tokens` 创建次数，不等同于用户主动登录次数。运营筛选建议改用 `minOnlineDays`、`onlineDurationRange` 或 `watchDurationRange`
   - 在线时长筛选口径：`onlineDurationRange` / `minOnlineMinutes` / `maxOnlineMinutes` 筛的是心跳在线时长，来源 `user_online_daily.duration`；传入在线时长筛选时，会排除统计窗口内在线时长为 `0` 的用户；`0-60` 表示 `>0` 且 `<=60` 分钟，包含 60 分钟
+  - 在线天数筛选口径：`minOnlineDays` / `maxOnlineDays` 筛的是时间窗口内有心跳在线记录的天数，来源 `user_online_daily`；同一用户同一天只算 1 天
   - 播放时长筛选口径：`watchDurationRange` / `minWatchMinutes` / `maxWatchMinutes` 筛的是实际观看时长，来源 `watch_logs.watch_duration`；传入播放时长筛选时，会排除统计窗口内观看时长为 `0` 的用户；`0-60` 表示 `>0` 且 `<=60` 分钟，包含 60 分钟
   - 请求示例：
 ```http
@@ -143,13 +147,16 @@ GET /api/admin/users?page=1&size=10&startDate=2026-06-22&endDate=2026-06-22&watc
 # 统计窗口内心跳在线 0-60 分钟的用户
 GET /api/admin/users?page=1&size=10&startDate=2026-06-22&endDate=2026-06-22&onlineDurationRange=0-60
 
+# 统计窗口内在线天数至少 2 天的用户
+GET /api/admin/users?page=1&size=10&startDate=2026-06-29&endDate=2026-07-02&minOnlineDays=2
+
 # 同时筛选心跳在线 0-60 分钟且实际观看 0-60 分钟的用户
 GET /api/admin/users?page=1&size=10&startDate=2026-06-22&endDate=2026-06-22&onlineDurationRange=0-60&watchDurationRange=0-60
 
-# 累计登录次数 1-5 次的用户
+# 技术筛选：时间窗口内 refresh token 创建次数 1-5 次的用户，不建议作为运营活跃筛选
 GET /api/admin/users?page=1&size=10&minLoginCount=1&maxLoginCount=5
 
-# 精确筛选累计登录次数为 3 次的用户
+# 技术筛选：精确筛选时间窗口内 refresh token 创建次数为 3 次的用户，不建议作为运营活跃筛选
 GET /api/admin/users?page=1&size=10&loginCount=3
 ```
   - 响应示例：
@@ -174,6 +181,7 @@ GET /api/admin/users?page=1&size=10&loginCount=3
       "loginCount": 8,
       "totalOnlineDuration": 7200,
       "totalOnlineMinutes": 120,
+      "onlineDays": 2,
       "totalWatchDuration": 12580,
       "totalWatchMinutes": 209,
       "lastActiveAt": "2026-06-22T14:30:00.000Z",
@@ -192,9 +200,10 @@ GET /api/admin/users?page=1&size=10&loginCount=3
   | `lastLoginIp` | string/null | 最后登录 IP |
   | `lastLoginDevice` | string/null | 最后登录设备信息 |
   | `activeLogins` | number | 当前有效的登录会话数（未撤销且未过期 refresh token 数量） |
-  | `loginCount` | number | 累计登录次数，来源：refresh_tokens 表 COUNT(*) |
+  | `loginCount` | number | ⚠️ 兼容字段，不建议作为运营活跃判断依据。时间窗口内 refresh token 创建次数，受 `startDate/endDate` 限制；不传日期时为全量累计 |
   | `totalOnlineDuration` | number | 统计窗口内总在线时长（秒），来源：user_online_daily 表 SUM(duration) |
   | `totalOnlineMinutes` | number | 统计窗口内总在线时长（分钟，向下取整） |
+  | `onlineDays` | number | 统计窗口内在线天数，来源：user_online_daily 中有心跳在线记录的日期数 |
   | `totalWatchDuration` | number | 统计窗口内总观看时长（秒），来源：watch_logs 表 SUM(watch_duration) |
   | `totalWatchMinutes` | number | 统计窗口内总观看时长（分钟，向下取整） |
   | `lastActiveAt` | string/null | 最后活跃时间（优先显示心跳时间；无心跳时显示统计窗口内最后观看时间） |
