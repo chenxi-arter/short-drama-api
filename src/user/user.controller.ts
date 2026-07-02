@@ -37,9 +37,14 @@ export class UserController {
   @Post('heartbeat')
   async heartbeat(@Req() req: AuthenticatedRequest) {
     const userId = req.user.userId;
-    const today = new Date().toISOString().slice(0, 10);
+    const today = this.getBeijingDateOnly();
     await this.userService.recordHeartbeat(userId, today);
     return { ok: true };
+  }
+
+  private getBeijingDateOnly(date = new Date()): string {
+    const beijingTime = new Date(date.getTime() + 8 * 60 * 60 * 1000);
+    return beijingTime.toISOString().slice(0, 10);
   }
 
   // Telegram 登录已统一到 /auth/telegram/login

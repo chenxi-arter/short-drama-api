@@ -92,8 +92,8 @@ export class UserService {
   async flushOnlineDataToDb(): Promise<void> {
     if (!this.redisClient) return;
 
-    const today = new Date().toISOString().slice(0, 10);
-    const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+    const today = this.getBeijingDateOnly();
+    const yesterday = this.getBeijingDateOnly(new Date(Date.now() - 86400000));
 
     for (const date of [yesterday, today]) {
       try {
@@ -125,6 +125,11 @@ export class UserService {
        ON DUPLICATE KEY UPDATE duration = duration + ?`,
       [userId, date, duration, duration],
     );
+  }
+
+  private getBeijingDateOnly(date = new Date()): string {
+    const beijingTime = new Date(date.getTime() + 8 * 60 * 60 * 1000);
+    return beijingTime.toISOString().slice(0, 10);
   }
 
   async telegramLogin(dto: TelegramUserDto): Promise<TokenResult> {

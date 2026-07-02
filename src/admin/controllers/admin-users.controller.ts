@@ -578,8 +578,8 @@ export class AdminUsersController {
   private async clearUserOnlineCache(userId: number): Promise<void> {
     if (!this.redisClient) return;
 
-    const today = new Date().toISOString().slice(0, 10);
-    const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+    const today = this.getBeijingDateOnly();
+    const yesterday = this.getBeijingDateOnly(new Date(Date.now() - 86400000));
 
     await Promise.all([
       this.redisClient.del(`online:last:${userId}`).catch(() => 0),
@@ -596,5 +596,10 @@ export class AdminUsersController {
       return `${year}-${month}-${day}`;
     }
     return String(value).slice(0, 10);
+  }
+
+  private getBeijingDateOnly(date = new Date()): string {
+    const beijingTime = new Date(date.getTime() + 8 * 60 * 60 * 1000);
+    return beijingTime.toISOString().slice(0, 10);
   }
 }

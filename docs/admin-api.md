@@ -127,10 +127,11 @@ curl -X POST "http://localhost:8080/api/admin/categories/123?_method=DELETE"
     | `maxOnlineMinutes` | number | 否 | 自定义时间窗口内心跳在线时长最大值，单位分钟 |
     | `minOnlineDays` | number | 否 | 时间窗口内在线天数最小值，来源 `user_online_daily` 中 `duration > 0` 的日期数 |
     | `maxOnlineDays` | number | 否 | 时间窗口内在线天数最大值，来源 `user_online_daily` 中 `duration > 0` 的日期数 |
-  - 日期口径：`startDate` / `endDate` 不筛用户注册时间，只作为统计窗口作用于 `user_online_daily.duration`、`watch_logs.watch_duration` 和 refresh token 创建时间
+  - 日期口径：`startDate` / `endDate` 不筛用户注册时间，只作为统计窗口作用于 `user_online_daily.duration`、`watch_logs.watch_duration` 和 refresh token 创建时间；`user_online_daily.date` 按北京时间（UTC+8）业务日写入和统计
   - 登录次数参数弃用说明：`loginCount` / `minLoginCount` / `maxLoginCount` 保留兼容，但不建议运营侧继续使用；它们统计的是 `refresh_tokens` 创建次数，不等同于用户主动登录次数。运营筛选建议改用 `minOnlineDays`、`onlineDurationRange` 或 `watchDurationRange`
   - 在线时长筛选口径：`onlineDurationRange` / `minOnlineMinutes` / `maxOnlineMinutes` 筛的是心跳在线时长，来源 `user_online_daily.duration`；传入在线时长筛选时，会排除统计窗口内在线时长为 `0` 的用户；`0-60` 表示 `>0` 且 `<=60` 分钟，包含 60 分钟
-  - 在线天数筛选口径：`minOnlineDays` / `maxOnlineDays` 筛的是时间窗口内有心跳在线记录的天数，来源 `user_online_daily`；同一用户同一天只算 1 天
+  - 在线天数筛选口径：`minOnlineDays` / `maxOnlineDays` 筛的是时间窗口内有心跳在线记录的天数，来源 `user_online_daily`；同一用户同一天只算 1 天；新写入心跳按北京时间（UTC+8）归属业务日
+  - 历史数据注意：早期心跳如果按 UTC 日期写入，可能出现北京时间同一天被拆成前后两个 UTC 日期的情况；如需完全修正历史在线天数，需要单独做 `user_online_daily` 历史数据归并清洗
   - 播放时长筛选口径：`watchDurationRange` / `minWatchMinutes` / `maxWatchMinutes` 筛的是实际观看时长，来源 `watch_logs.watch_duration`；传入播放时长筛选时，会排除统计窗口内观看时长为 `0` 的用户；`0-60` 表示 `>0` 且 `<=60` 分钟，包含 60 分钟
   - 请求示例：
 ```http
