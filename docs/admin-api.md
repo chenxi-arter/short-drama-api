@@ -114,8 +114,10 @@ curl -X POST "http://localhost:8080/api/admin/categories/123?_method=DELETE"
     |------|------|------|------|
     | `page` | number | 否 | 页码，默认 `1` |
     | `size` | number | 否 | 每页数量，默认 `20` |
-    | `startDate` | string | 否 | 统计开始日期，用于框定在线时长和观看时长，格式 `YYYY-MM-DD`，例如 `2026-06-22` |
-    | `endDate` | string | 否 | 统计结束日期，格式 `YYYY-MM-DD`，例如 `2026-06-22`；服务端按自然日结束开区间处理，即 `< 次日 00:00` |
+    | `startDate` | string | 否 | 统计开始日期，用于框定在线天数、在线时长、观看时长，格式 `YYYY-MM-DD`，例如 `2026-06-22`；不筛用户注册时间 |
+    | `endDate` | string | 否 | 统计结束日期，格式 `YYYY-MM-DD`，例如 `2026-06-22`；服务端按自然日结束开区间处理，即 `< 次日 00:00`；不筛用户注册时间 |
+    | `createdStartDate` | string | 否 | 注册开始日期，筛选 `users.created_at >= createdStartDate`，格式 `YYYY-MM-DD` |
+    | `createdEndDate` | string | 否 | 注册结束日期，筛选 `users.created_at < createdEndDate 次日 00:00`，格式 `YYYY-MM-DD` |
     | `loginCount` | number | 否 | ⚠️ 不推荐用于运营筛选。技术筛选项：精确筛选时间窗口内 refresh token 创建次数，受 `startDate/endDate` 限制；不等同于用户主动登录次数 |
     | `minLoginCount` | number | 否 | ⚠️ 不推荐用于运营筛选。技术筛选项：时间窗口内 refresh token 创建次数最小值 |
     | `maxLoginCount` | number | 否 | ⚠️ 不推荐用于运营筛选。技术筛选项：时间窗口内 refresh token 创建次数最大值 |
@@ -128,6 +130,7 @@ curl -X POST "http://localhost:8080/api/admin/categories/123?_method=DELETE"
     | `minOnlineDays` | number | 否 | 时间窗口内在线天数最小值，来源 `user_online_daily` 中 `duration > 0` 的日期数 |
     | `maxOnlineDays` | number | 否 | 时间窗口内在线天数最大值，来源 `user_online_daily` 中 `duration > 0` 的日期数 |
   - 日期口径：`startDate` / `endDate` 不筛用户注册时间，只作为统计窗口作用于 `user_online_daily.duration`、`watch_logs.watch_duration` 和 refresh token 创建时间；`user_online_daily.date` 按北京时间（UTC+8）业务日写入和统计
+  - 注册时间筛选口径：`createdStartDate` / `createdEndDate` 专门筛选用户创建时间 `users.created_at`；如果既要筛“某段时间注册的用户”，又要看这些用户在某段时间内的在线/观看表现，请同时传注册日期参数和统计日期参数
   - 登录次数参数弃用说明：`loginCount` / `minLoginCount` / `maxLoginCount` 保留兼容，但不建议运营侧继续使用；它们统计的是 `refresh_tokens` 创建次数，不等同于用户主动登录次数。运营筛选建议改用 `minOnlineDays`、`onlineDurationRange` 或 `watchDurationRange`
   - 在线时长筛选口径：`onlineDurationRange` / `minOnlineMinutes` / `maxOnlineMinutes` 筛的是心跳在线时长，来源 `user_online_daily.duration`；传入在线时长筛选时，会排除统计窗口内在线时长为 `0` 的用户；`0-60` 表示 `>0` 且 `<=60` 分钟，包含 60 分钟
   - 在线天数筛选口径：`minOnlineDays` / `maxOnlineDays` 筛的是时间窗口内有心跳在线记录的天数，来源 `user_online_daily`；同一用户同一天只算 1 天；新写入心跳按北京时间（UTC+8）归属业务日
@@ -141,6 +144,12 @@ GET /api/admin/users?page=1&size=10&startDate=2026-06-22&endDate=2026-06-22&watc
 ```http
 # 统计 2026-06-22 当天在线/观看时长
 GET /api/admin/users?page=1&size=10&startDate=2026-06-22&endDate=2026-06-22
+
+# 筛选 2026-07-01 到 2026-07-02 注册的用户
+GET /api/admin/users?page=1&size=10&createdStartDate=2026-07-01&createdEndDate=2026-07-02
+
+# 筛选 2026-07-01 到 2026-07-02 注册，且统计窗口内在线天数至少 2 天的用户
+GET /api/admin/users?page=1&size=10&createdStartDate=2026-07-01&createdEndDate=2026-07-02&startDate=2026-07-01&endDate=2026-07-02&minOnlineDays=2
 
 # 统计窗口内观看 60-120 分钟的用户
 GET /api/admin/users?page=1&size=10&startDate=2026-06-22&endDate=2026-06-22&watchDurationRange=60-120

@@ -51,6 +51,8 @@ export class AdminUsersController {
     @Query('size') size = 20,
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
+    @Query('createdStartDate') createdStartDate?: string,
+    @Query('createdEndDate') createdEndDate?: string,
     @Query('loginCount') loginCount?: string,
     @Query('minLoginCount') minLoginCount?: string,
     @Query('maxLoginCount') maxLoginCount?: string,
@@ -69,6 +71,8 @@ export class AdminUsersController {
     const now = new Date();
     const parsedStartDate = this.parseDateBoundary(startDate, 'start');
     const parsedEndDate = this.parseDateBoundary(endDate, 'end');
+    const parsedCreatedStartDate = this.parseDateBoundary(createdStartDate, 'start');
+    const parsedCreatedEndDate = this.parseDateBoundary(createdEndDate, 'end');
     const startDateOnly = parsedStartDate ? this.formatDateOnly(parsedStartDate) : null;
     const endDateOnly = parsedEndDate ? this.formatDateOnly(this.toExclusiveDateOnlyBoundary(parsedEndDate)) : null;
 
@@ -164,6 +168,14 @@ export class AdminUsersController {
       .addSelect('COALESCE(online_stats.totalOnlineDuration, 0)', 'totalOnlineDuration')
       .addSelect('COALESCE(online_stats.onlineDays, 0)', 'onlineDays')
       .orderBy('u.id', 'DESC');
+
+    if (parsedCreatedStartDate) {
+      queryBuilder.andWhere('u.created_at >= :createdStartDate', { createdStartDate: parsedCreatedStartDate });
+    }
+
+    if (parsedCreatedEndDate) {
+      queryBuilder.andWhere('u.created_at < :createdEndDate', { createdEndDate: parsedCreatedEndDate });
+    }
 
     const exactLoginCount = this.parseOptionalNumber(loginCount);
     const loginCountMin = this.parseOptionalNumber(minLoginCount);
