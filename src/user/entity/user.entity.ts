@@ -101,6 +101,13 @@ export class User {
   @Column({ type: 'varchar', length: 64, unique: true, nullable: true, name: 'guest_token' })
   guestToken: string;
 
+  /**
+   * 是否已将 PWA 安装到桌面
+   * 0=未安装, 1=已安装；由前端检测到安装后上报
+   */
+  @Column({ type: 'tinyint', default: 0, name: 'is_pwa' })
+  isPwa: boolean;
+
   /** 
    * 创建时间 
    * 记录用户账号创建的时间戳

@@ -1,8 +1,9 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument */
 /**
  * R2 对象存储服务 - 图片/视频上传到 Cloudflare R2
  */
 import { Injectable } from '@nestjs/common';
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { randomUUID, createHash } from 'crypto';
 
@@ -13,8 +14,7 @@ export interface R2UploadOptions {
 
 @Injectable()
 export class R2StorageService {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private s3: any;
+  private s3!: InstanceType<typeof S3Client>;
   private bucketName!: string;
   private publicBaseUrl?: string;
   private endpointBucketBase!: string;
@@ -118,6 +118,20 @@ export class R2StorageService {
     return `${base}/${fileKey}`;
   }
 
+  async objectExists(fileKey: string): Promise<boolean> {
+    this.ensureInitialized();
+
+    try {
+      await this.s3.send(new HeadObjectCommand({
+        Bucket: this.bucketName,
+        Key: fileKey,
+      }));
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   /**
    * 生成媒体路径（与爬取脚本逻辑一致）
    * 使用 MD5 + Base64 编码生成短路径
@@ -180,7 +194,7 @@ export class R2StorageService {
     // 移除或替换不安全的字符
     // 保留：字母、数字、下划线、连字符、点
     basename = basename
-      .replace(/[^\w\-\.]/g, '_')  // 替换特殊字符为下划线
+      .replace(/[^\w\-.]/g, '_')  // 替换特殊字符为下划线
       .replace(/_{2,}/g, '_')       // 多个下划线合并为一个
       .replace(/^_+|_+$/g, '')      // 移除首尾下划线
       .substring(0, 100);           // 限制长度

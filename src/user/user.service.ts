@@ -437,6 +437,14 @@ export class UserService {
   }
 
   /**
+   * 更新用户 PWA 安装状态
+   * 前端检测到已安装到桌面（display-mode: standalone 或 appinstalled 事件）后上报
+   */
+  async updatePwaStatus(userId: number, isPwa: boolean): Promise<void> {
+    await this.userRepo.update({ id: userId }, { isPwa });
+  }
+
+  /**
    * 邮箱注册
    * @param dto 注册信息
    * @returns 注册结果
@@ -768,22 +776,7 @@ export class UserService {
     const existingUser = await this.userRepo.findOneBy({ email: dto.email });
     
     if (existingUser) {
-      // 邮箱已存在，进行数据合并
-      this.logger.log(`邮箱 ${dto.email} 已存在，将游客 ${userId} 的数据合并到用户 ${existingUser.id}`);
-      
-      // 合并游客数据到已存在的用户
-      const mergeStats = await this.accountMergeService.mergeGuestToUser(userId, existingUser.id);
-      
-      this.logger.log(`数据合并完成: ${JSON.stringify(mergeStats)}`);
-      
-      // 生成正式用户的令牌
-      const tokens = await this.authService.generateTokens(existingUser, 'Email Login After Merge');
-      
-      return {
-        success: true,
-        message: '检测到该邮箱已注册，已将您的游客数据合并到现有账号',
-        ...tokens,
-      };
+      throw new ConflictException('该邮箱已被注册，请直接使用邮箱密码登录后再合并游客数据');
     }
 
     // 5. 检查用户名是否已被使用（如果提供了）

@@ -43,6 +43,7 @@ export class CreateBannerDto {
    */
   @IsOptional()
   @IsString({ message: '跳转链接必须是字符串' })
+  @IsUrl({ protocols: ['https'], require_protocol: true }, { message: '跳转链接必须是 HTTPS URL' })
   @EnhancedStringLength(1, 500, { message: '跳转链接长度必须在1到500个字符之间' })
   linkUrl?: string;
 
@@ -135,6 +136,7 @@ export class UpdateBannerDto {
    */
   @IsOptional()
   @IsString({ message: '跳转链接必须是字符串' })
+  @IsUrl({ protocols: ['https'], require_protocol: true }, { message: '跳转链接必须是 HTTPS URL' })
   @EnhancedStringLength(1, 500, { message: '跳转链接长度必须在1到500个字符之间' })
   linkUrl?: string;
 

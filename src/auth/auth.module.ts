@@ -26,6 +26,7 @@ import { CoreModule } from '../core/core.module';
 import { DauService } from '../admin/services/dau.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { OptionalJwtAuthGuard } from './guards/optional-jwt-auth.guard';
+import { AdminAuthModule } from '../admin/admin-auth.module';
 
 @Module({
   imports: [
@@ -43,6 +44,7 @@ import { OptionalJwtAuthGuard } from './guards/optional-jwt-auth.guard';
     ]),
     forwardRef(() => UserModule),
     CoreModule,
+    AdminAuthModule,
     JwtModule.registerAsync({
       useFactory: (configService: ConfigService) => ({
         secret: configService.get<string>('JWT_SECRET'),

@@ -51,6 +51,7 @@ import { SeriesModule } from './series.module';
 import { EpisodeModule } from './episode.module';
 import { BannerModule } from './banner.module';
 import { AuthModule } from '../../auth/auth.module';
+import { AdminAuthModule } from '../../admin/admin-auth.module';
 // import { HistoryModule } from './history.module';
 import { Series } from '../entity/series.entity';
 import { Episode } from '../entity/episode.entity';
@@ -69,6 +70,7 @@ import { FilterOption } from '../entity/filter-option.entity';
 import { SeriesGenreOption } from '../entity/series-genre-option.entity';
 import { User } from '../../user/entity/user.entity';
 import { DauService } from '../../admin/services/dau.service';
+import { RateLimitGuard } from '../../common/guards/rate-limit.guard';
 
 @Module({
   imports: [
@@ -76,6 +78,7 @@ import { DauService } from '../../admin/services/dau.service';
     SeriesModule,
     EpisodeModule,
     BannerModule,
+    AdminAuthModule,
     forwardRef(() => AuthModule),
     // HistoryModule,
     TypeOrmModule.forFeature([
@@ -134,6 +137,7 @@ import { DauService } from '../../admin/services/dau.service';
     NotificationService,
     RecommendService,
     DauService,
+    RateLimitGuard,
     AppLoggerService,
     AppConfigService,
   ],

@@ -4,7 +4,7 @@
 import { Injectable, UnauthorizedException, BadRequestException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, LessThan } from 'typeorm';
+import { Repository, LessThan, MoreThan } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 import { RefreshToken } from './entity/refresh-token.entity';
 import { User } from '../user/entity/user.entity';
@@ -148,6 +148,20 @@ export class AuthService {
   }
 
   /**
+   * 撤销用户指定设备的 refresh token
+   */
+  async revokeUserSpecificToken(userId: number, tokenId: number) {
+    const result = await this.refreshTokenRepo.update(
+      { id: tokenId, userId, isRevoked: false },
+      { isRevoked: true }
+    );
+
+    if (result.affected === 0) {
+      throw new UnauthorizedException('设备不存在或已登出');
+    }
+  }
+
+  /**
    * 清理过期的refresh token
    * 建议定期调用此方法或使用定时任务
    */
@@ -170,7 +184,7 @@ export class AuthService {
       where: { 
         userId, 
         isRevoked: false,
-        expiresAt: LessThan(new Date())
+        expiresAt: MoreThan(new Date())
       },
       select: ['id', 'createdAt', 'expiresAt', 'deviceInfo', 'ipAddress'],
       order: { createdAt: 'DESC' },

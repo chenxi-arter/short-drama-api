@@ -42,6 +42,19 @@ export class UserController {
     return { ok: true };
   }
 
+  @UseGuards(JwtAuthGuard)
+  @Post('pwa-status')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: '上报 PWA 安装状态', description: '前端检测到已安装到桌面时调用' })
+  @ApiResponse({ status: 200, description: '上报成功' })
+  async reportPwaStatus(
+    @Req() req: AuthenticatedRequest,
+    @Body() body: { isPwa: boolean },
+  ) {
+    await this.userService.updatePwaStatus(req.user.userId, !!body?.isPwa);
+    return { ok: true, isPwa: !!body?.isPwa };
+  }
+
   private getBeijingDateOnly(date = new Date()): string {
     const beijingTime = new Date(date.getTime() + 8 * 60 * 60 * 1000);
     return beijingTime.toISOString().slice(0, 10);
@@ -91,6 +104,7 @@ export class UserController {
       isActive: user.is_active,            // 账号状态
       isGuest: user.isGuest,               // 是否为游客用户
       guestToken: user.guestToken || null, // 游客token（仅游客用户有值）
+      isPwa: user.isPwa,                   // 是否已安装 PWA 到桌面
       createdAt: user.created_at,          // 注册时间
     };
   }

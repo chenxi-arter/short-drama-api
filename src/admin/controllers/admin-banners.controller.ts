@@ -7,6 +7,8 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { GetPresignedUrlDto, UploadCompleteDto } from '../dto/presigned-upload.dto';
 import { randomUUID } from 'crypto';
 import axios from 'axios';
+import { lookup } from 'dns/promises';
+import { isIP } from 'net';
 import * as https from 'https';
 import { AdminJwtAuthGuard } from '../guards/admin-jwt-auth.guard';
 
@@ -19,17 +21,85 @@ export class AdminBannersController {
     private readonly storage: R2StorageService,
   ) {}
 
+  private async validateExternalImageUrl(rawUrl: string): Promise<string> {
+    let parsed: URL;
+    try {
+      parsed = new URL(rawUrl);
+    } catch {
+      throw new BadRequestException('Invalid URL');
+    }
+
+    if (parsed.protocol !== 'https:') {
+      throw new BadRequestException('Only HTTPS URLs are allowed');
+    }
+
+    const hostname = parsed.hostname.toLowerCase();
+    if (hostname === 'localhost' || hostname.endsWith('.localhost')) {
+      throw new BadRequestException('Localhost URLs are not allowed');
+    }
+
+    const addresses = isIP(hostname) ? [{ address: hostname }] : await lookup(hostname, { all: true });
+    if (addresses.some(({ address }) => this.isPrivateOrReservedIp(address))) {
+      throw new BadRequestException('Private or reserved IP addresses are not allowed');
+    }
+
+    return parsed.toString();
+  }
+
+  private isPrivateOrReservedIp(address: string): boolean {
+    if (address === '::1' || address.startsWith('fe80:') || address.startsWith('fc') || address.startsWith('fd')) {
+      return true;
+    }
+
+    const parts = address.split('.').map(Number);
+    if (parts.length !== 4 || parts.some(part => !Number.isInteger(part))) {
+      return false;
+    }
+
+    const [a, b] = parts;
+    return a === 10
+      || a === 127
+      || a === 0
+      || a === 169 && b === 254
+      || a === 172 && b >= 16 && b <= 31
+      || a === 192 && b === 168
+      || a === 100 && b >= 64 && b <= 127
+      || a >= 224;
+  }
+
+  private buildPublicUrlFromKey(fileKey: string, allowedPrefix: string): string {
+    if (!fileKey.startsWith(allowedPrefix) || fileKey.includes('..') || fileKey.startsWith('/')) {
+      throw new BadRequestException('Invalid fileKey');
+    }
+    return this.storage.getPublicUrl(fileKey);
+  }
+
+  private validateHttpsUrl(value: string, fieldName: string): string {
+    let parsed: URL;
+    try {
+      parsed = new URL(value.trim());
+    } catch {
+      throw new BadRequestException(`${fieldName}格式不正确`);
+    }
+
+    if (parsed.protocol !== 'https:') {
+      throw new BadRequestException(`${fieldName}必须是 HTTPS URL`);
+    }
+
+    return parsed.toString();
+  }
+
   private normalize(raw: Record<string, unknown>): Partial<Banner> {
     const toInt = (v: unknown): number | undefined => (typeof v === 'string' || typeof v === 'number') ? Number(v) : undefined;
     const toBool = (v: unknown): boolean | undefined =>
       v === undefined ? undefined : (v === true || v === 'true' || v === 1 || v === '1');
-    const toDate = (v: unknown): Date | undefined => (typeof v === 'string' || v instanceof Date) ? new Date(v as any) : undefined;
+    const toDate = (v: unknown): Date | undefined => (typeof v === 'string' || v instanceof Date) ? new Date(v) : undefined;
 
     const payload: Partial<Banner> = {};
     // strings
     if (typeof raw.title === 'string') payload.title = raw.title;
     if (typeof raw.imageUrl === 'string') payload.imageUrl = raw.imageUrl;
-    if (typeof raw.linkUrl === 'string') payload.linkUrl = raw.linkUrl;
+    if (typeof raw.linkUrl === 'string') payload.linkUrl = this.validateHttpsUrl(raw.linkUrl, 'linkUrl');
     if (typeof raw.description === 'string') payload.description = raw.description;
 
     // numbers
@@ -156,14 +226,17 @@ export class AdminBannersController {
     @Body('url') src?: string,
   ) {
     if (!src) throw new BadRequestException('url is required');
+    const safeUrl = await this.validateExternalImageUrl(src);
     const allowInsecure = process.env.ALLOW_INSECURE_EXTERNAL_FETCH === 'true';
     const httpsAgent = new https.Agent({ rejectUnauthorized: !allowInsecure });
-    const resp = await axios.get(src, {
+    const resp = await axios.get(safeUrl, {
       responseType: 'arraybuffer' as const,
       httpsAgent,
       timeout: 15000,
+      maxRedirects: 0,
+      maxContentLength: 10 * 1024 * 1024,
     });
-    const buffer = Buffer.from(resp.data);
+    const buffer = Buffer.from(resp.data as ArrayBuffer);
     const contentType = resp.headers['content-type'] as string | undefined;
     const { url, key } = await this.storage.uploadBuffer(buffer, undefined, {
       keyPrefix: 'banners/',
@@ -183,17 +256,21 @@ export class AdminBannersController {
     @Param('id') id: string,
     @Body() body: UploadCompleteDto,
   ) {
-    const { fileKey, publicUrl } = body;
+    const { fileKey } = body;
 
-    // 验证参数
-    if (!fileKey || !publicUrl) {
-      throw new BadRequestException('fileKey and publicUrl are required');
+    if (!fileKey) {
+      throw new BadRequestException('fileKey is required');
     }
 
     // 验证 Banner 是否存在
     const banner = await this.bannerRepo.findOne({ where: { id: Number(id) } });
     if (!banner) {
       throw new NotFoundException('Banner not found');
+    }
+
+    const publicUrl = this.buildPublicUrlFromKey(fileKey, `banners/${id}/`);
+    if (!(await this.storage.objectExists(fileKey))) {
+      throw new BadRequestException('Uploaded object not found');
     }
 
     // 更新 Banner 的 imageUrl

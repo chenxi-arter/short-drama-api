@@ -1,6 +1,6 @@
 import { Controller, Get, Post, Put, Delete, Param, Body, Query, UseInterceptors, UploadedFile, BadRequestException, NotFoundException, UseGuards } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, FindOptionsWhere } from 'typeorm';
 import { Series } from '../../video/entity/series.entity';
 import { FilterOption } from '../../video/entity/filter-option.entity';
 import { VideoService } from '../../video/video.service';
@@ -9,6 +9,8 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { GetPresignedUrlDto, UploadCompleteDto } from '../dto/presigned-upload.dto';
 import { randomUUID } from 'crypto';
 import axios from 'axios';
+import { lookup } from 'dns/promises';
+import { isIP } from 'net';
 import * as https from 'https';
 import { AdminJwtAuthGuard } from '../guards/admin-jwt-auth.guard';
 
@@ -23,6 +25,66 @@ export class AdminSeriesController {
     private readonly videoService: VideoService,
     private readonly storage: R2StorageService,
   ) {}
+
+  private async validateExternalImageUrl(rawUrl: string): Promise<string> {
+    let parsed: URL;
+    try {
+      parsed = new URL(rawUrl);
+    } catch {
+      throw new BadRequestException('Invalid URL');
+    }
+
+    if (parsed.protocol !== 'https:') {
+      throw new BadRequestException('Only HTTPS URLs are allowed');
+    }
+
+    const hostname = parsed.hostname.toLowerCase();
+    if (hostname === 'localhost' || hostname.endsWith('.localhost')) {
+      throw new BadRequestException('Localhost URLs are not allowed');
+    }
+
+    const addresses = isIP(hostname) ? [{ address: hostname }] : await lookup(hostname, { all: true });
+    if (addresses.some(({ address }) => this.isPrivateOrReservedIp(address))) {
+      throw new BadRequestException('Private or reserved IP addresses are not allowed');
+    }
+
+    return parsed.toString();
+  }
+
+  private isPrivateOrReservedIp(address: string): boolean {
+    if (address === '::1' || address.startsWith('fe80:') || address.startsWith('fc') || address.startsWith('fd')) {
+      return true;
+    }
+
+    const parts = address.split('.').map(Number);
+    if (parts.length !== 4 || parts.some(part => !Number.isInteger(part))) {
+      return false;
+    }
+
+    const [a, b] = parts;
+    return a === 10
+      || a === 127
+      || a === 0
+      || a === 169 && b === 254
+      || a === 172 && b >= 16 && b <= 31
+      || a === 192 && b === 168
+      || a === 100 && b >= 64 && b <= 127
+      || a >= 224;
+  }
+
+  private buildPublicUrlFromKey(fileKey: string, allowedPrefix: string): string {
+    if (!fileKey.startsWith(allowedPrefix) || fileKey.includes('..') || fileKey.startsWith('/')) {
+      throw new BadRequestException('Invalid fileKey');
+    }
+    return this.storage.getPublicUrl(fileKey);
+  }
+
+  private isMysqlForeignKeyError(error: unknown): error is { code: string; sqlMessage?: string } {
+    return typeof error === 'object'
+      && error !== null
+      && 'code' in error
+      && (error as { code?: unknown }).code === 'ER_NO_REFERENCED_ROW_2';
+  }
 
   /**
    * 根据中文名称查找 FilterOption ID
@@ -85,7 +147,7 @@ export class AdminSeriesController {
       if (v === 'false' || v === '0' || v === 0) return false;
       return undefined;
     };
-    const toDate = (v: unknown): Date | undefined => (typeof v === 'string' || v instanceof Date) ? new Date(v as any) : undefined;
+    const toDate = (v: unknown): Date | undefined => (typeof v === 'string' || v instanceof Date) ? new Date(v) : undefined;
 
     const payload: Partial<Series> = {};
     
@@ -132,7 +194,7 @@ export class AdminSeriesController {
     const skip = (Math.max(Number(page) || 1, 1) - 1) * take;
     
     // 构建查询条件
-    const where: any = includeDeleted === 'true' ? {} : { isActive: 1 };
+    const where: FindOptionsWhere<Series> = includeDeleted === 'true' ? {} : { isActive: 1 };
     
     // 如果传入了 categoryId，添加分类筛选条件
     if (categoryId && !isNaN(Number(categoryId))) {
@@ -229,17 +291,21 @@ export class AdminSeriesController {
     @Param('id') id: string,
     @Body() body: UploadCompleteDto,
   ) {
-    const { fileKey, publicUrl } = body;
+    const { fileKey } = body;
 
-    // 验证参数
-    if (!fileKey || !publicUrl) {
-      throw new BadRequestException('fileKey and publicUrl are required');
+    if (!fileKey) {
+      throw new BadRequestException('fileKey is required');
     }
 
     // 验证系列是否存在
     const series = await this.seriesRepo.findOne({ where: { id: Number(id) } });
     if (!series) {
       throw new NotFoundException('Series not found');
+    }
+
+    const publicUrl = this.buildPublicUrlFromKey(fileKey, `series/${id}/`);
+    if (!(await this.storage.objectExists(fileKey))) {
+      throw new BadRequestException('Uploaded object not found');
     }
 
     // 更新系列的 coverUrl
@@ -264,7 +330,7 @@ export class AdminSeriesController {
   }
 
   @Post()
-  async create(@Body() body: any) {
+  async create(@Body() body: Record<string, unknown>) {
     // 先处理中文分类字段
     const chineseFilters = await this.resolveChineseFilters(body);
     // 再处理其他字段
@@ -280,7 +346,7 @@ export class AdminSeriesController {
       return this.seriesRepo.save(entity);
     } catch (error) {
       // 捕获外键约束错误
-      if (error.code === 'ER_NO_REFERENCED_ROW_2') {
+      if (this.isMysqlForeignKeyError(error)) {
         throw new BadRequestException({
           message: '外键约束失败：引用的选项不存在',
           details: error.sqlMessage,
@@ -385,7 +451,7 @@ export class AdminSeriesController {
   }
 
   @Put(':id')
-  async update(@Param('id') id: string, @Body() body: any) {
+  async update(@Param('id') id: string, @Body() body: Record<string, unknown>) {
     // 先处理中文分类字段
     const chineseFilters = await this.resolveChineseFilters(body);
     // 再处理其他字段
@@ -404,7 +470,7 @@ export class AdminSeriesController {
       });
     } catch (error) {
       // 捕获外键约束错误
-      if (error.code === 'ER_NO_REFERENCED_ROW_2') {
+      if (this.isMysqlForeignKeyError(error)) {
         throw new BadRequestException({
           message: '外键约束失败：引用的选项不存在',
           details: error.sqlMessage,
@@ -452,14 +518,17 @@ export class AdminSeriesController {
     @Body('url') src?: string,
   ) {
     if (!src) throw new BadRequestException('url is required');
+    const safeUrl = await this.validateExternalImageUrl(src);
     const allowInsecure = process.env.ALLOW_INSECURE_EXTERNAL_FETCH === 'true';
     const httpsAgent = new https.Agent({ rejectUnauthorized: !allowInsecure });
-    const resp = await axios.get(src, {
+    const resp = await axios.get(safeUrl, {
       responseType: 'arraybuffer' as const,
       httpsAgent,
       timeout: 15000,
+      maxRedirects: 0,
+      maxContentLength: 10 * 1024 * 1024,
     });
-    const buffer = Buffer.from(resp.data);
+    const buffer = Buffer.from(resp.data as ArrayBuffer);
     const contentType = resp.headers['content-type'] as string | undefined;
     const { url, key } = await this.storage.uploadBuffer(buffer, undefined, {
       keyPrefix: 'series/',

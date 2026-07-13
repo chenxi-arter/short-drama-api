@@ -2,7 +2,8 @@
  * 播放地址控制器
  * 路由前缀: /api/video/url
  */
-import { Controller, Post, Body, Get, Param, BadRequestException } from '@nestjs/common';
+import { Controller, Post, Body, Get, Param, BadRequestException, UseGuards } from '@nestjs/common';
+import { AdminJwtAuthGuard } from '../../admin/guards/admin-jwt-auth.guard';
 import { VideoService } from '../video.service';
 import { BaseController } from './base.controller';
 
@@ -16,9 +17,25 @@ export class UrlController extends BaseController {
     super();
   }
 
+  private validateHttpsUrl(value: string, fieldName: string): string {
+    let parsed: URL;
+    try {
+      parsed = new URL(value.trim());
+    } catch {
+      throw new BadRequestException(`${fieldName}格式不正确`);
+    }
+
+    if (parsed.protocol !== 'https:') {
+      throw new BadRequestException(`${fieldName}必须是 HTTPS URL`);
+    }
+
+    return parsed.toString();
+  }
+
   /**
    * 创建剧集播放地址
    */
+  @UseGuards(AdminJwtAuthGuard)
   @Post('episode')
   async createEpisodeUrl(
     @Body('episodeId') episodeId: number,
@@ -44,12 +61,18 @@ export class UrlController extends BaseController {
         return this.error('CDN地址不能为空', 400);
       }
 
+      const safeOssUrl = this.validateHttpsUrl(ossUrl, 'OSS地址');
+      const safeCdnUrl = this.validateHttpsUrl(cdnUrl, 'CDN地址');
+      const safeSubtitleUrl = subtitleUrl?.trim()
+        ? this.validateHttpsUrl(subtitleUrl, '字幕地址')
+        : undefined;
+
       const result = await this.videoService.createEpisodeUrl(
         episodeId,
         quality.trim(),
-        ossUrl.trim(),
-        cdnUrl.trim(),
-        subtitleUrl?.trim()
+        safeOssUrl,
+        safeCdnUrl,
+        safeSubtitleUrl
       );
 
       return this.success(result, '播放地址创建成功', 200);
@@ -80,7 +103,7 @@ export class UrlController extends BaseController {
    * 支持新格式和兼容旧格式
    */
   @Post('query')
-  async getEpisodeUrlByKey(@Body() body: any) {
+  async getEpisodeUrlByKey(@Body() body: { type?: string; accessKey?: string; key?: string }) {
     try {
       const { type, accessKey, key } = body || {};
 
@@ -109,6 +132,7 @@ export class UrlController extends BaseController {
   /**
    * 更新剧集续集状态
    */
+  @UseGuards(AdminJwtAuthGuard)
   @Post('episode/sequel')
   async updateEpisodeSequel(
     @Body('episodeId') episodeId: number,
@@ -133,6 +157,7 @@ export class UrlController extends BaseController {
   /**
    * 批量生成访问密钥
    */
+  @UseGuards(AdminJwtAuthGuard)
   @Post('generate-keys')
   async generateAccessKeysForExisting() {
     try {

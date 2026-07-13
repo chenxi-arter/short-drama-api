@@ -2,7 +2,7 @@
  * 管理员认证控制器 - 登录/初始化/用户管理
  * 路由前缀: /api/admin/auth
  */
-import { Body, Controller, Delete, Get, Param, ParseIntPipe, Post, Put, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, ForbiddenException, Get, Headers, Param, ParseIntPipe, Post, Put, Req, UnauthorizedException, UseGuards } from '@nestjs/common';
 import { AdminAuthService } from '../services/admin-auth.service';
 import { AdminJwtAuthGuard } from '../guards/admin-jwt-auth.guard';
 
@@ -20,7 +20,11 @@ export class AdminAuthController {
   }
 
   @Post('init')
-  init(@Body() body: { username: string; password: string; name?: string; role?: string }) {
+  init(
+    @Headers('x-init-admin-token') initToken: string | undefined,
+    @Body() body: { username: string; password: string; name?: string; role?: string },
+  ) {
+    this.assertInitToken(initToken);
     return this.adminAuthService.createFirstAdmin(body);
   }
 
@@ -32,13 +36,18 @@ export class AdminAuthController {
 
   @Get('list')
   @UseGuards(AdminJwtAuthGuard)
-  list() {
+  list(@Req() req: AdminRequest) {
+    this.assertSuperAdmin(req);
     return this.adminAuthService.listAdmins();
   }
 
   @Post('add')
   @UseGuards(AdminJwtAuthGuard)
-  add(@Body() body: { username: string; password: string; name?: string; role?: string }) {
+  add(
+    @Req() req: AdminRequest,
+    @Body() body: { username: string; password: string; name?: string; role?: string },
+  ) {
+    this.assertSuperAdmin(req);
     return this.adminAuthService.addAdmin(body);
   }
 
@@ -54,9 +63,11 @@ export class AdminAuthController {
   @Put('reset-password/:id')
   @UseGuards(AdminJwtAuthGuard)
   resetPassword(
+    @Req() req: AdminRequest,
     @Param('id', ParseIntPipe) id: number,
     @Body() body: { newPassword: string },
   ) {
+    this.assertSuperAdmin(req);
     return this.adminAuthService.resetPassword(id, body.newPassword);
   }
 
@@ -66,6 +77,20 @@ export class AdminAuthController {
     @Param('id', ParseIntPipe) id: number,
     @Req() req: AdminRequest,
   ) {
+    this.assertSuperAdmin(req);
     return this.adminAuthService.removeAdmin(id, req.admin!.id);
+  }
+
+  private assertInitToken(initToken: string | undefined): void {
+    const expected = process.env.INIT_ADMIN_TOKEN;
+    if (!expected || initToken !== expected) {
+      throw new UnauthorizedException('初始化令牌无效');
+    }
+  }
+
+  private assertSuperAdmin(req: AdminRequest): void {
+    if (req.admin?.role !== 'super_admin') {
+      throw new ForbiddenException('仅超级管理员可执行该操作');
+    }
   }
 }

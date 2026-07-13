@@ -2,6 +2,8 @@
 
 本模块提供管理端 CRUD 与数据统计接口。除管理员认证接口外，所有 `/admin/**` 管理端接口都需要携带管理员登录 token。
 
+> ⚠️ 本轮安全更新改动了部分 admin 接口（初始化密钥、super_admin 权限、upload-complete、SSRF 防护、写接口鉴权、Banner 限流等），详见 [`admin-security-changes.md`](./admin-security-changes.md)。以下章节相关处已用「🔒 本轮变更」标注。
+
 - 基础前缀（根据运行方式不同）
   - 拆分部署（推荐）：
     - 客户端 API: `http://localhost:3000/api`
@@ -24,6 +26,11 @@
 - 初始化第一个管理员
   - `POST /api/admin/auth/init`
   - 仅当 `admin_users` 表为空时可用；已有管理员后会返回冲突错误
+  - 🔒 本轮变更：必须在请求头携带一次性部署密钥 `x-init-admin-token: <INIT_ADMIN_TOKEN>`，缺失或不匹配返回 `401 初始化令牌无效`
+  - 请求头：
+```http
+x-init-admin-token: <INIT_ADMIN_TOKEN>
+```
   - 请求示例：
 ```json
 {
@@ -62,11 +69,36 @@
   - `GET /api/admin/auth/me`
   - 请求头：`Authorization: Bearer <admin_access_token>`
 
+- 修改自己的密码
+  - `PUT /api/admin/auth/change-password`
+  - 请求头：`Authorization: Bearer <admin_access_token>`
+  - 权限不变，任意登录管理员均可修改自己密码
+
+- 🔒 本轮变更：管理员管理接口仅限 `super_admin`
+  - 以下接口现在只有 `role = super_admin` 的管理员可调用，普通 `admin` 返回 `403 仅超级管理员可执行该操作`：
+    | 接口 | 说明 |
+    |------|------|
+    | `GET /api/admin/auth/list` | 管理员列表 |
+    | `POST /api/admin/auth/add` | 新增管理员 |
+    | `PUT /api/admin/auth/reset-password/:id` | 重置指定管理员密码 |
+    | `DELETE /api/admin/auth/:id` | 删除管理员 |
+
 - 调用其他管理端接口
 ```bash
 curl "http://localhost:8080/api/admin/users?page=1&size=20" \
   -H "Authorization: Bearer <admin_access_token>"
 ```
+
+- 🔒 本轮相关环境变量
+```env
+# 管理后台 JWT 独立密钥（必须与 JWT_SECRET 不同）
+ADMIN_JWT_SECRET=your_admin_jwt_secret_key_here_at_least_32_characters
+ADMIN_JWT_EXPIRES_IN=8h
+
+# 初始化首个管理员的一次性部署密钥（POST /api/admin/auth/init 需在请求头带此值）
+INIT_ADMIN_TOKEN=your_one_time_admin_init_token_here
+```
+  - 若新增/更换 `ADMIN_JWT_SECRET`，旧的 admin token 会失效，管理员需重新登录（账号本身不受影响）
 
 ---
 
@@ -129,6 +161,8 @@ curl -X POST "http://localhost:8080/api/admin/categories/123?_method=DELETE"
     | `maxOnlineMinutes` | number | 否 | 自定义时间窗口内心跳在线时长最大值，单位分钟 |
     | `minOnlineDays` | number | 否 | 时间窗口内在线天数最小值，来源 `user_online_daily` 中 `duration > 0` 的日期数 |
     | `maxOnlineDays` | number | 否 | 时间窗口内在线天数最大值，来源 `user_online_daily` 中 `duration > 0` 的日期数 |
+    | `isPwa` | boolean | 否 | 是否已安装 PWA 到桌面；`true`/`1` 只返回已安装用户，`false`/`0` 只返回未安装用户，来源 `users.is_pwa` |
+  - 默认排序：按注册时间 `users.created_at` 倒序（由近到远）；`created_at` 相同时再按 `users.id` 倒序，保证翻页顺序稳定
   - 日期口径：`startDate` / `endDate` 不筛用户注册时间，只作为统计窗口作用于 `user_online_daily.duration`、`watch_logs.watch_duration` 和 refresh token 创建时间；`user_online_daily.date` 按北京时间（UTC+8）业务日写入和统计
   - 注册时间筛选口径：`createdStartDate` / `createdEndDate` 专门筛选用户创建时间 `users.created_at`；如果既要筛“某段时间注册的用户”，又要看这些用户在某段时间内的在线/观看表现，请同时传注册日期参数和统计日期参数
   - 登录次数参数弃用说明：`loginCount` / `minLoginCount` / `maxLoginCount` 保留兼容，但不建议运营侧继续使用；它们统计的是 `refresh_tokens` 创建次数，不等同于用户主动登录次数。运营筛选建议改用 `minOnlineDays`、`onlineDurationRange` 或 `watchDurationRange`
@@ -168,6 +202,15 @@ GET /api/admin/users?page=1&size=10&minLoginCount=1&maxLoginCount=5
 
 # 技术筛选：精确筛选时间窗口内 refresh token 创建次数为 3 次的用户，不建议作为运营活跃筛选
 GET /api/admin/users?page=1&size=10&loginCount=3
+
+# 只看已安装 PWA 到桌面的用户
+GET /api/admin/users?page=1&size=10&isPwa=true
+
+# 只看未安装 PWA 的用户
+GET /api/admin/users?page=1&size=10&isPwa=false
+
+# 组合筛选：2026-07-01 到 2026-07-02 注册且已安装 PWA 的用户
+GET /api/admin/users?page=1&size=10&createdStartDate=2026-07-01&createdEndDate=2026-07-02&isPwa=true
 ```
   - 响应示例：
 ```json
@@ -183,6 +226,7 @@ GET /api/admin/users?page=1&size=10&loginCount=3
       "nickname": "游客042857",
       "is_active": true,
       "isGuest": false,
+      "isPwa": true,
       "created_at": "2025-01-01T12:00:00.000Z",
       "lastLoginAt": "2025-09-05T12:34:56.000Z",
       "lastLoginIp": "203.0.113.10",
@@ -218,6 +262,8 @@ GET /api/admin/users?page=1&size=10&loginCount=3
   | `totalWatchMinutes` | number | 统计窗口内总观看时长（分钟，向下取整） |
   | `lastActiveAt` | string/null | 最后活跃时间（优先显示心跳时间；无心跳时显示统计窗口内最后观看时间） |
   | `isOnline` | boolean | 是否在线（5分钟内有心跳上报则为 true；通过 Redis `online:last:{userId}` 判断） |
+  | `isGuest` | boolean | 是否为游客用户 |
+  | `isPwa` | boolean | 是否已安装 PWA 到桌面，来源 `users.is_pwa`；由客户端调用 `POST /api/user/pwa-status` 上报 |
 
 - 详情
   - `GET /api/admin/users/:id?startDate=2026-06-01&endDate=2026-06-23`
@@ -326,15 +372,18 @@ GET /api/admin/users?page=1&size=10&loginCount=3
     - `days[].onlineHours` / `days[].onlineMinutes`: 当天在线时长的小时和分钟展示值
     - `days[].watchHours` / `days[].watchMinutes`: 当天观看时长的小时和分钟展示值
 
-- 新增（注意：`id` 为 bigint 主键，必填）
+- 新增
   - `POST /api/admin/users`
+  - 🔒 本轮变更：仅接受白名单字段，其余字段（含 `id`、`password_hash`、`telegram_id`、`shortId`、`isGuest`、`guestToken`、`created_at` 等）会被忽略
+  - 允许字段：`email`、`first_name`、`last_name`、`username`、`nickname`、`photo_url`、`is_active`
   - 请求示例：
 ```json
-{ "id": 6702079700, "first_name": "随风", "last_name": "", "username": "seo99991", "is_active": true }
+{ "first_name": "随风", "last_name": "", "username": "seo99991", "is_active": true }
 ```
 
 - 更新
   - `PUT /api/admin/users/:id`
+  - 🔒 本轮变更：同样仅接受上述白名单字段
   - 请求示例：
 ```json
 { "first_name": "Alice", "is_active": false }
@@ -343,11 +392,58 @@ GET /api/admin/users?page=1&size=10&loginCount=3
 - 删除
   - `DELETE /api/admin/users/:id`
 
+#### PWA 安装状态 is_pwa
+
+- 数据来源：客户端上报接口 `POST /api/user/pwa-status`（用户端接口，需用户 token，非管理端接口）
+  - 请求头：`Authorization: Bearer <user_access_token>`
+  - Body：`{ "isPwa": true }`
+  - 说明：前端检测到应用已安装到桌面（`display-mode: standalone` 或 `appinstalled` 事件）后调用，写入 `users.is_pwa`
+  - 响应：`{ "ok": true, "isPwa": true }`
+- 管理端使用：
+  - 列表/详情返回项包含 `isPwa` 字段
+  - 列表支持 `?isPwa=true` / `?isPwa=false` 筛选
+  - 需先执行迁移 `production-migrations/19_add_user_is_pwa.sql`（新增 `users.is_pwa` 字段）
+- 前端检测示例：
+```js
+const isPwa = window.matchMedia('(display-mode: standalone)').matches
+  || window.navigator.standalone === true;
+fetch('/api/user/pwa-status', {
+  method: 'POST',
+  headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+  body: JSON.stringify({ isPwa }),
+});
+```
+
+---
+
+### 游客管理 Guest（管理端）
+
+资源路径: `/auth/admin`
+
+> 🔒 本轮变更：以下接口现在需要 admin token（`Authorization: Bearer <admin_access_token>`）。
+
+- 清理不活跃游客
+  - `POST /api/auth/admin/clean-inactive-guests`
+
+- 游客统计
+  - `GET /api/auth/admin/guest-statistics`
+
+- 重新激活游客
+  - `POST /api/auth/admin/reactivate-guest/:userId`
+
+> 说明：内容导入模块（`/api/admin/ingest/*`、`/api/admin/test-ingest`）本轮按需求暂不加 token，保持无鉴权。
+
 ---
 
 ### 轮播图管理 Banners
 
 资源路径（标准化控制器）：`/banners` ；兼容旧简化路由：`/admin/banners`
+
+> 🔒 本轮变更：
+> - 写接口（新增/更新/删除/启用禁用/调权）现在需要 admin token（`Authorization: Bearer <admin_access_token>`）。
+> - `linkUrl` 必须为 HTTPS URL，`http://`、`javascript:`、`data:`、`//host` 均返回 `400 linkUrl必须是 HTTPS URL`。
+> - 曝光/点击/track 上报接口新增限流（同 IP + 同路由 60 次/分钟），超限返回 `429`。
+> - 读接口（列表/详情/活跃列表/统计）保持公开，不受影响。
 
 - 列表（带筛选）
   - `GET /api/banners?categoryId=&isActive=&page=1&size=10`
@@ -357,20 +453,21 @@ GET /api/admin/users?page=1&size=10&loginCount=3
   - `GET /api/banners/:id`
   - 响应：`{ code,msg,data: BannerResponseDto, success, timestamp }`
 
-- 新增（CreateBannerDto，含校验与时间顺序检查）
+- 新增（CreateBannerDto，含校验与时间顺序检查）🔒 需 admin token
   - `POST /api/banners`
   - 字段：`title,imageUrl,categoryId,seriesId?,linkUrl?,weight?,isActive?,isAd?,startTime?,endTime?,description?`
+  - `linkUrl` 若传必须是 HTTPS URL
 
-- 更新（UpdateBannerDto）
+- 更新（UpdateBannerDto）🔒 需 admin token
   - `PUT /api/banners/:id`
 
-- 删除
+- 删除 🔒 需 admin token
   - `DELETE /api/banners/:id`
 
-- 启用/禁用
+- 启用/禁用 🔒 需 admin token
   - `PUT /api/banners/:id/status` Body: `{ "isActive": true|false }`
 
-- 批量调权
+- 批量调权 🔒 需 admin token
   - `PUT /api/banners/weights` Body: `{ "updates": [{ "id": 12, "weight": 200 }] }`
 
 - 获取活跃 Banner（前台）
@@ -378,7 +475,9 @@ GET /api/admin/users?page=1&size=10&loginCount=3
   - 返回项：`{ showURL,title,id,shortId,channeID,url,isAd }`
 
 - 曝光/点击与统计
-  - `POST /api/banners/:id/impression`、`POST /api/banners/:id/click`
+  - `POST /api/banners/:id/impression`、`POST /api/banners/:id/click`、`POST /api/banners/track`
+  - 🔒 本轮变更：上述上报接口（含 `POST /api/banners/track`）新增限流（同 IP + 同路由 60 次/分钟），超限返回 `429 统计上报过于频繁，请稍后再试`；正常用户不会触发
+  - ⚠️ 限流按 `X-Forwarded-For` 识别真实 IP，需确认 Nginx 已透传（`proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;`），否则全体用户会共享同一计数
   - `GET /api/banners/:id/stats?from=YYYY-MM-DD&to=YYYY-MM-DD`
   - 示例：`[{ "date": "2025-09-01", "impressions": 2300, "clicks": 80 }]`
 
@@ -438,12 +537,19 @@ curl -X POST "http://localhost:8080/api/admin/banners/123/image" \
   - `POST /api/admin/banners/:id/image-from-url`
   - Body：`{ "url": "https://example.com/image.jpg" }`
   - 说明：后端从该 URL 抓取图片，上传到 R2，并更新 `imageUrl`
+  - 🔒 本轮变更（SSRF 防护）：仅允许 `https://`；禁止 localhost、内网/保留 IP（10/172.16-31/192.168/127/169.254/100.64 等）与 IPv6 本地地址；禁止跟随重定向；最大响应 10MB、超时 15s；非法地址返回 `400`
   - cURL 示例：
 ```bash
 curl -X POST "http://localhost:8080/api/admin/banners/123/image-from-url" \
   -H "Content-Type: application/json" \
   -d '{ "url": "https://example.com/image.jpg" }'
 ```
+
+- Banner 上传完成回调（前端直传 R2 后调用）
+  - `POST /api/admin/banners/:id/upload-complete`
+  - 🔒 本轮变更：后端不再信任前端传的 `publicUrl`，仅接受 `fileKey`（须以 `banners/:id/` 开头），并校验 R2 上对象真实存在，再由后端生成最终 `imageUrl` 返回
+  - Body：`{ "fileKey": "banners/123/image_xxx.jpg" }`
+  - 对象不存在返回：`400 Uploaded object not found`
 
 ---
 
@@ -589,15 +695,15 @@ curl -X POST "http://localhost:8080/api/admin/banners/123/image-from-url" \
 
 - **通知上传完成**
   - `POST /api/admin/series/:id/upload-complete`
+  - 🔒 本轮变更：后端不再信任前端传的 `publicUrl`（该字段现被忽略），仅接受 `fileKey`（须以 `series/:id/` 开头），并校验 R2 上对象真实存在，再由后端生成 `coverUrl`
   - 请求体：
 ```json
 {
-  "fileKey": "series/123/cover_abc123.jpg",
-  "publicUrl": "https://static.656932.com/series/123/cover_abc123.jpg",
-  "fileSize": 524288
+  "fileKey": "series/123/cover_abc123.jpg"
 }
 ```
   - 说明：前端上传到 R2 成功后，调用此接口通知后端更新系列的 `coverUrl` 字段
+  - 对象不存在返回：`400 Uploaded object not found`
   - 响应示例：
 ```json
 {
@@ -622,6 +728,7 @@ curl -X POST "http://localhost:8080/api/admin/series/123/cover" \
   - `POST /api/admin/series/:id/cover-from-url`
   - 请求体：`{ "url": "https://example.com/cover.jpg" }`
   - 说明：后端从该 URL 抓取图片，上传到 R2，并更新 `coverUrl`
+  - 🔒 本轮变更（SSRF 防护）：仅允许 `https://`；禁止 localhost、内网/保留 IP 与 IPv6 本地地址；禁止跟随重定向；最大响应 10MB、超时 15s；非法地址返回 `400`
   - cURL 示例：
 ```bash
 curl -X POST "http://localhost:8080/api/admin/series/123/cover-from-url" \
@@ -644,11 +751,11 @@ await fetch(uploadUrl, {
   headers: { 'Content-Type': file.type },
 });
 
-// 3. 通知后端更新 coverUrl
+// 3. 通知后端更新 coverUrl（🔒 只需传 fileKey，publicUrl 由后端生成）
 await fetch(`/api/admin/series/${seriesId}/upload-complete`, {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ fileKey, publicUrl, fileSize: file.size }),
+  body: JSON.stringify({ fileKey }),
 });
 ```
 
@@ -786,6 +893,9 @@ const description = episode.series?.description;
 ```
 
 ### 播放地址管理 EpisodeUrl（某一集的播放源）
+
+> 🔒 本轮变更：`POST /api/video/url/episode`（`ossUrl`/`cdnUrl`/`subtitleUrl` 必须 HTTPS）、`POST /api/video/url/episode/sequel`、`POST /api/video/url/generate-keys` 现均需 admin token；`GET /api/video/url/access/:accessKey` 与 `POST /api/video/url/query` 保持公开。`POST /api/admin/episodes/:id/upload-complete` 仅接受 `fileKey`（须以 `admin.v1.0.0.t1/` 开头）并校验 R2 对象存在，`quality` 默认 `720p`。详见 [`admin-security-changes.md`](./admin-security-changes.md)。
+
 ---
 
 ### 系列数据验证 Series Validation ⭐ 新增
@@ -1493,12 +1603,11 @@ curl -X POST "http://localhost:8080/api/admin/banners" \
     "isActive": true
   }'
 
-# 新建用户（注意 bigint 主键）
+# 新建用户（🔒 仅接受白名单字段，id 等字段会被忽略）
 curl -X POST "http://localhost:8080/api/admin/users" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $TOKEN" \
   -d '{
-    "id": 6702079700,
     "first_name": "随风",
     "last_name": "",
     "username": "seo99991",
@@ -1643,7 +1752,7 @@ curl -X POST "http://localhost:8080/api/admin/dashboard/archive-watch-logs" \
 
 ### 备注
 
-- 所有 `/admin/**` 管理端接口均需携带管理员 token（`Authorization: Bearer <admin_access_token>`），认证接口 `/admin/auth/login` 和 `/admin/auth/init` 除外。
+- 所有 `/admin/**` 管理端接口均需携带管理员 token（`Authorization: Bearer <admin_access_token>`），认证接口 `/admin/auth/login` 和 `/admin/auth/init` 除外。其中 `/admin/auth/init` 🔒 本轮变更为需请求头 `x-init-admin-token`（见管理员认证章节）。
 - 所有时间字段请使用 ISO 8601 字符串（如 `2025-09-05T12:00:00Z`）。
 - `users` 的 `id` 为 bigint，若前端使用 JavaScript，请注意大整数精度问题（建议在 UI 层以字符串管理；传输时可用数字或字符串，按后端实际配置调整）。
 
@@ -1982,6 +2091,45 @@ curl "http://localhost:9090/api/admin/export/overview-stats?startDate=2026-03-25
 ---
 
 ## 📝 更新日志
+
+### v1.5.0 安全加固
+
+> 详细前端对照清单见 [`admin-security-changes.md`](./admin-security-changes.md)。
+
+#### 🔒 安全改进
+- ✅ `POST /api/admin/auth/init` 需请求头 `x-init-admin-token: <INIT_ADMIN_TOKEN>`
+- ✅ 管理员管理接口（list/add/reset-password/delete）仅限 `super_admin`
+- ✅ `POST /api/admin/users`、`PUT /api/admin/users/:id` 仅接受字段白名单
+- ✅ upload-complete（banners/series/episodes）不再信任前端 `publicUrl`，仅接受 `fileKey` 并校验 R2 对象存在
+- ✅ `image-from-url` / `cover-from-url` 增加 SSRF 防护（仅 HTTPS、禁内网、禁重定向、限 10MB）
+- ✅ Banner 写接口需 admin token；`linkUrl` 必须 HTTPS
+- ✅ `POST /api/video/url/episode`（含 HTTPS 校验）、`episode/sequel`、`generate-keys` 需 admin token
+- ✅ 游客管理接口（clean-inactive-guests/guest-statistics/reactivate-guest）需 admin token
+- ✅ Banner 曝光/点击/track 上报接口新增限流（60 次/分钟/IP+路由）
+- ✅ 新增环境变量 `INIT_ADMIN_TOKEN`；建议 `ADMIN_JWT_SECRET` 与 `JWT_SECRET` 不同
+- ℹ️ 内容导入模块（`/api/admin/ingest/*`、`/api/admin/test-ingest`）本轮暂不加 token
+
+#### ✨ 新增功能
+- ✅ 用户新增 PWA 安装状态字段 `is_pwa`
+  - 客户端上报接口 `POST /api/user/pwa-status`（用户 token）
+  - `GET /api/user/me` 返回 `isPwa`
+  - 管理端用户列表/详情返回 `isPwa`，列表支持 `?isPwa=true/false` 筛选
+  - 迁移文件 `production-migrations/19_add_user_is_pwa.sql`
+
+#### 🐛 问题修复
+- ✅ 修复用户列表 `createdStartDate` / `createdEndDate` 在 UTC 容器下按注册时间筛选偏移 8 小时的问题
+
+#### 🧩 前端改动清单
+| 优先级 | 改动点 | 说明 |
+|--------|--------|------|
+| 高 | upload-complete 去掉 `publicUrl` | 只传 `fileKey`，以后端返回 URL 为准 |
+| 高 | 所有写接口带 admin token | 检查请求拦截器统一带 `Authorization` |
+| 中 | 管理员管理页面加角色判断 | 非 `super_admin` 隐藏相关操作或处理 `403` |
+| 中 | linkUrl / 图片 URL 表单校验 HTTPS | Banner 跳转链接、远程图片导入 |
+| 低 | 初始化管理员加 header | 部署时一次性操作，带 `x-init-admin-token` |
+| 低 | Banner 上报处理 `429` | 静默忽略即可，正常用户不会触发 |
+
+> 完整对照说明见 [`admin-security-changes.md`](./admin-security-changes.md)。
 
 ### v1.4.0 (2026-06-22)
 

@@ -24,6 +24,16 @@ type AdminUserListRaw = {
   lastActiveAt?: string | Date | null;
 };
 
+type AdminUserMutationBody = Partial<Pick<User,
+  'email'
+  | 'first_name'
+  | 'last_name'
+  | 'username'
+  | 'nickname'
+  | 'photo_url'
+  | 'is_active'
+>>;
+
 type UserWatchStatsRaw = {
   totalDuration?: string | number | null;
   lastActiveAt?: string | Date | null;
@@ -64,6 +74,7 @@ export class AdminUsersController {
     @Query('maxOnlineMinutes') maxOnlineMinutes?: string,
     @Query('minOnlineDays') minOnlineDays?: string,
     @Query('maxOnlineDays') maxOnlineDays?: string,
+    @Query('isPwa') isPwa?: string,
   ) {
     const take = Math.max(Number(size) || 20, 1);
     const currentPage = Math.max(Number(page) || 1, 1);
@@ -73,8 +84,8 @@ export class AdminUsersController {
     const parsedEndDate = this.parseDateBoundary(endDate, 'end');
     const parsedCreatedStartDate = this.parseDateBoundary(createdStartDate, 'start');
     const parsedCreatedEndDate = this.parseDateBoundary(createdEndDate, 'end');
-    const startDateOnly = parsedStartDate ? this.formatDateOnly(parsedStartDate) : null;
-    const endDateOnly = parsedEndDate ? this.formatDateOnly(this.toExclusiveDateOnlyBoundary(parsedEndDate)) : null;
+    const startDateOnly = parsedStartDate ? parsedStartDate.slice(0, 10) : null;
+    const endDateOnly = parsedEndDate ? parsedEndDate.slice(0, 10) : null;
 
     const queryBuilder = this.userRepo.createQueryBuilder('u')
       .leftJoin(
@@ -167,7 +178,8 @@ export class AdminUsersController {
       .addSelect('watch_stats.lastActiveAt', 'lastActiveAt')
       .addSelect('COALESCE(online_stats.totalOnlineDuration, 0)', 'totalOnlineDuration')
       .addSelect('COALESCE(online_stats.onlineDays, 0)', 'onlineDays')
-      .orderBy('u.id', 'DESC');
+      .orderBy('u.created_at', 'DESC')
+      .addOrderBy('u.id', 'DESC');
 
     if (parsedCreatedStartDate) {
       queryBuilder.andWhere('u.created_at >= :createdStartDate', { createdStartDate: parsedCreatedStartDate });
@@ -175,6 +187,12 @@ export class AdminUsersController {
 
     if (parsedCreatedEndDate) {
       queryBuilder.andWhere('u.created_at < :createdEndDate', { createdEndDate: parsedCreatedEndDate });
+    }
+
+    if (isPwa === 'true' || isPwa === '1') {
+      queryBuilder.andWhere('u.is_pwa = 1');
+    } else if (isPwa === 'false' || isPwa === '0') {
+      queryBuilder.andWhere('u.is_pwa = 0');
     }
 
     const exactLoginCount = this.parseOptionalNumber(loginCount);
@@ -336,7 +354,7 @@ export class AdminUsersController {
       lastActiveAt,
       isOnline,
       onlineDaily,
-    } as any;
+    };
   }
 
   @Get(':id/login-logs')
@@ -385,14 +403,14 @@ export class AdminUsersController {
   }
 
   @Post()
-  async create(@Body() body: Partial<User>) {
-    const entity = this.userRepo.create(body);
+  async create(@Body() body: AdminUserMutationBody) {
+    const entity = this.userRepo.create(this.pickUserMutationFields(body));
     return this.userRepo.save(entity);
   }
 
   @Put(':id')
-  async update(@Param('id') id: string, @Body() body: Partial<User>) {
-    await this.userRepo.update({ id: Number(id) }, body);
+  async update(@Param('id') id: string, @Body() body: AdminUserMutationBody) {
+    await this.userRepo.update({ id: Number(id) }, this.pickUserMutationFields(body));
     return this.userRepo.findOne({ where: { id: Number(id) } });
   }
 
@@ -497,6 +515,27 @@ export class AdminUsersController {
     };
   }
 
+  private pickUserMutationFields(body: AdminUserMutationBody): AdminUserMutationBody {
+    const allowedKeys: Array<keyof AdminUserMutationBody> = [
+      'email',
+      'first_name',
+      'last_name',
+      'username',
+      'nickname',
+      'photo_url',
+      'is_active',
+    ];
+    const result: AdminUserMutationBody = {};
+
+    for (const key of allowedKeys) {
+      if (Object.prototype.hasOwnProperty.call(body, key)) {
+        result[key] = body[key] as never;
+      }
+    }
+
+    return result;
+  }
+
   private toSafeUser(user: User) {
     return {
       id: user.id,
@@ -510,40 +549,40 @@ export class AdminUsersController {
       photo_url: user.photo_url,
       is_active: user.is_active,
       isGuest: user.isGuest,
+      isPwa: user.isPwa,
       created_at: user.created_at,
     };
   }
 
-  private parseDateBoundary(value: string | undefined, boundary: 'start' | 'end'): Date | null {
+  private parseDateBoundary(value: string | undefined, boundary: 'start' | 'end'): string | null {
     if (!value || !value.trim()) return null;
 
     const normalized = value.trim().replace('T', ' ');
     const match = normalized.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?:\s+(\d{1,2})(?::(\d{1,2})(?::(\d{1,2}))?)?)?$/);
-    if (!match) {
-      const parsed = new Date(normalized);
-      return Number.isNaN(parsed.getTime()) ? null : parsed;
-    }
+    if (!match) return null;
 
-    const [, year, month, day, hourRaw, minuteRaw, secondRaw] = match;
-    let hour = hourRaw === undefined ? (boundary === 'start' ? 0 : 23) : Number(hourRaw);
-    const minute = minuteRaw === undefined ? (boundary === 'start' ? 0 : 59) : Number(minuteRaw);
-    const second = secondRaw === undefined ? (boundary === 'start' ? 0 : 59) : Number(secondRaw);
-    const date = new Date(Number(year), Number(month) - 1, Number(day), 0, 0, 0, 0);
+    const [, yearStr, monthStr, dayStr, hourRaw, minuteRaw, secondRaw] = match;
+    const y = Number(yearStr);
+    const m = Number(monthStr);
+    const d = Number(dayStr);
+
+    const pad = (n: number) => String(n).padStart(2, '0');
 
     if (boundary === 'end' && hourRaw === undefined) {
-      date.setDate(date.getDate() + 1);
-      date.setHours(0, 0, 0, 0);
-      return date;
+      const nextDay = new Date(Date.UTC(y, m - 1, d + 1));
+      return `${nextDay.getUTCFullYear()}-${pad(nextDay.getUTCMonth() + 1)}-${pad(nextDay.getUTCDate())} 00:00:00`;
     }
+
+    const hour = hourRaw === undefined ? (boundary === 'start' ? 0 : 23) : Number(hourRaw);
+    const minute = minuteRaw === undefined ? (boundary === 'start' ? 0 : 59) : Number(minuteRaw);
+    const second = secondRaw === undefined ? (boundary === 'start' ? 0 : 59) : Number(secondRaw);
 
     if (hour === 24) {
-      date.setDate(date.getDate() + 1);
-      date.setHours(0, 0, 0, 0);
-      return date;
+      const nextDay = new Date(Date.UTC(y, m - 1, d + 1));
+      return `${nextDay.getUTCFullYear()}-${pad(nextDay.getUTCMonth() + 1)}-${pad(nextDay.getUTCDate())} 00:00:00`;
     }
 
-    date.setHours(hour, minute, second, boundary === 'start' ? 0 : 999);
-    return Number.isNaN(date.getTime()) ? null : date;
+    return `${yearStr}-${pad(m)}-${pad(d)} ${pad(hour)}:${pad(minute)}:${pad(second)}`;
   }
 
   private parseOptionalNumber(value?: string): number | null {
@@ -570,21 +609,6 @@ export class AdminUsersController {
       minSeconds: minMinutes === null ? null : Math.max(minMinutes, 0) * 60,
       maxSeconds: maxMinutes === null ? null : Math.max(maxMinutes, 0) * 60,
     };
-  }
-
-  private toExclusiveDateOnlyBoundary(value: Date): Date {
-    const result = new Date(value);
-    const hasTimePart = result.getHours() > 0
-      || result.getMinutes() > 0
-      || result.getSeconds() > 0
-      || result.getMilliseconds() > 0;
-
-    if (hasTimePart) {
-      result.setDate(result.getDate() + 1);
-      result.setHours(0, 0, 0, 0);
-    }
-
-    return result;
   }
 
   private async clearUserOnlineCache(userId: number): Promise<void> {

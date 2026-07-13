@@ -6,7 +6,6 @@ import { EpisodeUrl } from '../../video/entity/episode-url.entity';
 import { R2StorageService } from '../../core/storage/r2-storage.service';
 import { EpisodeService } from '../../video/services/episode.service';
 import { GetVideoPresignedUrlDto, VideoUploadCompleteDto } from '../dto/presigned-upload.dto';
-import { randomUUID } from 'crypto';
 import { AdminJwtAuthGuard } from '../guards/admin-jwt-auth.guard';
 
 @UseGuards(AdminJwtAuthGuard)
@@ -20,6 +19,14 @@ export class AdminEpisodesController {
     private readonly storage: R2StorageService,
     private readonly episodeService: EpisodeService,
   ) {}
+
+  private buildPublicUrlFromKey(fileKey: string): string {
+    const allowedPrefix = 'admin.v1.0.0.t1/';
+    if (!fileKey.startsWith(allowedPrefix) || fileKey.includes('..') || fileKey.startsWith('/')) {
+      throw new BadRequestException('Invalid fileKey');
+    }
+    return this.storage.getPublicUrl(fileKey);
+  }
 
   private normalize(raw: Record<string, unknown>): Partial<Episode> {
     const toInt = (v: unknown): number | undefined => (typeof v === 'string' || typeof v === 'number') ? Number(v) : undefined;
@@ -230,11 +237,10 @@ export class AdminEpisodesController {
     @Param('id') id: string,
     @Body() body: VideoUploadCompleteDto,
   ) {
-    const { fileKey, publicUrl, quality, fileSize } = body;
+    const { fileKey, quality, fileSize } = body;
 
-    // 验证参数
-    if (!fileKey || !publicUrl) {
-      throw new BadRequestException('fileKey and publicUrl are required');
+    if (!fileKey) {
+      throw new BadRequestException('fileKey is required');
     }
 
     // 验证 Episode 是否存在
@@ -243,11 +249,15 @@ export class AdminEpisodesController {
       throw new NotFoundException('Episode not found');
     }
 
-    // 查找是否已存在相同清晰度的记录
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const whereCondition: any = {
+    const publicUrl = this.buildPublicUrlFromKey(fileKey);
+    if (!(await this.storage.objectExists(fileKey))) {
+      throw new BadRequestException('Uploaded object not found');
+    }
+
+    const normalizedQuality = quality || '720p';
+    const whereCondition: FindOptionsWhere<EpisodeUrl> = {
       episodeId: Number(id),
-      quality: quality || null,
+      quality: normalizedQuality,
     };
     
     const existingUrl = await this.episodeUrlRepo.findOne({
@@ -269,7 +279,7 @@ export class AdminEpisodesController {
       // 创建新记录
       const episodeUrl = this.episodeUrlRepo.create({
         episodeId: Number(id),
-        quality: quality || undefined,
+        quality: normalizedQuality,
         cdnUrl: publicUrl,
         ossUrl: publicUrl,
         originUrl: publicUrl,
@@ -281,7 +291,7 @@ export class AdminEpisodesController {
       success: true,
       message: 'Video upload completed',
       publicUrl,
-      quality,
+      quality: normalizedQuality,
       fileSize,
     };
   }

@@ -30,6 +30,7 @@ import { UserService } from '../user/user.service';
 import { LoginType, TelegramUserDto } from '../user/dto/telegram-user.dto';
 import { GuestService } from './guest.service';
 import { ConvertGuestToEmailDto, ConvertGuestResponseDto } from '../user/dto/convert-guest.dto';
+import { AdminJwtAuthGuard } from '../admin/guards/admin-jwt-auth.guard';
 import { Query } from '@nestjs/common';
 
 @ApiTags('认证')
@@ -185,17 +186,22 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @Delete('devices/:tokenId')
   @ApiBearerAuth()
-  @ApiOperation({ summary: '撤销指定设备refresh token（占位实现）' })
-  revokeDevice(@Param('tokenId') tokenId: string) {
+  @ApiOperation({ summary: '撤销指定设备 refresh token' })
+  async revokeDevice(
+    @Request() req: { user?: { userId: number } },
+    @Param('tokenId') tokenId: string,
+  ) {
+    const userId = req.user?.userId;
+    if (!userId) {
+      throw new UnauthorizedException('用户信息无效');
+    }
+
     const numericTokenId = parseInt(tokenId, 10);
     if (isNaN(numericTokenId)) {
-      return {
-        message: '无效的设备ID',
-        success: false,
-      };
+      throw new BadRequestException('无效的设备ID');
     }
-    // TODO: 校验 token 归属后执行撤销，确保 numericTokenId 属于 req.user.userId
-    // await this.authService.revokeUserSpecificToken(req.user.userId, numericTokenId);
+
+    await this.authService.revokeUserSpecificToken(userId, numericTokenId);
     return {
       message: '设备已登出',
       success: true,
@@ -300,6 +306,7 @@ export class AuthController {
   }
 
   @Post('admin/clean-inactive-guests')
+  @UseGuards(AdminJwtAuthGuard)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: '清理不活跃游客（管理员）',
@@ -329,6 +336,7 @@ export class AuthController {
   }
 
   @Get('admin/guest-statistics')
+  @UseGuards(AdminJwtAuthGuard)
   @ApiOperation({
     summary: '获取游客统计信息（管理员）',
     description: '获取游客总数、活跃数、转化率等统计数据'
@@ -353,6 +361,7 @@ export class AuthController {
   }
 
   @Post('admin/reactivate-guest/:userId')
+  @UseGuards(AdminJwtAuthGuard)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: '恢复不活跃游客（管理员）',

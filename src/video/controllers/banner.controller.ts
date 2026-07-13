@@ -13,15 +13,19 @@ import {
   Query,
   ParseIntPipe,
   ValidationPipe,
+  UseGuards,
 } from '@nestjs/common';
+import { RateLimitGuard, RateLimit } from '../../common/guards/rate-limit.guard';
 import { BannerService } from '../services/banner.service';
 import { ResponseUtil } from '../../common/utils/response.util';
 import { CreateBannerDto, UpdateBannerDto, BannerQueryDto, BannerResponseDto } from '../dto/banner.dto';
+import { AdminJwtAuthGuard } from '../../admin/guards/admin-jwt-auth.guard';
 
 @Controller('banners')
 export class BannerController {
   constructor(private readonly bannerService: BannerService) {}
 
+  @UseGuards(AdminJwtAuthGuard)
   @Post()
   async createBanner(
     @Body(ValidationPipe) createBannerDto: CreateBannerDto,
@@ -31,6 +35,7 @@ export class BannerController {
     return { code: resp.code, msg: '创建成功', data: resp.data, success: resp.success, timestamp: resp.timestamp };
   }
 
+  @UseGuards(AdminJwtAuthGuard)
   @Put(':id')
   async updateBanner(
     @Param('id', ParseIntPipe) id: number,
@@ -41,6 +46,7 @@ export class BannerController {
     return { code: resp.code, msg: '更新成功', data: resp.data, success: resp.success, timestamp: resp.timestamp };
   }
 
+  @UseGuards(AdminJwtAuthGuard)
   @Delete(':id')
   async deleteBanner(
     @Param('id', ParseIntPipe) id: number,
@@ -68,6 +74,7 @@ export class BannerController {
     return { code: resp.code, msg: '获取成功', data: resp.data, success: resp.success, timestamp: resp.timestamp };
   }
 
+  @UseGuards(AdminJwtAuthGuard)
   @Put(':id/status')
   async toggleBannerStatus(
     @Param('id', ParseIntPipe) id: number,
@@ -78,6 +85,7 @@ export class BannerController {
     return { code: resp.code, msg: '操作成功', data: resp.data, success: resp.success, timestamp: resp.timestamp };
   }
 
+  @UseGuards(AdminJwtAuthGuard)
   @Put('weights')
   async updateBannerWeights(
     @Body('updates') updates: { id: number; weight: number }[],
@@ -98,6 +106,8 @@ export class BannerController {
   }
 
   // 记录曝光（展示）
+  @UseGuards(RateLimitGuard)
+  @RateLimit({ windowMs: 60 * 1000, maxRequests: 60, message: '统计上报过于频繁，请稍后再试' })
   @Post(':id/impression')
   async impression(
     @Param('id', ParseIntPipe) id: number,
@@ -108,6 +118,8 @@ export class BannerController {
   }
 
   // 记录点击（新接口：使用POST body）
+  @UseGuards(RateLimitGuard)
+  @RateLimit({ windowMs: 60 * 1000, maxRequests: 60, message: '统计上报过于频繁，请稍后再试' })
   @Post('track')
   async track(
     @Body() body: { id: number; type: 'click' | 'impression' },
@@ -125,6 +137,8 @@ export class BannerController {
   }
 
   // 记录点击（旧接口：保持兼容）
+  @UseGuards(RateLimitGuard)
+  @RateLimit({ windowMs: 60 * 1000, maxRequests: 60, message: '统计上报过于频繁，请稍后再试' })
   @Post(':id/click')
   async click(
     @Param('id', ParseIntPipe) id: number,
