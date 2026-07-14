@@ -179,7 +179,8 @@ export class AdminUsersController {
       .addSelect('watch_stats.lastActiveAt', 'lastActiveAt')
       .addSelect('COALESCE(online_stats.totalOnlineDuration, 0)', 'totalOnlineDuration')
       .addSelect('COALESCE(online_stats.onlineDays, 0)', 'onlineDays')
-      .orderBy('u.id', 'DESC');
+      .orderBy('u.created_at', 'DESC')
+      .addOrderBy('u.id', 'DESC');
 
     if (parsedCreatedStartDate) {
       queryBuilder.andWhere('u.created_at >= :createdStartDate', { createdStartDate: parsedCreatedStartDate });
@@ -274,10 +275,11 @@ export class AdminUsersController {
       ? await queryBuilder.clone().getCount()
       : await this.countUsersOnly(parsedCreatedStartDate, parsedCreatedEndDate, isPwa);
 
-    // 分页与数据获取沿用一周前验证可用的机制：skip/take + getRawAndEntities。
+    // 用 offset/limit 走原生 SQL 分页，避免 TypeORM 的 skip/take 在 LEFT JOIN + addSelect
+    // 场景下走两阶段查询导致内层 subquery 丢失 ORDER BY（深分页翻页错乱的直接原因）。
     const { entities: users, raw } = await queryBuilder
-      .skip(skip)
-      .take(take)
+      .offset(skip)
+      .limit(take)
       .getRawAndEntities<AdminUserListRaw>();
 
     const statsByUserId = new Map<number, AdminUserListRaw>();
