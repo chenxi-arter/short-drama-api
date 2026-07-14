@@ -79,7 +79,8 @@ export class AdminUsersController {
     const take = Math.max(Number(size) || 20, 1);
     const currentPage = Math.max(Number(page) || 1, 1);
     const skip = (currentPage - 1) * take;
-    const now = new Date();
+    // refresh_tokens.expires_at 字面按北京时间存储，比较时也要使用北京字面 now
+    const nowBjString = this.formatBeijingDateTimeNow();
     const parsedStartDate = this.parseDateBoundary(startDate, 'start');
     const parsedEndDate = this.parseDateBoundary(endDate, 'end');
     const parsedCreatedStartDate = this.parseDateBoundary(createdStartDate, 'start');
@@ -119,7 +120,7 @@ export class AdminUsersController {
           .addSelect('COUNT(*)', 'activeLogins')
           .from(RefreshToken, 'art')
           .where('art.is_revoked = 0')
-          .andWhere('art.expires_at > :now', { now })
+          .andWhere('art.expires_at > :nowBjString', { nowBjString })
           .groupBy('art.user_id'),
         'active_login_stats',
         'active_login_stats.userId = u.id',
@@ -256,10 +257,28 @@ export class AdminUsersController {
       queryBuilder.andWhere('COALESCE(online_stats.onlineDays, 0) <= :maxOnlineDays', { maxOnlineDays: onlineDaysMax });
     }
 
-    const total = await queryBuilder.clone().getCount();
+    const hasStatsFilter =
+      exactLoginCount !== null ||
+      loginCountMin !== null ||
+      loginCountMax !== null ||
+      watchRange.minSeconds !== null ||
+      watchRange.maxSeconds !== null ||
+      hasWatchDurationFilter ||
+      onlineRange.minSeconds !== null ||
+      onlineRange.maxSeconds !== null ||
+      hasOnlineDurationFilter ||
+      onlineDaysMin !== null ||
+      onlineDaysMax !== null;
+
+    // 快路径：无 stats 筛选时 count 只跑 users 表，避免 4 个派生表 join
+    const total = hasStatsFilter
+      ? await queryBuilder.clone().getCount()
+      : await this.countUsersOnly(parsedCreatedStartDate, parsedCreatedEndDate, isPwa);
+
+    // 使用 offset/limit 走原生 SQL，避免 TypeORM 在 join + addSelect 场景下走两阶段查询丢失 ORDER BY
     const { entities: users, raw } = await queryBuilder
-      .skip(skip)
-      .take(take)
+      .offset(skip)
+      .limit(take)
       .getRawAndEntities<AdminUserListRaw>();
 
     const statsByUserId = new Map<number, AdminUserListRaw>();
@@ -268,43 +287,40 @@ export class AdminUsersController {
       statsByUserId.set(userId, row);
     });
 
-    const items = await Promise.all(
-      users.map(async (u) => {
-        const stats = statsByUserId.get(Number(u.id));
-        const [lastToken, onlineLastActiveAt] = await Promise.all([
-          this.refreshTokenRepo.findOne({
-            where: { userId: u.id },
-            order: { createdAt: 'DESC' },
-          }),
-          this.redisClient
-            ? this.redisClient.get(`online:last:${u.id}`).catch(() => null)
-            : Promise.resolve(null),
-        ]);
+    const userIds = users.map((u) => Number(u.id));
+    const [lastTokenByUserId, onlineLastByUserId] = await Promise.all([
+      this.batchLoadLastRefreshTokens(userIds),
+      this.batchLoadOnlineLast(userIds),
+    ]);
 
-        const totalWatchDuration = Number(stats?.totalWatchDuration || 0);
-        const totalOnlineDuration = Number(stats?.totalOnlineDuration || 0);
-        const onlineDays = Number(stats?.onlineDays || 0);
-        const lastWatchAt = stats?.lastActiveAt ? new Date(stats.lastActiveAt) : null;
-        const lastActiveAt = onlineLastActiveAt ? new Date(onlineLastActiveAt) : lastWatchAt;
-        const isOnline = !!onlineLastActiveAt;
+    const items = users.map((u) => {
+      const stats = statsByUserId.get(Number(u.id));
+      const lastToken = lastTokenByUserId.get(Number(u.id)) ?? null;
+      const onlineLastActiveAt = onlineLastByUserId.get(Number(u.id)) ?? null;
 
-        return {
-          ...this.toSafeUser(u),
-          loginCount: Number(stats?.loginCount || 0),
-          lastLoginAt: lastToken?.createdAt || (stats?.lastLoginAt ? new Date(stats.lastLoginAt) : null),
-          lastLoginIp: lastToken?.ipAddress || null,
-          lastLoginDevice: lastToken?.deviceInfo || null,
-          activeLogins: Number(stats?.activeLogins || 0),
-          totalOnlineDuration,
-          totalOnlineMinutes: Math.floor(totalOnlineDuration / 60),
-          onlineDays,
-          totalWatchDuration,
-          totalWatchMinutes: Math.floor(totalWatchDuration / 60),
-          lastActiveAt,
-          isOnline,
-        };
-      })
-    );
+      const totalWatchDuration = Number(stats?.totalWatchDuration || 0);
+      const totalOnlineDuration = Number(stats?.totalOnlineDuration || 0);
+      const onlineDays = Number(stats?.onlineDays || 0);
+      const lastWatchAt = stats?.lastActiveAt ? new Date(stats.lastActiveAt) : null;
+      const lastActiveAt = onlineLastActiveAt ? new Date(onlineLastActiveAt) : lastWatchAt;
+      const isOnline = !!onlineLastActiveAt;
+
+      return {
+        ...this.toSafeUser(u),
+        loginCount: Number(stats?.loginCount || 0),
+        lastLoginAt: lastToken?.createdAt || (stats?.lastLoginAt ? new Date(stats.lastLoginAt) : null),
+        lastLoginIp: lastToken?.ipAddress || null,
+        lastLoginDevice: lastToken?.deviceInfo || null,
+        activeLogins: Number(stats?.activeLogins || 0),
+        totalOnlineDuration,
+        totalOnlineMinutes: Math.floor(totalOnlineDuration / 60),
+        onlineDays,
+        totalWatchDuration,
+        totalWatchMinutes: Math.floor(totalWatchDuration / 60),
+        lastActiveAt,
+        isOnline,
+      };
+    });
 
     return { total, items, page: currentPage, size: take };
   }
@@ -317,7 +333,8 @@ export class AdminUsersController {
   ) {
     const user = await this.userRepo.findOne({ where: { id: Number(id) } });
     if (!user) return null;
-    const now = new Date();
+    // refresh_tokens.expires_at 字面按北京时间存储，比较时也要使用北京字面 now
+    const nowBjString = this.formatBeijingDateTimeNow();
     const [lastToken, activeLogins, watchStats] = await Promise.all([
       this.refreshTokenRepo.findOne({
         where: { userId: user.id },
@@ -326,7 +343,7 @@ export class AdminUsersController {
       this.refreshTokenRepo.createQueryBuilder('rt')
         .where('rt.user_id = :uid', { uid: user.id })
         .andWhere('rt.is_revoked = 0')
-        .andWhere('rt.expires_at > :now', { now })
+        .andWhere('rt.expires_at > :nowBjString', { nowBjString })
         .getCount(),
       this.watchLogRepo.createQueryBuilder('wl')
         .select('COALESCE(SUM(wl.watch_duration), 0)', 'totalDuration')
@@ -455,8 +472,10 @@ export class AdminUsersController {
   }
 
   private async getOnlineDailyStats(userId: number, startDate?: string, endDate?: string) {
-    const end = endDate || new Date().toISOString().slice(0, 10);
-    const start = startDate || (() => { const d = new Date(); d.setDate(d.getDate() - 30); return d.toISOString().slice(0, 10); })();
+    // user_online_daily.date 存的是北京业务日，默认区间也用北京日历日计算
+    const todayBj = this.getBeijingDateOnly();
+    const end = endDate || todayBj;
+    const start = startDate || this.getBeijingDateOnly(new Date(Date.now() - 30 * 86400000));
 
     const records = await this.onlineDailyRepo
       .createQueryBuilder('od')
@@ -562,8 +581,10 @@ export class AdminUsersController {
   private parseDateBoundary(value: string | undefined, boundary: 'start' | 'end'): string | null {
     if (!value || !value.trim()) return null;
 
+    // 允许 "YYYY-MM-DD" / "YYYY-MM-DD HH:mm:ss" / "YYYY-MM-DDTHH:mm:ss.SSSZ" 等格式，
+    // 只提取日期与时分秒，忽略末尾的毫秒和时区后缀
     const normalized = value.trim().replace('T', ' ');
-    const match = normalized.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?:\s+(\d{1,2})(?::(\d{1,2})(?::(\d{1,2}))?)?)?$/);
+    const match = normalized.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?:\s+(\d{1,2})(?::(\d{1,2})(?::(\d{1,2}))?)?)?/);
     if (!match) return null;
 
     const [, yearStr, monthStr, dayStr, hourRaw, minuteRaw, secondRaw] = match;
@@ -674,5 +695,81 @@ export class AdminUsersController {
   private getBeijingDateOnly(date = new Date()): string {
     const beijingTime = new Date(date.getTime() + 8 * 60 * 60 * 1000);
     return beijingTime.toISOString().slice(0, 10);
+  }
+
+  /**
+   * 返回当前的北京时间字面字符串（`YYYY-MM-DD HH:mm:ss`）。
+   * 用于跟 `refresh_tokens.expires_at`（按北京字面写入）比较。
+   */
+  private formatBeijingDateTimeNow(): string {
+    const beijing = new Date(Date.now() + 8 * 60 * 60 * 1000);
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${beijing.getUTCFullYear()}-${pad(beijing.getUTCMonth() + 1)}-${pad(beijing.getUTCDate())} ${pad(beijing.getUTCHours())}:${pad(beijing.getUTCMinutes())}:${pad(beijing.getUTCSeconds())}`;
+  }
+
+  /**
+   * 只对 users 表做 count，无 stats 筛选场景下比完整 join 快 10 倍以上。
+   */
+  private async countUsersOnly(
+    parsedCreatedStartDate: string | null,
+    parsedCreatedEndDate: string | null,
+    isPwa?: string,
+  ): Promise<number> {
+    const qb = this.userRepo.createQueryBuilder('u');
+    if (parsedCreatedStartDate) {
+      qb.andWhere('u.created_at >= :createdStartDate', { createdStartDate: parsedCreatedStartDate });
+    }
+    if (parsedCreatedEndDate) {
+      qb.andWhere('u.created_at < :createdEndDate', { createdEndDate: parsedCreatedEndDate });
+    }
+    if (isPwa === 'true' || isPwa === '1') {
+      qb.andWhere('u.is_pwa = 1');
+    } else if (isPwa === 'false' || isPwa === '0') {
+      qb.andWhere('u.is_pwa = 0');
+    }
+    return qb.getCount();
+  }
+
+  /**
+   * 批量拿每个用户最近一条 refresh_token（用于 lastLoginAt/lastLoginIp/lastLoginDevice）。
+   * 消灭列表接口的 N+1 单点查询。
+   */
+  private async batchLoadLastRefreshTokens(userIds: number[]): Promise<Map<number, RefreshToken>> {
+    const result = new Map<number, RefreshToken>();
+    if (userIds.length === 0) return result;
+
+    const rows = await this.refreshTokenRepo
+      .createQueryBuilder('rt')
+      .where('rt.user_id IN (:...userIds)', { userIds })
+      .orderBy('rt.user_id', 'ASC')
+      .addOrderBy('rt.created_at', 'DESC')
+      .getMany();
+
+    for (const row of rows) {
+      const uid = Number(row.userId);
+      if (!result.has(uid)) {
+        result.set(uid, row);
+      }
+    }
+    return result;
+  }
+
+  /**
+   * 批量 MGET Redis 的 online:last:{userId}，消灭 N 次单点 Redis 查询。
+   */
+  private async batchLoadOnlineLast(userIds: number[]): Promise<Map<number, string>> {
+    const result = new Map<number, string>();
+    if (userIds.length === 0 || !this.redisClient) return result;
+
+    const keys = userIds.map((id) => `online:last:${id}`);
+    try {
+      const values = await this.redisClient.mGet(keys);
+      values.forEach((val, idx) => {
+        if (val) result.set(userIds[idx], val);
+      });
+    } catch {
+      // MGET 失败时降级为空 Map（isOnline 将全部为 false）
+    }
+    return result;
   }
 }
