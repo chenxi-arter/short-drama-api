@@ -84,8 +84,8 @@ export class AdminUsersController {
     const parsedEndDate = this.parseDateBoundary(endDate, 'end');
     const parsedCreatedStartDate = this.parseDateBoundary(createdStartDate, 'start');
     const parsedCreatedEndDate = this.parseDateBoundary(createdEndDate, 'end');
-    const startDateOnly = parsedStartDate ? parsedStartDate.slice(0, 10) : null;
-    const endDateOnly = parsedEndDate ? parsedEndDate.slice(0, 10) : null;
+    const startDateOnly = this.parseBeijingDateBoundary(startDate, 'start');
+    const endDateOnly = this.parseBeijingDateBoundary(endDate, 'end');
 
     const queryBuilder = this.userRepo.createQueryBuilder('u')
       .leftJoin(
@@ -554,6 +554,11 @@ export class AdminUsersController {
     };
   }
 
+  /**
+   * 把用户输入的北京时间日期/时间字符串，转成用于对比 DATETIME 列（存 UTC 字面）的 UTC 边界字符串。
+   * `end` 且未带时分秒时，表示"该北京日结束"，即次日 00:00 北京 = 当日 16:00 UTC。
+   * 24 点会规范化为次日 00:00。
+   */
   private parseDateBoundary(value: string | undefined, boundary: 'start' | 'end'): string | null {
     if (!value || !value.trim()) return null;
 
@@ -568,21 +573,53 @@ export class AdminUsersController {
 
     const pad = (n: number) => String(n).padStart(2, '0');
 
+    let hour: number;
+    let minute: number;
+    let second: number;
+    let dayOffset = 0;
+
     if (boundary === 'end' && hourRaw === undefined) {
-      const nextDay = new Date(Date.UTC(y, m - 1, d + 1));
-      return `${nextDay.getUTCFullYear()}-${pad(nextDay.getUTCMonth() + 1)}-${pad(nextDay.getUTCDate())} 00:00:00`;
+      dayOffset = 1;
+      hour = 0;
+      minute = 0;
+      second = 0;
+    } else {
+      hour = hourRaw === undefined ? (boundary === 'start' ? 0 : 23) : Number(hourRaw);
+      minute = minuteRaw === undefined ? (boundary === 'start' ? 0 : 59) : Number(minuteRaw);
+      second = secondRaw === undefined ? (boundary === 'start' ? 0 : 59) : Number(secondRaw);
+
+      if (hour === 24) {
+        dayOffset = 1;
+        hour = 0;
+        minute = 0;
+        second = 0;
+      }
     }
 
-    const hour = hourRaw === undefined ? (boundary === 'start' ? 0 : 23) : Number(hourRaw);
-    const minute = minuteRaw === undefined ? (boundary === 'start' ? 0 : 59) : Number(minuteRaw);
-    const second = secondRaw === undefined ? (boundary === 'start' ? 0 : 59) : Number(secondRaw);
+    // 北京时间 = UTC + 8，所以 UTC = 北京 - 8h
+    const utc = new Date(Date.UTC(y, m - 1, d + dayOffset, hour - 8, minute, second));
+    return `${utc.getUTCFullYear()}-${pad(utc.getUTCMonth() + 1)}-${pad(utc.getUTCDate())} ${pad(utc.getUTCHours())}:${pad(utc.getUTCMinutes())}:${pad(utc.getUTCSeconds())}`;
+  }
 
-    if (hour === 24) {
-      const nextDay = new Date(Date.UTC(y, m - 1, d + 1));
-      return `${nextDay.getUTCFullYear()}-${pad(nextDay.getUTCMonth() + 1)}-${pad(nextDay.getUTCDate())} 00:00:00`;
-    }
+  /**
+   * 抽取输入字符串对应的北京日历日期，用于对比 DATE 列（如 user_online_daily.date，按北京业务日存储）。
+   * `end` 返回次日日期，配合 `<` 做右开区间。
+   */
+  private parseBeijingDateBoundary(value: string | undefined, boundary: 'start' | 'end'): string | null {
+    if (!value || !value.trim()) return null;
 
-    return `${yearStr}-${pad(m)}-${pad(d)} ${pad(hour)}:${pad(minute)}:${pad(second)}`;
+    const match = value.trim().match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+    if (!match) return null;
+
+    const [, yearStr, monthStr, dayStr] = match;
+    const y = Number(yearStr);
+    const m = Number(monthStr);
+    const d = Number(dayStr);
+    const dayOffset = boundary === 'end' ? 1 : 0;
+
+    const bj = new Date(Date.UTC(y, m - 1, d + dayOffset));
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${bj.getUTCFullYear()}-${pad(bj.getUTCMonth() + 1)}-${pad(bj.getUTCDate())}`;
   }
 
   private parseOptionalNumber(value?: string): number | null {
