@@ -407,6 +407,7 @@ async function initGuest() {
   "hasTelegram": false,        // 是否绑定Telegram
   "isActive": true,            // 是否激活
   "isGuest": false,            // ⭐ 是否为游客账号
+  "isPwa": false,              // ⭐ 是否已安装 PWA 到桌面（前端上报后回显）
   "createdAt": "string"        // 创建时间
 }
 ```
@@ -415,6 +416,7 @@ async function initGuest() {
 - 游客用户的 `email` 字段为 `null`
 - 游客用户的 `isGuest` 字段为 `true`
 - 游客用户的 `nickname` 会显示为"游客123456"等格式
+- `isPwa` 由前端调用 `POST /api/user/pwa-status` 上报后写库，默认为 `false`
 
 ---
 
@@ -2425,7 +2427,14 @@ if (comment.id < 0) {
 
 ## 📝 更新日志
 
-### v2.7 (2026-01-13) ⭐ 最新
+### v2.8 ⭐ 最新
+- ✅ **新增 PWA 安装状态上报接口**（`POST /api/user/pwa-status`）
+  - 请求体：`{ "isPwa": true }`；返回 `{ ok: true, isPwa }`
+  - `GET /api/user/me` 响应新增 `isPwa` 字段回显
+  - 上报时机：登录成功后、`appinstalled` 事件、`display-mode` 变化
+  - 上报后管理端用户列表可按 `?isPwa=true/false` 筛选
+
+### v2.7 (2026-01-13)
 - ✅ **新增游客登录功能**（POST /api/auth/guest-login）
 - ✅ **登录自动合并游客数据** ⭐ 新方式：
   - 邮箱登录：携带 `guestToken` 自动合并
@@ -3507,7 +3516,85 @@ function stopProgressReport(videoElement, episodeIdentifier) {
 
 ---
 
-### 13.3 前端完整接入建议
+### 13.3 PWA 安装状态上报 ⭐ 新增
+
+**接口**: `POST /api/user/pwa-status`
+
+**功能**: 上报当前用户是否已将 PWA 安装到桌面/主屏幕，用于运营侧统计和用户管理筛选。
+
+**认证**: 必需
+
+**请求体**:
+```json
+{ "isPwa": true }
+```
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `isPwa` | boolean | 是 | `true` = 已安装到桌面，`false` = 未安装 |
+
+**返回数据**:
+```json
+{ "ok": true, "isPwa": true }
+```
+
+**前端检测方式**:
+
+判断当前是否以 PWA 独立窗口运行（`display-mode: standalone` / iOS Safari 的 `navigator.standalone`）：
+
+```javascript
+function detectPwaInstalled() {
+  return (
+    window.matchMedia('(display-mode: standalone)').matches ||
+    // iOS Safari
+    window.navigator.standalone === true
+  );
+}
+```
+
+**推荐上报时机**（三选一，也可以组合）：
+
+```javascript
+async function reportPwaStatus(isPwa) {
+  const token = localStorage.getItem('access_token');
+  if (!token) return;
+  await fetch('/api/user/pwa-status', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ isPwa }),
+  });
+}
+
+// 1) 登录成功后立刻探测一次
+async function afterLogin() {
+  await reportPwaStatus(detectPwaInstalled());
+}
+
+// 2) 监听 appinstalled 事件（浏览器提示安装完成时）
+window.addEventListener('appinstalled', () => {
+  reportPwaStatus(true).catch(console.error);
+});
+
+// 3) 监听 display-mode 变化（用户从桌面图标打开进入 standalone 模式时）
+const mql = window.matchMedia('(display-mode: standalone)');
+mql.addEventListener('change', (e) => {
+  reportPwaStatus(e.matches).catch(console.error);
+});
+```
+
+**注意事项**:
+
+- 该接口是幂等的，可以重复上报，同一个值再上报不会重复写库
+- 未登录状态不要调，会返回 401
+- 上报后 `GET /api/user/me` 会立即回显最新 `isPwa`
+- 不建议在每次心跳里都夹带上报，只在检测到状态变化或登录成功时上报即可
+
+---
+
+### 13.4 前端完整接入建议
 
 进入应用或登录成功后：
 
@@ -3517,6 +3604,9 @@ async function afterLogin(accessToken) {
 
   // 启动在线心跳
   startHeartbeat();
+
+  // 探测并上报 PWA 安装状态（一次即可）
+  reportPwaStatus(detectPwaInstalled()).catch(console.error);
 }
 ```
 
