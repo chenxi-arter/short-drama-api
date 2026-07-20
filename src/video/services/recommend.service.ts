@@ -84,33 +84,11 @@ export class RecommendService {
     hasMore: boolean;
   }> {
     try {
-      const offset = (page - 1) * size;
-      
-      // 注意：推荐接口不使用缓存，保证每次刷新都是真随机
-      // 类似抖音的推荐流，每次刷新都有新内容
+      const candidatePoolSize = Math.max(size * 30, 500);
+      const highQualityPoolSize = Math.max(size * 10, 200);
 
-      // 构建推荐查询（性能优化版 + 真随机）
-      // 推荐分数 = (点赞数 × 2 + 收藏数 × 4) × 随机权重(0.8-1.5) + 大随机因子(0-400) + 新鲜度分数
-      // 新鲜度分数（强化时间权重，优先推荐新内容）：
-      //   - 3天内：800分递减（每天-267分），极度优先最新内容
-      //   - 3-14天：600分递减（每天-54分），优先较新内容
-      //   - 14-30天：300分递减（每天-19分），适度推荐
-      //   - 30天后：保持120分基础分
-      // 权重平衡：新鲜度占主导（最高800分），点赞/收藏有明显作用（高互动内容可获200-500分加成）
-      // 性能优化：
-      //   1. 使用索引友好的 WHERE 条件顺序
-      //   2. 限制 OFFSET 最大值，避免深度分页
-      //   3. 使用 RAND() 实现真随机推荐（类似抖音刷新）
-      // 筛选条件：只推荐短剧（category_id=1）的第一集
-      
-      // 增强随机性策略：
-      // 1. 先随机选择一批候选集（随机池大小 = size * 10，确保有足够的随机性）
-      // 2. 在候选集中计算推荐分数并排序
-      // 3. 最后在结果中再次随机打乱，确保每次刷新都不同
-      
-      const randomPoolSize = Math.max(size * 10, 200); // 至少200条候选，确保随机性
-      
-      // 第一步：随机选择候选集（使用 RAND() 完全随机）
+      // 先从播放量 100 万以上的内容中取候选池，再在应用层计算推荐分。
+      // 避免直接 ORDER BY RAND() 扫全量，同时让高播放、高互动、较新内容更容易进入推荐。
       const candidateQuery = `
         SELECT 
           e.id,
@@ -142,12 +120,12 @@ export class RecommendService {
         WHERE e.status = 'published'
           AND e.episode_number = 1
           AND s.is_active = 1
-          AND s.category_id = 1
-        ORDER BY RAND()
+          AND s.play_count >= 1000000
+        ORDER BY s.play_count DESC, e.favorite_count DESC, e.like_count DESC, e.created_at DESC
         LIMIT ?
       `;
 
-      const candidates: RecommendQueryResult[] = await this.episodeRepo.query(candidateQuery, [randomPoolSize]);
+      const candidates: RecommendQueryResult[] = await this.episodeRepo.query(candidateQuery, [candidatePoolSize]);
 
       if (candidates.length === 0) {
         return {
@@ -158,49 +136,42 @@ export class RecommendService {
         };
       }
 
-      // 第二步：在候选集中计算推荐分数（增强随机因子）
-      // 大幅增加随机因子权重，让随机性占主导
       const scoredCandidates = candidates.map(candidate => {
-        const likeWeight = (candidate.likeCount || 0) * 2;
-        const favoriteWeight = (candidate.favoriteCount || 0) * 4;
-        const interactionScore = likeWeight + favoriteWeight;
+        const playCount = Number(candidate.playCount || 0);
+        const likeCount = Number(candidate.likeCount || 0);
+        const favoriteCount = Number(candidate.favoriteCount || 0);
+        const dislikeCount = Number(candidate.dislikeCount || 0);
+
+        const popularityScore = Math.log10(playCount + 1) * 100;
+        const interactionScore = likeCount * 2 + favoriteCount * 5 - dislikeCount * 1.5;
         
-        // 大幅增强随机性：随机权重范围扩大到 0.3-2.0，随机因子扩大到 0-800
-        const randomWeight = 0.3 + Math.random() * 1.7; // 0.3-2.0
-        const randomFactor = Math.floor(Math.random() * 800); // 0-800
-        
-        // 计算新鲜度分数
         const createdAt = new Date(candidate.createdAt);
-        const daysDiff = Math.floor((Date.now() - createdAt.getTime()) / (1000 * 60 * 60 * 24));
-        let freshnessScore = 120; // 默认基础分
-        if (daysDiff <= 3) {
-          freshnessScore = Math.max(0, 800 - daysDiff * 267);
-        } else if (daysDiff <= 14) {
-          freshnessScore = Math.max(0, 600 - (daysDiff - 3) * 54);
+        const daysDiff = Math.max(0, Math.floor((Date.now() - createdAt.getTime()) / (1000 * 60 * 60 * 24)));
+        let freshnessScore = 0;
+        if (daysDiff <= 7) {
+          freshnessScore = 180 - daysDiff * 12;
         } else if (daysDiff <= 30) {
-          freshnessScore = Math.max(0, 300 - (daysDiff - 14) * 19);
+          freshnessScore = 90 - (daysDiff - 7) * 2;
         }
-        
-        const recommendScore = interactionScore * randomWeight + randomFactor + freshnessScore;
+
+        const randomFactor = Math.random() * 120;
+        const recommendScore = popularityScore + interactionScore + freshnessScore + randomFactor;
         
         return {
           ...candidate,
-          recommendScore: recommendScore.toString(),
+          recommendScore: recommendScore.toFixed(2),
         };
       });
 
-      // 第三步：按推荐分数排序，取前 size + 1 条（用于判断hasMore）
       scoredCandidates.sort((a, b) => parseFloat(b.recommendScore) - parseFloat(a.recommendScore));
-      const topCandidates = scoredCandidates.slice(0, size + 1);
+      const highQualityCandidates = scoredCandidates.slice(0, highQualityPoolSize);
 
-      // 第四步：再次随机打乱结果，确保每次刷新都不同（这是关键！）
-      // 使用 Fisher-Yates 洗牌算法
-      for (let i = topCandidates.length - 1; i > 0; i--) {
+      for (let i = highQualityCandidates.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
-        [topCandidates[i], topCandidates[j]] = [topCandidates[j], topCandidates[i]];
+        [highQualityCandidates[i], highQualityCandidates[j]] = [highQualityCandidates[j], highQualityCandidates[i]];
       }
 
-      const episodes: RecommendQueryResult[] = topCandidates;
+      const episodes: RecommendQueryResult[] = highQualityCandidates.slice(0, size + 1);
 
       // 判断是否还有更多数据
       const hasMore = episodes.length > size;
