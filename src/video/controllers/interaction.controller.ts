@@ -183,6 +183,16 @@ export class InteractionController extends BaseController {
     const userId = req.user?.userId ? Number(req.user.userId) : 0;
     if (!userId) return this.error('未认证', 401);
 
+    // 游客检查：回复同样写 comments 表，必须和「发评论」保持同一口径，
+    // 否则游客可以靠回复绕过「游客不能评论」的限制。
+    const user = await this.userRepo.findOne({ where: { id: userId } });
+    if (!user) {
+      return this.error('用户不存在', 404);
+    }
+    if (Boolean(user.isGuest)) {
+      return this.error('游客用户暂不支持发表评论，请先注册成为正式用户', 403, HttpStatus.FORBIDDEN);
+    }
+
     const { episodeShortId, parentId, content } = body;
     
     if (!episodeShortId?.trim()) throw new BadRequestException('episodeShortId 必填');
