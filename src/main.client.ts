@@ -8,8 +8,13 @@ import { ClientAppModule } from './app.client.module';
 import { DateUtil } from './common/utils/date.util';
 import { Request, Response, NextFunction } from 'express';
 import { LEGAL_DISCLAIMER } from './common/constants/legal.constants';
+import { validateSecurityEnv } from './common/utils/security-env.util';
 
 async function bootstrap() {
+  // 安全配置校验：JWT_SECRET / ADMIN_JWT_SECRET / APP_SECRET 缺失、过弱或仍是历史泄露值，
+  // 直接拒绝启动（安全审计 XG-01 / XG-03），避免弱密钥静默生效
+  validateSecurityEnv();
+
   // 启动时输出法律免责声明
   console.log('\n' + '='.repeat(80));
   console.log('法律免责声明 / Legal Disclaimer');

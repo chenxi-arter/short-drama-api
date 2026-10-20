@@ -2045,6 +2045,7 @@ size: number       // 可选，每页数量，默认20
 - 观看进度保存
 - 浏览历史查询
 - 收藏列表查询
+- 创建短链接 `POST /api/short-links`（用户 token 或管理员 token，匿名 401）
 
 **公开接口**（无需认证）:
 - 分类列表、首页内容、筛选、搜索
@@ -2361,6 +2362,7 @@ Authorization: Bearer <access_token>
 - ✅ 观看进度保存
 - ✅ 浏览历史查询
 - ✅ 收藏列表查询
+- ✅ 创建短链接（`POST /api/short-links`，匿名返回 401）
 
 ### 2. 公开接口
 
@@ -3234,13 +3236,16 @@ window.addEventListener('beforeunload', () => {
 
 **功能**: 将长URL转换为短链接，用于分享和推广
 
-**认证**: 无需认证（公开接口）
+**认证**: 需要登录 —— 用户 token 或管理员 token 均可（`JwtOrAdminGuard`），**匿名调用返回 `401`**
+
+> 这个接口以前是公开的，现在收紧了。原因：每次建短链都会消耗 Short.io 配额，且 `originalURL` 受域名白名单约束，属计费型写操作，不能匿名开放。
+> 另外 `originalURL` 必须是 HTTPS，否则返回 `400`。
 
 **请求参数**:
 ```json
 {
   "originalURL": "string",      // 必填，原始长URL
-  "domain": "string",           // 必填，短链接域名（如：xgtv.short.gy），必须与配置的域名一致
+  "domain": "string",           // 可选，不传则用后端 SHORT_IO_DEFAULT_DOMAIN（缺省 xgtv.short.gy）
   "allowDuplicates": false,     // 可选，是否允许重复创建，默认false。设为false时，相同URL会返回已存在的短链接
   "ttl": "string"               // 可选，过期时间（ISO 8601格式，如：2026-01-18T00:00:00Z），不设置则永久有效
 }
@@ -3267,13 +3272,14 @@ window.addEventListener('beforeunload', () => {
 
 **使用示例**:
 ```javascript
-// 创建短链接
-async function createShortLink(originalURL) {
+// 创建短链接（必须带登录态）
+async function createShortLink(originalURL, token) {
   try {
     const response = await fetch('/api/short-links', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`   // 必填：用户 token 或管理员 token
       },
       body: JSON.stringify({
         originalURL: originalURL,
@@ -3296,9 +3302,18 @@ async function createShortLink(originalURL) {
 
 // 使用场景：分享剧集
 const seriesUrl = 'https://t.me/xgshort_bot/xgapp?startapp=__series__BmK2rTAsXW9';
-const shortUrl = await createShortLink(seriesUrl);
+const shortUrl = await createShortLink(seriesUrl, userToken);
 // 返回: https://xgtv.short.gy/bmTfvb
 ```
+
+**常见错误**:
+
+| 状态码 | 场景 | 处理建议 |
+|--------|------|----------|
+| `401` | 未带 token / token 失效 | 引导用户重新登录 |
+| `400` | `originalURL` 不是 HTTPS，或 URL 格式非法 | 前端先做协议校验 |
+| `403` | 目标域名不在白名单内 | 提示"该域名不支持生成短链" |
+| `500` | 后端未配置 `SHORT_IO_API_KEY` | 联系后端，不是前端问题 |
 
 ---
 

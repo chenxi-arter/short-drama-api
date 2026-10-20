@@ -58,6 +58,7 @@ REDIS_MAX=100
 
 ```bash
 # 应用端口（拆分）
+# 这是代码里的缺省值；本项目当前部署实际用的是 CLIENT_PORT=8080 / ADMIN_PORT=9090
 CLIENT_PORT=3000
 ADMIN_PORT=8080
 
@@ -70,6 +71,38 @@ JWT_REFRESH_EXPIRES_IN=30d
 TELEGRAM_BOT_TOKEN=your_telegram_bot_token
 TELEGRAM_BOT_USERNAME=your_bot_username
 ```
+
+### 3.1 安全密钥（三把，缺一即启动失败）
+
+> ⚠️ 安全加固后（2026-10），`JWT_SECRET` 单靠一把已经不够了。以下三个变量
+> **缺失、少于 16 位、或仍是历史泄露值（如 `very-secret-key` / `default_secret`）时进程直接退出**，
+> 不再有静默兜底。
+
+```bash
+# 用户 token 签名密钥（两个进程都用）
+JWT_SECRET=<openssl rand -base64 48>
+
+# 管理员 token 独立密钥（必填，且必须与 JWT_SECRET 不同）
+# 不再回退到 JWT_SECRET —— 否则用户密钥即可签管理员 token
+ADMIN_JWT_SECRET=<openssl rand -base64 48>
+
+# 派生播放访问密钥 accessKey（HMAC-SHA256 的密钥）
+APP_SECRET=<openssl rand -base64 48>
+```
+
+迁移期可选（**迁移完成就删掉**，否则旧 token 永久有效）：
+
+```bash
+# JWT_SECRET_LEGACY=<线上旧的 JWT_SECRET>
+# ADMIN_JWT_SECRET_LEGACY=<线上旧的 ADMIN_JWT_SECRET>
+```
+
+补充说明：
+
+- `ADMIN_JWT_SECRET` 一旦更换，所有 admin token 立即失效，管理员需重新登录（账号不受影响）
+- `APP_SECRET` 更换后，**库里已有的 accessKey 不变**（旧播放链接仍可用），
+  但同一部剧同清晰度再入库会算出新 key —— 换之前先确认没有外部系统自己算 accessKey
+- 校验逻辑在 `src/common/utils/security-env.util.ts`，两个入口 `main.client.ts` / `main.admin.ts` 启动时调用
 
 ## 🌍 环境特定配置
 

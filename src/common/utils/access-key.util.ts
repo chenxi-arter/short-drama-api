@@ -2,9 +2,20 @@
  * 访问密钥工具类
  * 用于生成和验证防枚举攻击的访问密钥
  */
-import { randomBytes, createHash } from 'crypto';
+import { randomBytes, createHmac } from 'crypto';
+import { assertStrongSecret } from './security-env.util';
 
 export class AccessKeyUtil {
+  /**
+   * 取 APP_SECRET 作为 HMAC 密钥
+   *
+   * 安全审计 XG-03：原实现是 sha256(`${key}_${APP_SECRET || 'default_secret'}`)，
+   * 一是缺省值 'default_secret' 公开可推断，二是普通拼接哈希可离线批量枚举。
+   * 现改为 HMAC-SHA256，且 APP_SECRET 缺失/过弱直接报错（启动阶段已 fail-fast）。
+   */
+  private static getSecret(): string {
+    return assertStrongSecret('APP_SECRET');
+  }
   /**
    * 生成随机访问密钥
    * @param length 密钥长度，默认32字符
@@ -22,15 +33,17 @@ export class AccessKeyUtil {
    */
   static generateDeterministicKey(id: number, salt?: string): string {
     const saltValue = salt || Date.now().toString();
-    const data = `${id}_${saltValue}_${process.env.APP_SECRET || 'default_secret'}`;
-    return createHash('sha256').update(data).digest('hex').substring(0, 32);
+    return createHmac('sha256', this.getSecret())
+      .update(`${id}_${saltValue}`)
+      .digest('hex')
+      .substring(0, 32);
   }
 
   /**
    * 基于稳定字符串生成确定性的访问密钥（推荐用于外部ID）
    */
   static generateFromString(key: string, length: number = 32): string {
-    const hash = createHash('sha256').update(`${key}_${process.env.APP_SECRET || 'default_secret'}`).digest('hex');
+    const hash = createHmac('sha256', this.getSecret()).update(key).digest('hex');
     return hash.substring(0, length);
   }
 

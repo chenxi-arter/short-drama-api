@@ -1,8 +1,10 @@
 /**
  * 数据导入控制器（系列/剧集批量入库）
  * 路由前缀: /api/ingest
+ * 
+ * 安全修复 C4: 添加管理员鉴权，防止匿名内容注入/篡改
  */
-import { Body, Controller, Get, Param, Post, UseInterceptors } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, UseInterceptors, UseGuards } from '@nestjs/common';
 import { IngestResultInterceptor } from '../../common/interceptors/ingest-result.interceptor';
 import { ValidationToItemsPipe } from '../../common/pipes/validation-to-items.pipe';
 import { plainToInstance } from 'class-transformer';
@@ -11,8 +13,13 @@ import { IngestService } from '../services/ingest.service';
 import { IngestSeriesDto } from '../dto/ingest-series.dto';
 import { UpdateIngestSeriesDto } from '../dto/update-ingest-series.dto';
 import { ResponseUtil } from '../../common/utils/response.util';
+import { AdminJwtAuthGuard } from '../../admin/guards/admin-jwt-auth.guard';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
+@ApiTags('数据导入（管理员）')
 @Controller('admin/ingest')
+@UseGuards(AdminJwtAuthGuard)
+@ApiBearerAuth()
 export class IngestController {
   constructor(private readonly ingestService: IngestService) {}
 

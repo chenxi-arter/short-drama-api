@@ -9,18 +9,27 @@ const http = require('http');
 const ADMIN_URL = 'http://localhost:9090';
 const CLIENT_URL = 'http://localhost:8080';
 
+// /api/admin/ingest/* 已加管理员鉴权（安全审计 C4），必须先登录取 token。
+// 账号密码从环境变量读，避免写死在脚本里：
+//   ADMIN_USERNAME=admin ADMIN_PASSWORD=xxx node scripts/test-ingest-isVertical.js
+let adminToken = null;
+
 function request(method, path, data, useAdmin = false) {
   return new Promise((resolve, reject) => {
     const baseUrl = useAdmin ? ADMIN_URL : CLIENT_URL;
     const url = new URL(path, baseUrl);
+    const headers = {
+      'Content-Type': 'application/json',
+    };
+    if (useAdmin && adminToken) {
+      headers.Authorization = `Bearer ${adminToken}`;
+    }
     const options = {
       hostname: url.hostname,
       port: url.port,
       path: url.pathname + url.search,
       method,
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers,
     };
 
     const req = http.request(options, (res) => {
@@ -41,8 +50,29 @@ function request(method, path, data, useAdmin = false) {
   });
 }
 
+async function login() {
+  const username = process.env.ADMIN_USERNAME || 'admin';
+  const password = process.env.ADMIN_PASSWORD;
+  if (!password) {
+    console.error('❌ 缺少 ADMIN_PASSWORD 环境变量，无法登录管理端。');
+    console.error('   用法: ADMIN_PASSWORD=你的密码 node scripts/test-ingest-isVertical.js');
+    process.exit(1);
+  }
+
+  const res = await request('POST', '/api/admin/auth/login', { username, password }, true);
+  const token = res.data?.data?.access_token;
+  if (!token) {
+    console.error(`❌ 管理员登录失败（HTTP ${res.status}）: ${JSON.stringify(res.data)}`);
+    process.exit(1);
+  }
+  adminToken = token;
+  console.log(`🔑 管理员登录成功（${username}）\n`);
+}
+
 async function main() {
   console.log('=== 测试 ingest API 的 isVertical 字段 ===\n');
+
+  await login();
 
   // 测试数据
   const testSeries = {

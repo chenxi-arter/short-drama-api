@@ -15,9 +15,138 @@ Ingest API 是短剧系统的核心数据采集接口，提供完整的系列、
 ## 🚀 基础信息
 
 - **基础路径**: `/api/admin/ingest`
-- **认证方式**: 需要管理员权限
+- **认证方式**: ⚠️ **管理员 JWT Token（必需）**
 - **数据格式**: JSON
 - **字符编码**: UTF-8
+- **管理端端口**: 9090（本项目 `.env` 的 `ADMIN_PORT`；代码缺省 8080，请以你的 `.env` 为准）
+- **挂载进程**: 仅 admin 进程。client 进程（`CLIENT_PORT`，本项目为 8080）**没有** `/api/admin/**` 路由，
+  打过去会是 404
+
+---
+
+## 🔐 身份验证（重要！）
+
+### ⚠️ 安全更新说明
+
+根据安全审计报告（漏洞 C4），所有 Ingest API 接口现在都需要**管理员身份验证**。这是为了防止未授权的内容注入/篡改。
+
+### 快速使用流程
+
+#### 第 1 步：管理员登录
+
+```bash
+# 管理员登录（注意端口是 9090）
+curl -X POST http://localhost:9090/api/admin/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "admin",
+    "password": "你的管理员密码"
+  }'
+```
+
+**成功响应：**
+```json
+{
+  "code": 200,
+  "data": {
+    "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "admin": {
+      "id": 1,
+      "username": "admin",
+      "role": "super_admin"
+    }
+  },
+  "message": "登录成功"
+}
+```
+
+保存 `access_token`，后续所有请求都需要它。
+
+#### 第 2 步：使用 Token 调用 Ingest 接口
+
+```bash
+# 所有 ingest 请求都需要添加 Authorization 头
+curl -X POST http://localhost:9090/api/admin/ingest/series \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." \
+  -d '{
+    "externalId": "drama_001",
+    "title": "示例短剧",
+    "description": "这是一个示例",
+    "coverUrl": "https://example.com/cover.jpg",
+    "categoryName": "都市",
+    "episodes": [...]
+  }'
+```
+
+**关键点：**
+- ✅ 必须添加 `Authorization: Bearer <token>` 头
+- ✅ `Bearer` 后面有一个空格
+- ✅ Token 默认有效期：8 小时
+- ✅ 使用管理员账号登录，普通用户 token 无效
+
+### 常见错误处理
+
+| 错误信息 | 原因 | 解决方法 |
+|---------|------|---------|
+| `缺少管理员登录凭证` | 没有 Authorization 头 | 添加 `-H "Authorization: Bearer <token>"` |
+| `管理员登录已过期或无效` | Token 过期或格式错误 | 重新登录获取新 token |
+| `无效的管理员登录凭证` | 使用了普通用户 token | 必须使用管理员账号登录 |
+
+### 如何创建管理员账号
+
+如果还没有管理员账号，可以使用初始化接口创建：
+
+```bash
+# 1. 在 .env 文件中配置
+INIT_ADMIN_TOKEN=your_secret_init_token
+
+# 2. 调用初始化接口
+curl -X POST http://localhost:9090/api/admin/auth/initialize \
+  -H "Content-Type: application/json" \
+  -H "x-init-admin-token: your_secret_init_token" \
+  -d '{
+    "username": "admin",
+    "password": "StrongPassword123!",
+    "email": "admin@example.com"
+  }'
+```
+
+### 完整示例脚本
+
+```bash
+#!/bin/bash
+# ingest_with_auth.sh - 带身份验证的导入脚本
+
+ADMIN_URL="http://localhost:9090"
+USERNAME="admin"
+PASSWORD="your_password"
+
+# 1. 登录获取 token
+echo "正在登录..."
+TOKEN=$(curl -s -X POST "$ADMIN_URL/api/admin/auth/login" \
+  -H "Content-Type: application/json" \
+  -d "{\"username\":\"$USERNAME\",\"password\":\"$PASSWORD\"}" \
+  | jq -r '.data.access_token')
+
+if [ "$TOKEN" = "null" ] || [ -z "$TOKEN" ]; then
+  echo "登录失败！"
+  exit 1
+fi
+
+echo "登录成功！"
+
+# 2. 导入数据
+echo "正在导入数据..."
+curl -X POST "$ADMIN_URL/api/admin/ingest/series" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d @your_data.json
+```
+
+> 💡 **详细的身份验证指南请查看：** `docs/INGEST_AUTH_GUIDE.md`
+
+---
 
 ## 🔑 核心概念
 
@@ -36,10 +165,12 @@ Ingest API 是短剧系统的核心数据采集接口，提供完整的系列、
 
 ### Access Key 系统
 - **用途**: 为每个播放地址生成唯一的访问密钥
-- **格式**: 32位十六进制字符串（SHA-256 截断）
-- **生成规则**: 基于 `externalId:episodeNumber:quality` 与应用密钥（APP_SECRET）经 SHA-256 计算后截取前32位
+- **格式**: 32位十六进制字符串（HMAC-SHA256 结果截断）
+- **生成规则**: 以 `APP_SECRET` 为密钥，对 `` `${externalId}:${episodeNumber}:${quality}` `` 做 **HMAC-SHA256**，取十六进制前 32 位
 - **使用场景**: 播放地址访问、防盗链、统计分析
-- **特点**: 确定性生成（同参数与同密钥下恒定）、不可逆、安全性更高
+- **特点**: 确定性生成（同参数与同密钥下恒定）、不可逆、抗离线枚举
+- **安全说明**: 审计项 XG-03 修复后不再使用"拼接后普通 SHA-256"，也不再存在 `default_secret` 兜底；
+  `APP_SECRET` 缺失或过弱时进程启动即失败
 
 ## 📋 API 端点列表
 
@@ -64,7 +195,7 @@ Ingest API 是短剧系统的核心数据采集接口，提供完整的系列、
 
 #### 请求信息
 - **方法**: `POST`
-- **URL**: `http://localhost:8080/api/admin/ingest/series`
+- **URL**: `http://localhost:9090/api/admin/ingest/series`
 - **Content-Type**: `application/json`
 
 #### 请求体结构
@@ -220,7 +351,7 @@ Ingest API 是短剧系统的核心数据采集接口，提供完整的系列、
 
 #### 请求信息
 - **方法**: `POST`
-- **URL**: `http://localhost:8080/api/admin/ingest/series/batch`
+- **URL**: `http://localhost:9090/api/admin/ingest/series/batch`
 - **Content-Type**: `application/json`
 
 #### 请求体结构
@@ -268,7 +399,7 @@ Ingest API 是短剧系统的核心数据采集接口，提供完整的系列、
 
 #### 请求信息
 - **方法**: `POST`
-- **URL**: `http://localhost:8080/api/admin/ingest/series/update`
+- **URL**: `http://localhost:9090/api/admin/ingest/series/update`
 - **Content-Type**: `application/json`
 
 #### 请求体结构
@@ -329,7 +460,7 @@ Ingest API 是短剧系统的核心数据采集接口，提供完整的系列、
 
 ```bash
 # 追加题材示例（保留原有题材，新增题材）
-curl -X POST http://localhost:8080/api/admin/ingest/series/update \
+curl -X POST http://localhost:9090/api/admin/ingest/series/update \
   -H "Content-Type: application/json" \
   -d '{
     "externalId": "series-001",
@@ -338,7 +469,7 @@ curl -X POST http://localhost:8080/api/admin/ingest/series/update \
   }'
 
 # 替换题材示例（完全替换为新题材）
-curl -X POST http://localhost:8080/api/admin/ingest/series/update \
+curl -X POST http://localhost:9090/api/admin/ingest/series/update \
   -H "Content-Type: application/json" \
   -d '{
     "externalId": "series-001",
@@ -354,7 +485,7 @@ curl -X POST http://localhost:8080/api/admin/ingest/series/update \
 > - 仅当显式传入 `removeMissingEpisodes: true` 才会删除本次未包含的剧集
 
 ```bash
-curl -X POST http://localhost:8080/api/admin/ingest/series/update \
+curl -X POST http://localhost:9090/api/admin/ingest/series/update \
   -H "Content-Type: application/json" \
   -d '{
     "externalId": "series-001",
@@ -384,7 +515,7 @@ curl -X POST http://localhost:8080/api/admin/ingest/series/update \
 > - 仅当显式传入 `removeMissingUrls: true` 才会删除本次未包含的清晰度URL
 
 ```bash
-curl -X POST http://localhost:8080/api/admin/ingest/series/update \
+curl -X POST http://localhost:9090/api/admin/ingest/series/update \
   -H "Content-Type: application/json" \
   -d '{
     "externalId": "series-001",
@@ -443,28 +574,47 @@ curl -X POST http://localhost:8080/api/admin/ingest/series/update \
 ```
 
 ### Access Key 生成算法
+
 ```typescript
-// 基于以下参数生成稳定的访问密钥（SHA-256 + 应用密钥）：
+// 参与计算的三个参数：
 // 1. externalId: 外部唯一标识
 // 2. episodeNumber: 剧集编号
 // 3. quality: 视频清晰度
 
-// 生成公式（伪代码）：
+// 实际实现（src/common/utils/access-key.util.ts）：
 // const raw = `${externalId}:${episodeNumber}:${quality}`;
-// accessKey = SHA256(raw + '_' + APP_SECRET).hex().substring(0, 32);
-
-// 示例（结果为32位十六进制字符串）：
-// externalId: "test-series-001"
-// episodeNumber: 1
-// quality: "720p"
-// 生成: "7f1a9c0d6b2e4a1f0c3d5e7a9b0c1d2e" // 示例值
-
-// 特点：
-// 1. 确定性：相同参数（在相同 APP_SECRET 下）总是生成相同的key
-// 2. 唯一性：不同参数组合生成不同的key
-// 3. 安全性：引入应用密钥，提高防伪造能力
-// 4. 一致性：支持跨系统同步
+// accessKey = createHmac('sha256', APP_SECRET).update(raw).digest('hex').substring(0, 32);
 ```
+
+对应的 Node 复现脚本（方便采集端自行校验，不要在前端使用）：
+
+```javascript
+const { createHmac } = require('crypto');
+
+function buildAccessKey(externalId, episodeNumber, quality, appSecret) {
+  const raw = `${externalId}:${episodeNumber}:${quality}`;
+  return createHmac('sha256', appSecret).update(raw).digest('hex').substring(0, 32);
+}
+
+// 示例（为了可复现，这里用一个假的 APP_SECRET）
+const key = buildAccessKey('test-series-001', 1, '720p', 'doc-example-secret-not-real');
+console.log(key); // 2cacc4b4a82109559566104b90960f3b
+```
+
+> ⚠️ 与旧版文档的差异：旧算法是 `SHA256(raw + '_' + APP_SECRET)`。审计项 XG-03 已把它改为 HMAC-SHA256，
+> 同样的参数在两种算法下结果**完全不同**（旧算法在同样输入下为 `b4b9d3a39e3f54c02acde7f289f57d9b`）。
+> 如果采集端有自己算 accessKey 的逻辑，必须同步改；否则一律不要自己算 —— 入库响应里会返回 `accessKey`，直接用即可。
+
+**特点**
+
+1. 确定性：相同参数（在相同 `APP_SECRET` 下）总是生成相同的 key
+2. 唯一性：不同参数组合生成不同的 key
+3. 不可伪造：密钥参与 HMAC，且没有公开兜底密钥
+4. 一致性：支持跨系统同步
+
+> **轮换 `APP_SECRET` 的影响**：库里已存的 `accessKey` 不会变，因此旧播放链接继续可用；
+> 但同一个 `externalId + episodeNumber + quality` 再入库时会算出新的 key。
+> 所以**不要为了"看起来安全"频繁轮换**，真要轮换请评估是否需要重建历史链接。
 
 ### 使用场景示例
 
@@ -590,7 +740,7 @@ POST /api/admin/ingest/series/update
 
 ### 示例1：创建新系列（含题材）
 ```bash
-curl -X POST http://localhost:8080/api/admin/ingest/series \
+curl -X POST http://localhost:9090/api/admin/ingest/series \
   -H "Content-Type: application/json" \
   -d '{
     "title": "我的短剧系列",
@@ -639,7 +789,7 @@ curl -X POST http://localhost:8080/api/admin/ingest/series \
 
 ### 示例2：批量导入
 ```bash
-curl -X POST http://localhost:8080/api/admin/ingest/series/batch \
+curl -X POST http://localhost:9090/api/admin/ingest/series/batch \
   -H "Content-Type: application/json" \
   -d '{
     "items": [
@@ -674,7 +824,7 @@ curl -X POST http://localhost:8080/api/admin/ingest/series/batch \
 
 ### 示例3：增量更新
 ```bash
-curl -X POST http://localhost:8080/api/admin/ingest/series/update \
+curl -X POST http://localhost:9090/api/admin/ingest/series/update \
   -H "Content-Type: application/json" \
   -d '{
     "externalId": "my-series-001",
@@ -727,7 +877,7 @@ curl -X GET -H "Authorization: Bearer <YOUR_JWT_TOKEN>" http://localhost:8080/ap
 ### 示例5：外部系统集成
 ```bash
 # 外部CMS系统同步数据
-curl -X POST http://localhost:8080/api/admin/ingest/series \
+curl -X POST http://localhost:9090/api/admin/ingest/series \
   -H "Content-Type: application/json" \
   -d '{
     "title": "来自CMS的短剧",
@@ -750,7 +900,7 @@ curl -X POST http://localhost:8080/api/admin/ingest/series \
   }'
 
 # 后续通过externalId更新
-curl -X POST http://localhost:8080/api/admin/ingest/series/update \
+curl -X POST http://localhost:9090/api/admin/ingest/series/update \
   -H "Content-Type: application/json" \
   -d '{
     "externalId": "cms-drama-2024-001",
@@ -878,7 +1028,7 @@ curl -X POST http://localhost:8080/api/admin/ingest/series/update \
 
 ### 请求信息
 - 方法: `GET`
-- URL: `http://localhost:8080/api/admin/ingest/series/progress/:externalId`
+- URL: `http://localhost:9090/api/admin/ingest/series/progress/:externalId`
 - Content-Type: `application/json`
 
 ### 路径参数

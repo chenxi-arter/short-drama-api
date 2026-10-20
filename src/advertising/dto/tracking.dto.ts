@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsNumber, IsEnum, IsObject, IsArray } from 'class-validator';
+import { IsString, IsOptional, IsNumber, IsEnum, IsObject, IsArray, ArrayMaxSize, ValidateNested } from 'class-validator';
 import { Type, Exclude } from 'class-transformer';
 import { EventType, ConversionType } from '../entity';
 
@@ -30,8 +30,14 @@ export class CreateEventDto {
   userAgent?: string;
 }
 
+/**
+ * 批量事件DTO
+ * 安全修复 H4: 限制数组大小防止 DoS 攻击
+ */
 export class BatchCreateEventDto {
   @IsArray()
+  @ArrayMaxSize(50, { message: '单次最多提交50个事件' })
+  @ValidateNested({ each: true })
   @Type(() => CreateEventDto)
   events: CreateEventDto[];
 }

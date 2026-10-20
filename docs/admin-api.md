@@ -4,12 +4,15 @@
 
 > ⚠️ 本轮安全更新改动了部分 admin 接口（初始化密钥、super_admin 权限、upload-complete、SSRF 防护、写接口鉴权、Banner 限流等），详见 [`admin-security-changes.md`](./admin-security-changes.md)。以下章节相关处已用「🔒 本轮变更」标注。
 
-- 基础前缀（根据运行方式不同）
-  - 拆分部署（推荐）：
-    - 客户端 API: `http://localhost:3000/api`
-    - 管理端 API: `http://localhost:8080/api`
-  - 单进程（main.ts 全量运行）：
-    - 所有接口: `http://localhost:3000/api`
+- 基础前缀
+  - 端口由 `.env` 决定（`CLIENT_PORT` / `ADMIN_PORT`）。**本项目当前部署**：
+    - 客户端 API: `http://localhost:8080/api`
+    - 管理端 API: `http://localhost:9090/api`
+  - 代码里的缺省值是 admin `8080` / client `3000`（见 `src/main.admin.ts`、`src/main.client.ts`），
+    但 `.env` 已覆盖为 9090 / 8080。**本文档所有管理端示例统一按 9090 书写**，部署到别的端口请自行替换
+  - 注意：`/api/admin/**` 路由只挂在 admin 进程上，用 8080 打过去会 404
+  - 单进程模式（`npm run start:dev` → `src/main.ts`）只加载 admin 模块，监听 `PORT ?? 3000`（**不读** `ADMIN_PORT`），
+    适合本地调管理端；正经跑请用 `start:client` / `start:admin` 两个进程
 - Admin 路由前缀: `/admin`
 - 鉴权方式：`Authorization: Bearer <admin_access_token>`
 - 统一返回：
@@ -85,7 +88,7 @@ x-init-admin-token: <INIT_ADMIN_TOKEN>
 
 - 调用其他管理端接口
 ```bash
-curl "http://localhost:8080/api/admin/users?page=1&size=20" \
+curl "http://localhost:9090/api/admin/users?page=1&size=20" \
   -H "Authorization: Bearer <admin_access_token>"
 ```
 
@@ -114,13 +117,13 @@ INIT_ADMIN_TOKEN=your_one_time_admin_init_token_here
 
 ```bash
 # 用 POST 替代原本的 PUT /api/admin/categories/:id
-curl -X POST "http://localhost:8080/api/admin/categories/123" \
+curl -X POST "http://localhost:9090/api/admin/categories/123" \
   -H "Content-Type: application/json" \
   -H "X-HTTP-Method-Override: PUT" \
   -d '{ "name": "新名称" }'
 
 # 用 POST + 查询参数替代原本的 DELETE /api/admin/categories/:id
-curl -X POST "http://localhost:8080/api/admin/categories/123?_method=DELETE"
+curl -X POST "http://localhost:9090/api/admin/categories/123?_method=DELETE"
 ```
 
 同时，服务端已开启 CORS，允许以下特性以满足浏览器预检：
@@ -489,7 +492,7 @@ fetch('/api/user/pwa-status', {
   - 通常不需要 `seriesId`
   - 示例（创建）：
 ```bash
-curl -X POST "http://localhost:8080/api/admin/banners" \
+curl -X POST "http://localhost:9090/api/admin/banners" \
   -H "Content-Type: application/json" \
   -d '{
     "title": "首页顶部广告",
@@ -507,7 +510,7 @@ curl -X POST "http://localhost:8080/api/admin/banners" \
   - 建议：`title,imageUrl,seriesId,isActive,weight,categoryId`；可选 `linkUrl`
   - 示例（创建）：
 ```bash
-curl -X POST "http://localhost:8080/api/admin/banners" \
+curl -X POST "http://localhost:9090/api/admin/banners" \
   -H "Content-Type: application/json" \
   -d '{
     "title": "热播 · 朱雀堂",
@@ -528,7 +531,7 @@ curl -X POST "http://localhost:8080/api/admin/banners" \
   - 说明：服务端将图片存入 R2，并把生成的 URL（或 key）写回该 Banner 的 `imageUrl` 字段
   - cURL 示例：
 ```bash
-curl -X POST "http://localhost:8080/api/admin/banners/123/image" \
+curl -X POST "http://localhost:9090/api/admin/banners/123/image" \
   -H "Accept: application/json" \
   -F "file=@/path/to/banner.jpg"
 ```
@@ -540,7 +543,7 @@ curl -X POST "http://localhost:8080/api/admin/banners/123/image" \
   - 🔒 本轮变更（SSRF 防护）：仅允许 `https://`；禁止 localhost、内网/保留 IP（10/172.16-31/192.168/127/169.254/100.64 等）与 IPv6 本地地址；禁止跟随重定向；最大响应 10MB、超时 15s；非法地址返回 `400`
   - cURL 示例：
 ```bash
-curl -X POST "http://localhost:8080/api/admin/banners/123/image-from-url" \
+curl -X POST "http://localhost:9090/api/admin/banners/123/image-from-url" \
   -H "Content-Type: application/json" \
   -d '{ "url": "https://example.com/image.jpg" }'
 ```
@@ -719,7 +722,7 @@ curl -X POST "http://localhost:8080/api/admin/banners/123/image-from-url" \
   - 说明：服务端将图片存入 R2，并把生成的 URL 写回该系列的 `coverUrl` 字段
   - cURL 示例：
 ```bash
-curl -X POST "http://localhost:8080/api/admin/series/123/cover" \
+curl -X POST "http://localhost:9090/api/admin/series/123/cover" \
   -H "Accept: application/json" \
   -F "file=@/path/to/cover.jpg"
 ```
@@ -731,7 +734,7 @@ curl -X POST "http://localhost:8080/api/admin/series/123/cover" \
   - 🔒 本轮变更（SSRF 防护）：仅允许 `https://`；禁止 localhost、内网/保留 IP 与 IPv6 本地地址；禁止跟随重定向；最大响应 10MB、超时 15s；非法地址返回 `400`
   - cURL 示例：
 ```bash
-curl -X POST "http://localhost:8080/api/admin/series/123/cover-from-url" \
+curl -X POST "http://localhost:9090/api/admin/series/123/cover-from-url" \
   -H "Content-Type: application/json" \
   -d '{ "url": "https://example.com/cover.jpg" }'
 ```
@@ -1564,7 +1567,7 @@ curl "http://localhost:9090/api/admin/series/validation/check-duplicate-names"
 # ========== 管理员认证 ==========
 
 # 初始化第一个管理员（仅首次部署时调用一次）
-curl -X POST "http://localhost:8080/api/admin/auth/init" \
+curl -X POST "http://localhost:9090/api/admin/auth/init" \
   -H "Content-Type: application/json" \
   -d '{
     "username": "admin",
@@ -1573,7 +1576,7 @@ curl -X POST "http://localhost:8080/api/admin/auth/init" \
   }'
 
 # 管理员登录（获取 token）
-curl -X POST "http://localhost:8080/api/admin/auth/login" \
+curl -X POST "http://localhost:9090/api/admin/auth/login" \
   -H "Content-Type: application/json" \
   -d '{
     "username": "admin",
@@ -1582,7 +1585,7 @@ curl -X POST "http://localhost:8080/api/admin/auth/login" \
 # 响应中 access_token 即为后续所有管理端接口的鉴权凭证
 
 # 获取当前管理员信息
-curl -X GET "http://localhost:8080/api/admin/auth/me" \
+curl -X GET "http://localhost:9090/api/admin/auth/me" \
   -H "Authorization: Bearer <admin_access_token>"
 
 # ========== 以下所有管理端接口均需带 Authorization 头 ==========
@@ -1592,7 +1595,7 @@ curl -X GET "http://localhost:8080/api/admin/auth/me" \
 curl -X GET "http://localhost:3000/api/banners?page=1&size=10"
 
 # 新建轮播图（管理端）
-curl -X POST "http://localhost:8080/api/admin/banners" \
+curl -X POST "http://localhost:9090/api/admin/banners" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $TOKEN" \
   -d '{
@@ -1604,7 +1607,7 @@ curl -X POST "http://localhost:8080/api/admin/banners" \
   }'
 
 # 新建用户（🔒 仅接受白名单字段，id 等字段会被忽略）
-curl -X POST "http://localhost:8080/api/admin/users" \
+curl -X POST "http://localhost:9090/api/admin/users" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $TOKEN" \
   -d '{
@@ -1615,11 +1618,11 @@ curl -X POST "http://localhost:8080/api/admin/users" \
   }'
 
 # 获取用户登录日志
-curl -X GET "http://localhost:8080/api/admin/users/1001/login-logs?page=1&size=20" \
+curl -X GET "http://localhost:9090/api/admin/users/1001/login-logs?page=1&size=20" \
   -H "Authorization: Bearer $TOKEN"
 
 # 新建剧集
-curl -X POST "http://localhost:8080/api/admin/episodes" \
+curl -X POST "http://localhost:9090/api/admin/episodes" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $TOKEN" \
   -d '{
@@ -1630,45 +1633,45 @@ curl -X POST "http://localhost:8080/api/admin/episodes" \
   }'
 
 # 获取剧集列表（返回包含 seriesTitle 字段）
-curl -X GET "http://localhost:8080/api/admin/episodes?page=1&size=5" \
+curl -X GET "http://localhost:9090/api/admin/episodes?page=1&size=5" \
   -H "Authorization: Bearer $TOKEN"
 
 # 获取剧集下载地址
-curl -X GET "http://localhost:8080/api/admin/episodes/2136/download-urls" \
+curl -X GET "http://localhost:9090/api/admin/episodes/2136/download-urls" \
   -H "Authorization: Bearer $TOKEN"
 
 # 系列管理 - 软删除功能示例
 
 # 获取所有系列（仅未删除）
-curl -X GET "http://localhost:8080/api/admin/series?page=1&size=20" \
+curl -X GET "http://localhost:9090/api/admin/series?page=1&size=20" \
   -H "Authorization: Bearer $TOKEN"
 
 # 获取所有系列（包括已删除）
-curl -X GET "http://localhost:8080/api/admin/series?page=1&size=20&includeDeleted=true" \
+curl -X GET "http://localhost:9090/api/admin/series?page=1&size=20&includeDeleted=true" \
   -H "Authorization: Bearer $TOKEN"
 
 # 按分类筛选系列（短剧）
-curl -X GET "http://localhost:8080/api/admin/series?page=1&size=20&categoryId=1" \
+curl -X GET "http://localhost:9090/api/admin/series?page=1&size=20&categoryId=1" \
   -H "Authorization: Bearer $TOKEN"
 
 # 按分类筛选系列（电影）
-curl -X GET "http://localhost:8080/api/admin/series?page=1&size=20&categoryId=2" \
+curl -X GET "http://localhost:9090/api/admin/series?page=1&size=20&categoryId=2" \
   -H "Authorization: Bearer $TOKEN"
 
 # 按分类筛选系列（电视剧）
-curl -X GET "http://localhost:8080/api/admin/series?page=1&size=20&categoryId=3" \
+curl -X GET "http://localhost:9090/api/admin/series?page=1&size=20&categoryId=3" \
   -H "Authorization: Bearer $TOKEN"
 
 # 获取已删除系列列表
-curl -X GET "http://localhost:8080/api/admin/series/deleted?page=1&size=20" \
+curl -X GET "http://localhost:9090/api/admin/series/deleted?page=1&size=20" \
   -H "Authorization: Bearer $TOKEN"
 
 # 软删除系列（推荐使用，不会出现外键约束错误）
-curl -X DELETE "http://localhost:8080/api/admin/series/2455" \
+curl -X DELETE "http://localhost:9090/api/admin/series/2455" \
   -H "Authorization: Bearer $TOKEN"
 
 # 恢复已删除的系列
-curl -X POST "http://localhost:8080/api/admin/series/2455/restore" \
+curl -X POST "http://localhost:9090/api/admin/series/2455/restore" \
   -H "Authorization: Bearer $TOKEN"
 
 # 系列数据验证 ⭐ (默认全量扫描)
@@ -1700,49 +1703,49 @@ curl -X GET "http://localhost:9090/api/admin/series/validation/episodes/2455" \
 # 数据分析接口 ⭐ (高级统计)
 
 # 获取综合数据统计（包含所有核心指标）
-curl -X GET "http://localhost:8080/api/admin/dashboard/stats" \
+curl -X GET "http://localhost:9090/api/admin/dashboard/stats" \
   -H "Authorization: Bearer $TOKEN"
 
 # 获取 Dashboard 概览卡片数据
-curl -X GET "http://localhost:8080/api/admin/dashboard/overview" \
+curl -X GET "http://localhost:9090/api/admin/dashboard/overview" \
   -H "Authorization: Bearer $TOKEN"
 
 # 获取活跃用户统计（DAU/WAU/MAU）
-curl -X GET "http://localhost:8080/api/admin/dashboard/active-users" \
+curl -X GET "http://localhost:9090/api/admin/dashboard/active-users" \
   -H "Authorization: Bearer $TOKEN"
 
 # 获取昨天注册用户的次日留存率
-curl -X GET "http://localhost:8080/api/admin/dashboard/retention?retentionDays=1" \
+curl -X GET "http://localhost:9090/api/admin/dashboard/retention?retentionDays=1" \
   -H "Authorization: Bearer $TOKEN"
 
 # 获取7天前注册用户的7日留存率
-curl -X GET "http://localhost:8080/api/admin/dashboard/retention?retentionDays=7&cohortDate=2025-10-28" \
+curl -X GET "http://localhost:9090/api/admin/dashboard/retention?retentionDays=7&cohortDate=2025-10-28" \
   -H "Authorization: Bearer $TOKEN"
 
 # 获取最近7天的次日留存率趋势
-curl -X GET "http://localhost:8080/api/admin/dashboard/retention-trend?days=7&retentionDays=1" \
+curl -X GET "http://localhost:9090/api/admin/dashboard/retention-trend?days=7&retentionDays=1" \
   -H "Authorization: Bearer $TOKEN"
 
 # 获取内容播放统计（包含Top10热门剧集）
-curl -X GET "http://localhost:8080/api/admin/dashboard/content-stats" \
+curl -X GET "http://localhost:9090/api/admin/dashboard/content-stats" \
   -H "Authorization: Bearer $TOKEN"
 
 # 获取完播率和平均观影时长
-curl -X GET "http://localhost:8080/api/admin/dashboard/watch-stats" \
+curl -X GET "http://localhost:9090/api/admin/dashboard/watch-stats" \
   -H "Authorization: Bearer $TOKEN"
 
 # 获取观看日志统计信息
-curl -X GET "http://localhost:8080/api/admin/dashboard/watch-logs-stats" \
+curl -X GET "http://localhost:9090/api/admin/dashboard/watch-logs-stats" \
   -H "Authorization: Bearer $TOKEN"
 
 # 手动触发观看日志归档（删除1年前的数据）
-curl -X POST "http://localhost:8080/api/admin/dashboard/archive-watch-logs" \
+curl -X POST "http://localhost:9090/api/admin/dashboard/archive-watch-logs" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $TOKEN" \
   -d '{"daysToKeep": 365, "archiveBeforeDelete": false}'
 
 # 归档并保存历史数据（先保存到archive表，再删除）
-curl -X POST "http://localhost:8080/api/admin/dashboard/archive-watch-logs" \
+curl -X POST "http://localhost:9090/api/admin/dashboard/archive-watch-logs" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $TOKEN" \
   -d '{"daysToKeep": 365, "archiveBeforeDelete": true}'
@@ -2140,7 +2143,8 @@ curl "http://localhost:9090/api/admin/export/overview-stats?startDate=2026-03-25
 - ✅ `POST /api/admin/auth/login` — 管理员登录，返回 JWT token
 - ✅ `GET /api/admin/auth/me` — 获取当前管理员信息
 - ✅ 独立 `admin_users` 表，不与前台用户混用
-- ✅ 支持 `ADMIN_JWT_SECRET` / `ADMIN_JWT_EXPIRES_IN` 环境变量（可选，回退 `JWT_SECRET`）
+- ✅ 支持 `ADMIN_JWT_SECRET` / `ADMIN_JWT_EXPIRES_IN` 环境变量（当时可选，可回退 `JWT_SECRET`）
+  > ⚠️ 该回退行为已在后续安全加固中**移除**：现在 `ADMIN_JWT_SECRET` 为必填，且必须与 `JWT_SECRET` 不同。
 
 **管理端接口全局鉴权保护**
 - ✅ 所有 `/admin/**` 管理端接口（除 login/init 外）已加 `AdminJwtAuthGuard`
@@ -2404,16 +2408,16 @@ const title = episode.seriesTitle;
 **使用示例**：
 ```bash
 # 获取全部统计数据（不传时间参数）
-curl "http://localhost:8080/api/admin/advertising/dashboard"
+curl "http://localhost:9090/api/admin/advertising/dashboard"
 
 # 获取指定时间范围的统计数据
-curl "http://localhost:8080/api/admin/advertising/dashboard?from=2025-11-01&to=2025-11-30"
+curl "http://localhost:9090/api/admin/advertising/dashboard?from=2025-11-01&to=2025-11-30"
 
 # 只传开始日期（从指定日期到当前）
-curl "http://localhost:8080/api/admin/advertising/dashboard?from=2025-11-01"
+curl "http://localhost:9090/api/admin/advertising/dashboard?from=2025-11-01"
 
 # 只传结束日期（从最早到指定日期）
-curl "http://localhost:8080/api/admin/advertising/dashboard?to=2025-11-30"
+curl "http://localhost:9090/api/admin/advertising/dashboard?to=2025-11-30"
 ```
 
 ---
@@ -2468,13 +2472,15 @@ curl "http://localhost:8080/api/admin/advertising/dashboard?to=2025-11-30"
 
 **功能**: 将长URL转换为短链接，用于分享和推广
 
-**认证**: 无需认证（公开接口）
+**认证**: 需要登录（用户 token 或管理员 token 均可，匿名不可用）
+
+> 该接口历史上是公开的，现已收紧。匿名调用会返回 `401`。原因是短链服务会消耗 Short.io 配额、且 `domain` 参数受白名单约束，属于需要计费与防滥用的写操作。
 
 **请求参数**:
 ```json
 {
   "originalURL": "string",      // 必填，原始长URL
-  "domain": "string",           // 必填，短链接域名（如：xgtv.short.gy），必须与配置的域名一致
+  "domain": "string",           // 可选，不传则用后端 SHORT_IO_DEFAULT_DOMAIN（缺省 xgtv.short.gy）；需先在 Short.io 控制台配置
   "allowDuplicates": false,     // 可选，是否允许重复创建，默认false。设为false时，相同URL会返回已存在的短链接
   "ttl": "string"               // 可选，过期时间（ISO 8601格式，如：2026-01-18T00:00:00Z），不设置则永久有效
 }
@@ -2499,9 +2505,11 @@ curl "http://localhost:8080/api/admin/advertising/dashboard?to=2025-11-30"
 
 **使用示例**:
 ```bash
-# 创建短链接
+# 创建短链接（需带管理员 token；也接受普通用户 token）
+# 短链路由在 client-api(:8080) 与 admin-api(:9090) 两个进程上都已挂载，端口按你的部署选
 curl -X POST "http://localhost:8080/api/short-links" \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <ADMIN_JWT_TOKEN>" \
   -d '{
     "originalURL": "https://t.me/xgshort_bot/xgapp?startapp=__series__BmK2rTAsXW9",
     "domain": "xgtv.short.gy",
@@ -2511,10 +2519,14 @@ curl -X POST "http://localhost:8080/api/short-links" \
 ```
 
 **配置说明**:
-- 需要在 `.env` 文件中配置 `SHORT_IO_API_KEY`
-- API key 安全存储在后端，前端无需传递
+- `.env` 中需配置 `SHORT_IO_API_KEY`；**未配置时接口直接返回 `500 Short.io API key is not configured`**（启动日志会有一条 warn）
+- `SHORT_IO_DEFAULT_DOMAIN`：默认短链域名，缺省为 `xgtv.short.gy`
+- `SHORT_LINK_ALLOWED_DOMAINS`：目标域名白名单，逗号分隔，支持 `*.example.com` 通配。
+  **未配置时不做域名限制，任何 HTTPS 地址都能建短链（存在开放重定向风险），启动日志会告警**；强烈建议配置
+- `originalURL` 必须是 HTTPS，否则返回 `400 URL 必须使用 HTTPS 协议`
+- API key 安全存储在后端，前端无需传递；之前的密钥已硬删除，不再有内置兜底 key
 - 使用 Short.io 服务提供短链接功能
-- 接口无需认证，可公开访问
+- 认证由 `JwtOrAdminGuard` 校验：先按管理员 token 校验，失败再按用户 token 校验，两者都失败返回 `401`
 
 ---
 

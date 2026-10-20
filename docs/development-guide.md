@@ -52,7 +52,11 @@ DB_PASS=your_password
 DB_NAME=short_drama_dev
 
 # JWT配置
-JWT_SECRET=your_development_jwt_secret
+# ⚠️ 安全加固后这三把都得有，缺一个进程就起不来（少于 16 位或仍是 very-secret-key 同样拒绝）
+# 本地随便生成：openssl rand -base64 48
+JWT_SECRET=your_development_jwt_secret_at_least_16_chars
+ADMIN_JWT_SECRET=your_development_admin_jwt_secret_16_chars
+APP_SECRET=your_development_app_secret_16_chars
 JWT_EXPIRES_IN=7d
 REFRESH_TOKEN_EXPIRES_IN=30d
 

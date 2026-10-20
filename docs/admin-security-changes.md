@@ -158,7 +158,12 @@ Episode 额外字段：
 - `GET /api/auth/admin/guest-statistics`
 - `POST /api/auth/admin/reactivate-guest/:userId`
 
-> 说明：内容导入模块（`/api/admin/ingest/*`、`/api/admin/test-ingest`）本轮按需求暂不加 token，保持无鉴权。
+> ⚠️ **已变更**：内容导入模块（`/api/admin/ingest/*`、`/api/admin/test-ingest`）此前确实按需求暂不加 token，
+> 后续审计（C4 / XG-04 同批）已补上 `AdminJwtAuthGuard`，现在**必须带管理员 token**，否则返回 `401 缺少管理员登录凭证`。
+> 采集端如果之前是匿名调用，需要先登录 `POST /api/admin/auth/login` 换 token。
+
+另：`POST /api/video/episode-url`（兼容旧接口）也一并从用户级控制器迁出，
+改挂 `AdminJwtAuthGuard` 且 `ossUrl`/`cdnUrl`/`subtitleUrl` 必须是 HTTPS —— 原实现只要登录用户即可覆盖任意剧集的播放源（XG-04）。
 
 ## 七、Banner 曝光/点击限流
 

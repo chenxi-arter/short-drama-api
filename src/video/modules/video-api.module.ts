@@ -4,6 +4,7 @@
 import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { VideoController } from '../controllers/video.controller';
+import { VideoCompatAdminController } from '../controllers/video-compat-admin.controller';
 import { PublicVideoController } from '../controllers/public-video.controller';
 import { HomeController } from '../controllers/home.controller';
 import { ListController } from '../controllers/list.controller';
@@ -91,6 +92,8 @@ import { RateLimitGuard } from '../../common/guards/rate-limit.guard';
     // 原始控制器（保持兼容）
     PublicVideoController,
     VideoController,
+    // 旧版写播放地址接口（管理员级，与上面的用户级控制器分开挂载）
+    VideoCompatAdminController,
     HomeController,
     ListController,
     CategoryController,

@@ -17,7 +17,11 @@ export class CreateShortLinkDto {
   @IsString()
   ttl?: string;
 
-  @ApiPropertyOptional({ description: '自定义域名', example: 'xgtv.short.gy' })
+  @ApiPropertyOptional({
+    description:
+      '自定义域名（需先在 Short.io 控制台配置）。不传则取后端 SHORT_IO_DEFAULT_DOMAIN，缺省 xgtv.short.gy',
+    example: 'xgtv.short.gy',
+  })
   @IsOptional()
   @IsString()
   domain?: string;

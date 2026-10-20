@@ -201,48 +201,14 @@ export class VideoController extends BaseController {
     }
   }
 
-  /**
-   * 创建剧集播放地址（兼容旧API）
-   * @deprecated 请使用 /api/video/url/episode POST
+  /*
+   * POST /api/video/episode-url（写播放地址）已迁出本控制器。
+   *
+   * 安全审计 XG-04：该接口过去只挂在类级 JwtAuthGuard 下（用户级），
+   * 任何登录用户都能覆盖任意剧集的播放源 → 全站视频流劫持。
+   * 现由 VideoCompatAdminController 承载，改用 AdminJwtAuthGuard + HTTPS 校验，
+   * 路径保持不变，老脚本只需把 token 换为管理员 token。
    */
-  @Post('episode-url')
-  async createEpisodeUrl(
-    @Body('episodeId') episodeId: number,
-    @Body('quality') quality: string,
-    @Body('ossUrl') ossUrl: string,
-    @Body('cdnUrl') cdnUrl: string,
-    @Body('subtitleUrl') subtitleUrl?: string,
-  ) {
-    try {
-      if (!episodeId || episodeId <= 0) {
-        return this.error('剧集ID无效', 400);
-      }
-
-      if (!quality || quality.trim().length === 0) {
-        return this.error('清晰度不能为空', 400);
-      }
-
-      if (!ossUrl || ossUrl.trim().length === 0) {
-        return this.error('OSS地址不能为空', 400);
-      }
-
-      if (!cdnUrl || cdnUrl.trim().length === 0) {
-        return this.error('CDN地址不能为空', 400);
-      }
-
-      const result = await this.videoService.createEpisodeUrl(
-        episodeId,
-        quality.trim(),
-        ossUrl.trim(),
-        cdnUrl.trim(),
-        subtitleUrl?.trim()
-      );
-
-      return this.success(result, '播放地址创建成功');
-    } catch (error) {
-      return this.handleServiceError(error, '创建播放地址失败');
-    }
-  }
 
   /**
    * 通过访问密钥获取播放地址（兼容旧API）
