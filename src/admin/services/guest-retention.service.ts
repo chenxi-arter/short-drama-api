@@ -156,6 +156,11 @@ export class GuestRetentionService {
    * 默认不启用：需要在 env 里显式设置 `GUEST_PURGE_ENABLED=true`。
    * 建议先用 `GET /api/admin/users/guest-purge/preview` 看过命中量再开。
    *
+   * ⚠️ 执行进程：**admin 进程**（`AdminAppModule` 已开启 `ScheduleModule.forRoot()`）。
+   *    注意 admin 进程也加载了 `UserModule`，ScheduleModule 一开就会连带激活
+   *    `UserService` 每 5 分钟刷在线时长的任务，所以 `main.admin.ts` 会把
+   *    `APP_PROCESS_ROLE` 置为 'admin'，那个任务据此跳过，避免和 client 进程重复累加。
+   *
    * 可调参数：
    *   GUEST_PURGE_INACTIVE_MONTHS=3
    *   GUEST_PURGE_BATCH_SIZE=200

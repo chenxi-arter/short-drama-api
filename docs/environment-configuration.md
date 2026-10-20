@@ -572,7 +572,12 @@ GUEST_PURGE_INACTIVE_MONTHS=6    # 拉长到半年，风险更低
 
 ### 技术细节
 
-- 定时任务时间：每天 **04:30（Asia/Shanghai）**，只在 admin 进程执行（`AdminModule` 内注册）
+- 定时任务时间：每天 **04:30（Asia/Shanghai）**，只在 **admin 进程**执行
+  - `AdminAppModule` 为此开启了 `ScheduleModule.forRoot()`（此前没开，`@Cron` 不会触发）
+  - 副作用处理：admin 进程也加载了 `UserModule`，开启 ScheduleModule 会连带激活
+    `UserService` 每 5 分钟刷在线时长的任务。`main.admin.ts` 会把 `APP_PROCESS_ROLE` 置为
+    `admin`，该任务检测到后直接跳过，避免和 client 进程重复累加在线时长
+  - 所以改完 `GUEST_PURGE_ENABLED` 后，**要重启 admin 进程**，定时任务才会读到这个值
 - 删除顺序（单批一个事务）：
   `comment_likes`(自己点的) → `comment_likes`(自己评论收到的) → `comments.reply_to_user_id` 置空
   → `comments` → `watch_progress` → `watch_logs` → `browse_history` → `favorites`

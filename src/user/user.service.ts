@@ -87,9 +87,14 @@ export class UserService {
 
   /**
    * 每 5 分钟把 Redis 中的在线时长数据批量刷入 MySQL
+   *
+   * ⚠️ 只允许 client 进程执行。admin 进程也加载了 UserModule（为了让管理端能查用户），
+   *    并且 AppAdminModule 开启了 ScheduleModule，若不加这道判断，两个进程会在同一时刻
+   *    读取同一批 Redis 心跳并各自累加一次 duration，导致在线时长翻倍。
    */
   @Cron('0 */5 * * * *')
   async flushOnlineDataToDb(): Promise<void> {
+    if (process.env.APP_PROCESS_ROLE === 'admin') return;
     if (!this.redisClient) return;
 
     const today = this.getBeijingDateOnly();

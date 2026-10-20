@@ -1,6 +1,10 @@
 import { config } from 'dotenv';
 config();
 
+// 进程角色标记：admin 进程只跑后台任务，不重复执行 client 进程的定时任务
+// （见 UserService.flushOnlineDataToDb 里的判断）。必须在 NestFactory 创建前设置。
+process.env.APP_PROCESS_ROLE = 'admin';
+
 import { NestFactory } from '@nestjs/core';
 import { BadRequestException, ValidationPipe } from '@nestjs/common';
 import { ValidationError } from 'class-validator';
