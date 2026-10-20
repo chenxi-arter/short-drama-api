@@ -793,8 +793,14 @@ GET /api/search/hot-suggestions?limit=5&daysRange=7
 seriesShortId: string   // 二选一，系列ShortID（推荐）
 seriesId: number        // 二选一，系列ID（兼容）
 page: number            // 可选，页码，默认1
-size: number            // 可选，每页数量，默认20，最大200
+size: number            // 可选，每页数量，默认20
+                        //   指定了系列时最大 1000（可一次取完整部剧）
+                        //   未指定系列（全站剧集流）最大 200
 ```
+
+> **取全部剧集**：短剧单季可能有 400~500 集，直接传 `size=1000` 即可一次拿全，无需翻页拼装。
+> 若返回的 `hasMore` 为 `true`，说明该剧超过 1000 集，继续取 `page=2`。
+> 上限按「是否指定系列」区分，是为了避免公开接口被用来一次拉全站剧集。
 
 **返回数据**:
 ```json

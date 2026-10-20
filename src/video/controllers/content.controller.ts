@@ -7,6 +7,7 @@ import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { VideoService } from '../video.service';
 import { MediaQueryDto } from '../dto/media-query.dto';
 import { EpisodeListDto } from '../dto/episode-list.dto';
+import { resolveEpisodePageSizeLimit } from '../constants/episode-pagination.constants';
 import { BaseController } from './base.controller';
 
 /**
@@ -53,7 +54,12 @@ export class ContentController extends BaseController {
   @Get('episodes')
   async getEpisodeList(@Query() dto: EpisodeListDto, @Req() req) {
     try {
-      const { page, size } = this.normalizePagination(dto.page, dto.size, 200);
+      const hasSeries = Boolean(dto.seriesShortId || dto.seriesId);
+      const { page, size } = this.normalizePagination(
+        dto.page,
+        dto.size,
+        resolveEpisodePageSizeLimit(hasSeries)
+      );
 
       // 优先使用shortId，如果没有则使用ID
       if (dto.seriesShortId) {

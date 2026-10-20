@@ -7,6 +7,7 @@ import { Controller, Get, Query, Param } from '@nestjs/common';
 import { VideoService } from '../video.service';
 import { MediaQueryDto } from '../dto/media-query.dto';
 import { EpisodeListDto } from '../dto/episode-list.dto'; 
+import { resolveEpisodePageSizeLimit } from '../constants/episode-pagination.constants';
 
 @Controller('public/video')   // 统一 /public 前缀，语义清晰
 export class PublicVideoController {
@@ -34,7 +35,11 @@ async listMedia(@Query() dto: MediaQueryDto) {
 @Get('episodes')
 async getPublicEpisodeList(@Query() dto: EpisodeListDto) {
   const page = Math.max(1, parseInt(dto.page || '1', 10));
-  const size = Math.min(200, Math.max(1, parseInt(dto.size || '20', 10)));
+  const hasSeries = Boolean(dto.seriesShortId || dto.seriesId);
+  const size = Math.min(
+    resolveEpisodePageSizeLimit(hasSeries),
+    Math.max(1, parseInt(dto.size || '20', 10))
+  );
   
   // 优先使用shortId，如果没有则使用ID
   if (dto.seriesShortId) {

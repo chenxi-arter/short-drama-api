@@ -9,6 +9,7 @@ import { VideoService } from '../video.service';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { MediaQueryDto } from '../dto/media-query.dto';
 import { EpisodeListDto } from '../dto/episode-list.dto';
+import { resolveEpisodePageSizeLimit } from '../constants/episode-pagination.constants';
 import { BaseController } from './base.controller';
 import { User } from '../../user/entity/user.entity';
 
@@ -305,7 +306,12 @@ export class VideoController extends BaseController {
   @Get('episodes')
   async getEpisodeList(@Query() dto: EpisodeListDto, @Req() req) {
     try {
-      const { page, size } = this.normalizePagination(dto.page, dto.size, 200);
+      const hasSeries = Boolean(dto.seriesShortId || dto.seriesId);
+      const { page, size } = this.normalizePagination(
+        dto.page,
+        dto.size,
+        resolveEpisodePageSizeLimit(hasSeries)
+      );
 
       if (dto.seriesShortId) {
         const result = await this.videoService.getEpisodeList(
