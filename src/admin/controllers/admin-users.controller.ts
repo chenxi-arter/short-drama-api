@@ -12,6 +12,7 @@ import { WatchLog } from '../../video/entity/watch-log.entity';
 import { UserOnlineDaily } from '../../user/entity/user-online-daily.entity';
 import { REDIS_CLIENT } from '../../core/redis/redis.module';
 import { AdminJwtAuthGuard } from '../guards/admin-jwt-auth.guard';
+import { GuestRetentionService } from '../services/guest-retention.service';
 
 type AdminUserListRaw = {
   u_id: string | number;
@@ -53,6 +54,7 @@ export class AdminUsersController {
     private readonly onlineDailyRepo: Repository<UserOnlineDaily>,
     @Inject(REDIS_CLIENT)
     private readonly redisClient: RedisClientType | null,
+    private readonly guestRetentionService: GuestRetentionService,
   ) {}
 
   @Get()
@@ -323,6 +325,43 @@ export class AdminUsersController {
     });
 
     return { total, items, page: currentPage, size: take };
+  }
+
+  // ───────────────────── 游客留存清理（硬删除） ─────────────────────
+  // 注意：这两个路由必须放在 @Get(':id') 之前声明，避免 'guest-purge' 被当成 id。
+
+  /**
+   * GET /api/admin/users/guest-purge/preview?inactiveMonths=3
+   * 只统计不删除：命中多少游客、都是谁、会连带删掉多少条数据。
+   */
+  @Get('guest-purge/preview')
+  async previewGuestPurge(@Query('inactiveMonths') inactiveMonths?: string) {
+    return this.guestRetentionService.preview({
+      inactiveMonths: inactiveMonths ? Number(inactiveMonths) : undefined,
+    });
+  }
+
+  /**
+   * POST /api/admin/users/guest-purge/run
+   * 真正执行删除。默认 dryRun=true，必须显式传 dryRun:false 才会写库。
+   * body: { inactiveMonths?: number, batchSize?: number, maxPerRun?: number, dryRun?: boolean }
+   */
+  @Post('guest-purge/run')
+  async runGuestPurge(
+    @Body()
+    body: {
+      inactiveMonths?: number;
+      batchSize?: number;
+      maxPerRun?: number;
+      dryRun?: boolean;
+    } = {},
+  ) {
+    return this.guestRetentionService.purge({
+      inactiveMonths: body.inactiveMonths,
+      batchSize: body.batchSize,
+      maxPerRun: body.maxPerRun,
+      dryRun: body.dryRun,
+    });
   }
 
   @Get(':id')

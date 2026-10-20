@@ -42,6 +42,7 @@ import { WatchLogService } from '../video/services/watch-log.service';
 import { WatchLogsCleanupService } from '../video/services/watch-logs-cleanup.service';
 import { ExportOptimizationService } from './services/export-optimization.service';
 import { DauService } from './services/dau.service';
+import { GuestRetentionService } from './services/guest-retention.service';
 
 @Module({
   imports: [
@@ -88,6 +89,7 @@ import { DauService } from './services/dau.service';
     WatchLogsCleanupService,
     ExportOptimizationService,
     DauService,
+    GuestRetentionService,
   ],
 })
 export class AdminModule {}

@@ -434,6 +434,66 @@ fetch('/api/user/pwa-status', {
 - 重新激活游客
   - `POST /api/auth/admin/reactivate-guest/:userId`
 
+#### 游客彻底清理（硬删除）⭐ 新增
+
+> 与上面的 `clean-inactive-guests` 不同：那个只把 `is_active` 置 0（数据全留，可恢复）；
+> 下面这两个是**真删数据**，用户及其评论、点赞、观看进度、收藏、登录态一起清掉，不可恢复。
+
+- 先看会删掉什么（只统计，不写库）
+  - `GET /api/admin/users/guest-purge/preview?inactiveMonths=3`
+  - 返回：
+```json
+{
+  "dryRun": true,
+  "inactiveMonths": 3,
+  "minInactiveMonths": 2,
+  "affectsRecent35Days": false,
+  "cutoff": "2026-07-20",
+  "totalUsers": 12840,
+  "sample": [
+    { "id": 7812, "nickname": "游客003421", "username": "guest_003421",
+      "createdAt": "2026-03-02T10:11:12.000Z", "lastOnlineDate": "2026-04-01", "lastWatchAt": null }
+  ],
+  "impact": {
+    "comments": 3201, "commentLikesGiven": 810, "commentLikesReceived": 44,
+    "repliesToUserComments": 19, "watchProgress": 58210, "watchLogs": 90321,
+    "browseHistory": 0, "favorites": 7311, "episodeReactions": 1902,
+    "refreshTokens": 12840, "onlineDaily": 30211,
+    "advertisingEvents": 512, "advertisingConversions": 87
+  }
+}
+```
+  - `impact` 里出现 `-1` 表示该表统计失败（表结构不一致），不影响其他统计
+  - `minInactiveMonths: 2` 是判定周期下限；传更小的值会被自动抬到 2 个月
+  - `affectsRecent35Days` 恒为 `false`：判定周期 ≥ 2 个月时，被删用户在最近 35 天内必然零记录，
+    所以**最近 35 天的 DAU / 在线时长不受影响**（Redis HLL 也只保留 35 天）
+
+- 真正执行删除
+  - `POST /api/admin/users/guest-purge/run`
+  - Body（全部可选）：
+```json
+{
+  "inactiveMonths": 3,   // 判定周期，默认 3（按月=30天折算），下限 2
+  "batchSize": 200,      // 每批条数，默认 200，上限 1000
+  "maxPerRun": 5000,     // 单次最多删多少个用户，默认 5000
+  "dryRun": false        // ⚠️ 不传或传 true 都只演练，必须显式 false 才真删
+}
+```
+  - 返回：`{ dryRun, deletedUsers, batches, affected: {...}, truncated, durationMs }`
+  - `truncated: true` 表示达到 `maxPerRun` 提前结束，剩余量下次继续
+
+- 「不活跃」的判定口径（`users` 表没有 `last_login_at`，靠业务表反推）
+  - 同时满足才算命中：`is_guest = 1`、`email IS NULL`、`telegram_id IS NULL`、
+    `created_at` 早于截止日，且以下各表在截止日之后**没有任何记录**：
+    `user_online_daily.date`、`watch_progress.updated_at`、`watch_logs.watch_date`、`refresh_tokens.created_at`
+  - 也就是说：只要有一个活动痕迹落在阈值内，就不会被删
+
+- 定时执行
+  - 每天 04:30（北京时间）检查一次，**默认关闭**
+  - env：`GUEST_PURGE_ENABLED=true`（开关）、`GUEST_PURGE_INACTIVE_MONTHS=3`、
+    `GUEST_PURGE_BATCH_SIZE=200`、`GUEST_PURGE_MAX_PER_RUN=5000`
+  - 建议先跑 `preview` 确认量级，再打开开关
+
 > 说明：内容导入模块（`/api/admin/ingest/*`、`/api/admin/test-ingest`）本轮按需求暂不加 token，保持无鉴权。
 
 ---

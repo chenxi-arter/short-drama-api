@@ -490,6 +490,98 @@ ENABLE_FAKE_COMMENTS=false     # 建议关闭
 | 生成耗时 | ~1ms/50条 |
 | API延迟增加 | < 10% |
 
+## 🧹 游客数据清理配置详解
+
+### 功能说明
+
+定时**硬删除**长期不活跃的游客用户及其全部关联数据（评论、点赞、观看进度、观看日志、
+收藏、点赞点踩、登录态、每日在线记录、广告事件）。
+
+与 `POST /api/auth/admin/clean-inactive-guests`（只把 `is_active` 置 0，可恢复）不是一回事，
+本功能删掉就**不可恢复**，所以默认关闭。
+
+### 配置参数
+
+| 参数名 | 类型 | 默认值 | 说明 |
+|--------|------|--------|------|
+| `GUEST_PURGE_ENABLED` | boolean | `false` | 是否启用每日定时清理；只有 `true` 才会真正执行 |
+| `GUEST_PURGE_INACTIVE_MONTHS` | number | `3` | 判定周期（月），按月=30天折算。**下限 2 个月**，更小的值会被自动抬到 2 |
+| `GUEST_PURGE_BATCH_SIZE` | number | `200` | 每批删除条数，上限 1000 |
+| `GUEST_PURGE_MAX_PER_RUN` | number | `5000` | 单次运行最多删多少个用户，超出的留到下次 |
+
+### 为什么不能低于 2 个月（60 天）
+
+这直接关系到「最近 35 天的数据准不准」：
+
+1. DAU 的计算是三路 SQL 取并集（`users.created_at` / `user_online_daily.duration>0` / `watch_logs.watch_date`），
+   再和 Redis HyperLogLog（`dau:YYYYMMDD`）取 `Math.max`
+2. **HLL 的 key 只保留 35 天**。超过 35 天的日期没有任何兜底，完全依赖上面三张表
+3. 一旦阈值压到 35 天以内，被删的用户就可能带着「最近 35 天内」的记录被删掉，
+   这些日期的 DAU、在线时长会出现**永久缺口**，HLL 也补不回来
+4. 反过来，只要阈值 ≥ 35 天，判定条件「cutoff 之后零活动」就保证了
+   被删用户在最近 35 天里**一条记录都没有** —— 最近 35 天的统计天然准确，不需要任何额外处理
+
+所以代码里把下限锁在 60 天，比 35 天留了 25 天余量。`preview` 返回的
+`affectsRecent35Days` 字段专门用来确认这一点（恒为 `false`）。
+
+### 「不活跃」怎么判定
+
+`users` 表没有 `last_login_at` 列，所以最后活跃时间由业务表反推。
+下列条件**同时满足**才会被删：
+
+1. `is_guest = 1` 且 `email` 为 NULL 且 `telegram_id` 为 NULL（转正用户永不触碰）
+2. `created_at` 早于截止日
+3. 以下各表在截止日之后**都没有记录**：
+   - `user_online_daily.date`（每日在线心跳）
+   - `watch_progress.updated_at`（看剧进度）
+   - `watch_logs.watch_date`（观看日志）
+   - `refresh_tokens.created_at`（登录态签发时间）
+
+只要有一个活动痕迹落在阈值内，就不会被删——宁可漏删，不会误删活跃用户。
+
+### 使用建议
+
+**第一次上线：先别开开关，用预览接口看命中量**
+
+```bash
+# 1. 看会删多少（不写库）
+curl -H "Authorization: Bearer <admin_token>" \
+  "http://127.0.0.1:9090/api/admin/users/guest-purge/preview?inactiveMonths=3"
+
+# 2. 确认量级合理后再真删（先小批量试）
+curl -X POST -H "Authorization: Bearer <admin_token>" -H "Content-Type: application/json" \
+  -d '{"inactiveMonths":3,"maxPerRun":200,"dryRun":false}' \
+  "http://127.0.0.1:9090/api/admin/users/guest-purge/run"
+
+# 3. 观察几天没问题，再打开定时开关
+```
+
+```bash
+# 生产环境（确认无误后）
+GUEST_PURGE_ENABLED=true
+GUEST_PURGE_INACTIVE_MONTHS=3
+GUEST_PURGE_BATCH_SIZE=200
+GUEST_PURGE_MAX_PER_RUN=5000
+```
+
+**保守场景**（不确定前端有没有打心跳，怕误删）：
+```bash
+GUEST_PURGE_ENABLED=true
+GUEST_PURGE_INACTIVE_MONTHS=6    # 拉长到半年，风险更低
+```
+
+### 技术细节
+
+- 定时任务时间：每天 **04:30（Asia/Shanghai）**，只在 admin 进程执行（`AdminModule` 内注册）
+- 删除顺序（单批一个事务）：
+  `comment_likes`(自己点的) → `comment_likes`(自己评论收到的) → `comments.reply_to_user_id` 置空
+  → `comments` → `watch_progress` → `watch_logs` → `browse_history` → `favorites`
+  → `episode_reactions` → `refresh_tokens` → `user_online_daily`
+  → `advertising_events` → `advertising_conversions` → `users`
+- 最终 `DELETE FROM users` 上额外挂了 `is_guest = 1` 条件，防止「选中后刚好转正」被误删
+- 每批完成后清理 Redis 的 `online:last:{id}` / `online:{today}` / `online:{yesterday}`
+- 别人回复该用户的评论**不会删**，只是把 `reply_to_user_id` 置空
+
 ## ⚠️ 注意事项
 
 ### 1. 敏感信息保护
