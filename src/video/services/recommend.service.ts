@@ -87,8 +87,13 @@ export class RecommendService {
       const candidatePoolSize = Math.max(size * 30, 500);
       const highQualityPoolSize = Math.max(size * 10, 200);
 
-      // 先从播放量 100 万以上的内容中取候选池，再在应用层计算推荐分。
+      // 先取候选池（按播放/互动排序取前 N），再在应用层计算推荐分。
       // 避免直接 ORDER BY RAND() 扫全量，同时让高播放、高互动、较新内容更容易进入推荐。
+      //
+      // ⚠️ 这里曾经有一道 `AND s.play_count >= 1000000` 的硬门槛（2026-07-20 引入），
+      //    全站没有任何一部剧达到百万播放，导致候选池恒为空、推荐接口稳定返回
+      //    空列表（list: []），登录用户和游客都一样。已移除。
+      //    需要「优先推热门」时用排序表达，不要再用过滤条件把池子清空。
       const candidateQuery = `
         SELECT 
           e.id,
@@ -120,7 +125,6 @@ export class RecommendService {
         WHERE e.status = 'published'
           AND e.episode_number = 1
           AND s.is_active = 1
-          AND s.play_count >= 1000000
         ORDER BY s.play_count DESC, e.favorite_count DESC, e.like_count DESC, e.created_at DESC
         LIMIT ?
       `;
